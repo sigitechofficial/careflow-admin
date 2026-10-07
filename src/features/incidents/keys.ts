@@ -11,5 +11,8 @@ export const incidentKeys = {
   list: (filters: IncidentListFilters) => [...incidentKeys.all(), 'list', filters] as const,
   detail: (id: string) => [...incidentKeys.all(), 'detail', id] as const,
   actions: (id: string) => [...incidentKeys.all(), 'actions', id] as const,
+  investigators: (id: string) => [...incidentKeys.all(), 'investigators', id] as const,
+  employeeSuspensions: (employeeId: string) =>
+    [...incidentKeys.all(), 'employee-suspensions', employeeId] as const,
   myActions: () => [...incidentKeys.all(), 'my-actions'] as const,
 }

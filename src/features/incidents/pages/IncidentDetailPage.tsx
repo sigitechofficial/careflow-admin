@@ -24,6 +24,7 @@ import {
 import { ServiceUserIncidentHistoryPanel } from '@/features/incidents/components/ServiceUserIncidentHistoryPanel'
 import { IncidentCategoryDetailsView } from '@/features/incidents/components/IncidentCategoryDetailsView'
 import { IncidentNextStepBar } from '@/features/incidents/components/IncidentNextStepBar'
+import { externalBodyDisplayName } from '@/features/incidents/components/IncidentExternalBodiesCard'
 import { IncidentCorrectionDialog } from '@/features/incidents/components/IncidentCorrectionDialog'
 import {
   IncidentInjuriesSection,
@@ -39,6 +40,8 @@ import {
 } from '@/features/incidents/components/IncidentCorrectionMarks'
 import { CATEGORY_DETAILS_TITLE, NO_HOSPITAL_OUTCOME_CATEGORIES } from '@/features/incidents/category-details'
 import { useEmployee } from '@/features/employees/hooks/useEmployees'
+import { useVisitVoiceNotes } from '@/features/scheduling/hooks/useVisitVoiceNotes'
+import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
 import { IncidentOutcomeSection } from '@/features/incidents/components/IncidentOutcomeSection'
 import { IncidentTimeline } from '@/features/incidents/components/IncidentTimeline'
 import {
@@ -52,10 +55,21 @@ import {
   INCIDENT_STATUS_BADGE,
   INCIDENT_PERSON_KIND_OPTIONS,
   WHO_INFORMED_LABELS,
+  incidentLocationLabel,
+  isExternalBodyOpen,
 } from '@/features/incidents/types'
 
 const actionLabel = (code: string) =>
   IMMEDIATE_ACTION_OPTIONS.find((o) => o.value === code)?.label ?? code
+
+/** Carer voice notes recorded with this incident in the carer app (visit-linked incidents). */
+function IncidentCarerVoiceNotes({ jobId, incidentId }: { jobId: string; incidentId: string }) {
+  const { groups } = useVisitVoiceNotes(jobId)
+  const voiceNotes = groups
+    .filter((g) => g.entryType === 'incident' && g.registerIncidentId === incidentId)
+    .flatMap((g) => g.voiceNotes)
+  return <VoiceNoteList voiceNotes={voiceNotes} label="Carer voice notes" className="mt-3" />
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -129,6 +143,7 @@ export default function IncidentDetailPage() {
   const [correctOpen, setCorrectOpen] = React.useState(false)
   // Selected tab; null = follow the current workflow step (and jump there when the step changes).
   const [tab, setTab] = React.useState<string | null>(null)
+  const completeInvestigationRef = React.useRef<(() => void) | null>(null)
   const currentStepId = incident
     ? resolveIncidentDetailWorkflow(incident.status, Boolean(incident.outcome?.finalOutcome?.trim()))
         .currentId
@@ -261,12 +276,28 @@ export default function IncidentDetailPage() {
         status={incident.status}
         severity={incident.severity}
         hasFinalOutcome={hasFinalOutcome}
+        investigationStatus={incident.investigation?.investigationStatus ?? null}
+        undecidedSuspensions={
+          (incident.carerSuspensions ?? []).filter((s) => s.status !== 'LIFTED' && !s.continuedAt)
+            .length
+        }
+        openExternalBodies={(incident.externalBodies ?? [])
+          .filter((b) => isExternalBodyOpen(b.status))
+          .map(externalBodyDisplayName)}
         openMandatoryActions={openMandatoryActions}
         canReview={canReview}
         canClose={canClose}
         canReopen={canReopen}
         onGoToReview={() => setTab('review')}
         onReviewTab={(tab ?? workflow.currentId) === 'review'}
+        onCompleteInvestigation={
+          canInvestigateRecord
+            ? () => {
+                setTab('investigate')
+                completeInvestigationRef.current?.()
+              }
+            : undefined
+        }
       />
 
       <Tabs value={tab ?? workflow.currentId} onValueChange={setTab}>
@@ -375,6 +406,10 @@ export default function IncidentDetailPage() {
               <Field label={corrected('Other person', 'primaryPersonName')} value={incident.primaryPersonName} />
             )}
             <Field label={corrected('Branch', 'locationId')} value={incident.location?.name} />
+            <Field
+              label={corrected('Where it happened', 'locationKey', 'locationDetail')}
+              value={incidentLocationLabel(incident.locationKey, incident.locationDetail)}
+            />
             {incident.specificArea && (
               <Field label={locked('Specific area', REPORTER_ACCOUNT_LOCK)} value={incident.specificArea} />
             )}
@@ -554,8 +589,10 @@ export default function IncidentDetailPage() {
           hint={stepState.review.hint}
           state={stepState.review.state}
         >
-          {canReviewRecord || incident.review ? (
+          {canReviewRecord || incident.review || (incident.reviewCycles?.length ?? 0) > 0 ? (
             <IncidentReviewSection
+              // A new review cycle (after a reopen) starts from a fresh form.
+              key={incident.review?.id ?? `new-review-${incident.reviewCycles?.length ?? 0}`}
               incidentId={incident.id}
               review={incident.review}
               canEdit={canReviewRecord}
@@ -565,6 +602,7 @@ export default function IncidentDetailPage() {
               status={incident.status}
               severityDecision={incident.reviewSeverity}
               severityChanges={incident.severityChanges}
+              reviewCycles={incident.reviewCycles}
             />
           ) : (
             <p className="text-sm text-muted-foreground">No review recorded yet.</p>
@@ -585,11 +623,17 @@ export default function IncidentDetailPage() {
               incidentId={incident.id}
               investigation={incident.investigation}
               carerSuspensions={incident.carerSuspensions ?? []}
-              courseRecommendations={incident.courseRecommendations ?? []}
+              externalBodies={incident.externalBodies ?? []}
               canEdit={canInvestigateRecord}
+              completeRef={completeInvestigationRef}
               primaryEmployeeId={incident.primaryEmployeeId}
               serviceUsers={involvedServiceUsers}
               involvedEmployees={involvedEmployees}
+              suggestHigherLevel={
+                incident.severity === 'HIGH' ||
+                incident.severity === 'CRITICAL' ||
+                incident.category.key === 'DEATH'
+              }
             />
           )}
           {!canInvestigateRecord && !incident.investigation && (
@@ -610,6 +654,16 @@ export default function IncidentDetailPage() {
             incidentId={incident.id}
             actions={incident.actions}
             canManage={canManageActionsRecord}
+            findings={
+              incident.investigation
+                ? {
+                    rootCause: incident.investigation.rootCause,
+                    contributingFactors: incident.investigation.contributingFactors,
+                  }
+                : null
+            }
+            serviceUsers={involvedServiceUsers}
+            involvedEmployees={involvedEmployees}
           />
         </IncidentWorkflowStepCard>
         </TabsContent>
@@ -686,6 +740,9 @@ export default function IncidentDetailPage() {
                   <p className="whitespace-pre-wrap text-sm text-foreground">{incident.carerNotes}</p>
                 </div>
               )}
+              {incident.scheduledJobId ? (
+                <IncidentCarerVoiceNotes jobId={incident.scheduledJobId} incidentId={incident.id} />
+              ) : null}
             </SubBlock>
           </div>
         </Section>

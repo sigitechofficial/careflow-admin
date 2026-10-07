@@ -20,6 +20,8 @@ import {
   userDisplayName,
 } from '@/features/service-users/medication/medication-event-display'
 import type { MedicationEventDetail } from '@/features/service-users/api/medication-mar.api'
+import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
+import type { VisitVoiceNote } from '@/features/scheduling/types/visit-voice-note.types'
 import './mar-record.css'
 
 const WITNESS_RELATION_LABELS: Record<string, string> = {
@@ -182,12 +184,15 @@ export function RecordDetailDrawer({
   serviceUserId,
   eventId,
   onCorrect,
+  voiceNotes,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   serviceUserId: string
   eventId: string | null
   onCorrect?: () => void
+  /** Carer voice notes recorded with this administration (visit workspace only). */
+  voiceNotes?: VisitVoiceNote[]
 }) {
   const detailQuery = useMedicationEventDetail(serviceUserId, eventId, open)
   const ev = detailQuery.data
@@ -291,7 +296,12 @@ export function RecordDetailDrawer({
                 )}
               </div>
 
-              {(ev.reason || ev.notGivenReason || ev.notes || ev.prnReason || ev.prnOutcome) && (
+              {(ev.reason ||
+                ev.notGivenReason ||
+                ev.notes ||
+                ev.prnReason ||
+                ev.prnOutcome ||
+                (voiceNotes?.length ?? 0) > 0) && (
                 <div className="drawer-section">
                   <div className="drawer-label">Notes &amp; reason</div>
                   {(ev.reason || ev.notGivenReason) && (
@@ -300,6 +310,7 @@ export function RecordDetailDrawer({
                   {ev.notes && <DetailRow label="Notes" value={ev.notes} full />}
                   {ev.prnReason && <DetailRow label="PRN reason" value={ev.prnReason} />}
                   {ev.prnOutcome && <DetailRow label="PRN outcome" value={ev.prnOutcome} />}
+                  <VoiceNoteList voiceNotes={voiceNotes} label="Carer voice notes" />
                 </div>
               )}
 

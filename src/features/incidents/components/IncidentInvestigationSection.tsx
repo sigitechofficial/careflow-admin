@@ -1,25 +1,36 @@
 import * as React from 'react'
-import { BookOpen, UserCheck, UserX, X } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Textarea } from '@/shared/ui/form-field'
 import { Badge } from '@/shared/ui/badge'
-import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
-import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
-import { useEmployees } from '@/features/employees/hooks/useEmployees'
-import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
-import { useLearningCourses } from '@/features/learning/hooks/useLearning'
 import { useContributingFactorOptions } from '@/features/incidents/hooks/useContributingFactorOptions'
 import {
   ContributingFactorDetailEditor,
   ContributingFactorsReadView,
 } from '@/features/incidents/components/ContributingFactorDetail'
 import {
-  useRecommendIncidentCarerCourse,
-  useRemoveIncidentCarerCourseRecommendation,
-  useRemoveIncidentCarerSuspension,
+  useIncidentInvestigators,
   useSuspendIncidentCarer,
   useUpsertIncidentInvestigation,
 } from '@/features/incidents/hooks/useIncidents'
+import {
+  InvestigationEvidenceForm,
+  InvestigationEvidenceReadView,
+  initialEvidenceValues,
+  type InvestigationEvidenceValues,
+} from '@/features/incidents/components/IncidentInvestigationEvidence'
+import { IncidentExternalBodiesCard } from '@/features/incidents/components/IncidentExternalBodiesCard'
+import {
+  IncidentSuspensionCard,
+  type NewSuspensionHandle,
+} from '@/features/incidents/components/IncidentSuspensionCard'
+import {
+  InvestigationSetupForm,
+  InvestigationSetupReadView,
+  InvestigationSummaryLine,
+  initialSetupValues,
+  setupCompletionErrors,
+  type InvestigationSetupValues,
+} from '@/features/incidents/components/IncidentInvestigationSetup'
 import {
   INCIDENT_CONTRIBUTING_FACTOR_DETAIL,
   INCIDENT_CONTRIBUTING_FACTOR_OPTIONS,
@@ -28,8 +39,8 @@ import {
   INCIDENT_PREVENTABILITY_OPTIONS,
   type ContributingFactorDetail,
   type ContributingFactorDetails,
-  type IncidentCarerCourseRecommendation,
   type IncidentCarerSuspension,
+  type IncidentExternalBody,
   type IncidentExternalInvestigationType,
   type IncidentInvestigation,
   type IncidentInvestigationScope,
@@ -46,157 +57,123 @@ const scopeLabel = (v: string) =>
 const externalTypeLabel = (v: string) =>
   INCIDENT_EXTERNAL_INVESTIGATION_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? v
 
-function formatSuspendRange(from: string | null | undefined, to: string | null | undefined) {
-  if (!from && !to) return null
-  const fromLabel = from ? formatOrganisationIsoDateLong(from) : '—'
-  const toLabel = to ? formatOrganisationIsoDateLong(to) : '—'
-  return `${fromLabel} → ${toLabel}`
-}
-
 export function IncidentInvestigationSection({
   incidentId,
   investigation,
   carerSuspensions,
-  courseRecommendations,
+  externalBodies = [],
   canEdit,
   primaryEmployeeId,
   serviceUsers = [],
   involvedEmployees = [],
+  suggestHigherLevel = false,
+  completeRef,
 }: {
   incidentId: string
   investigation: IncidentInvestigation | null
   carerSuspensions: IncidentCarerSuspension[]
-  courseRecommendations: IncidentCarerCourseRecommendation[]
+  externalBodies?: IncidentExternalBody[]
   canEdit: boolean
   primaryEmployeeId?: string | null
   /** People involved in the incident — contributing factors can point at their records. */
   serviceUsers?: { id: string; name: string | null }[]
   involvedEmployees?: { id: string; name: string | null }[]
+  /** High / Critical severity or a death: suggest a deeper investigation level. */
+  suggestHigherLevel?: boolean
+  /** Filled with "complete the investigation" so the Next step bar can trigger it. */
+  completeRef?: React.Ref<() => void>
 }) {
   const mutation = useUpsertIncidentInvestigation(incidentId)
-  const suspendMutation = useSuspendIncidentCarer(incidentId)
-  const removeSuspensionMutation = useRemoveIncidentCarerSuspension(incidentId)
-  const recommendCourseMutation = useRecommendIncidentCarerCourse(incidentId)
-  const removeCourseMutation = useRemoveIncidentCarerCourseRecommendation(incidentId)
-  const [scope, setScope] = React.useState<string>(investigation?.investigationScope ?? '')
-  const [externalType, setExternalType] = React.useState<string>(investigation?.externalType ?? '')
+  const suspend = useSuspendIncidentCarer(incidentId)
+  const suspensionFormRef = React.useRef<NewSuspensionHandle>(null)
+  // "Investigation type" (internal / external) is replaced by "External bodies involved"; values
+  // already saved on older investigations are sent back unchanged.
+  const scope = investigation?.investigationScope ?? ''
+  const externalType = investigation?.externalType ?? ''
   const [whatHappened, setWhatHappened] = React.useState(investigation?.whatHappened ?? '')
   const [whyHappened, setWhyHappened] = React.useState(investigation?.whyHappened ?? '')
   const [rootCause, setRootCause] = React.useState(investigation?.rootCause ?? '')
   const [conclusion, setConclusion] = React.useState(investigation?.conclusion ?? '')
   const [preventable, setPreventable] = React.useState<string>(investigation?.preventable ?? '')
+  const [completeErrors, setCompleteErrors] = React.useState<Record<string, string>>({})
+  const formRef = React.useRef<HTMLDivElement>(null)
+  // Ticked = a new interim suspension is being added; it is saved (and validated) with the investigation.
+  const [addSuspension, setAddSuspension] = React.useState(false)
+  const [setup, setSetup] = React.useState<InvestigationSetupValues>(() =>
+    initialSetupValues(investigation),
+  )
+  const patchSetup = (patch: Partial<InvestigationSetupValues>) =>
+    setSetup((prev) => ({ ...prev, ...patch }))
+  const investigatorsQuery = useIncidentInvestigators(incidentId, canEdit)
+  // Suggest the signed-in user's own staff record (visibly, in the field) when no lead is saved.
+  const suggestedLeadId = (investigatorsQuery.data ?? []).find((u) => u.isCurrentUser)?.id ?? null
+  React.useEffect(() => {
+    if (suggestedLeadId && !investigation?.leadInvestigatorEmployeeId) {
+      setSetup((prev) => (prev.leadInvestigatorEmployeeId ? prev : { ...prev, leadInvestigatorEmployeeId: suggestedLeadId }))
+    }
+  }, [suggestedLeadId, investigation?.leadInvestigatorEmployeeId])
   const [factors, setFactors] = React.useState<string[]>(investigation?.contributingFactors ?? [])
   const [factorDetails, setFactorDetails] = React.useState<ContributingFactorDetails>(
     investigation?.contributingFactorDetails ?? {},
   )
+  const [evidence, setEvidence] = React.useState<InvestigationEvidenceValues>(() =>
+    initialEvidenceValues(investigation),
+  )
+  const patchEvidence = (patch: Partial<InvestigationEvidenceValues>) =>
+    setEvidence((prev) => ({ ...prev, ...patch }))
   const factorOptions = useContributingFactorOptions(serviceUsers, {
-    carePlans: canEdit && factors.includes('CARE_PLAN'),
-    assessments: canEdit && factors.includes('RISK_ASSESSMENT'),
-    medications: canEdit && factors.includes('MEDICATION'),
+    carePlans:
+      canEdit && (factors.includes('CARE_PLAN') || evidence.recordsReviewed.includes('CARE_PLAN')),
+    assessments:
+      canEdit &&
+      (factors.includes('RISK_ASSESSMENT') || evidence.recordsReviewed.includes('RISK_ASSESSMENT')),
+    medications:
+      canEdit && (factors.includes('MEDICATION') || evidence.recordsReviewed.includes('MAR')),
   })
+  const recordOptions = {
+    carePlan: { options: factorOptions.carePlanOptions, loading: factorOptions.loading.carePlans },
+    riskAssessment: {
+      options: factorOptions.assessmentOptions,
+      loading: factorOptions.loading.assessments,
+    },
+    medication: {
+      options: factorOptions.medicationOptions,
+      loading: factorOptions.loading.medications,
+    },
+  }
   const setFactorDetail = (code: string, detail: ContributingFactorDetail) =>
     setFactorDetails((prev) => ({ ...prev, [code]: detail }))
 
-  const suspendedIds = React.useMemo(
-    () => new Set(carerSuspensions.map((s) => s.employeeId)),
-    [carerSuspensions],
-  )
-
-  const recommendedPairs = React.useMemo(
-    () => new Set(courseRecommendations.map((r) => `${r.employeeId}:${r.courseId}`)),
-    [courseRecommendations],
-  )
-
-  const [suspendEmployeeId, setSuspendEmployeeId] = React.useState(
-    primaryEmployeeId && !suspendedIds.has(primaryEmployeeId) ? primaryEmployeeId : '',
-  )
-  const [suspendReason, setSuspendReason] = React.useState('')
-  const [suspendFrom, setSuspendFrom] = React.useState(() => new Date().toISOString().slice(0, 10))
-  const [suspendTo, setSuspendTo] = React.useState('')
-  const [empSearch, setEmpSearch] = React.useState('')
-
-  const [courseEmployeeId, setCourseEmployeeId] = React.useState(primaryEmployeeId ?? '')
-  const [courseId, setCourseId] = React.useState('')
-  const [courseDueAt, setCourseDueAt] = React.useState('')
-  const [courseReason, setCourseReason] = React.useState('')
-  const [courseEmpSearch, setCourseEmpSearch] = React.useState('')
-  const [courseSearch, setCourseSearch] = React.useState('')
-
-  const employeesQuery = useEmployees({ limit: 50, search: empSearch || undefined })
-  const courseEmployeesQuery = useEmployees({ limit: 50, search: courseEmpSearch || undefined })
-  const coursesQuery = useLearningCourses({
-    limit: 50,
-    status: 'PUBLISHED',
-    search: courseSearch || undefined,
-  })
-  const nameMap = useEmployeeNameMap(
-    [
-      primaryEmployeeId,
-      suspendEmployeeId,
-      courseEmployeeId,
-      ...carerSuspensions.map((s) => s.employeeId),
-      ...courseRecommendations.map((r) => r.employeeId),
-    ].filter((id): id is string => Boolean(id)),
-  )
-
-  const employeeOptions: ComboboxOption[] = React.useMemo(() => {
-    const rows = (employeesQuery.data?.rows ?? [])
-      .filter((r) => !suspendedIds.has(r.id))
-      .map((r) => ({
-        value: r.id,
-        label: r.fullName || [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Unnamed',
-        description: r.jobTitle?.name ?? undefined,
-      }))
-    if (suspendEmployeeId && !rows.some((r) => r.value === suspendEmployeeId) && !suspendedIds.has(suspendEmployeeId)) {
-      const name = nameMap.get(suspendEmployeeId)
-      if (name) rows.unshift({ value: suspendEmployeeId, label: name, description: undefined })
-    }
-    return rows
-  }, [employeesQuery.data, suspendEmployeeId, nameMap, suspendedIds])
-
-  const courseEmployeeOptions: ComboboxOption[] = React.useMemo(() => {
-    const rows = (courseEmployeesQuery.data?.rows ?? []).map((r) => ({
-      value: r.id,
-      label: r.fullName || [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Unnamed',
-      description: r.jobTitle?.name ?? undefined,
-    }))
-    // Ensure suspended carers remain selectable for course recommendation.
-    for (const s of carerSuspensions) {
-      if (!rows.some((r) => r.value === s.employeeId)) {
-        const name = nameMap.get(s.employeeId)
-        if (name) rows.unshift({ value: s.employeeId, label: name, description: 'Suspended' })
-      }
-    }
-    if (courseEmployeeId && !rows.some((r) => r.value === courseEmployeeId)) {
-      const name = nameMap.get(courseEmployeeId)
-      if (name) rows.unshift({ value: courseEmployeeId, label: name, description: undefined })
-    }
-    return rows
-  }, [courseEmployeesQuery.data, courseEmployeeId, nameMap, carerSuspensions])
-
-  const courseOptions: ComboboxOption[] = React.useMemo(() => {
-    const rows = (coursesQuery.data?.rows ?? [])
-      .filter((c) => c.status === 'PUBLISHED' || !c.status)
-      .filter((c) => !courseEmployeeId || !recommendedPairs.has(`${courseEmployeeId}:${c.id}`))
-      .map((c) => ({
-        value: c.id,
-        label: c.title,
-        description: c.code ?? undefined,
-      }))
-    return rows
-  }, [coursesQuery.data, courseEmployeeId, recommendedPairs])
 
   function toggleFactor(code: string) {
     setFactors((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]))
   }
 
-  function onScopeChange(next: string) {
-    setScope(next)
-    if (next !== 'EXTERNAL') setExternalType('')
-  }
-
-  function save(markComplete: boolean) {
-    if (scope === 'EXTERNAL' && !externalType) return
+  async function save(markComplete: boolean) {
+    // Completing needs the core findings; a draft can be saved with anything missing.
+    const missing: Record<string, string> = {}
+    if (markComplete) {
+      Object.assign(missing, setupCompletionErrors(setup))
+      if (!whatHappened.trim()) missing.whatHappened = 'Needed to complete'
+      if (!whyHappened.trim()) missing.whyHappened = 'Needed to complete'
+      if (!rootCause.trim()) missing.rootCause = 'Needed to complete'
+      if (!preventable) missing.preventable = 'Needed to complete'
+      if (!conclusion.trim()) missing.conclusion = 'Needed to complete'
+    }
+    // A ticked suspension must be filled in before anything is saved.
+    const newSuspension = addSuspension ? suspensionFormRef.current?.validate() : undefined
+    if (addSuspension && !newSuspension) missing.suspension = 'Fill in the suspension'
+    setCompleteErrors(missing)
+    if (Object.keys(missing).length) {
+      // Saving can start from the Next step bar at the top, so bring the first gap into view.
+      requestAnimationFrame(() =>
+        formRef.current
+          ?.querySelector('[data-field-error]')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+      )
+      return
+    }
+    if (newSuspension && !window.confirm(newSuspension.confirmText)) return
     const input: UpsertIncidentInvestigationInput = {
       investigationScope: (scope || undefined) as IncidentInvestigationScope | undefined,
       externalType:
@@ -217,156 +194,52 @@ export function IncidentInvestigationSection({
         if (detail) acc[f] = detail
         return acc
       }, {}),
+      investigationLevel: setup.investigationLevel || null,
+      leadInvestigatorEmployeeId: setup.leadInvestigatorEmployeeId || null,
+      investigatorInvolved: setup.investigatorInvolved || null,
+      investigatorInvolvedReason:
+        setup.investigatorInvolved === 'YES' ? setup.investigatorInvolvedReason.trim() || null : null,
+      targetDate: setup.targetDate || null,
+      termsOfReference: setup.termsOfReference.trim() || null,
+      recordsReviewed: evidence.recordsReviewed,
+      // Only ticked kinds are kept (the server drops the rest).
+      recordsReviewedDetails: evidence.recordsReviewed.reduce<ContributingFactorDetails>((acc, k) => {
+        const detail = evidence.recordsReviewedDetails[k]
+        if (detail) acc[k] = detail
+        return acc
+      }, {}),
+      evidenceNotes: evidence.evidenceNotes.trim() || null,
+      outstandingEvidence: evidence.outstandingEvidence.trim() || null,
       markComplete,
     }
-    mutation.mutate(input)
-  }
-
-  function suspendCarer() {
-    if (!suspendEmployeeId || !suspendReason.trim() || !suspendFrom || !suspendTo) return
-    if (suspendTo < suspendFrom) {
-      window.alert('End date must be on or after the start date.')
-      return
+    try {
+      if (newSuspension) {
+        // The API only suspends while an open investigation exists, so save a draft first if
+        // there is none, and suspend before the investigation is marked complete.
+        if (!investigation) await mutation.mutateAsync({ ...input, markComplete: false })
+        await suspend.mutateAsync(newSuspension.input)
+        suspensionFormRef.current?.reset()
+        setAddSuspension(false)
+        if (!investigation && !markComplete) return
+      }
+      await mutation.mutateAsync(input)
+    } catch {
+      // The hooks already show the error.
     }
-    const ok = window.confirm(
-      'Suspend this carer? They will be set inactive and removed from future rota allocations.',
-    )
-    if (!ok) return
-    suspendMutation.mutate(
-      {
-        employeeId: suspendEmployeeId,
-        reason: suspendReason.trim(),
-        suspendFrom,
-        suspendTo,
-      },
-      {
-        onSuccess: () => {
-          setSuspendReason('')
-          setSuspendTo('')
-          setSuspendEmployeeId('')
-          setEmpSearch('')
-        },
-      },
-    )
   }
 
-  function recommendCourse() {
-    if (!courseEmployeeId || !courseId) return
-    recommendCourseMutation.mutate(
-      {
-        employeeId: courseEmployeeId,
-        courseId,
-        dueAt: courseDueAt || undefined,
-        reason: courseReason.trim() || undefined,
-        isMandatory: true,
-      },
-      {
-        onSuccess: () => {
-          setCourseId('')
-          setCourseDueAt('')
-          setCourseReason('')
-          setCourseSearch('')
-        },
-      },
-    )
-  }
-
-  const suspensionsList =
-    carerSuspensions.length === 0 ? null : (
-      <ul className="space-y-2">
-        {carerSuspensions.map((s) => (
-          <li
-            key={s.id}
-            className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="flex items-center gap-1.5 text-sm font-medium text-destructive">
-                  <UserX className="h-4 w-4" /> {nameMap.get(s.employeeId) ?? 'Carer'} suspended
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatSuspendRange(s.suspendFrom, s.suspendTo)}
-                </p>
-                {s.reason && (
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{s.reason}</p>
-                )}
-              </div>
-              {canEdit && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  loading={removeSuspensionMutation.isPending}
-                  onClick={() => {
-                    const ok = window.confirm(
-                      'Remove this carer suspension? They will be set active again if they have no other incident suspensions.',
-                    )
-                    if (!ok) return
-                    removeSuspensionMutation.mutate(s.id)
-                  }}
-                >
-                  <UserCheck className="mr-1 h-4 w-4" /> Remove
-                </Button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-    )
-
-  const coursesList =
-    courseRecommendations.length === 0 ? null : (
-      <ul className="space-y-2">
-        {courseRecommendations.map((r) => (
-          <li
-            key={r.id}
-            className="rounded-md border border-border bg-background px-3 py-2"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                  <BookOpen className="h-4 w-4 text-primary" />
-                  {r.courseTitle ?? 'Course'}
-                  {r.courseCode ? (
-                    <span className="text-xs font-normal text-muted-foreground">({r.courseCode})</span>
-                  ) : null}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  For {nameMap.get(r.employeeId) ?? 'carer'}
-                  {/* dueAt is the picked calendar day stored as UTC midnight — format its date part. */}
-                  {r.dueAt ? ` · Due ${formatOrganisationIsoDateLong(r.dueAt.slice(0, 10))}` : ''}
-                </p>
-                {r.reason && (
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{r.reason}</p>
-                )}
-              </div>
-              {canEdit && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  loading={removeCourseMutation.isPending}
-                  onClick={() => {
-                    const ok = window.confirm(
-                      'Remove this course recommendation? The learning assignment will be cancelled.',
-                    )
-                    if (!ok) return
-                    removeCourseMutation.mutate(r.id)
-                  }}
-                >
-                  <X className="mr-1 h-4 w-4" /> Remove
-                </Button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-    )
+  React.useImperativeHandle(completeRef, () => () => void save(true))
 
   if (!canEdit) {
-    if (!investigation && carerSuspensions.length === 0 && courseRecommendations.length === 0) {
+    if (!investigation && carerSuspensions.length === 0 && externalBodies.length === 0) {
       return <p className="text-sm text-muted-foreground">No investigation recorded yet.</p>
     }
     return (
       <div className="space-y-3 text-sm">
+        {investigation && <InvestigationSummaryLine investigation={investigation} />}
+        {investigation && (
+          <InvestigationSetupReadView incidentId={incidentId} investigation={investigation} />
+        )}
         {investigation?.investigationScope && (
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="info" size="sm">{scopeLabel(investigation.investigationScope)}</Badge>
@@ -377,6 +250,7 @@ export function IncidentInvestigationSection({
         )}
         {investigation?.whatHappened && <ReadField label="What happened" value={investigation.whatHappened} />}
         {investigation?.whyHappened && <ReadField label="Why it happened" value={investigation.whyHappened} />}
+        {investigation?.rootCause && <ReadField label="Root cause" value={investigation.rootCause} />}
         {investigation && investigation.contributingFactors.length > 0 && (
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Contributing factors</p>
@@ -389,63 +263,53 @@ export function IncidentInvestigationSection({
             />
           </div>
         )}
-        {investigation?.rootCause && <ReadField label="Root cause" value={investigation.rootCause} />}
+        {investigation && <InvestigationEvidenceReadView investigation={investigation} />}
         {investigation?.preventable && <ReadField label="Preventable" value={investigation.preventable} />}
         {investigation?.conclusion && <ReadField label="Conclusion" value={investigation.conclusion} />}
-        {suspensionsList}
-        {coursesList}
+        <IncidentExternalBodiesCard incidentId={incidentId} bodies={externalBodies} canEdit={false} />
+        <IncidentSuspensionCard
+          incidentId={incidentId}
+          suspensions={carerSuspensions}
+          canEdit={false}
+        />
         {investigation?.completedAt && <Badge variant="success" size="sm">Investigation complete</Badge>}
       </div>
     )
   }
 
-  const externalTypeRequired = scope === 'EXTERNAL' && !externalType
+  const paused = investigation?.investigationStatus === 'PAUSED'
+  const canAddSuspension = investigation?.investigationStatus !== 'COMPLETED'
+  const investigationErrorCount = Object.keys(completeErrors).filter((k) => k !== 'suspension').length
 
   return (
-    <div className="space-y-3">
-      <div>
-        <label className="text-xs uppercase tracking-wide text-muted-foreground">
-          Investigation type
-        </label>
-        <select
-          className={selectClass}
-          value={scope}
-          onChange={(e) => onScopeChange(e.target.value)}
-          aria-label="Investigation type"
-        >
-          <option value="">Not set</option>
-          {INCIDENT_INVESTIGATION_SCOPE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {scope === 'EXTERNAL' && (
-        <div>
-          <label className="text-xs uppercase tracking-wide text-muted-foreground">
-            External investigation
-          </label>
-          <select
-            className={selectClass}
-            value={externalType}
-            onChange={(e) => setExternalType(e.target.value)}
-            aria-label="External investigation type"
-          >
-            <option value="">Select…</option>
-            {INCIDENT_EXTERNAL_INVESTIGATION_TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          {externalTypeRequired && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Choose Police, Agency, or Combined.
-            </p>
-          )}
-        </div>
-      )}
-
-      <TextField label="What happened?" value={whatHappened} onChange={setWhatHappened} />
-      <TextField label="Why did it happen?" value={whyHappened} onChange={setWhyHappened} />
+    <div ref={formRef} className="space-y-3">
+      {investigation && <InvestigationSummaryLine investigation={investigation} />}
+      <InvestigationSetupForm
+        incidentId={incidentId}
+        investigation={investigation}
+        values={setup}
+        onChange={patchSetup}
+        errors={completeErrors}
+        investigators={investigatorsQuery.data ?? []}
+        investigatorsLoading={investigatorsQuery.isLoading}
+        suggestedLeadId={suggestedLeadId}
+        suggestHigherLevel={suggestHigherLevel}
+      />
+      <TextField
+        label="What happened?"
+        value={whatHappened}
+        onChange={setWhatHappened}
+        required
+        error={completeErrors.whatHappened}
+      />
+      <TextField
+        label="Why did it happen?"
+        value={whyHappened}
+        onChange={setWhyHappened}
+        required
+        error={completeErrors.whyHappened}
+      />
+      <TextField label="Root cause" value={rootCause} onChange={setRootCause} required error={completeErrors.rootCause} />
       <div>
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Contributing factors</p>
         <div className="mt-1 grid grid-cols-2 gap-1.5">
@@ -465,17 +329,7 @@ export function IncidentInvestigationSection({
                 config={INCIDENT_CONTRIBUTING_FACTOR_DETAIL[f.value] ?? { pick: 'note', question: '' }}
                 detail={factorDetails[f.value] ?? {}}
                 onChange={(d) => setFactorDetail(f.value, d)}
-                recordOptions={{
-                  carePlan: { options: factorOptions.carePlanOptions, loading: factorOptions.loading.carePlans },
-                  riskAssessment: {
-                    options: factorOptions.assessmentOptions,
-                    loading: factorOptions.loading.assessments,
-                  },
-                  medication: {
-                    options: factorOptions.medicationOptions,
-                    loading: factorOptions.loading.medications,
-                  },
-                }}
+                recordOptions={recordOptions}
                 involvedEmployees={involvedEmployees}
                 hasServiceUser={serviceUsers.length > 0}
               />
@@ -483,9 +337,18 @@ export function IncidentInvestigationSection({
           </div>
         )}
       </div>
-      <TextField label="Root cause" value={rootCause} onChange={setRootCause} />
+      <InvestigationEvidenceForm
+        values={evidence}
+        onChange={patchEvidence}
+        recordOptions={recordOptions}
+        involvedEmployees={involvedEmployees}
+        hasServiceUser={serviceUsers.length > 0}
+      />
       <div>
-        <label className="text-xs uppercase tracking-wide text-muted-foreground">Could this have been prevented?</label>
+        <label className="text-xs uppercase tracking-wide text-muted-foreground">
+          Could this have been prevented?
+          <Req />
+        </label>
         <select
           className={selectClass}
           value={preventable}
@@ -496,191 +359,104 @@ export function IncidentInvestigationSection({
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+        {completeErrors.preventable && (
+          <p data-field-error className="mt-1 text-xs text-destructive dark:text-red-400">{completeErrors.preventable}</p>
+        )}
       </div>
-      <TextField label="Conclusion" value={conclusion} onChange={setConclusion} />
-      <div className="flex gap-2">
+      <TextField label="Conclusion" value={conclusion} onChange={setConclusion} required error={completeErrors.conclusion} />
+      <p className="text-xs text-muted-foreground">
+        <span className="text-destructive dark:text-red-400">*</span> Needed for “Complete investigation” (Next
+        step, at the top). “Save draft” keeps your progress without them.
+      </p>
+      {paused && (
+        <p className="text-xs text-muted-foreground">
+          The investigation is paused — resume it before completing.
+        </p>
+      )}
+
+      <IncidentExternalBodiesCard incidentId={incidentId} bodies={externalBodies} canEdit={canEdit} />
+
+      {canAddSuspension && (
+        <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted/40">
+          <input
+            type="checkbox"
+            checked={addSuspension}
+            onChange={(e) => setAddSuspension(e.target.checked)}
+            className="h-4 w-4 rounded border-border"
+          />
+          {carerSuspensions.length > 0
+            ? 'Suspend another carer during the investigation'
+            : 'Suspend a carer during the investigation'}
+        </label>
+      )}
+      <IncidentSuspensionCard
+        incidentId={incidentId}
+        suspensions={carerSuspensions}
+        canEdit={canEdit}
+        showAddForm={canAddSuspension && addSuspension}
+        primaryEmployeeId={primaryEmployeeId}
+        formRef={suspensionFormRef}
+      />
+
+      {Object.keys(completeErrors).length > 0 && (
+        <div role="alert" className="space-y-0.5 text-sm text-destructive dark:text-red-400">
+          {investigationErrorCount > 0 && (
+            <p>
+              Fill the {investigationErrorCount} marked investigation field
+              {investigationErrorCount === 1 ? '' : 's'} to complete the investigation.
+            </p>
+          )}
+          {completeErrors.suspension && (
+            <p>Fill in the suspension (carer, dates and reason), or untick “Suspend a carer”.</p>
+          )}
+        </div>
+      )}
+      <div className="flex justify-end border-t border-border pt-3">
         <Button
-          className="flex-1"
           size="sm"
           variant="outline"
-          loading={mutation.isPending}
-          disabled={externalTypeRequired}
-          onClick={() => save(false)}
+          loading={mutation.isPending || suspend.isPending}
+          onClick={() => void save(false)}
         >
-          Save
+          Save draft
         </Button>
-        <Button
-          className="flex-1"
-          size="sm"
-          loading={mutation.isPending}
-          disabled={externalTypeRequired}
-          onClick={() => save(true)}
-        >
-          Save &amp; complete
-        </Button>
-      </div>
-
-      <div className="rounded-lg border border-border bg-muted/20 p-3 sm:p-4">
-        <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          After investigation — carer suspension
-        </h4>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Suspend one or more carers. Each suspension sets that carer inactive and removes future rota allocations.
-        </p>
-
-        {suspensionsList ? <div className="mb-3">{suspensionsList}</div> : null}
-
-        <div className="space-y-2">
-          <div>
-            <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Carer</p>
-            <Combobox
-              value={suspendEmployeeId}
-              onChange={setSuspendEmployeeId}
-              options={employeeOptions}
-              onSearchChange={setEmpSearch}
-              loading={employeesQuery.isLoading}
-              placeholder="Select carer to suspend"
-              searchPlaceholder="Search staff…"
-              emptyText="No staff match your search."
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground" htmlFor="suspend-from">
-                Suspended from
-              </label>
-              <input
-                id="suspend-from"
-                type="date"
-                className={selectClass}
-                value={suspendFrom}
-                onChange={(e) => setSuspendFrom(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground" htmlFor="suspend-to">
-                Suspended to
-              </label>
-              <input
-                id="suspend-to"
-                type="date"
-                className={selectClass}
-                value={suspendTo}
-                min={suspendFrom || undefined}
-                onChange={(e) => setSuspendTo(e.target.value)}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs uppercase tracking-wide text-muted-foreground">
-              Suspension reason
-            </label>
-            <Textarea
-              className="mt-1"
-              rows={2}
-              value={suspendReason}
-              onChange={(e) => setSuspendReason(e.target.value)}
-              placeholder="Why is this carer being suspended?"
-            />
-          </div>
-          <Button
-            size="sm"
-            variant="destructive"
-            loading={suspendMutation.isPending}
-            disabled={
-              !suspendEmployeeId ||
-              suspendReason.trim().length < 3 ||
-              !suspendFrom ||
-              !suspendTo ||
-              suspendTo < suspendFrom
-            }
-            onClick={suspendCarer}
-          >
-            <UserX className="mr-1 h-4 w-4" /> Suspend carer
-          </Button>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-border bg-muted/20 p-3 sm:p-4">
-        <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          After investigation — recommend a course
-        </h4>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Assign a published learning course to a carer as a corrective action after investigation. Works for suspended carers too.
-        </p>
-
-        {coursesList ? <div className="mb-3">{coursesList}</div> : null}
-
-        <div className="space-y-2">
-          <div>
-            <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Carer</p>
-            <Combobox
-              value={courseEmployeeId}
-              onChange={setCourseEmployeeId}
-              options={courseEmployeeOptions}
-              onSearchChange={setCourseEmpSearch}
-              loading={courseEmployeesQuery.isLoading}
-              placeholder="Select carer"
-              searchPlaceholder="Search staff…"
-              emptyText="No staff match your search."
-            />
-          </div>
-          <div>
-            <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Course</p>
-            <Combobox
-              value={courseId}
-              onChange={setCourseId}
-              options={courseOptions}
-              onSearchChange={setCourseSearch}
-              loading={coursesQuery.isLoading}
-              placeholder="Select published course"
-              searchPlaceholder="Search courses…"
-              emptyText="No published courses match."
-            />
-          </div>
-          <div>
-            <label className="text-xs uppercase tracking-wide text-muted-foreground" htmlFor="course-due">
-              Due date (optional)
-            </label>
-            <input
-              id="course-due"
-              type="date"
-              className={selectClass}
-              value={courseDueAt}
-              onChange={(e) => setCourseDueAt(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs uppercase tracking-wide text-muted-foreground">
-              Reason (optional)
-            </label>
-            <Textarea
-              className="mt-1"
-              rows={2}
-              value={courseReason}
-              onChange={(e) => setCourseReason(e.target.value)}
-              placeholder="Why is this course recommended?"
-            />
-          </div>
-          <Button
-            size="sm"
-            loading={recommendCourseMutation.isPending}
-            disabled={!courseEmployeeId || !courseId}
-            onClick={recommendCourse}
-          >
-            <BookOpen className="mr-1 h-4 w-4" /> Recommend course
-          </Button>
-        </div>
       </div>
     </div>
   )
 }
 
-function TextField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+/** Red asterisk: needed to complete the investigation (a draft can still be saved without it). */
+function Req() {
+  return <span className="ml-0.5 text-destructive dark:text-red-400" aria-hidden>*</span>
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+  required = false,
+  error,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  required?: boolean
+  error?: string
+}) {
   return (
     <div>
-      <label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</label>
-      <Textarea className="mt-1" rows={2} value={value} onChange={(e) => onChange(e.target.value)} />
+      <label className="text-xs uppercase tracking-wide text-muted-foreground">
+        {label}
+        {required && <Req />}
+      </label>
+      <Textarea
+        className="mt-1"
+        rows={2}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-invalid={error ? true : undefined}
+      />
+      {error && <p data-field-error className="mt-1 text-xs text-destructive dark:text-red-400">{error}</p>}
     </div>
   )
 }

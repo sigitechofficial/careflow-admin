@@ -21,6 +21,7 @@ import {
   type RecordAdministrationTarget,
 } from '@/features/service-users/medication/RecordAdministrationDialog'
 import { RecordDetailDrawer } from '@/features/service-users/medication/RecordDetailDrawer'
+import { useVisitVoiceNotes } from '@/features/scheduling/hooks/useVisitVoiceNotes'
 import { CorrectRecordDialog } from '@/features/service-users/medication/CorrectRecordDialog'
 import { MarLegendInline } from '@/features/service-users/medication/MarLegendInline'
 import { PackRecordRoundDialog } from '@/features/service-users/medication/PackRecordRoundDialog'
@@ -363,6 +364,7 @@ export function VisitMedicationPanel({
   medicationRoundLabel,
   visitWindowStartHm,
   visitWindowEndHm,
+  jobId,
 }: {
   serviceUserId: string
   visitDate: string
@@ -374,7 +376,10 @@ export function VisitMedicationPanel({
   /** Visit planned/scheduled window (HH:mm) — meds match when dueTime is inside. */
   visitWindowStartHm?: string | null
   visitWindowEndHm?: string | null
+  /** Scheduled job id — loads the carer's medication voice notes for the record drawer. */
+  jobId?: string | null
 }) {
+  const voiceNoteLookup = useVisitVoiceNotes(jobId)
   const normalizedDate = normalizeVisitDate(visitDate)
   const visitRound = React.useMemo(
     () => resolveVisitMedicationRound(medicationRoundCode, medicationRoundLabel),
@@ -623,6 +628,7 @@ export function VisitMedicationPanel({
         onOpenChange={setDetailOpen}
         serviceUserId={serviceUserId}
         eventId={detailEventId}
+        voiceNotes={voiceNoteLookup.forSource('medication', detailEventId)}
         onCorrect={() => {
           setDetailOpen(false)
           setCorrectOpen(true)

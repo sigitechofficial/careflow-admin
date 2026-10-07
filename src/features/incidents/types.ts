@@ -72,6 +72,10 @@ export type IncidentListItem = {
   reportedAt: string
   locationId: string | null
   specificArea: string | null
+  /** Where it happened (office raise form), e.g. HOME_BATHROOM. */
+  locationKey?: string | null
+  /** Text when locationKey is OTHER. */
+  locationDetail?: string | null
   primaryServiceUserId: string | null
   primaryEmployeeId: string | null
   primaryPersonKind: IncidentPersonKind | null
@@ -137,9 +141,17 @@ export type IncidentReview = {
   furtherMedicalAttention: boolean | null
   externalNotificationRequired: boolean | null
   escalationRequired: boolean | null
+  immediateRisk?: boolean | null
+  protectiveAction?: string | null
   managementNotes: string | null
   reviewedById: string | null
   reviewedAt: string | null
+  /** INVESTIGATE / NO_INVESTIGATION, stored with the review (null = not decided). */
+  decision?: 'INVESTIGATE' | 'NO_INVESTIGATION' | null
+  decisionReason?: string | null
+  decidedAt?: string | null
+  /** 1 for the first review; a reopened incident starts the next number. */
+  cycleNumber?: number
   updatedAt: string
   updatedById?: string | null
   /** Who first reviewed it, and who last changed it. */
@@ -164,6 +176,105 @@ export type IncidentInvestigation = {
   conclusion: string | null
   completedAt: string | null
   updatedAt: string
+  /** When the investigation record was created (start date). */
+  createdAt: string
+  /** Start date as a day key in the organisation timezone. */
+  startedOn?: string
+  investigationLevel?: InvestigationLevel | null
+  leadInvestigatorEmployeeId?: string | null
+  leadInvestigatorName?: string | null
+  investigatorInvolved?: InvestigatorInvolvement | null
+  investigatorInvolvedReason?: string | null
+  /** YYYY-MM-DD */
+  targetDate?: string | null
+  termsOfReference?: string | null
+  investigationStatus?: InvestigationStatus
+  /** Target date passed and not completed (organisation timezone). */
+  overdue?: boolean
+  currentPause?: { reason: string; pausedAt: string; nextReviewDate: string | null } | null
+  pauses?: IncidentInvestigationPause[]
+  /** Evidence: kinds of records reviewed, with linked records and notes. */
+  recordsReviewed?: string[]
+  recordsReviewedDetails?: ContributingFactorDetails | null
+  evidenceNotes?: string | null
+  outstandingEvidence?: string | null
+}
+
+export type InvestigationLevel = 'STANDARD' | 'ENHANCED' | 'COMPREHENSIVE'
+export type InvestigatorInvolvement = 'NO' | 'YES' | 'NOT_KNOWN'
+/** COMPLETED is only reached by completing the investigation. */
+export type InvestigationStatus = 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED'
+
+export type IncidentInvestigationPause = {
+  id: string
+  reason: string
+  pausedAt: string
+  pausedByName: string | null
+  nextReviewDate: string | null
+  resumedAt: string | null
+  resumedByName: string | null
+}
+
+/** A staff member (employee) who can lead an investigation: an active carer or manager. */
+export type IncidentInvestigatorOption = {
+  id: string
+  name: string
+  /** Job title, or null when none is set. */
+  designation: string | null
+  /** The signed-in user's own staff record. */
+  isCurrentUser: boolean
+}
+
+export const INVESTIGATION_LEVEL_OPTIONS: {
+  value: InvestigationLevel
+  label: string
+  hint: string
+}[] = [
+  {
+    value: 'STANDARD',
+    label: 'Standard',
+    hint: 'Lower-risk incidents: a proportionate review of what happened and why.',
+  },
+  {
+    value: 'ENHANCED',
+    label: 'Enhanced',
+    hint: 'Higher-risk or repeated incidents: more records, people and contributing factors examined.',
+  },
+  {
+    value: 'COMPREHENSIVE',
+    label: 'Comprehensive',
+    hint: 'Serious harm, death or complex incidents: a full, in-depth investigation.',
+  },
+]
+
+/** Evidence: kinds of records the investigator reviewed, and what to link for each. */
+export const INVESTIGATION_RECORDS_REVIEWED_OPTIONS: {
+  value: string
+  label: string
+  pick: ContributingFactorPick
+  question: string
+}[] = [
+  { value: 'CARE_PLAN', label: 'Care plan', pick: 'carePlan', question: 'Which care plan?' },
+  { value: 'RISK_ASSESSMENT', label: 'Risk assessment', pick: 'riskAssessment', question: 'Which risk assessment?' },
+  { value: 'MAR', label: 'MAR', pick: 'medication', question: 'Which medication’s MAR?' },
+  { value: 'VISIT_LOGS', label: 'Visit logs', pick: 'note', question: 'Which visits?' },
+  { value: 'ROTA', label: 'Rota', pick: 'note', question: 'Which rota / dates?' },
+  { value: 'TRAINING_RECORDS', label: 'Training records', pick: 'staff', question: 'Whose training records?' },
+  { value: 'SUPERVISION_RECORDS', label: 'Supervision records', pick: 'staff', question: 'Whose supervision records?' },
+  { value: 'POLICIES', label: 'Policies / procedures', pick: 'policy', question: 'Which policy or procedure?' },
+  { value: 'OTHER', label: 'Other', pick: 'note', question: 'Which records?' },
+]
+
+export const INVESTIGATOR_INVOLVEMENT_OPTIONS: { value: InvestigatorInvolvement; label: string }[] = [
+  { value: 'NO', label: 'No' },
+  { value: 'YES', label: 'Yes' },
+  { value: 'NOT_KNOWN', label: 'Not known' },
+]
+
+export const INVESTIGATION_STATUS_LABELS: Record<InvestigationStatus, string> = {
+  IN_PROGRESS: 'In progress',
+  PAUSED: 'Paused',
+  COMPLETED: 'Completed',
 }
 
 /** Per contributing factor: the records it relates to (name kept as at save time) and a note. */
@@ -172,6 +283,69 @@ export type ContributingFactorDetail = {
   note?: string
 }
 export type ContributingFactorDetails = Record<string, ContributingFactorDetail>
+
+export type IncidentExternalBodyType =
+  | 'LOCAL_AUTHORITY_SAFEGUARDING'
+  | 'POLICE'
+  | 'CQC'
+  | 'HSE'
+  | 'CORONER'
+  | 'COMMISSIONER'
+  | 'OTHER'
+export type IncidentExternalBodyRole = 'LEAD' | 'SUPPORTING' | 'INFORMED'
+export type IncidentExternalBodyStatus = 'REFERRED' | 'IN_PROGRESS' | 'CONCLUDED' | 'NO_FURTHER_ACTION'
+
+/** An outside body involved alongside the internal investigation (police, LA safeguarding…). */
+export type IncidentExternalBody = {
+  id: string
+  incidentId: string
+  bodyType: IncidentExternalBodyType
+  organisationName: string | null
+  referredOn: string
+  referenceNumber: string | null
+  contactName: string | null
+  contactPhone: string | null
+  contactEmail: string | null
+  role: IncidentExternalBodyRole
+  status: IncidentExternalBodyStatus
+  outcome: string | null
+  outcomeDate: string | null
+  /** What we gave them (records, statements…) and when. */
+  informationProvided: string | null
+  /** What we got from them (updates, findings, instructions). */
+  informationReceived: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type IncidentExternalBodyInput = Omit<IncidentExternalBody, 'id' | 'incidentId' | 'createdAt' | 'updatedAt'>
+
+export const INCIDENT_EXTERNAL_BODY_TYPE_OPTIONS: { value: IncidentExternalBodyType; label: string; hint: string }[] = [
+  { value: 'LOCAL_AUTHORITY_SAFEGUARDING', label: 'Local authority safeguarding', hint: 'Safeguarding referral / Section 42 enquiry (including concerns about staff)' },
+  { value: 'POLICE', label: 'Police', hint: 'A possible crime — theft, assault, abuse' },
+  { value: 'CQC', label: 'CQC', hint: 'When CQC is looking into the incident itself' },
+  { value: 'HSE', label: 'HSE', hint: 'Health and Safety Executive (e.g. after a RIDDOR report)' },
+  { value: 'CORONER', label: 'Coroner', hint: 'After a death' },
+  { value: 'COMMISSIONER', label: 'Commissioner / ICB', hint: 'The council or NHS body that funds the care' },
+  { value: 'OTHER', label: 'Other', hint: 'Name the organisation' },
+]
+
+export const INCIDENT_EXTERNAL_BODY_ROLE_OPTIONS: { value: IncidentExternalBodyRole; label: string }[] = [
+  { value: 'LEAD', label: 'They lead, we support' },
+  { value: 'SUPPORTING', label: 'Joint investigation' },
+  { value: 'INFORMED', label: 'Information only' },
+]
+
+export const INCIDENT_EXTERNAL_BODY_STATUS_OPTIONS: { value: IncidentExternalBodyStatus; label: string }[] = [
+  { value: 'REFERRED', label: 'Referred' },
+  { value: 'IN_PROGRESS', label: 'In progress' },
+  { value: 'CONCLUDED', label: 'Concluded' },
+  { value: 'NO_FURTHER_ACTION', label: 'No further action' },
+]
+
+/** Still running — closing the incident while one is open needs a reason. */
+export const isExternalBodyOpen = (status: IncidentExternalBodyStatus) =>
+  status === 'REFERRED' || status === 'IN_PROGRESS'
 
 export type IncidentCarerSuspension = {
   id: string
@@ -182,6 +356,24 @@ export type IncidentCarerSuspension = {
   suspendTo: string
   suspendedAt: string
   createdAt: string
+  /** SCHEDULED (starts on suspendFrom) / ACTIVE / LIFTED. */
+  status: 'SCHEDULED' | 'ACTIVE' | 'LIFTED'
+  /** Active and past its end date. */
+  reviewDue: boolean
+  liftedAt: string | null
+  liftReason: string | null
+  /** Decided at Outcome & close: the suspension continues beyond the incident. */
+  continuedAt?: string | null
+  continueReason?: string | null
+}
+
+/** A carer's suspension as listed on their employee record. */
+export type EmployeeIncidentSuspension = IncidentCarerSuspension & {
+  incidentReference: string
+  incidentStatus: IncidentStatus
+  suspendedByName: string | null
+  liftedByName: string | null
+  continuedByName: string | null
 }
 
 export type IncidentCarerCourseRecommendation = {
@@ -315,7 +507,52 @@ export type IncidentOutcome = {
   nokInformed: boolean | null
   finalManagementComments: string | null
   updatedAt: string
+  /** Who the outcome was shared with (one row per person). */
+  outcomeSharing?: OutcomeSharingEntry[] | null
+  /** YYYY-MM-DD */
+  learningSharedOn?: string | null
+  learningSharedMethod?: string | null
+  learningSharedNote?: string | null
 }
+
+export type OutcomePersonKind = 'SERVICE_USER' | 'REPRESENTATIVE' | 'STAFF' | 'OTHER'
+
+export type OutcomeSharingEntry = {
+  key: string
+  personKind: OutcomePersonKind
+  name: string
+  shared: boolean
+  sharedOn: string | null
+  method: string | null
+  notSharedReason: string | null
+  note: string | null
+}
+
+export const OUTCOME_SHARING_METHOD_OPTIONS = [
+  { value: 'IN_PERSON', label: 'In person' },
+  { value: 'PHONE', label: 'Phone' },
+  { value: 'VIDEO', label: 'Video call' },
+  { value: 'LETTER', label: 'Letter' },
+  { value: 'EMAIL', label: 'Email' },
+]
+
+export const OUTCOME_NOT_SHARED_REASON_OPTIONS = [
+  { value: 'PASSED_AWAY', label: 'Passed away' },
+  { value: 'LACKS_CAPACITY', label: 'Lacks capacity — representative told' },
+  { value: 'NOT_NEEDED', label: 'Not needed' },
+  { value: 'DECLINED', label: 'Declined to be told' },
+  { value: 'COULD_NOT_CONTACT', label: 'Could not be contacted' },
+  { value: 'NOT_APPROPRIATE', label: 'Not appropriate (e.g. safeguarding)' },
+]
+
+export const LEARNING_SHARED_METHOD_OPTIONS = [
+  { value: 'TEAM_MEETING', label: 'Team meeting' },
+  { value: 'SUPERVISION', label: 'Supervision' },
+  { value: 'MEMO', label: 'Memo / bulletin' },
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'TRAINING_SESSION', label: 'Training session' },
+  { value: 'OTHER', label: 'Other' },
+]
 
 export type UpsertIncidentOutcomeInput = {
   finalOutcome?: string
@@ -327,6 +564,10 @@ export type UpsertIncidentOutcomeInput = {
   serviceUserInformed?: boolean
   nokInformed?: boolean
   finalManagementComments?: string
+  outcomeSharing?: OutcomeSharingEntry[]
+  learningSharedOn?: string | null
+  learningSharedMethod?: string | null
+  learningSharedNote?: string | null
 }
 
 export const INCIDENT_OUTCOME_CHANGE_OPTIONS: { value: string; label: string }[] = [
@@ -410,6 +651,7 @@ export type IncidentDetail = IncidentListItem & {
   outcome: IncidentOutcome | null
   actions: IncidentAction[]
   carerSuspensions: IncidentCarerSuspension[]
+  externalBodies?: IncidentExternalBody[]
   courseRecommendations: IncidentCarerCourseRecommendation[]
   injuries: IncidentInjury[]
   witnesses: IncidentWitness[]
@@ -428,6 +670,33 @@ export type IncidentDetail = IncidentListItem & {
   reviewSeverity?: IncidentReviewSeverityDecision | null
   /** Every severity step from what was reported to now (confirmations left out). */
   severityChanges?: IncidentSeverityStep[]
+  /** Earlier review cycles, archived when the incident was reopened (never change). */
+  reviewCycles?: IncidentReviewCycle[]
+}
+
+export type IncidentReviewCycle = {
+  id: string
+  cycleNumber: number
+  confirmedSeverity: IncidentSeverity | null
+  safeguardingConcern: boolean | null
+  possibleAbuseOrNeglect: boolean | null
+  furtherMedicalAttention: boolean | null
+  externalNotificationRequired: boolean | null
+  escalationRequired: boolean | null
+  immediateRisk: boolean | null
+  protectiveAction: string | null
+  managementNotes: string | null
+  investigationRequired: boolean | null
+  decision: 'INVESTIGATE' | 'NO_INVESTIGATION' | null
+  decisionReason: string | null
+  decidedAt: string | null
+  reviewedAt: string | null
+  reviewedByName: string | null
+  lastUpdatedAt: string | null
+  lastUpdatedByName: string | null
+  archivedAt: string
+  archivedByName: string | null
+  reopenReason: string | null
 }
 
 export type IncidentSeverityStep = {
@@ -491,6 +760,8 @@ export type CorrectIncidentInput = {
   serviceUserIds?: string[]
   employeeIds?: string[]
   locationId?: string | null
+  locationKey?: string | null
+  locationDetail?: string | null
   scheduledJobId?: string | null
   categoryDetails?: Record<string, unknown> | null
   ambulanceAttended?: boolean | null
@@ -594,7 +865,58 @@ export type IncidentAction = {
   completedAt: string | null
   createdAt: string
   updatedAt: string
+  /** Null for measures added before measure types existed. */
+  measureType?: IncidentMeasureType | null
+  /** Records the measure relates to (name as at save time). */
+  linkedRecords?: { id: string; label: string }[]
+  /** ROOT_CAUSE and/or contributing factor codes. */
+  addresses?: string[]
+  courseRecommendationId?: string | null
+  /** A new care plan / risk assessment / policy is needed (nothing to update yet). */
+  newRecordNeeded?: boolean
+  /** Set on completion: the record(s) actually updated or added. */
+  completedRecords?: { id: string; label: string }[]
 }
+
+export type IncidentMeasureType =
+  | 'CARE_PLAN_UPDATE'
+  | 'RISK_ASSESSMENT_UPDATE'
+  | 'VISIT_PLAN_CHANGE'
+  | 'COURSE'
+  | 'COMPETENCY_CHECK'
+  | 'SUPERVISION'
+  | 'POLICY_UPDATE'
+  | 'OTHER'
+
+/** Measure types, what to link for each (course has its own carer + course pickers). */
+export const INCIDENT_MEASURE_TYPE_OPTIONS: {
+  value: IncidentMeasureType
+  label: string
+  pick: ContributingFactorPick | 'course'
+  question: string
+  /** One plain-English line shown under the type. */
+  hint: string
+  /** Record-changing types: the choice when there is nothing to update yet. */
+  newLabel?: string
+  /** No record to link, so the description must say what will change. */
+  needsDescription?: boolean
+}[] = [
+  { value: 'CARE_PLAN_UPDATE', label: 'Care plan update', pick: 'carePlan', question: 'Which care plan?', newLabel: 'New care plan needed', hint: 'Change the service user’s care plan so carers follow the safer way.' },
+  { value: 'RISK_ASSESSMENT_UPDATE', label: 'Risk assessment update', pick: 'riskAssessment', question: 'Which risk assessment?', newLabel: 'New risk assessment needed', hint: 'Look at the risk again and update the risk assessment (or write a new one).' },
+  { value: 'VISIT_PLAN_CHANGE', label: 'Visit plan change', pick: 'none', question: '', needsDescription: true, hint: 'Change the visits — e.g. 2 carers, a longer or extra visit, or a different time.' },
+  { value: 'COURSE', label: 'Course for carer', pick: 'course', question: '', hint: 'Give the carer a training course to complete in Learning.' },
+  { value: 'COMPETENCY_CHECK', label: 'Competency check', pick: 'staff', question: 'Whose competency?', hint: 'Watch the carer do the task to confirm they can do it safely.' },
+  { value: 'SUPERVISION', label: 'Supervision', pick: 'staff', question: 'Who needs supervision?', hint: 'A 1-to-1 meeting with the carer to talk about what happened and agree what changes.' },
+  { value: 'POLICY_UPDATE', label: 'Policy update', pick: 'policy', question: 'Which policy or procedure?', newLabel: 'New policy / procedure needed', hint: 'Change a policy or procedure, or write a new one.' },
+  { value: 'OTHER', label: 'Other', pick: 'none', question: '', needsDescription: true, hint: 'Anything else — e.g. fix equipment, make the home safer, or brief the team.' },
+]
+
+/** Care plan / risk assessment / policy measures are completed by naming the record changed. */
+export const measureNeedsCompletedRecord = (v: string | null | undefined) =>
+  !!INCIDENT_MEASURE_TYPE_OPTIONS.find((o) => o.value === v)?.newLabel
+
+export const incidentMeasureTypeLabel = (v: string | null | undefined) =>
+  INCIDENT_MEASURE_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? null
 
 export type MyActionItem = IncidentAction & { incidentReference: string }
 
@@ -605,10 +927,20 @@ export type CreateIncidentActionInput = {
   dueDate?: string
   assignedEmployeeId?: string
   isMandatory?: boolean
+  measureType?: IncidentMeasureType
+  linkedRecords?: { id: string; label: string }[]
+  addresses?: string[]
+  newRecordNeeded?: boolean
+  /** COURSE: the carer and the published course. */
+  courseEmployeeId?: string
+  courseId?: string
 }
 
 export type UpdateIncidentActionInput = Partial<
-  Omit<CreateIncidentActionInput, 'assignedEmployeeId' | 'dueDate' | 'description'>
+  Omit<
+    CreateIncidentActionInput,
+    'assignedEmployeeId' | 'dueDate' | 'description' | 'measureType' | 'courseEmployeeId' | 'courseId'
+  >
 > & {
   status?: IncidentActionStatus
   description?: string | null
@@ -649,6 +981,10 @@ export type UpsertIncidentReviewInput = {
   decisionReason?: string
   /** Required when the review is changed after its decision was made. */
   changeReason?: string
+  /** Is anyone currently at immediate or ongoing risk? */
+  immediateRisk?: boolean
+  /** Required when immediateRisk is true. */
+  protectiveAction?: string
   investigationRequired?: boolean
   safeguardingConcern?: boolean
   possibleAbuseOrNeglect?: boolean
@@ -668,6 +1004,17 @@ export type UpsertIncidentInvestigationInput = {
   rootCause?: string
   preventable?: IncidentPreventability
   conclusion?: string
+  investigationLevel?: InvestigationLevel | null
+  leadInvestigatorEmployeeId?: string | null
+  investigatorInvolved?: InvestigatorInvolvement | null
+  investigatorInvolvedReason?: string | null
+  /** YYYY-MM-DD */
+  targetDate?: string | null
+  termsOfReference?: string | null
+  recordsReviewed?: string[]
+  recordsReviewedDetails?: ContributingFactorDetails
+  evidenceNotes?: string | null
+  outstandingEvidence?: string | null
   markComplete?: boolean
 }
 
@@ -756,6 +1103,8 @@ export type CreateIncidentInput = {
   occurredAt: string
   locationId?: string
   specificArea?: string
+  locationKey?: string
+  locationDetail?: string
   primaryServiceUserId?: string
   primaryEmployeeId?: string
   /** Everyone involved; the first is the primary person. */
@@ -919,6 +1268,44 @@ export const WHO_INFORMED_LABELS: Record<string, string> = {
 }
 
 /** Office raise form "Who was informed?" (static for now) — must match OFFICE_WHO_INFORMED_KEYS in the API. */
+/** "Where did it happen?" — must match INCIDENT_LOCATION_KEYS in the API. */
+export const INCIDENT_LOCATION_GROUPS: { label: string; options: { value: string; label: string }[] }[] = [
+  {
+    label: "Service user's home",
+    options: [
+      { value: 'HOME_BATHROOM', label: 'Bathroom' },
+      { value: 'HOME_BEDROOM', label: 'Bedroom' },
+      { value: 'HOME_KITCHEN', label: 'Kitchen' },
+      { value: 'HOME_LIVING_ROOM', label: 'Living room' },
+      { value: 'HOME_STAIRS', label: 'Stairs / hallway' },
+      { value: 'HOME_GARDEN', label: 'Garden / outside' },
+      { value: 'HOME_ENTRANCE', label: 'Entrance / doorstep' },
+    ],
+  },
+  {
+    label: 'Elsewhere',
+    options: [
+      { value: 'COMMUNITY', label: 'Community / outdoors' },
+      { value: 'VEHICLE', label: 'Vehicle' },
+      { value: 'OFFICE', label: 'Office' },
+      { value: 'OTHER', label: 'Other' },
+    ],
+  },
+]
+
+/** "Service user's home – bathroom" / "Other: …" for display. */
+export function incidentLocationLabel(key: string | null | undefined, detail?: string | null): string | null {
+  if (!key) return null
+  for (const g of INCIDENT_LOCATION_GROUPS) {
+    const o = g.options.find((x) => x.value === key)
+    if (o) {
+      if (key === 'OTHER') return detail ? `Other: ${detail}` : 'Other'
+      return g.label === 'Elsewhere' ? o.label : `${g.label} – ${o.label.toLowerCase()}`
+    }
+  }
+  return key
+}
+
 export const OFFICE_WHO_INFORMED_OPTIONS: { value: string; label: string }[] = [
   { value: 'office', label: 'Office' },
   { value: 'on_call_manager', label: 'On-call manager' },

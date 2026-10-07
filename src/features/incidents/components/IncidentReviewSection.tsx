@@ -11,6 +11,7 @@ import {
   INCIDENT_SEVERITY_BADGE,
   type IncidentCorrectionEntry,
   type IncidentReview,
+  type IncidentReviewCycle,
   type IncidentReviewSeverityDecision,
   type IncidentSeverityStep,
   type IncidentSeverity,
@@ -33,10 +34,12 @@ const REVIEW_QUESTIONS: { key: keyof UpsertIncidentReviewInput; label: string; h
     label: 'Safeguarding concern?',
     hint: 'The person may be at risk of abuse or neglect and the local authority may need to know.',
   },
+  // Removed: it duplicated "Safeguarding concern?". Saved answers stay in the data and in earlier reviews.
+  // { key: 'possibleAbuseOrNeglect', label: 'Possible abuse or neglect?', hint: '…' },
   {
-    key: 'possibleAbuseOrNeglect',
-    label: 'Possible abuse or neglect?',
-    hint: 'Any sign that harm was caused by someone else, or by lack of care.',
+    key: 'immediateRisk',
+    label: 'Is anyone currently at immediate or ongoing risk?',
+    hint: 'Someone could be harmed again before this is resolved (the person, staff or others).',
   },
   {
     key: 'furtherMedicalAttention',
@@ -48,7 +51,7 @@ const REVIEW_QUESTIONS: { key: keyof UpsertIncidentReviewInput; label: string; h
   // { key: 'externalNotificationRequired', label: 'External notification required?' },
   {
     key: 'escalationRequired',
-    label: 'Escalation required?',
+    label: 'Immediate senior management escalation required?',
     hint: 'A senior manager needs to know about this now.',
   },
 ]
@@ -70,6 +73,7 @@ export function IncidentReviewSection({
   status,
   severityDecision,
   severityChanges,
+  reviewCycles,
 }: {
   incidentId: string
   review: IncidentReview | null
@@ -86,6 +90,8 @@ export function IncidentReviewSection({
   severityDecision?: IncidentReviewSeverityDecision | null
   /** Every severity step (reported, corrections, review changes) for the full chain. */
   severityChanges?: IncidentSeverityStep[]
+  /** Earlier review cycles of a reopened incident (read-only). */
+  reviewCycles?: IncidentReviewCycle[]
 }) {
   const mutation = useUpsertIncidentReview(incidentId)
   // Severity decision (first review only): no default, so confirming is a deliberate choice.
@@ -101,12 +107,14 @@ export function IncidentReviewSection({
   const [showSeverityHistory, setShowSeverityHistory] = React.useState(false)
   const [answers, setAnswers] = React.useState<Record<string, string>>(() => ({
     safeguardingConcern: triToValue(review?.safeguardingConcern),
-    possibleAbuseOrNeglect: triToValue(review?.possibleAbuseOrNeglect),
+    immediateRisk: triToValue(review?.immediateRisk),
     furtherMedicalAttention: triToValue(review?.furtherMedicalAttention),
     externalNotificationRequired: triToValue(review?.externalNotificationRequired),
     escalationRequired: triToValue(review?.escalationRequired),
   }))
   const [notes, setNotes] = React.useState(review?.managementNotes ?? '')
+  const [protectiveAction, setProtectiveAction] = React.useState(review?.protectiveAction ?? '')
+  const [showPreviousReviews, setShowPreviousReviews] = React.useState(false)
 
   function save() {
     if (!severityDecided && !severityChoice) return setProblem('Confirm or change the severity')
@@ -115,6 +123,8 @@ export function IncidentReviewSection({
       return setProblem('Give a reason for changing the severity')
     if (decision === 'NO_INVESTIGATION' && !decisionReason.trim())
       return setProblem('Give a reason why no investigation is needed')
+    if (answers.immediateRisk === 'yes' && !protectiveAction.trim())
+      return setProblem('Describe the immediate protective action required or taken')
     if (changedAfterDecision && !changeReason.trim()) return setProblem('Give a reason for the change')
     setProblem(null)
     const severityDecision: Pick<UpsertIncidentReviewInput, 'confirmedSeverity' | 'severityReason'> =
@@ -132,7 +142,8 @@ export function IncidentReviewSection({
           }
         : {}),
       safeguardingConcern: valueToTri(answers.safeguardingConcern),
-      possibleAbuseOrNeglect: valueToTri(answers.possibleAbuseOrNeglect),
+      immediateRisk: valueToTri(answers.immediateRisk),
+      protectiveAction: answers.immediateRisk === 'yes' ? protectiveAction.trim() : undefined,
       furtherMedicalAttention: valueToTri(answers.furtherMedicalAttention),
       externalNotificationRequired: valueToTri(answers.externalNotificationRequired),
       escalationRequired: valueToTri(answers.escalationRequired),
@@ -158,23 +169,20 @@ export function IncidentReviewSection({
     (REVIEW_QUESTIONS.some(
       (q) => answers[q.key as string] !== triToValue(review?.[q.key as keyof IncidentReview] as boolean | null),
     ) ||
-      notes.trim() !== (review?.managementNotes ?? '').trim())
+      notes.trim() !== (review?.managementNotes ?? '').trim() ||
+      (answers.immediateRisk === 'yes' ? protectiveAction.trim() : '') !== (review?.protectiveAction ?? '').trim())
 
   // "No investigation" is allowed, but flagged when the answers suggest one is usually needed.
   const effectiveSeverity =
     severityChoice === 'change' && newSeverity ? newSeverity : currentSeverity
   const investigationAdvised = [
     answers.safeguardingConcern === 'yes' && 'a safeguarding concern was raised',
-    answers.possibleAbuseOrNeglect === 'yes' && 'possible abuse or neglect was flagged',
     (effectiveSeverity === 'HIGH' || effectiveSeverity === 'CRITICAL') &&
       `the severity is ${severityLabel(effectiveSeverity).toLowerCase()}`,
   ].filter(Boolean) as string[]
-  const decisionText =
-    review?.investigationRequired === true
-      ? 'Investigate'
-      : review?.investigationRequired === false
-        ? 'No investigation needed'
-        : 'Not decided'
+  const decisionLabel = (d: string | null | undefined) =>
+    d === 'INVESTIGATE' ? 'Investigate' : d === 'NO_INVESTIGATION' ? 'No investigation needed' : 'Not decided'
+  const decisionText = decisionLabel(review?.decision)
 
   const sevBadge = (s: IncidentSeverity) => (
     <Badge variant={INCIDENT_SEVERITY_BADGE[s]} size="sm">
@@ -294,8 +302,94 @@ export function IncidentReviewSection({
       </div>
     ) : null
 
+  const yesNo = (v: boolean | null) => (v === true ? 'Yes' : v === false ? 'No' : 'Not answered')
+  /** Earlier review cycles (the incident was reopened); read-only history. */
+  const previousReviews =
+    reviewCycles && reviewCycles.length > 0 ? (
+      <div className="rounded-lg border border-border p-3 text-sm">
+        <button
+          type="button"
+          className="text-sm font-medium text-primary hover:underline"
+          onClick={() => setShowPreviousReviews((v) => !v)}
+        >
+          {showPreviousReviews ? 'Hide previous reviews' : `Previous reviews (${reviewCycles.length})`}
+        </button>
+        {showPreviousReviews && (
+          <ol className="mt-3 space-y-4">
+            {[...reviewCycles].reverse().map((c) => (
+              <li key={c.id} className="space-y-1.5 border-l-2 border-border pl-3">
+                <p className="font-medium text-foreground">Review {c.cycleNumber}</p>
+                <p className="text-xs text-muted-foreground">
+                  Reviewed by {c.reviewedByName ?? 'Unknown'}
+                  {c.reviewedAt ? ` · ${formatOrganisationDateTime(c.reviewedAt)}` : ''}
+                  {c.lastUpdatedAt && c.reviewedAt && c.lastUpdatedAt !== c.reviewedAt
+                    ? ` · last updated by ${c.lastUpdatedByName ?? 'Unknown'} · ${formatOrganisationDateTime(c.lastUpdatedAt)}`
+                    : ''}
+                </p>
+                <p className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-muted-foreground">Severity at review:</span>
+                  {c.confirmedSeverity ? sevBadge(c.confirmedSeverity) : 'Not decided'}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Decision: </span>
+                  {decisionLabel(c.decision)}
+                  {c.decisionReason ? ` — ${c.decisionReason}` : ''}
+                </p>
+                <dl className="space-y-0.5">
+                  {(
+                    [
+                      ['Safeguarding concern', c.safeguardingConcern],
+                      ['Possible abuse or neglect', c.possibleAbuseOrNeglect],
+                      ['Immediate or ongoing risk', c.immediateRisk],
+                      ['Further medical attention', c.furtherMedicalAttention],
+                      ['External notification required', c.externalNotificationRequired],
+                      ['Immediate senior management escalation', c.escalationRequired],
+                    ] as const
+                  )
+                    // Older questions only appear when they were answered.
+                    .filter(([label, v]) =>
+                      label === 'Possible abuse or neglect' || label === 'External notification required'
+                        ? v !== null
+                        : true,
+                    )
+                    .map(([label, v]) => (
+                      <div key={label} className="flex justify-between gap-3">
+                        <dt className="text-muted-foreground">{label}</dt>
+                        <dd className="text-foreground">{yesNo(v)}</dd>
+                      </div>
+                    ))}
+                </dl>
+                {c.immediateRisk && c.protectiveAction && (
+                  <p className="whitespace-pre-wrap">
+                    <span className="text-muted-foreground">Protective action: </span>
+                    {c.protectiveAction}
+                  </p>
+                )}
+                {c.managementNotes && (
+                  <p className="whitespace-pre-wrap">
+                    <span className="text-muted-foreground">Notes: </span>
+                    {c.managementNotes}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Incident reopened by {c.archivedByName ?? 'Unknown'} · {formatOrganisationDateTime(c.archivedAt)}
+                  {c.reopenReason ? ` — ${c.reopenReason}` : ''}
+                </p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    ) : null
+
   if (!canEdit) {
-    if (!review) return <p className="text-sm text-muted-foreground">No manager review recorded yet.</p>
+    if (!review)
+      return (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">No manager review recorded yet.</p>
+          {previousReviews}
+        </div>
+      )
     return (
       <div className="space-y-3">
       {reviewSummary}
@@ -324,6 +418,12 @@ export function IncidentReviewSection({
             </dd>
           </div>
         ))}
+        {review.immediateRisk && review.protectiveAction && (
+          <div>
+            <p className="text-muted-foreground">Immediate protective action</p>
+            <p className="whitespace-pre-wrap text-foreground">{review.protectiveAction}</p>
+          </div>
+        )}
         {review.managementNotes && (
           <div className="mt-2 border-t border-border pt-2">
             <p className="text-muted-foreground">Manager&apos;s review notes</p>
@@ -331,6 +431,7 @@ export function IncidentReviewSection({
           </div>
         )}
       </dl>
+      {previousReviews}
       </div>
     )
   }
@@ -439,7 +540,8 @@ export function IncidentReviewSection({
         )}
       </fieldset>
       {REVIEW_QUESTIONS.map((q) => (
-        <div key={q.key} className="flex items-start justify-between gap-3">
+        <div key={q.key}>
+          <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <span className="text-sm text-foreground" id={`review-q-${q.key}`}>
               {q.label}
@@ -459,6 +561,24 @@ export function IncidentReviewSection({
               </label>
             ))}
           </div>
+          </div>
+          {q.key === 'immediateRisk' && answers.immediateRisk === 'yes' && (
+            <div className="mt-2 space-y-1 pl-0">
+              <p className="text-xs font-medium text-foreground">
+                What immediate protective action is required or has been taken?
+                <Req />
+              </p>
+              <Textarea
+                rows={2}
+                maxLength={4000}
+                value={protectiveAction}
+                onChange={(e) => setProtectiveAction(e.target.value)}
+                placeholder="e.g. Removed the staff member from the visit, arranged urgent medical support, increased supervision, made the environment safe, contacted safeguarding / emergency services"
+                aria-label="Immediate protective action"
+                className="placeholder:text-muted-foreground dark:placeholder:text-foreground/75"
+              />
+            </div>
+          )}
         </div>
       ))}
       <div>
@@ -559,6 +679,7 @@ export function IncidentReviewSection({
       <Button className="w-full" size="sm" loading={mutation.isPending} onClick={save}>
         Save review
       </Button>
+      {previousReviews}
     </div>
   )
 }

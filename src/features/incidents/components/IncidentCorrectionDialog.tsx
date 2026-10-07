@@ -40,6 +40,7 @@ import {
 } from '@/features/incidents/category-details'
 import {
   IMMEDIATE_ACTION_OPTIONS,
+  INCIDENT_LOCATION_GROUPS,
   INCIDENT_PERSON_KIND_OPTIONS,
   OFFICE_WHO_INFORMED_OPTIONS,
   type CorrectIncidentInput,
@@ -79,6 +80,8 @@ function initialState(incident: IncidentDetail) {
       .filter((e) => e.id !== incident.primaryEmployeeId)
       .map((e) => ({ id: e.id, name: e.name ?? 'Staff member' })),
     locationId: incident.locationId ?? '',
+    locationKey: incident.locationKey ?? '',
+    locationDetail: incident.locationDetail ?? '',
     visitChoice: incident.scheduledJobId ?? NOT_DURING_VISIT,
     details: (incident.categoryDetails ?? {}) as CategoryDetails,
     ambulanceAttended: incident.ambulanceAttended ?? null,
@@ -198,6 +201,10 @@ export function IncidentCorrectionDialog({
     if (!sameList(otherSuIds, start.otherSus.map((p) => p.id))) out.serviceUserIds = otherSuIds
     if (!sameList(otherStaffIds, start.otherStaff.map((p) => p.id))) out.employeeIds = otherStaffIds
     if (form.locationId !== start.locationId) out.locationId = form.locationId || null
+    if (form.locationKey !== start.locationKey) out.locationKey = form.locationKey || null
+    const detail = form.locationKey === 'OTHER' ? form.locationDetail.trim() : ''
+    if (detail !== (start.locationKey === 'OTHER' ? start.locationDetail.trim() : ''))
+      out.locationDetail = detail || null
     const job = form.visitChoice && form.visitChoice !== NOT_DURING_VISIT ? form.visitChoice : null
     if (job !== (incident.scheduledJobId ?? null)) out.scheduledJobId = job
     const details = categoryDetailsForSubmit(categoryKey, form.details) ?? null
@@ -223,6 +230,7 @@ export function IncidentCorrectionDialog({
     if (form.kinds.includes('SERVICE_USER') && !form.serviceUserId) next.serviceUserId = 'Select the service user'
     if (form.kinds.includes('EMPLOYEE') && !form.employeeId) next.employeeId = 'Select the staff member'
     if (form.kinds.some(isOtherKind) && !form.otherName.trim()) next.otherName = 'Enter the name of the person affected'
+    if (form.locationKey === 'OTHER' && !form.locationDetail.trim()) next.locationDetail = 'Describe where it happened'
     if (form.actionCodes.includes('NO_ACTION_NEEDED') && form.actionCodes.length > 1)
       next.actionCodes = '"No action needed" cannot be combined with other actions'
     if (form.whoInformed.includes('no_one_yet') && form.whoInformed.length > 1)
@@ -304,6 +312,35 @@ export function IncidentCorrectionDialog({
                   ))}
               </select>
             </FormField>
+            <FormField label="Where did it happen?" htmlFor="corr-where">
+              <select
+                id="corr-where"
+                className={selectClass}
+                value={form.locationKey}
+                onChange={(e) => set('locationKey', e.target.value)}
+              >
+                <option value="">Not specified</option>
+                {INCIDENT_LOCATION_GROUPS.map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.options.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </FormField>
+            {form.locationKey === 'OTHER' && (
+              <FormField label="Describe where" htmlFor="corr-where-other" required error={errors.locationDetail}>
+                <Input
+                  id="corr-where-other"
+                  maxLength={200}
+                  value={form.locationDetail}
+                  onChange={(e) => set('locationDetail', e.target.value)}
+                />
+              </FormField>
+            )}
 
             <FormField label="What are you reporting?" htmlFor="corr-category" required>
               <select

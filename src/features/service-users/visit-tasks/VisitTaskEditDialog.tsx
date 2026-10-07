@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ListChecks, Pencil } from 'lucide-react'
+import { Clock, ListChecks, Pencil } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import {
   Dialog,
@@ -27,6 +27,8 @@ export type VisitTaskEditValues = {
   priority: VisitTaskPriorityCode
   schedule: VisitTaskSchedule
   bodyMapRequired: boolean
+  /** HH:mm — the task shows on the visit whose time covers this (like medicine due times). */
+  dueTime: string
 }
 
 type Props = {
@@ -34,6 +36,8 @@ type Props = {
   taskName: string
   categoryName?: string
   initial: VisitTaskEditValues
+  /** Hidden for the eMAR "Medication prompt", which follows medicine due times. */
+  showDueTime?: boolean
   onOpenChange: (open: boolean) => void
   onSave: (values: VisitTaskEditValues) => void
 }
@@ -44,9 +48,11 @@ export function VisitTaskEditDialog({
   taskName,
   categoryName,
   initial,
+  showDueTime = true,
   onOpenChange,
   onSave,
 }: Props) {
+  const [dueTime, setDueTime] = React.useState(initial.dueTime ?? '')
   const [priority, setPriority] = React.useState<VisitTaskPriorityCode>(
     initial.priority ?? DEFAULT_VISIT_TASK_PRIORITY,
   )
@@ -66,6 +72,7 @@ export function VisitTaskEditDialog({
     setCarerInstructions(initial.carerInstructions ?? '')
     setSchedule(mergeVisitTaskSchedule(initial.schedule))
     setBodyMapRequired(Boolean(initial.bodyMapRequired))
+    setDueTime(initial.dueTime ?? '')
   }, [open, initial])
 
   return (
@@ -90,6 +97,26 @@ export function VisitTaskEditDialog({
         </DialogHeader>
 
         <DialogBody className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-muted/20 px-5 py-4">
+          {showDueTime ? (
+            <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+              <h3 className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <Clock className="h-3.5 w-3.5 text-primary" aria-hidden />
+                Due time
+              </h3>
+              <input
+                id="edit-task-due-time"
+                type="time"
+                value={dueTime}
+                onChange={(event) => setDueTime(event.target.value)}
+                className="h-9 w-36 rounded-lg border border-border bg-muted/40 px-2.5 text-sm tabular-nums outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                The task shows on the visit whose time covers this, the same way medicine due
+                times work.
+              </p>
+            </section>
+          ) : null}
+
           <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Priority
@@ -160,6 +187,7 @@ export function VisitTaskEditDialog({
                 carerInstructions: carerInstructions.trim(),
                 schedule: mergeVisitTaskSchedule(schedule),
                 bodyMapRequired,
+                dueTime: dueTime.trim(),
               })
               onOpenChange(false)
             }}

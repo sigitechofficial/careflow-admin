@@ -61,6 +61,7 @@ import {
 } from '@/features/incidents/utils/incident-raise-persist'
 import {
   IMMEDIATE_ACTION_OPTIONS,
+  INCIDENT_LOCATION_GROUPS,
   OFFICE_WHO_INFORMED_OPTIONS,
   INCIDENT_INJURY_SEVERITY_LABELS,
   INCIDENT_PERSON_KIND_OPTIONS,
@@ -139,6 +140,9 @@ export default function RaiseIncidentPage() {
   const [employeeId, setEmployeeId] = React.useState('')
   const [affectedPersonName, setAffectedPersonName] = React.useState('')
   const [locationId, setLocationId] = React.useState('')
+  // Where it happened (optional); "Other" needs a short description.
+  const [locationKey, setLocationKey] = React.useState('')
+  const [locationDetail, setLocationDetail] = React.useState('')
 
   const [categoryId, setCategoryId] = React.useState('')
   const [subtypeId, setSubtypeId] = React.useState('')
@@ -381,6 +385,7 @@ export default function RaiseIncidentPage() {
     if (affectedKinds.some((k) => k !== 'SERVICE_USER' && k !== 'EMPLOYEE') && !affectedPersonName.trim())
       next.affectedPersonName = 'Enter the name of the person affected'
     if (!description.trim()) next.description = 'Describe what happened'
+    if (locationKey === 'OTHER' && !locationDetail.trim()) next.locationDetail = 'Describe where it happened'
     if (!severity) next.severity = 'Select how serious it is'
     if (canPickVisit && !visitChoice) next.visit = 'Choose the visit, or "Not during a visit"'
     if (injuries.some((inj) => !findInjuredPerson(inj, injuredPeople)))
@@ -423,6 +428,8 @@ export default function RaiseIncidentPage() {
         ? affectedPersonName.trim() || undefined
         : undefined,
       locationId: locationId || undefined,
+      locationKey: locationKey || undefined,
+      locationDetail: locationKey === 'OTHER' ? locationDetail.trim() || undefined : undefined,
       description: description.trim(),
       contextBefore: contextBefore.trim() || undefined,
       contextAfter: contextAfter.trim() || undefined,
@@ -565,6 +572,8 @@ export default function RaiseIncidentPage() {
               setTakenToAe(null)
               setAdmittedToHospital(null)
               setOccurredAtLocal(null)
+              setLocationKey('')
+              setLocationDetail('')
               setOtherServiceUsers([])
               setErrors({})
             }}
@@ -767,6 +776,37 @@ export default function RaiseIncidentPage() {
                   ))}
               </select>
             </FormField>
+
+            <FormField label="Where did it happen?" htmlFor="inc-where" hint="Optional">
+              <select
+                id="inc-where"
+                value={locationKey}
+                onChange={(e) => setLocationKey(e.target.value)}
+                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Not specified</option>
+                {INCIDENT_LOCATION_GROUPS.map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.options.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </FormField>
+            {locationKey === 'OTHER' && (
+              <FormField label="Describe where" htmlFor="inc-where-other" required error={errors.locationDetail}>
+                <Input
+                  id="inc-where-other"
+                  maxLength={200}
+                  value={locationDetail}
+                  onChange={(e) => setLocationDetail(e.target.value)}
+                  placeholder="e.g. Day centre car park"
+                />
+              </FormField>
+            )}
 
             <FormField
               label="Visit (where it happened or was discovered)"

@@ -38,6 +38,9 @@ import { VisitMedicationPanel } from '@/features/scheduling/components/VisitMedi
 import { VisitObservationsPanel } from '@/features/scheduling/components/VisitObservationsPanel'
 import { VisitLogTimelinePanel } from '@/features/scheduling/components/VisitLogTimelinePanel'
 import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
+import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
+import { useVisitVoiceNotes } from '@/features/scheduling/hooks/useVisitVoiceNotes'
+import type { VisitVoiceNote } from '@/features/scheduling/types/visit-voice-note.types'
 import {
   fetchVisitObservations,
   fetchVisitCareConsents,
@@ -80,11 +83,14 @@ function VisitWorkspaceSosAlerts({
   sectionClosed,
   sectionAcknowledged,
   ackSummary,
+  voiceNotes,
 }: {
   alerts: CarerSosAlertDto[]
   sectionClosed: boolean
   sectionAcknowledged: boolean
   ackSummary: CarerSosAlertDto | undefined
+  /** Carer SOS voice notes for this visit (not matchable to a single alert row). */
+  voiceNotes?: VisitVoiceNote[]
 }) {
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(
     () => new Set(alerts.filter(row => row.lifecycle !== 'CLOSED').map(row => row.id)),
@@ -232,6 +238,7 @@ function VisitWorkspaceSosAlerts({
           )
         })}
       </ul>
+      <VoiceNoteList voiceNotes={voiceNotes} label="Carer SOS voice notes" />
       {!sectionClosed && sectionAcknowledged && ackSummary ? (
         <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
           Acknowledged
@@ -470,6 +477,14 @@ export function ScheduleVisitWorkspaceContent({
     [liveJob],
   )
 
+  const voiceNoteLookup = useVisitVoiceNotes(job.id)
+  const checkInVoiceNotes = voiceNoteLookup.groups
+    .filter((g) => g.entryType === 'check_in')
+    .flatMap((g) => g.voiceNotes)
+  const sosVoiceNotes = voiceNoteLookup.groups
+    .filter((g) => g.entryType === 'sos')
+    .flatMap((g) => g.voiceNotes)
+
   const sosQuery = useEcmVisitSos(job.id)
   const visitSos = sosQuery.data ?? []
   const visitSosClosed =
@@ -539,6 +554,7 @@ export function ScheduleVisitWorkspaceContent({
               sectionClosed={visitSosClosed}
               sectionAcknowledged={visitSosAcknowledged}
               ackSummary={visitSosAck}
+              voiceNotes={sosVoiceNotes}
             />
           ) : null}
           <section className={cn('rounded-lg border border-border px-4 py-3', cardSurface)}>
@@ -639,6 +655,7 @@ export function ScheduleVisitWorkspaceContent({
                   ) : null}
                 </dl>
               ) : null}
+              <VoiceNoteList voiceNotes={checkInVoiceNotes} label="Clock in voice notes" />
             </div>
             ) : null}
           </section>
@@ -655,6 +672,8 @@ export function ScheduleVisitWorkspaceContent({
             timingException={job.timingException}
             careNotDelivered={job.careNotDelivered}
             cancellation={job.cancellation}
+            clockOutVoiceNotes={voiceNoteLookup.forEntry('clock_out', job.id)}
+            unableToStartVoiceNotes={voiceNoteLookup.forEntry('unable_to_start', job.id)}
             className={cardSurface}
           />
 
@@ -845,6 +864,7 @@ export function ScheduleVisitWorkspaceContent({
       ) : tab === 'medication' ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <VisitMedicationPanel
+            jobId={job.id}
             serviceUserId={job.serviceUserId}
             visitDate={date}
             visitId={visitContext.scheduledVisitId}

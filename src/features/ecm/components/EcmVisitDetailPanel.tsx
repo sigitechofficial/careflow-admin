@@ -47,6 +47,9 @@ import {
   useRejectCheckInMethodGrant,
 } from '@/features/ecm/hooks/useEcm'
 import type { EcmCheckInMethodGrant } from '@/features/ecm/types/ecm.types'
+import { useVisitVoiceNotes } from '@/features/scheduling/hooks/useVisitVoiceNotes'
+import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
+import type { VisitVoiceNote } from '@/features/scheduling/types/visit-voice-note.types'
 
 function visitTypeLabel(jobName: string, serviceUserName: string): string {
   const raw = (jobName ?? '').trim()
@@ -276,6 +279,11 @@ function VisitDetailCheckInGrants({
   jobId: string
   grants: EcmCheckInMethodGrant[]
 }) {
+  // Check-in request voice notes are keyed by job (not grant), so every card shows them.
+  const { groups } = useVisitVoiceNotes(jobId)
+  const voiceNotes = groups
+    .filter((g) => g.entryType === 'check_in_request')
+    .flatMap((g) => g.voiceNotes)
   const open = grants.filter(
     (grant) => grant.status === 'PENDING' || grant.manualEnabled,
   )
@@ -283,7 +291,12 @@ function VisitDetailCheckInGrants({
   return (
     <div className="space-y-3">
       {open.map((grant) => (
-        <VisitDetailCheckInGrantCard key={grant.id} jobId={jobId} grant={grant} />
+        <VisitDetailCheckInGrantCard
+          key={grant.id}
+          jobId={jobId}
+          grant={grant}
+          voiceNotes={voiceNotes}
+        />
       ))}
     </div>
   )
@@ -292,9 +305,11 @@ function VisitDetailCheckInGrants({
 function VisitDetailCheckInGrantCard({
   jobId,
   grant,
+  voiceNotes,
 }: {
   jobId: string
   grant: EcmCheckInMethodGrant
+  voiceNotes?: VisitVoiceNote[]
 }) {
   const authorise = useAuthoriseCheckInMethodGrant()
   const reject = useRejectCheckInMethodGrant()
@@ -334,9 +349,10 @@ function VisitDetailCheckInGrantCard({
           <span className="mx-1.5 text-muted-foreground/80">·</span>
           {grant.carerNote}
         </p>
-      ) : (
+      ) : voiceNotes?.length ? null : (
         <p className="text-sm text-muted-foreground">No note from the carer.</p>
       )}
+      <VoiceNoteList voiceNotes={voiceNotes} label="Carer voice notes" />
       {mapsHref ? (
         <a
           href={mapsHref}

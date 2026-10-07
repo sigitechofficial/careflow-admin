@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { ArrowRight, Lock, Play, RotateCcw, Undo2 } from 'lucide-react'
+import { useIsMutating } from '@tanstack/react-query'
+import { ArrowRight, CheckCircle2, Lock, Play, RotateCcw, Undo2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Textarea } from '@/shared/ui/form-field'
 import {
@@ -10,8 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import { useChangeIncidentStatus, useStartIncidentReview } from '@/features/incidents/hooks/useIncidents'
-import type { IncidentSeverity, IncidentStatus } from '@/features/incidents/types'
+import {
+  upsertIncidentInvestigationMutationKey,
+  useChangeIncidentStatus,
+  useStartIncidentReview,
+} from '@/features/incidents/hooks/useIncidents'
+import type {
+  IncidentSeverity,
+  IncidentStatus,
+  InvestigationStatus,
+} from '@/features/incidents/types'
 
 type StepAction = {
   key: string
@@ -22,10 +31,14 @@ type StepAction = {
   startReview?: boolean
   /** Opens the Review tab instead of changing the status. */
   goToReview?: boolean
+  /** Validates and completes the investigation form on the Investigate tab. */
+  completeInvestigation?: boolean
   /** Ask for a reason before moving (reopen / send back). */
   reasonTitle?: string
   /** Close despite incomplete mandatory measures (audited, needs a reason). */
   overrideMandatory?: boolean
+  /** Close while an external body (police, LA safeguarding…) is still open (audited, needs a reason). */
+  overrideExternal?: boolean
   primary?: boolean
   disabledReason?: string
   hidden?: boolean
@@ -46,6 +59,10 @@ export function IncidentNextStepBar({
   canReopen,
   onGoToReview,
   onReviewTab = false,
+  investigationStatus = null,
+  undecidedSuspensions = 0,
+  openExternalBodies = [],
+  onCompleteInvestigation,
 }: {
   incidentId: string
   status: IncidentStatus
@@ -59,12 +76,21 @@ export function IncidentNextStepBar({
   onGoToReview?: () => void
   /** The Review tab is already open, so "Go to review" is not needed. */
   onReviewTab?: boolean
+  /** Null when no investigation record exists. */
+  investigationStatus?: InvestigationStatus | null
+  /** Carer suspensions still needing a lift / continue decision (blocks closing). */
+  undecidedSuspensions?: number
+  /** Names of external bodies still referred / in progress (closing needs a reason). */
+  openExternalBodies?: string[]
+  /** Completes the investigation from the Investigate tab's form (absent when it can't be edited). */
+  onCompleteInvestigation?: () => void
 }) {
   const statusMutation = useChangeIncidentStatus(incidentId)
   const startReview = useStartIncidentReview(incidentId)
   const [reasonFor, setReasonFor] = React.useState<StepAction | null>(null)
   const [reason, setReason] = React.useState('')
-  const busy = statusMutation.isPending || startReview.isPending
+  const completing = useIsMutating({ mutationKey: upsertIncidentInvestigationMutationKey(incidentId) }) > 0
+  const busy = statusMutation.isPending || startReview.isPending || completing
 
   // Mirrors the API: incomplete mandatory measures block High/Critical closure unless overridden.
   const blockingMandatory =
@@ -77,12 +103,20 @@ export function IncidentNextStepBar({
     canClose,
     canReopen,
     onReviewTab,
+    investigationStatus,
+    undecidedSuspensions,
+    openExternalBodies: openExternalBodies.length,
+    canCompleteInvestigation: Boolean(onCompleteInvestigation),
   })
   const visible = actions.filter((a) => !a.hidden)
 
   function run(action: StepAction) {
     if (action.goToReview) {
       onGoToReview?.()
+      return
+    }
+    if (action.completeInvestigation) {
+      onCompleteInvestigation?.()
       return
     }
     if (action.startReview) {
@@ -104,6 +138,7 @@ export function IncidentNextStepBar({
         status: reasonFor.to,
         reason: reason.trim(),
         ...(reasonFor.overrideMandatory ? { overrideMandatoryActions: true } : {}),
+        ...(reasonFor.overrideExternal ? { overrideOpenExternalBodies: true } : {}),
       },
       { onSuccess: () => setReasonFor(null) },
     )
@@ -152,6 +187,12 @@ export function IncidentNextStepBar({
                 audit log.
               </p>
             )}
+            {reasonFor?.overrideExternal && (
+              <p className="mb-3 rounded-md border border-warning/40 bg-warning/10 p-2 text-sm text-warning">
+                Still open: {openExternalBodies.join(', ')}. You can close the incident while they carry on;
+                say why below (kept in the audit log).
+              </p>
+            )}
             <label htmlFor="next-step-reason" className="mb-1 block text-sm font-medium text-foreground">
               Reason<span className="ml-0.5 text-destructive dark:text-red-400">*</span>
             </label>
@@ -188,6 +229,11 @@ function describe(
     canClose: boolean
     canReopen: boolean
     onReviewTab: boolean
+    investigationStatus: InvestigationStatus | null
+    undecidedSuspensions: number
+    /** External bodies still referred / in progress. */
+    openExternalBodies: number
+    canCompleteInvestigation: boolean
   },
 ): { hint: string; actions: StepAction[] } {
   const arrow = <ArrowRight className="mr-1 h-4 w-4" />
@@ -212,14 +258,44 @@ function describe(
               { key: 'go-review', label: 'Go to review', icon: arrow, goToReview: true, primary: true, hidden: noReview },
             ],
           }
-    case 'UNDER_INVESTIGATION':
+    case 'UNDER_INVESTIGATION': {
+      // Mirrors the API: the investigation must be completed before moving on.
+      const paused = ctx.investigationStatus === 'PAUSED'
+      const done = ctx.investigationStatus === 'COMPLETED'
+      if (!done && ctx.canCompleteInvestigation) {
+        return {
+          hint: paused
+            ? 'The investigation is paused. Resume it, then complete it to choose the next step.'
+            : 'Fill in the Investigate tab, then complete the investigation to choose the next step.',
+          actions: [
+            {
+              key: 'complete',
+              label: 'Complete investigation',
+              icon: <CheckCircle2 className="mr-1 h-4 w-4" />,
+              completeInvestigation: true,
+              primary: true,
+              disabledReason: paused ? 'The investigation is paused. Resume it before completing.' : undefined,
+            },
+          ],
+        }
+      }
+      const disabledReason = done
+        ? undefined
+        : paused
+          ? 'The investigation is paused. Resume and complete it first.'
+          : 'Complete the investigation first.'
       return {
-        hint: 'Complete the investigation. Add corrective actions if needed, otherwise move it to ready to close.',
+        hint: done
+          ? 'Investigation complete. Add corrective actions if needed, otherwise move it to ready to close.'
+          : paused
+            ? 'The investigation is paused. Resume it, then complete it before choosing the next step.'
+            : 'Complete the investigation, then add corrective actions if needed or move it to ready to close.',
         actions: [
-          { key: 'actions', label: 'Actions required', icon: arrow, to: 'ACTIONS_REQUIRED', primary: true, hidden: noReview },
-          { key: 'ready', label: 'Ready to close', icon: arrow, to: 'AWAITING_CLOSURE', hidden: noReview },
+          { key: 'actions', label: 'Actions required', icon: arrow, to: 'ACTIONS_REQUIRED', primary: true, hidden: noReview, disabledReason },
+          { key: 'ready', label: 'Ready to close', icon: arrow, to: 'AWAITING_CLOSURE', hidden: noReview, disabledReason },
         ],
       }
+    }
     case 'ACTIONS_REQUIRED':
       return {
         hint:
@@ -235,8 +311,12 @@ function describe(
       return {
         hint: !ctx.hasFinalOutcome
           ? 'Record the final outcome below, then close the incident.'
-          : ctx.blockingMandatory > 0
+          : ctx.undecidedSuspensions > 0
+            ? `Decide what happens to ${ctx.undecidedSuspensions} suspended carer${ctx.undecidedSuspensions === 1 ? '' : 's'} (lift or continue) in Outcome & close.`
+            : ctx.blockingMandatory > 0
             ? `${ctx.blockingMandatory} mandatory corrective measure${ctx.blockingMandatory === 1 ? ' is' : 's are'} still open. Complete ${ctx.blockingMandatory === 1 ? 'it' : 'them'}, or close with a reason.`
+            : ctx.openExternalBodies > 0
+            ? `${ctx.openExternalBodies} external bod${ctx.openExternalBodies === 1 ? 'y is' : 'ies are'} still open (Investigate tab). Record their outcome, or close with a reason.`
             : 'The final outcome is recorded. Close the incident.',
         actions: [
           {
@@ -246,9 +326,22 @@ function describe(
             to: 'CLOSED',
             primary: true,
             hidden: !ctx.canClose,
-            disabledReason: ctx.hasFinalOutcome ? undefined : 'Save the final outcome first (Outcome & close section).',
-            ...(ctx.blockingMandatory > 0
-              ? { reasonTitle: 'Close with incomplete mandatory measures', overrideMandatory: true }
+            disabledReason: !ctx.hasFinalOutcome
+              ? 'Save the final outcome first (Outcome & close section).'
+              : ctx.undecidedSuspensions > 0
+                ? 'Decide each carer suspension (lift or continue) first.'
+                : undefined,
+            ...(ctx.blockingMandatory > 0 || ctx.openExternalBodies > 0
+              ? {
+                  reasonTitle:
+                    ctx.blockingMandatory > 0 && ctx.openExternalBodies > 0
+                      ? 'Close with open measures and external bodies'
+                      : ctx.blockingMandatory > 0
+                        ? 'Close with incomplete mandatory measures'
+                        : 'Close while external bodies are still open',
+                  overrideMandatory: ctx.blockingMandatory > 0,
+                  overrideExternal: ctx.openExternalBodies > 0,
+                }
               : {}),
           },
           { key: 'back', label: 'Send back for investigation', icon: back, to: 'UNDER_INVESTIGATION', reasonTitle: 'Send back for investigation', hidden: noReview },
