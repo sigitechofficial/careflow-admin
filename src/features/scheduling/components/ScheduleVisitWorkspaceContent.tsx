@@ -484,6 +484,8 @@ export function ScheduleVisitWorkspaceContent({
   const sosVoiceNotes = voiceNoteLookup.groups
     .filter((g) => g.entryType === 'sos')
     .flatMap((g) => g.voiceNotes)
+  // Outside-area check-in request (office approval) — recorded before clock-in.
+  const checkInRequestVoiceNotes = voiceNoteLookup.forEntry('check_in_request', job.id)
 
   const sosQuery = useEcmVisitSos(job.id)
   const visitSos = sosQuery.data ?? []
@@ -656,6 +658,10 @@ export function ScheduleVisitWorkspaceContent({
                 </dl>
               ) : null}
               <VoiceNoteList voiceNotes={checkInVoiceNotes} label="Clock in voice notes" />
+              <VoiceNoteList
+                voiceNotes={checkInRequestVoiceNotes}
+                label="Check-in request voice notes"
+              />
             </div>
             ) : null}
           </section>

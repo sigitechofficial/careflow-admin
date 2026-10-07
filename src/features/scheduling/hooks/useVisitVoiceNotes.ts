@@ -17,11 +17,21 @@ function flatten(groups: VisitVoiceNoteGroup[]): VisitVoiceNote[] {
  * All carer voice notes on a visit, grouped by carer-app record, plus lookups
  * so each admin surface can show the audio next to the matching record's text.
  */
-export function useVisitVoiceNotes(jobId: string | null | undefined) {
+export function useVisitVoiceNotes(
+  jobId: string | null | undefined,
+  options: {
+    /**
+     * Poll while audio may still be on its way — the carer app uploads it in the background
+     * after the record itself (e.g. a check-in request waiting for the office).
+     */
+    refetchInterval?: number | false
+  } = {},
+) {
   const query = useQuery({
     queryKey: ['visit-voice-notes', jobId],
     queryFn: ({ signal }) => fetchVisitVoiceNotes(jobId as string, { signal }),
     enabled: Boolean(jobId),
+    refetchInterval: options.refetchInterval ?? false,
   })
 
   const groups = query.data?.groups ?? NO_GROUPS

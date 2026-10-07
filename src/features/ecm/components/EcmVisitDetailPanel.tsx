@@ -280,7 +280,10 @@ function VisitDetailCheckInGrants({
   grants: EcmCheckInMethodGrant[]
 }) {
   // Check-in request voice notes are keyed by job (not grant), so every card shows them.
-  const { groups } = useVisitVoiceNotes(jobId)
+  // The app uploads the audio after the request, so keep checking while one is pending.
+  const { groups } = useVisitVoiceNotes(jobId, {
+    refetchInterval: grants.some((grant) => grant.status === 'PENDING') ? 10_000 : false,
+  })
   const voiceNotes = groups
     .filter((g) => g.entryType === 'check_in_request')
     .flatMap((g) => g.voiceNotes)
