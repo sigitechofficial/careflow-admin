@@ -8,6 +8,10 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
 }))
 
+vi.mock('@/features/scheduling/hooks/useVisitVoiceNotes', () => ({
+  useVisitVoiceNotes: () => ({ groups: [] }),
+}))
+
 vi.mock('@/features/ecm/hooks/useEcm', () => ({
   useAcknowledgeEcmException: () => ({
     mutateAsync: vi.fn(),

@@ -10,6 +10,7 @@ import { useOrganisationDisplayFormat } from '@/shared/context/organisation-disp
 import { useCompleteIncidentAction, useMyIncidentActions } from '@/features/incidents/hooks/useIncidents'
 import {
   INCIDENT_ACTION_STATUS_BADGE,
+  measureNeedsCompletedRecord,
   INCIDENT_ACTION_STATUS_LABELS,
 } from '@/features/incidents/types'
 
@@ -22,11 +23,11 @@ export default function MyActionsPage() {
   const [completionNotes, setCompletionNotes] = React.useState('')
 
   function confirmComplete() {
-    if (!completingId) return
+    if (!completingId || !completionNotes.trim()) return
     completeMutation.mutate(
       {
         actionId: completingId,
-        completionNotes: completionNotes.trim() || undefined,
+        completionNotes: completionNotes.trim(),
       },
       {
         onSuccess: () => {
@@ -87,32 +88,47 @@ export default function MyActionsPage() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setCompletingId(a.id)
-                      setCompletionNotes('')
-                    }}
-                    disabled={completingId === a.id}
-                  >
-                    <CheckCircle2 className="mr-1 h-4 w-4" /> Complete
-                  </Button>
+                  {measureNeedsCompletedRecord(a.measureType) ? (
+                    // These need the updated / new record chosen, which the incident page offers.
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to="/incidents/$incidentId" params={{ incidentId: a.incidentId }}>
+                        <CheckCircle2 className="mr-1 h-4 w-4" /> Complete on incident
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setCompletingId(a.id)
+                        setCompletionNotes('')
+                      }}
+                      disabled={completingId === a.id}
+                    >
+                      <CheckCircle2 className="mr-1 h-4 w-4" /> Mark as completed
+                    </Button>
+                  )}
                 </div>
 
                 {completingId === a.id && (
                   <div className="mt-3 space-y-2 rounded-md border border-dashed border-border bg-muted/30 p-3">
                     <label className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Completion notes (optional)
+                      How was it completed?
+                      <span className="ml-0.5 text-destructive dark:text-red-400">*</span>
                     </label>
                     <Textarea
                       rows={2}
                       value={completionNotes}
                       onChange={(e) => setCompletionNotes(e.target.value)}
-                      placeholder="How was this measure completed?"
+                      placeholder="What was done — this is the evidence the measure was completed"
                     />
                     <div className="flex gap-2">
-                      <Button size="sm" loading={completeMutation.isPending} onClick={confirmComplete}>
+                      <Button
+                        size="sm"
+                        loading={completeMutation.isPending}
+                        disabled={!completionNotes.trim()}
+                        onClick={confirmComplete}
+                      >
                         <CheckCircle2 className="mr-1 h-4 w-4" /> Confirm complete
                       </Button>
                       <Button

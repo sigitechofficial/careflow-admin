@@ -212,6 +212,7 @@ import {
   parseServiceUsersListSearch,
   validateServiceUsersListSearch,
 } from '@/features/service-users/utils/service-users-list-url-state.util'
+import { validateIncidentsListSearch } from '@/features/incidents/utils/incidents-list-url-state'
 import { fetchEmployeeLookups } from '@/features/employees/api'
 import { fetchGeneralSettings } from '@/features/settings/api/general-settings-api'
 import { fetchCompanyProfile } from '@/features/settings/api/company-settings-api'
@@ -1538,21 +1539,8 @@ const hoursApprovalsRoute = createRoute({
 const incidentsListRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/incidents/view',
-  // Optional presets so dashboard figures can open the matching filtered list.
-  validateSearch: (
-    raw: Record<string, unknown>,
-  ): { status?: string; severity?: string; open?: boolean; closedFrom?: string; overdue?: boolean } => {
-    const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
-    const flag = (v: unknown) => (v === true || v === 'true' || v === '1' || v === 1 ? true : undefined)
-    return {
-      status: str(raw.status),
-      severity: str(raw.severity),
-      open: flag(raw.open),
-      closedFrom: str(raw.closedFrom),
-      overdue: flag(raw.overdue),
-    }
-  },
   beforeLoad: requirePermission('incidents.read'),
+  validateSearch: validateIncidentsListSearch,
   component: IncidentsListPage,
 })
 

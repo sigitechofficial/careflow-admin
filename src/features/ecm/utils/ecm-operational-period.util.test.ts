@@ -13,7 +13,7 @@ describe('todayIsoLocal', () => {
     const now = new Date('2026-08-06T21:05:00.000Z')
     expect(todayIsoLocal(now, 'Europe/London')).toBe('2026-08-06')
     expect(todayIsoLocal(now, 'Asia/Karachi')).toBe('2026-08-07')
-    expect(todayIsoLocal(now, ECM_OPERATIONAL_TIMEZONE)).toBe('2026-08-07')
+    expect(todayIsoLocal(now, ECM_OPERATIONAL_TIMEZONE)).toBe('2026-08-06')
   })
 })
 

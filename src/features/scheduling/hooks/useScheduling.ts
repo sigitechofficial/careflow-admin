@@ -1,6 +1,8 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import * as React from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getEmployeesDayTimeline,
+  getScheduledJob,
   getHousekeepingDayJobs,
   getHousekeepingJobsNeedingAttention,
   getHousekeepingJobsNotStarted,
@@ -148,4 +150,21 @@ export function useHousekeepingDayJobs(date: string, page: number, enabled = tru
     queryFn: () => getHousekeepingDayJobs(date, { page, limit: 50 }),
     enabled: enabled && Boolean(date),
   })
+}
+
+/**
+ * Imperative loader for one scheduled job (e.g. opening the visit workspace sheet
+ * from another module's list). Always fetches fresh data; shares the job cache key.
+ */
+export function useFetchScheduledJob() {
+  const queryClient = useQueryClient()
+  return React.useCallback(
+    (jobId: string) =>
+      queryClient.fetchQuery({
+        queryKey: schedulingKeys.job(jobId),
+        queryFn: () => getScheduledJob(jobId),
+        staleTime: 0,
+      }),
+    [queryClient],
+  )
 }

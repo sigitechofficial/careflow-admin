@@ -111,6 +111,48 @@ function PolicyPicker({ items, onChange }: { items: Item[]; onChange: (items: It
   )
 }
 
+/**
+ * The picker for one kind of record (care plan, risk assessment, medication, staff, policy).
+ * Used by contributing factors, evidence and corrective measures.
+ */
+export function RecordItemsPicker({
+  pick,
+  question,
+  items,
+  onChange,
+  recordOptions,
+  involvedEmployees,
+  hasServiceUser,
+}: {
+  pick: Exclude<ContributingFactorPick, 'note' | 'none'>
+  question: string
+  items: Item[]
+  onChange: (items: Item[]) => void
+  recordOptions: FactorRecordOptions
+  involvedEmployees: { id: string; name: string | null }[]
+  hasServiceUser: boolean
+}) {
+  if (pick === 'staff') {
+    return <StaffPicker items={items} onChange={onChange} involvedEmployees={involvedEmployees} />
+  }
+  if (pick === 'policy') return <PolicyPicker items={items} onChange={onChange} />
+  const source = recordOptions[pick]
+  return hasServiceUser ? (
+    <ItemsPicker
+      items={items}
+      onChange={onChange}
+      options={source.options}
+      loading={source.loading}
+      placeholder={question.replace(/\?$/, '…')}
+      emptyText="Nothing recorded for the service users involved."
+    />
+  ) : (
+    <p className="text-xs text-muted-foreground">
+      No service user is linked to this incident, so there is nothing to pick. Add a note instead.
+    </p>
+  )
+}
+
 export type FactorRecordOptions = {
   carePlan: { options: ComboboxOption[]; loading: boolean }
   riskAssessment: { options: ComboboxOption[]; loading: boolean }
@@ -142,28 +184,18 @@ export function ContributingFactorDetailEditor({
   const items = detail.items ?? []
   const setItems = (next: Item[]) => onChange({ ...detail, items: next })
 
-  let picker: React.ReactNode = null
-  if (config.pick === 'staff') {
-    picker = <StaffPicker items={items} onChange={setItems} involvedEmployees={involvedEmployees} />
-  } else if (config.pick === 'policy') {
-    picker = <PolicyPicker items={items} onChange={setItems} />
-  } else if (config.pick !== 'note') {
-    const source = recordOptions[config.pick]
-    picker = hasServiceUser ? (
-      <ItemsPicker
+  const picker =
+    config.pick === 'note' ? null : (
+      <RecordItemsPicker
+        pick={config.pick}
+        question={config.question}
         items={items}
         onChange={setItems}
-        options={source.options}
-        loading={source.loading}
-        placeholder={config.question.replace(/\?$/, '…')}
-        emptyText="Nothing recorded for the service users involved."
+        recordOptions={recordOptions}
+        involvedEmployees={involvedEmployees}
+        hasServiceUser={hasServiceUser}
       />
-    ) : (
-      <p className="text-xs text-muted-foreground">
-        No service user is linked to this incident, so there is nothing to pick. Add a note instead.
-      </p>
     )
-  }
 
   return (
     <div className="rounded-lg border border-border bg-background p-3">

@@ -1,4 +1,11 @@
-import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+import { apiJson, ApiError, type ApiEnvelope } from '@/shared/api/api-client'
+import { getApiBaseUrl } from '@/shared/lib/api-base'
+import { useAuthStore } from '@/features/auth/store'
+import type {
+  VisitVoiceNote,
+  VisitVoiceNoteGroup,
+  VisitVoiceNotesResponse,
+} from '@/features/scheduling/types/visit-voice-note.types'
 import type { CancelHousekeepingJobPayload } from '@/features/scheduling/utils/visit-cancellation.constants'
 import type {
   CarePlanDeliveryTasksResponse,
@@ -358,9 +365,16 @@ export type VisitTimelineItem = {
     fileUrl: string
     caption?: string | null
   }>
+  /** Carer voice notes (max 3, recording order) on a note / handover / concern; uploaded ones only. */
+  voiceNotes?: VisitVoiceNote[]
 }
 
-export type VisitTimelineResponse = { jobId: string; timeline: VisitTimelineItem[] }
+export type VisitTimelineResponse = {
+  jobId: string
+  timeline: VisitTimelineItem[]
+  /** Voice notes on records with no timeline row (SOS, check-in request, body map review). */
+  otherVoiceNotes?: VisitVoiceNoteGroup[]
+}
 
 export async function fetchVisitTimeline(
   jobId: string,
@@ -371,6 +385,36 @@ export async function fetchVisitTimeline(
     { method: 'GET', signal: options?.signal },
   )
   return res.data ?? { jobId, timeline: [] }
+}
+
+/** Every carer voice note on a visit, grouped by the carer-app record it belongs to. */
+export async function fetchVisitVoiceNotes(
+  jobId: string,
+  options?: { signal?: AbortSignal },
+): Promise<VisitVoiceNotesResponse> {
+  const res = await apiJson<ApiEnvelope<VisitVoiceNotesResponse>>(
+    `/scheduled-jobs-housekeeping/jobs/${jobId}/voice-notes`,
+    { method: 'GET', signal: options?.signal },
+  )
+  return res.data ?? { jobId, groups: [] }
+}
+
+/**
+ * Fetch a voice note's audio with the auth token and return an object URL for
+ * an <audio> element. The caller MUST revoke it (URL.revokeObjectURL) when done.
+ */
+export async function fetchVisitVoiceNoteObjectUrl(
+  voiceNote: Pick<VisitVoiceNote, 'downloadUrl'>,
+  options?: { signal?: AbortSignal },
+): Promise<string> {
+  const base = getApiBaseUrl()
+  if (!base) throw new ApiError('API base URL is not configured.', 0)
+  const token = useAuthStore.getState().accessToken
+  const headers = new Headers()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const res = await fetch(`${base}${voiceNote.downloadUrl}`, { headers, signal: options?.signal })
+  if (!res.ok) throw new ApiError('Could not load the voice note', res.status)
+  return URL.createObjectURL(await res.blob())
 }
 
 export async function saveVisitJobTasks(

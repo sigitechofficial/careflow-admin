@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronDown,
   ChevronRight,
+  Clock,
   ExternalLink,
   Filter,
   LayoutList,
@@ -41,6 +42,7 @@ import {
 } from '@/features/service-users/visit-tasks/api'
 import { VisitTasksAddDialog, type VisitTaskAddItem } from '@/features/service-users/visit-tasks/VisitTasksAddDialog'
 import { VisitTaskPriorityPicker } from '@/features/service-users/visit-tasks/VisitTaskPriorityPicker'
+import { VisitTaskPlacementSettings } from '@/features/service-users/visit-tasks/VisitTaskPlacementSettings'
 import {
   DEFAULT_VISIT_TASK_PRIORITY,
   normalizeVisitTaskPriority,
@@ -69,10 +71,12 @@ import {
   type VisitTaskSchedule,
   visitTaskFrequencyLabel,
 } from '@/features/service-users/visit-tasks/visit-task-schedule.util'
-import type {
-  TaskCatalogueGroup,
-  TaskCatalogueTask,
-  VisitTaskAssignment,
+import {
+  visitTaskLinkReason,
+  type TaskCatalogueGroup,
+  type TaskCatalogueTask,
+  type VisitTaskAssignment,
+  type VisitTaskLinkSummary,
 } from '@/features/service-users/visit-tasks/types'
 
 const VISIT_TASK_GROUP_CODES = new Set([
@@ -167,6 +171,8 @@ type RoundTaskDraft = {
   priority: VisitTaskPriorityCode
   schedule: VisitTaskSchedule
   bodyMapRequired: boolean
+  /** HH:mm; null on a new task → server fills the client's slot / round time. */
+  dueTime: string | null
   createdAt: string | null
   createdByName: string | null
 }
@@ -185,6 +191,7 @@ function buildDraftFromAssignments(
         priority: normalizeVisitTaskPriority(row.priority),
         schedule: mergeVisitTaskSchedule(row.schedule),
         bodyMapRequired: Boolean(row.bodyMapRequired),
+        dueTime: row.dueTime ?? null,
         createdAt: row.createdAt ?? null,
         createdByName: row.createdByName?.trim() || null,
       })
@@ -205,6 +212,7 @@ function buildVisitTasksSavePayload(draft: DraftByRound, rounds: Array<{ code: s
           priority: taskDraft.priority,
           schedule: taskDraft.schedule,
           bodyMapRequired: Boolean(taskDraft.bodyMapRequired),
+          ...(taskDraft.dueTime ? { dueTime: taskDraft.dueTime } : {}),
         }),
       ),
     })),
@@ -225,6 +233,7 @@ function mergeTasksIntoDraft(
       priority: item.priority,
       schedule: item.schedule ?? { ...DEFAULT_VISIT_TASK_SCHEDULE },
       bodyMapRequired: Boolean(item.bodyMapRequired),
+      dueTime: item.dueTime?.trim() || existing?.dueTime || null,
       createdAt: existing?.createdAt ?? null,
       createdByName: existing?.createdByName ?? null,
     })
@@ -356,6 +365,19 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
 
   const addDialogRound = rounds.find((round) => round.code === addDialogRoundCode) ?? null
 
+  // Next-7-day visit link per saved task, keyed by round + catalogue task (draft key).
+  const visitLinkByRoundTask = React.useMemo(() => {
+    const map = new Map<string, VisitTaskLinkSummary>()
+    const links = assignmentsQuery.data?.visitLinkByAssignment ?? {}
+    for (const [roundCode, rows] of Object.entries(assignmentsQuery.data?.assignmentsByRound ?? {})) {
+      for (const row of rows) {
+        const link = links[row.id]
+        if (link) map.set(`${roundCode}:${row.task.id}`, link)
+      }
+    }
+    return map
+  }, [assignmentsQuery.data?.assignmentsByRound, assignmentsQuery.data?.visitLinkByAssignment])
+
   const getSelectedTasksForRound = React.useCallback(
     (roundCode: string): Array<
       TaskMeta & {
@@ -363,6 +385,8 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
         priority: VisitTaskPriorityCode
         schedule: VisitTaskSchedule
         bodyMapRequired: boolean
+        dueTime: string | null
+        visitLink: VisitTaskLinkSummary | null
         isEmarPrompt: boolean
         createdAt: string | null
         createdByName: string | null
@@ -376,6 +400,8 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           priority: VisitTaskPriorityCode
           schedule: VisitTaskSchedule
           bodyMapRequired: boolean
+          dueTime: string | null
+          visitLink: VisitTaskLinkSummary | null
           isEmarPrompt: boolean
           createdAt: string | null
           createdByName: string | null
@@ -401,6 +427,8 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           priority: draft.priority,
           schedule: draft.schedule,
           bodyMapRequired: Boolean(draft.bodyMapRequired),
+          dueTime: draft.dueTime,
+          visitLink: visitLinkByRoundTask.get(`${roundCode}:${taskId}`) ?? null,
           isEmarPrompt: isEmarMedicationPromptTask(meta.task),
           createdAt: draft.createdAt,
           createdByName: draft.createdByName,
@@ -408,12 +436,14 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
       }
       return items.sort((a, b) => {
         if (a.isEmarPrompt !== b.isEmarPrompt) return a.isEmarPrompt ? -1 : 1
+        const timeDiff = (a.dueTime ?? '99:99').localeCompare(b.dueTime ?? '99:99')
+        if (timeDiff !== 0) return timeDiff
         const rankDiff = visitTaskPriorityRank(b.priority) - visitTaskPriorityRank(a.priority)
         if (rankDiff !== 0) return rankDiff
         return a.task.name.localeCompare(b.task.name)
       })
     },
-    [draftByRound, groupFilter, search, taskById],
+    [draftByRound, groupFilter, search, taskById, visitLinkByRoundTask],
   )
 
   const updateRoundDraft = (
@@ -668,6 +698,13 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
             </div>
           </div>
 
+          <VisitTaskPlacementSettings
+            serviceUserId={serviceUserId}
+            graceMinutes={assignmentsQuery.data?.nearestVisitGraceMinutes ?? null}
+            daysWithoutVisit={assignmentsQuery.data?.daysWithoutVisit ?? []}
+            unplacedTasks={assignmentsQuery.data?.unplacedTasks ?? []}
+          />
+
           {/* Timeline view temporarily disabled
           {viewMode === 'timeline' ? (
           <div className="relative">
@@ -726,6 +763,13 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           if (!open && !saveMutation.isPending) setAddDialogRoundCode(null)
         }}
         roundName={addDialogRound?.name ?? null}
+        defaultDueTime={
+          addDialogRound
+            ? (assignmentsQuery.data?.defaultDueTimeByRound?.[addDialogRound.code] ??
+              addDialogRound.time ??
+              null)
+            : null
+        }
         catalogue={catalogue}
         existingTaskIds={
           addDialogRound ? getRoundTaskIds(draftByRound.get(addDialogRound.code)) : new Set()
@@ -757,6 +801,10 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
                   priority: draft?.priority ?? DEFAULT_VISIT_TASK_PRIORITY,
                   schedule: draft?.schedule ?? DEFAULT_VISIT_TASK_SCHEDULE,
                   bodyMapRequired: Boolean(draft?.bodyMapRequired),
+                  dueTime:
+                    draft?.dueTime ??
+                    assignmentsQuery.data?.defaultDueTimeByRound?.[taskEditTarget.roundCode] ??
+                    '',
                 } satisfies VisitTaskEditValues
               })()
             : {
@@ -764,7 +812,13 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
                 priority: DEFAULT_VISIT_TASK_PRIORITY,
                 schedule: DEFAULT_VISIT_TASK_SCHEDULE,
                 bodyMapRequired: false,
+                dueTime: '',
               }
+        }
+        showDueTime={
+          taskEditTarget
+            ? !isEmarMedicationPromptTask(taskById.get(taskEditTarget.taskId)?.task ?? {})
+            : false
         }
         onOpenChange={(open) => {
           if (!open) setTaskEditTarget(null)
@@ -780,6 +834,7 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
             priority: values.priority,
             schedule: mergeVisitTaskSchedule(values.schedule),
             bodyMapRequired: Boolean(values.bodyMapRequired),
+            dueTime: values.dueTime.trim() || existing.dueTime,
             createdAt: existing.createdAt,
             createdByName: existing.createdByName,
           })
@@ -800,6 +855,8 @@ type PlannerTaskRow = TaskMeta & {
   priority: VisitTaskPriorityCode
   schedule: VisitTaskSchedule
   bodyMapRequired: boolean
+  dueTime: string | null
+  visitLink: VisitTaskLinkSummary | null
   isEmarPrompt: boolean
   createdAt: string | null
   createdByName: string | null
@@ -945,6 +1002,7 @@ function PlannerRoundListSection({
             <thead className="border-b border-border bg-muted/20 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-2.5">Task</th>
+                <th className="whitespace-nowrap px-4 py-2.5">Due time</th>
                 <th className="px-4 py-2.5">Category</th>
                 <th className="px-4 py-2.5">Priority</th>
                 <th className="px-4 py-2.5">Schedule</th>
@@ -1016,6 +1074,61 @@ function PlannerRoundListSection({
                           </div>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {meta.isEmarPrompt ? (
+                        <span
+                          className="text-xs text-muted-foreground"
+                          title="Shows on every visit that has a medicine due"
+                        >
+                          Follows medicine times
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-foreground transition hover:border-primary hover:bg-primary/5"
+                          title="Shows on the visit whose time covers this — click to change"
+                          onClick={() => onEditSchedule(meta.task.id, meta.task.name)}
+                        >
+                          <Clock className="h-3.5 w-3.5 text-primary" aria-hidden />
+                          {meta.dueTime ?? '—'}
+                        </button>
+                      )}
+                      {!meta.isEmarPrompt && meta.visitLink && meta.visitLink.dueDays > 0
+                        ? (() => {
+                            const link = meta.visitLink
+                            const notLinkedDays = link.noVisitDays + link.beyondGraceDays
+                            return (
+                              <>
+                                {notLinkedDays > 0 && notLinkedDays === link.dueDays ? (
+                                  <span
+                                    className="mt-1.5 block w-max rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-800 dark:bg-red-950 dark:text-red-200"
+                                    title="In the next 7 days this task reaches no visit, so carers won't see it. Change the time, add a visit, or raise the grace."
+                                  >
+                                    Not linked to any visit · {visitTaskLinkReason(link)}
+                                  </span>
+                                ) : notLinkedDays > 0 ? (
+                                  <span
+                                    className="mt-1.5 block w-max rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                                    title="On some days in the next 7 days this task reaches no visit"
+                                  >
+                                    Not linked on {notLinkedDays} of {link.dueDays} days ·{' '}
+                                    {visitTaskLinkReason(link)}
+                                  </span>
+                                ) : null}
+                                {link.cancelledDays > 0 ? (
+                                  <span
+                                    className="mt-1.5 block w-max rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-800 dark:bg-rose-950 dark:text-rose-200"
+                                    title="This task's visit was cancelled on these days — the task is not done and not moved"
+                                  >
+                                    Visit cancelled on {link.cancelledDays} of {link.dueDays}{' '}
+                                    {link.dueDays === 1 ? 'day' : 'days'}
+                                  </span>
+                                ) : null}
+                              </>
+                            )
+                          })()
+                        : null}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{meta.categoryName}</td>
                     <td className="px-4 py-3">

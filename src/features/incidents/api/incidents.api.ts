@@ -1,5 +1,6 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  CorrectIncidentInput,
   CreateIncidentActionInput,
   CreateIncidentInput,
   IncidentAction,
@@ -7,11 +8,16 @@ import type {
   IncidentAnalyticsFilters,
   IncidentCategoryOption,
   IncidentCarerSuspension,
-  IncidentCarerCourseRecommendation,
+  IncidentExternalBody,
+  IncidentExternalBodyInput,
+  EmployeeIncidentSuspension,
+  IncidentClarificationField,
   IncidentDetail,
   IncidentInvestigation,
+  IncidentInvestigatorOption,
   IncidentListFilters,
   IncidentListItem,
+  IncidentVisitOption,
   IncidentListResponse,
   IncidentOutcome,
   IncidentReview,
@@ -35,6 +41,18 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
   return s ? `?${s}` : ''
 }
 
+export async function fetchIncidentVisitOptions(
+  params: { date: string; serviceUserId?: string; employeeId?: string },
+  init?: RequestInit,
+): Promise<IncidentVisitOption[]> {
+  const query = buildQuery(params)
+  const res = await apiJson<ApiEnvelope<IncidentVisitOption[]>>(`/incidents/visit-options${query}`, {
+    method: 'GET',
+    ...init,
+  })
+  return res.data ?? []
+}
+
 export async function fetchIncidentCategories(init?: RequestInit): Promise<IncidentCategoryOption[]> {
   const res = await apiJson<ApiEnvelope<IncidentCategoryOption[]>>('/incidents/categories', {
     method: 'GET',
@@ -56,8 +74,12 @@ export async function fetchIncidents(
     hasOverdueActions: filters.hasOverdueActions || undefined,
     categoryId: filters.categoryId,
     serviceUserId: filters.serviceUserId,
+    employeeId: filters.employeeId,
     locationId: filters.locationId,
     openOnly: filters.openOnly,
+    dateField: filters.dateField,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
     page: filters.page ?? 1,
     limit: filters.limit ?? 25,
   })
@@ -86,12 +108,39 @@ export async function changeIncidentStatus(
   status: IncidentStatus,
   reason?: string,
   overrideMandatoryActions?: boolean,
+  overrideOpenExternalBodies?: boolean,
 ): Promise<IncidentListItem> {
   const res = await apiJson<ApiEnvelope<IncidentListItem>>(`/incidents/${id}/status`, {
     method: 'POST',
-    body: JSON.stringify({ status, reason, overrideMandatoryActions }),
+    body: JSON.stringify({ status, reason, overrideMandatoryActions, overrideOpenExternalBodies }),
   })
   return res.data
+}
+
+/** Reported → Under Review; the manager becomes the owner. */
+export async function startIncidentReview(id: string): Promise<IncidentListItem> {
+  const res = await apiJson<ApiEnvelope<IncidentListItem>>(`/incidents/${id}/start-review`, { method: 'POST' })
+  return res.data
+}
+
+/** Correct raised details (manager, with a reason; closed incidents must be reopened first). */
+export async function correctIncident(id: string, input: CorrectIncidentInput): Promise<IncidentListItem> {
+  const res = await apiJson<ApiEnvelope<IncidentListItem>>(`/incidents/${id}/corrections`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return res.data
+}
+
+/** Add a clarification note to the reporter's account (the original text is never changed). */
+export async function addIncidentClarification(
+  id: string,
+  input: { field: IncidentClarificationField; note: string },
+): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/incidents/${id}/clarifications`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
 }
 
 export async function changeIncidentSeverity(
@@ -160,6 +209,62 @@ export async function upsertIncidentInvestigation(
   return res.data
 }
 
+/** Users who can lead this incident's investigation. */
+export async function fetchIncidentInvestigators(
+  id: string,
+  opts?: { signal?: AbortSignal },
+): Promise<IncidentInvestigatorOption[]> {
+  const res = await apiJson<ApiEnvelope<IncidentInvestigatorOption[]>>(
+    `/incidents/${id}/investigators`,
+    { signal: opts?.signal },
+  )
+  return res.data
+}
+
+export async function pauseIncidentInvestigation(
+  id: string,
+  input: { reason: string; nextReviewDate: string },
+): Promise<void> {
+  await apiJson(`/incidents/${id}/investigation/pause`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export async function resumeIncidentInvestigation(id: string): Promise<void> {
+  await apiJson(`/incidents/${id}/investigation/resume`, { method: 'POST' })
+}
+
+export async function addIncidentExternalBody(
+  id: string,
+  input: IncidentExternalBodyInput,
+): Promise<IncidentExternalBody> {
+  const res = await apiJson<ApiEnvelope<IncidentExternalBody>>(`/incidents/${id}/external-bodies`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return res.data
+}
+
+export async function updateIncidentExternalBody(
+  id: string,
+  bodyId: string,
+  input: Partial<IncidentExternalBodyInput>,
+): Promise<IncidentExternalBody> {
+  const res = await apiJson<ApiEnvelope<IncidentExternalBody>>(`/incidents/${id}/external-bodies/${bodyId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+  return res.data
+}
+
+export async function deleteIncidentExternalBody(id: string, bodyId: string, reason: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/incidents/${id}/external-bodies/${bodyId}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reason }),
+  })
+}
+
 export async function suspendIncidentCarer(
   id: string,
   input: { employeeId?: string; reason: string; suspendFrom: string; suspendTo: string },
@@ -171,41 +276,50 @@ export async function suspendIncidentCarer(
   return res.data
 }
 
-export async function removeIncidentCarerSuspension(
+export async function liftIncidentCarerSuspension(
   id: string,
   suspensionId: string,
-): Promise<{ id: string }> {
-  const res = await apiJson<ApiEnvelope<{ id: string }>>(
-    `/incidents/${id}/carer-suspensions/${suspensionId}/remove`,
-    { method: 'POST', body: JSON.stringify({}) },
+  reason: string,
+): Promise<IncidentCarerSuspension> {
+  const res = await apiJson<ApiEnvelope<IncidentCarerSuspension>>(
+    `/incidents/${id}/carer-suspensions/${suspensionId}/lift`,
+    { method: 'POST', body: JSON.stringify({ reason }) },
   )
   return res.data
 }
 
-export async function recommendIncidentCarerCourse(
+export async function continueIncidentCarerSuspension(
   id: string,
-  input: {
-    employeeId?: string
-    courseId: string
-    dueAt?: string
-    reason?: string
-    isMandatory?: boolean
-  },
-): Promise<IncidentCarerCourseRecommendation> {
-  const res = await apiJson<ApiEnvelope<IncidentCarerCourseRecommendation>>(
-    `/incidents/${id}/recommend-carer-course`,
+  suspensionId: string,
+  input: { suspendTo: string; reason: string },
+): Promise<IncidentCarerSuspension> {
+  const res = await apiJson<ApiEnvelope<IncidentCarerSuspension>>(
+    `/incidents/${id}/carer-suspensions/${suspensionId}/continue`,
     { method: 'POST', body: JSON.stringify(input) },
   )
   return res.data
 }
 
-export async function removeIncidentCarerCourseRecommendation(
+/** A carer's suspensions across incidents (employee record). */
+export async function fetchEmployeeIncidentSuspensions(
+  employeeId: string,
+  opts?: { signal?: AbortSignal },
+): Promise<EmployeeIncidentSuspension[]> {
+  const res = await apiJson<ApiEnvelope<EmployeeIncidentSuspension[]>>(
+    `/incidents/carer-suspensions/by-employee/${employeeId}`,
+    { signal: opts?.signal },
+  )
+  return res.data
+}
+
+export async function extendIncidentCarerSuspension(
   id: string,
-  recommendationId: string,
-): Promise<{ id: string }> {
-  const res = await apiJson<ApiEnvelope<{ id: string }>>(
-    `/incidents/${id}/carer-course-recommendations/${recommendationId}/remove`,
-    { method: 'POST', body: JSON.stringify({}) },
+  suspensionId: string,
+  input: { suspendTo: string; reason: string },
+): Promise<IncidentCarerSuspension> {
+  const res = await apiJson<ApiEnvelope<IncidentCarerSuspension>>(
+    `/incidents/${id}/carer-suspensions/${suspensionId}/extend`,
+    { method: 'POST', body: JSON.stringify(input) },
   )
   return res.data
 }
@@ -253,13 +367,22 @@ export async function updateIncidentAction(
 
 export async function completeIncidentAction(
   actionId: string,
-  completionNotes?: string,
+  completionNotes: string,
+  completedRecords?: { id: string; label: string }[],
 ): Promise<IncidentAction> {
   const res = await apiJson<ApiEnvelope<IncidentAction>>(`/incidents/actions/${actionId}/complete`, {
     method: 'POST',
-    body: JSON.stringify({ completionNotes }),
+    body: JSON.stringify({ completionNotes, ...(completedRecords ? { completedRecords } : {}) }),
   })
   return res.data
+}
+
+/** Remove a measure added by mistake (reason kept in the audit log). */
+export async function removeIncidentAction(actionId: string, reason: string): Promise<void> {
+  await apiJson(`/incidents/actions/${actionId}/remove`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
 }
 
 export async function fetchMyIncidentActions(init?: RequestInit): Promise<MyActionItem[]> {

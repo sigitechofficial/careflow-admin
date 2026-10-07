@@ -41,6 +41,7 @@ export async function replaceServiceUserVisitTasks(
         bodyMapRequired?: boolean
         priority?: string
         schedule?: VisitTaskSchedule
+        dueTime?: string | null
       }>
     }>
   },
@@ -63,4 +64,15 @@ export async function replaceServiceUserVisitTasks(
       },
     }
   )
+}
+
+export async function updateServiceUserVisitTaskSettings(
+  serviceUserId: string,
+  payload: { nearestVisitGraceMinutes: number | null },
+): Promise<ServiceUserVisitTasksResponse> {
+  const res = await apiJson<ApiEnvelope<ServiceUserVisitTasksResponse>>(
+    `/service-users/${serviceUserId}/visit-tasks/settings`,
+    { method: 'PATCH', body: JSON.stringify(payload) },
+  )
+  return res.data as ServiceUserVisitTasksResponse
 }

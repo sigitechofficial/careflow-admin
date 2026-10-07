@@ -99,7 +99,7 @@ export default function IncidentsDashboardPage() {
             emphasize={(stats?.highOrCritical ?? 0) > 0}
             loading={loading}
             to="/incidents/view"
-            search={{ open: true, severity: 'HIGH_CRITICAL' }}
+            search={{ open: true, severity: 'HIGH,CRITICAL' }}
           />
           <StatCard
             label="Actions required"
@@ -127,13 +127,13 @@ export default function IncidentsDashboardPage() {
             search={{ open: true }}
           />
           <StatCard
-            label="Awaiting review"
-            value={stats?.awaitingReview ?? 0}
+            label="Not picked up"
+            value={stats?.notPickedUp ?? 0}
             icon={<Search className="h-5 w-5" aria-hidden />}
             tone="amber"
             loading={loading}
             to="/incidents/view"
-            search={{ status: 'AWAITING_REVIEW' }}
+            search={{ status: 'REPORTED' }}
           />
           <StatCard
             label="Under investigation"
@@ -151,7 +151,7 @@ export default function IncidentsDashboardPage() {
             tone="emerald"
             loading={loading}
             to="/incidents/view"
-            search={{ status: 'CLOSED', closedFrom: stats?.monthStart }}
+            search={{ status: 'CLOSED', closed: stats?.monthStart }}
           />
         </div>
       </section>

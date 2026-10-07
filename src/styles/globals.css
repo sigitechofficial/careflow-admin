@@ -67,6 +67,9 @@
   }
 
   .dark {
+    /* Native controls (select popups, date/time picker icons, checkboxes) render dark */
+    color-scheme: dark;
+
     /* Background & Surface */
     --background: 220 15% 8%;
     --foreground: 210 20% 92%;

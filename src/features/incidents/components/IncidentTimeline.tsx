@@ -11,6 +11,14 @@ const KIND_META: Record<string, { label: string; variant: 'info' | 'warning' | '
   INVESTIGATION: { label: 'Investigation', variant: 'muted' },
   ACTION: { label: 'Measure', variant: 'muted' },
   OUTCOME: { label: 'Outcome', variant: 'muted' },
+  CORRECTION: { label: 'Correction', variant: 'warning' },
+  CLARIFICATION: { label: 'Clarification', variant: 'info' },
+  INJURY: { label: 'Injury', variant: 'warning' },
+  WITNESS: { label: 'Witness', variant: 'muted' },
+  REVIEW_FLAG: { label: 'Review flag', variant: 'warning' },
+  DOCUMENT: { label: 'Document', variant: 'muted' },
+  SUSPENSION: { label: 'Suspension', variant: 'warning' },
+  EXTERNAL: { label: 'External body', variant: 'info' },
 }
 
 export function IncidentTimeline({ events }: { events: IncidentTimelineEvent[] }) {

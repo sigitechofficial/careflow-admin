@@ -47,11 +47,11 @@ describe('resolveScheduleVisitSlotPeriod', () => {
   })
 
   it('falls back to organisation-timezone hour band', () => {
-    // 13:00Z = 18:00 Asia/Karachi (default ops TZ) → evening (18–22)
+    // 17:00Z = 18:00 Europe/London (BST, default ops TZ) → evening (18–22)
     expect(
       resolveScheduleVisitSlotPeriod(
         job({
-          scheduledStartDateTime: '2026-08-09T13:00:00.000Z',
+          scheduledStartDateTime: '2026-08-09T17:00:00.000Z',
           jobName: 'Visit',
         }),
       ),
