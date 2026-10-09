@@ -7,6 +7,8 @@ interface UIState {
   theme: Theme
   sidebarCollapsed: boolean
   sidebarMobileOpen: boolean
+  /** Office module sidebar: keep the page panel open next to the rail (default: show on hover only). */
+  pagePanelPinned: boolean
   /** null = All locations (org-wide). */
   selectedLocationId: string | null
 
@@ -14,6 +16,7 @@ interface UIState {
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
   setSidebarMobileOpen: (open: boolean) => void
+  togglePagePanelPinned: () => void
   setSelectedLocationId: (locationId: string | null) => void
 }
 
@@ -23,6 +26,7 @@ export const useUIStore = create<UIState>()(
       theme: 'light',
       sidebarCollapsed: false,
       sidebarMobileOpen: false,
+      pagePanelPinned: false,
       selectedLocationId: null,
 
       setTheme: (theme) => {
@@ -44,6 +48,7 @@ export const useUIStore = create<UIState>()(
 
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       setSidebarMobileOpen: (open) => set({ sidebarMobileOpen: open }),
+      togglePagePanelPinned: () => set((state) => ({ pagePanelPinned: !state.pagePanelPinned })),
       setSelectedLocationId: (locationId) => set({ selectedLocationId: locationId }),
     }),
     {
@@ -51,6 +56,7 @@ export const useUIStore = create<UIState>()(
       partialize: (state) => ({
         theme: state.theme,
         sidebarCollapsed: state.sidebarCollapsed,
+        pagePanelPinned: state.pagePanelPinned,
         selectedLocationId: state.selectedLocationId,
       }),
     },

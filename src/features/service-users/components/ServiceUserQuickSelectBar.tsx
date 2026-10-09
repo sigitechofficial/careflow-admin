@@ -1,14 +1,7 @@
 ﻿import * as React from 'react'
-import { Trash2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
-import { FigmaActionIcon } from '@/features/service-users/components/FigmaActionIcon'
-import {
-  figmaQuickSelectIcon,
-  QUICK_SELECT_LIST_ICON,
-  QUICK_SELECT_RISK_ICON,
-  type ServiceUserQuickSelectIconId,
-} from '@/features/service-users/figma-action-icons'
+import { illustrationSrc } from '@/components/layout/nav-illustrations'
 
 export type QuickSelectListId = 'all' | 'active' | 'discharged' | 'deleted'
 
@@ -17,33 +10,36 @@ export type QuickSelectRiskId = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 const LEGACY_TOOLTIP_CLASS =
   'max-w-[12rem] rounded-sm border-0 bg-neutral-900 px-3 py-2 text-center text-xs font-normal leading-snug text-white shadow-lg'
 
-const iconSvg =
-  '[&_svg]:block [&_svg]:shrink-0 [&_svg]:h-[18px] [&_svg]:w-[18px] [&_svg]:stroke-[2px]'
+/**
+ * Colourful illustrations (Fluent Emoji, same set as the navigation), chosen for what each filter
+ * actually does. As in the original design, the ring colour carries the status / risk level.
+ *   person filters  → who is in the list (all / active / discharged)
+ *   heart in hands  → care risk profile; ring uses the same colours as the risk ring on each
+ *                     service user's photo in the list (ServiceUsersPage RISK_BORDER)
+ *   care worker 🚫  → no key worker assigned
+ */
+type FilterArt = { name: string; ring: string; badge?: string }
 
-const SOLID_TONE: Record<'teal' | 'amber' | 'rose' | 'blue', string> = {
-  teal: 'border-transparent bg-[#9fd4c8] text-white shadow-sm hover:bg-[#8ec4b8]',
-  amber: 'border-transparent bg-[#e8d078] text-white shadow-sm hover:bg-[#ddb85a]',
-  rose: 'border-transparent bg-[#e8a8b0] text-white shadow-sm hover:bg-[#d8929c]',
-  blue: 'border-transparent bg-[#8fc5e8] text-white shadow-sm hover:bg-[#7ab8de]',
-}
+const ART = {
+  all: { name: 'busts-in-silhouette', ring: 'border-slate-300' },
+  active: { name: 'older-person', ring: 'border-emerald-400' },
+  discharged: { name: 'door', ring: 'border-slate-400' },
+  LOW: { name: 'heart-hands', ring: 'border-[#2a9d8f]' },
+  MEDIUM: { name: 'heart-hands', ring: 'border-[#e9a825]' },
+  HIGH: { name: 'heart-hands', ring: 'border-[#e11d48]' },
+  CRITICAL: { name: 'heart-hands', ring: 'border-[#7f1d1d]' },
+  noKeyWorker: { name: 'woman-health-worker', ring: 'border-slate-300', badge: 'no-entry' },
+  onHold: { name: 'pause-button', ring: 'border-slate-300' },
+  deleted: { name: 'wastebasket', ring: 'border-slate-300' },
+} satisfies Record<string, FilterArt>
 
-function figmaBtnClass(active?: boolean) {
+function filterBtnClass(ring: string, active?: boolean) {
   return cn(
-    'inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 bg-transparent p-0',
-    'transition-all duration-150 hover:shadow-md hover:-translate-y-px',
+    'relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 bg-card p-0',
+    'transition-all duration-150 hover:-translate-y-px hover:shadow-md',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40 focus-visible:ring-offset-1',
-    active && 'ring-2 ring-[#4db8c8]/50 ring-offset-1',
-  )
-}
-
-function legacyBtnClass(active: boolean | undefined, toneClass: string) {
-  return cn(
-    'border',
-    'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full p-0 leading-none',
-    'transition-all duration-150 hover:shadow-md hover:-translate-y-px',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40 focus-visible:ring-offset-1',
-    iconSvg,
-    active ? 'border-[#4db8c8] bg-[#4db8c8] text-white shadow-md ring-2 ring-[#4db8c8]/30' : toneClass,
+    ring,
+    active && 'bg-[#4db8c8]/10 shadow-md ring-2 ring-[#4db8c8] ring-offset-1',
   )
 }
 
@@ -68,74 +64,57 @@ function QuickSelectTooltip({
   )
 }
 
-function FigmaFilterBtn({
+function IllustrationFilterBtn({
   tooltip,
   active,
   disabled,
   onClick,
   testId,
-  figmaId,
+  art,
 }: {
   tooltip: string
   active?: boolean
   disabled?: boolean
   onClick?: () => void
   testId?: string
-  figmaId: ServiceUserQuickSelectIconId
+  art: FilterArt
 }) {
   const button = (
     <button
       type="button"
       title={tooltip}
       aria-label={tooltip}
+      aria-pressed={active}
       disabled={disabled}
       data-testid={testId}
       onClick={onClick}
-      className={cn(figmaBtnClass(active), disabled && 'pointer-events-none opacity-40')}
+      className={cn(filterBtnClass(art.ring, active), disabled && 'pointer-events-none opacity-40')}
     >
-      <FigmaActionIcon src={figmaQuickSelectIcon(figmaId)} title={tooltip} className="h-9 w-9" />
-    </button>
-  )
-  return <QuickSelectTooltip label={tooltip}>{button}</QuickSelectTooltip>
-}
-
-function LegacySolidBtn({
-  tooltip,
-  tone,
-  active,
-  disabled,
-  onClick,
-  testId,
-  children,
-}: {
-  tooltip: string
-  tone: 'teal' | 'amber' | 'rose' | 'blue'
-  active?: boolean
-  disabled?: boolean
-  onClick?: () => void
-  testId?: string
-  children: React.ReactNode
-}) {
-  const button = (
-    <button
-      type="button"
-      title={tooltip}
-      aria-label={tooltip}
-      disabled={disabled}
-      data-testid={testId}
-      onClick={onClick}
-      className={cn(legacyBtnClass(active, SOLID_TONE[tone]), disabled && 'pointer-events-none opacity-40')}
-    >
-      {children}
+      <img
+        src={illustrationSrc(art.name)}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className="h-[22px] w-[22px] select-none object-contain"
+      />
+      {art.badge ? (
+        <img
+          src={illustrationSrc(art.badge)}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 select-none rounded-full bg-card object-contain"
+        />
+      ) : null}
     </button>
   )
   return <QuickSelectTooltip label={tooltip}>{button}</QuickSelectTooltip>
 }
 
 const PERSON_FILTERS: { id: QuickSelectListId; tooltip: string }[] = [
-  { id: 'all', tooltip: 'All actions up to date' },
-  { id: 'active', tooltip: 'Regular action or timed task overdue' },
-  { id: 'discharged', tooltip: 'Critical tasks overdue' },
+  { id: 'all', tooltip: 'All service users (including inactive)' },
+  { id: 'active', tooltip: 'Active service users' },
+  { id: 'discharged', tooltip: 'Discharged service users' },
 ]
 
 const RISK_FILTERS: { id: QuickSelectRiskId; tooltip: string }[] = [
@@ -176,67 +155,62 @@ export function ServiceUserQuickSelectBar({
       >
         <span className="shrink-0 pr-0.5 text-sm font-medium text-muted-foreground">Select</span>
 
-        {PERSON_FILTERS.map(item => {
-          const figmaId = QUICK_SELECT_LIST_ICON[item.id]
-          return figmaId ? (
-            <FigmaFilterBtn
-              key={item.id}
-              tooltip={item.tooltip}
-              active={listFilter === item.id}
-              disabled={disabled}
-              testId={`service-users-quick-${item.id}`}
-              figmaId={figmaId}
-              onClick={() => onListFilterChange(item.id)}
-            />
-          ) : null
-        })}
+        {PERSON_FILTERS.map(item => (
+          <IllustrationFilterBtn
+            key={item.id}
+            tooltip={item.tooltip}
+            active={listFilter === item.id}
+            disabled={disabled}
+            testId={`service-users-quick-${item.id}`}
+            art={ART[item.id as 'all' | 'active' | 'discharged']}
+            onClick={() => onListFilterChange(item.id)}
+          />
+        ))}
 
         <QuickDivider />
 
         {RISK_FILTERS.map(item => (
-          <FigmaFilterBtn
+          <IllustrationFilterBtn
             key={item.id}
             tooltip={item.tooltip}
             active={riskFilter === item.id}
             disabled={disabled}
             testId={`service-users-quick-risk-${item.id.toLowerCase()}`}
-            figmaId={QUICK_SELECT_RISK_ICON[item.id]}
+            art={ART[item.id]}
             onClick={() => onRiskFilterChange(riskFilter === item.id ? null : item.id)}
           />
         ))}
 
         <QuickDivider />
 
-        <FigmaFilterBtn
-          tooltip="DoLS"
+        <IllustrationFilterBtn
+          tooltip="No key worker assigned"
           active={unassignedOnly}
           disabled={disabled}
           testId="service-users-quick-dols"
-          figmaId="dols"
+          art={ART.noKeyWorker}
           onClick={() => onUnassignedOnlyChange(!unassignedOnly)}
         />
 
-        <FigmaFilterBtn
-          tooltip="Filter absent Service User"
+        <IllustrationFilterBtn
+          tooltip="On hold service users"
           active={onHoldOnly}
           disabled={disabled}
           testId="service-users-quick-absent"
-          figmaId="absent"
+          art={ART.onHold}
           onClick={() => onOnHoldOnlyChange(!onHoldOnly)}
         />
 
         <QuickDivider />
 
-        <LegacySolidBtn
+        <IllustrationFilterBtn
           tooltip="Soft-deleted service users"
-          tone="rose"
           active={listFilter === 'deleted'}
           disabled={disabled}
           testId="service-users-quick-deleted"
+          art={ART.deleted}
           onClick={() => onListFilterChange('deleted')}
-        >
-          <Trash2 strokeWidth={2.25} />
-        </LegacySolidBtn>
+        />
       </div>
     </TooltipProvider>
   )

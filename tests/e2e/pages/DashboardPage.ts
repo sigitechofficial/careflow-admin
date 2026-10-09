@@ -13,7 +13,7 @@ export class DashboardPage {
   }
 
   async openServiceUsersList() {
-    await this.page.getByRole('button', { name: 'Service Users' }).click()
+    await this.page.getByTestId('rail-service-users').click()
     await this.page.getByTestId('nav-service-users-all').click()
     await expect(this.page).toHaveURL(/\/service-users\/all/)
   }
@@ -24,13 +24,14 @@ export class DashboardPage {
     await expect(this.page.getByTestId('app-layout')).toHaveAttribute('data-theme', 'dark')
   }
 
-  async collapseSidebar() {
+  /** Office sidebar: page panel shows on hover by default; the rail button pins it open. */
+  async pinPagePanel() {
     await this.page.getByTestId('sidebar-collapse-button').click()
-    await expect(this.page.getByTestId('sidebar')).toHaveAttribute('data-collapsed', 'true')
+    await expect(this.page.getByTestId('sidebar')).toHaveAttribute('data-pinned', 'true')
   }
 
-  async expandSidebar() {
+  async unpinPagePanel() {
     await this.page.getByTestId('sidebar-collapse-button').click()
-    await expect(this.page.getByTestId('sidebar')).toHaveAttribute('data-collapsed', 'false')
+    await expect(this.page.getByTestId('sidebar')).toHaveAttribute('data-pinned', 'false')
   }
 }

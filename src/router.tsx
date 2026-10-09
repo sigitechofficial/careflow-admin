@@ -107,6 +107,8 @@ import PortalSurveysPage from '@/features/service-user-portal/pages/PortalSurvey
 import { portalPageTitles } from '@/features/service-user-portal/portal-nav'
 import AccountPage from '@/features/account/pages/AccountPage'
 import HomePage from '@/features/home/pages/HomePage'
+import ModuleHomePage from '@/features/home/pages/ModuleHomePage'
+import { moduleLabelForSlug } from '@/components/layout/nav-modules'
 import InProgressPage from '@/features/home/pages/InProgressPage'
 import ComponentShowcase from '@/features/home/pages/ComponentShowcase'
 import SecurityAdminPage from '@/features/admin/pages/SecurityAdminPage'
@@ -436,6 +438,7 @@ function AppRootShell() {
 
   const pageTitle =
     pageTitles[pathname] ??
+    (pathname.startsWith('/apps/') ? moduleLabelForSlug(pathname.split('/')[2] ?? '') : undefined) ??
     (/^\/employee\/[^/]+\/edit$/.test(pathname)
       ? 'Edit Employee'
       : /^\/service-users\/[^/]+\/profile$/.test(pathname)
@@ -723,6 +726,13 @@ const indexRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/',
   component: HomePage,
+})
+
+/** Module landing page opened from the sidebar rail (tiles for every page in the module). */
+const moduleHomeRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/apps/$module',
+  component: ModuleHomePage,
 })
 
 const serviceUsersRoute = createRoute({
@@ -2205,6 +2215,7 @@ const routeTree = rootRoute.addChildren([
     portalPhotosRoute,
   ]),
   appShellRoute.addChildren([
+    moduleHomeRoute,
     indexRoute,
     serviceUsersRoute,
     serviceUsersAllRoute,

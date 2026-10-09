@@ -62,7 +62,7 @@ test.describe('Employees: table', () => {
 
     test('sidebar opens employee staff list', async ({ page }) => {
       await new DashboardPage(page).goto()
-      await page.getByRole('button', { name: 'Employee' }).click()
+      await page.getByTestId('rail-workforce').click()
       await page.getByTestId('nav-employee-staff-list').click()
       await page.waitForURL(/\/employee\/staff-list/)
       await new EmployeePage(page).expectStaffListLoaded()
