@@ -33,6 +33,9 @@ export const SU_PROFILE_REF = {
   referralNotes: 'SU_PROFILE_REFERRAL_NOTES',
   referralRecordedBy: 'SU_PROFILE_REFERRAL_RECORDED_BY',
   referralRecordedAt: 'SU_PROFILE_REFERRAL_RECORDED_AT',
+  /** How the referral arrived (Email, Phone, Letter, …) and when it was received. */
+  referralReceivedVia: 'SU_PROFILE_REFERRAL_RECEIVED_VIA',
+  referralReceivedAt: 'SU_PROFILE_REFERRAL_RECEIVED_AT',
 } as const
 
 export type SuProfileRefType = (typeof SU_PROFILE_REF)[keyof typeof SU_PROFILE_REF]

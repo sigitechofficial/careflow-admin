@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { Info, Loader2, Upload } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
+import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { type AddressPlacesValue } from '@/shared/ui/address-places-field'
@@ -88,6 +89,13 @@ type FormState = {
   serviceEndDate: string
   /** No end date — service continues until an end date is recorded. */
   serviceOngoing: boolean
+  referralAuthority: string
+  referralSource: string
+  referralDate: string
+  referralReceivedVia: string
+  /** datetime-local (organisation wall clock). */
+  referralReceivedAt: string
+  referralNotes: string
   dateOfDeath: string
   serviceUserNumber: string
   notes: string
@@ -149,6 +157,12 @@ const emptyForm: FormState = {
   serviceStartDate: '',
   serviceEndDate: '',
   serviceOngoing: true,
+  referralAuthority: '',
+  referralSource: '',
+  referralDate: '',
+  referralReceivedVia: '',
+  referralReceivedAt: '',
+  referralNotes: '',
   dateOfDeath: '',
   serviceUserNumber: '',
   notes: '',
@@ -192,6 +206,7 @@ const emptyForm: FormState = {
 
 const NHS_STATUS_OPTIONS = ['Verified', 'Not verified', 'Tracing', 'Unknown']
 const PREF_CONTACT_OPTIONS = ['Mobile', 'Phone', 'Email', 'Post', 'Other']
+const REFERRAL_RECEIVED_VIA_OPTIONS = ['Email', 'Phone', 'Letter / post', 'Portal / online', 'In person', 'Other']
 const SCAN_TYPE_OPTIONS = ['None', 'QR', 'Barcode', 'NFC', 'Other']
 const YES_NO_OPTIONS = ['No', 'Yes', 'Not applicable', 'Prefer not to say']
 
@@ -359,7 +374,7 @@ function ageFromDob(dob: string): number | null {
   return age >= 0 ? age : null
 }
 
-function buildPayload(f: FormState): CreateServiceUserPayload {
+function buildPayload(f: FormState, meta: { recordedByName: string }): CreateServiceUserPayload {
   const p: CreateServiceUserPayload = {
     firstName: f.firstName.trim(),
     lastName: f.lastName.trim(),
@@ -430,6 +445,19 @@ function buildPayload(f: FormState): CreateServiceUserPayload {
     [SU_PROFILE_REF.lasNumber]: f.lasNumber,
     [SU_PROFILE_REF.nhsReferences]: f.nhsReferences,
     [SU_PROFILE_REF.asNumber]: f.asNumber,
+    [SU_PROFILE_REF.referralAuthority]: f.referralAuthority,
+    [SU_PROFILE_REF.referralSource]: f.referralSource,
+    [SU_PROFILE_REF.referralDate]: f.referralDate,
+    [SU_PROFILE_REF.referralReceivedVia]: f.referralReceivedVia,
+    [SU_PROFILE_REF.referralReceivedAt]: orgDatetimeLocalToIso(f.referralReceivedAt),
+    [SU_PROFILE_REF.referralNotes]: f.referralNotes,
+    // Who recorded the referral in the system, and when — only when referral details were given.
+    ...(hasReferralInfo(f)
+      ? {
+          [SU_PROFILE_REF.referralRecordedBy]: meta.recordedByName,
+          [SU_PROFILE_REF.referralRecordedAt]: new Date().toISOString(),
+        }
+      : {}),
   })
   const allReferences = withContactExtraReferences(references, {
     phones: f.phones.slice(1),
@@ -439,6 +467,17 @@ function buildPayload(f: FormState): CreateServiceUserPayload {
   })
   if (allReferences.length) p.references = allReferences
   return p
+}
+
+function hasReferralInfo(f: FormState): boolean {
+  return [
+    f.referralAuthority,
+    f.referralSource,
+    f.referralDate,
+    f.referralReceivedVia,
+    f.referralReceivedAt,
+    f.referralNotes,
+  ].some((v) => v.trim() !== '')
 }
 
 function hasAddressData(f: FormState): boolean {
@@ -539,6 +578,7 @@ export default function AddServiceUserPage() {
   const [nnDebounced, setNnDebounced] = React.useState('')
   const [keyWorkerLabel, setKeyWorkerLabel] = React.useState('')
   const [namedNurseLabel, setNamedNurseLabel] = React.useState('')
+  const currentUserName = useAuthStore((st) => st.user?.displayName ?? '')
   const [carerPreferences, setCarerPreferences] =
     React.useState<ServiceUserCarerPreferencesState>(emptyCarerPreferences)
 
@@ -644,7 +684,7 @@ export default function AddServiceUserPage() {
       return
     }
     try {
-      const payload = buildPayload(form)
+      const payload = buildPayload(form, { recordedByName: currentUserName })
       const created = await createMutation.mutateAsync({
         payload,
         address: hasAddressData(form) ? buildAddressPayload(form) : undefined,
@@ -719,9 +759,9 @@ export default function AddServiceUserPage() {
           </div>
         )}
 
-        {/* Header: Picture + NHS + Status */}
+        {/* Header: Picture + identifiers + Status */}
         <Section>
-          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-3 xl:grid-cols-6">
             <div>
               <LabelWithTip tip="Optional profile picture — uploaded after the record is created.">
                 Picture
@@ -742,6 +782,20 @@ export default function AddServiceUserPage() {
                   onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
                 />
               </label>
+            </div>
+            <div>
+              <LabelWithTip tip="Organisation service user / case number.">Service User ID</LabelWithTip>
+              <Input
+                value={form.serviceUserNumber}
+                onChange={(e) => set('serviceUserNumber')(e.target.value)}
+              />
+            </div>
+            <div>
+              <LabelWithTip tip="UK National Insurance number.">NI Number</LabelWithTip>
+              <Input
+                value={form.nationalInsuranceNumber}
+                onChange={(e) => set('nationalInsuranceNumber')(e.target.value)}
+              />
             </div>
             <div>
               <LabelWithTip tip="NHS number (10 digits in England and Wales).">NHS Number</LabelWithTip>
@@ -1071,13 +1125,6 @@ export default function AddServiceUserPage() {
           <SHead>Reference Information</SHead>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
-              <LabelWithTip tip="Organisation service user / case number.">Service User ID</LabelWithTip>
-              <Input
-                value={form.serviceUserNumber}
-                onChange={(e) => set('serviceUserNumber')(e.target.value)}
-              />
-            </div>
-            <div>
               <LabelWithTip tip="Date and time service started.">Service Start Date/Time</LabelWithTip>
               <Input
                 data-testid="service-user-service-start"
@@ -1166,13 +1213,6 @@ export default function AddServiceUserPage() {
             <div>
               <LabelWithTip tip="Category or package of care.">Category of Care</LabelWithTip>
               {lookups ? mapSelect('careTypeId', 'Please select a Category of Care', lookups.careTypes) : <Input disabled />}
-            </div>
-            <div>
-              <LabelWithTip tip="UK National Insurance number.">NI Number</LabelWithTip>
-              <Input
-                value={form.nationalInsuranceNumber}
-                onChange={(e) => set('nationalInsuranceNumber')(e.target.value)}
-              />
             </div>
 
             <div className="md:col-span-3">
@@ -1279,6 +1319,79 @@ export default function AddServiceUserPage() {
                 )}
                 value={form.notes}
                 onChange={(e) => set('notes')(e.target.value)}
+              />
+            </div>
+          </div>
+        </Section>
+
+        <Section>
+          <SHead>Referral Information</SHead>
+          <p className="-mt-2 mb-4 text-xs text-muted-foreground">
+            Who referred this person, when, and how the referral reached you.
+          </p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <LabelWithTip tip="The council, NHS body, GP or organisation that referred this person.">
+                Referring Authority
+              </LabelWithTip>
+              <Input
+                data-testid="service-user-referral-authority"
+                value={form.referralAuthority}
+                onChange={(e) => set('referralAuthority')(e.target.value)}
+                placeholder="e.g. Hounslow Council"
+              />
+            </div>
+            <div>
+              <LabelWithTip tip="Name or contact of the person who made the referral.">Referred By</LabelWithTip>
+              <Input
+                value={form.referralSource}
+                onChange={(e) => set('referralSource')(e.target.value)}
+                placeholder="Name / role / contact"
+              />
+            </div>
+            <div>
+              <LabelWithTip tip="Date of the referral.">Referral Date</LabelWithTip>
+              <Input
+                type="date"
+                value={form.referralDate}
+                onChange={(e) => set('referralDate')(e.target.value)}
+              />
+            </div>
+            <div>
+              <LabelWithTip tip="How the referral reached you.">Received Via</LabelWithTip>
+              <StringSelect
+                value={form.referralReceivedVia}
+                onChange={set('referralReceivedVia')}
+                options={REFERRAL_RECEIVED_VIA_OPTIONS}
+                placeholder="Select"
+              />
+            </div>
+            <div>
+              <LabelWithTip tip="When the referral was received, e.g. the time of the email.">
+                Received Date/Time
+              </LabelWithTip>
+              <Input
+                type="datetime-local"
+                value={form.referralReceivedAt}
+                onChange={(e) => set('referralReceivedAt')(e.target.value)}
+              />
+            </div>
+            <div>
+              <LabelWithTip tip="Filled in automatically when the service user is saved.">
+                Recorded In System
+              </LabelWithTip>
+              <p className="flex h-9 items-center text-sm text-muted-foreground">
+                {currentUserName ? `By ${currentUserName}, when saved` : 'When saved'}
+              </p>
+            </div>
+            <div className="md:col-span-3">
+              <LabelWithTip tip="Any additional context about the referral.">Referral Notes</LabelWithTip>
+              <textarea
+                rows={3}
+                value={form.referralNotes}
+                onChange={(e) => set('referralNotes')(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="e.g. Hospital discharge, needs double-up calls from Monday"
               />
             </div>
           </div>

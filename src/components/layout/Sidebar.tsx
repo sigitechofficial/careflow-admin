@@ -53,6 +53,7 @@ import {
   ListChecks,
   ClipboardCheck,
   MessagesSquare,
+  MessageSquareWarning,
   // Briefcase, // TODO(later): restore with HR sidebar tab
 
 } from 'lucide-react'
@@ -709,6 +710,7 @@ const navItems: NavItem[] = [
       { label: 'Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/incidents/dashboard', permission: 'incidents.read' },
       { label: 'All Incidents', icon: <Eye className="h-4 w-4" />, href: '/incidents/view', permission: 'incidents.read' },
       { label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
+      { label: 'Complaints & Compliments', icon: <MessageSquareWarning className="h-4 w-4" />, href: '/incidents/feedback', permission: 'complaints.read', navTestId: 'nav-complaints-compliments' },
       { label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read', hideForRoles: ['super_admin'] },
     ],
   },

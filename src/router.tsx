@@ -123,6 +123,8 @@ import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
 import IncidentsDashboardPage from '@/features/incidents/pages/IncidentsDashboardPage'
 import MyActionsPage from '@/features/incidents/pages/MyActionsPage'
 import IncidentAnalyticsPage from '@/features/incidents/pages/IncidentAnalyticsPage'
+import ComplaintsComplimentsPage from '@/features/complaints/pages/ComplaintsComplimentsPage'
+import FeedbackDetailPage from '@/features/complaints/pages/FeedbackDetailPage'
 import ServiceUserAlertsPage from '@/features/alerts/pages/ServiceUserAlertsPage'
 import BillingManagementPage from '@/features/billing/pages/BillingManagementPage'
 import InvoiceRunDetailPage from '@/features/billing/pages/InvoiceRunDetailPage'
@@ -251,7 +253,7 @@ type RouterContext = {
   queryClient: QueryClient
 }
 
-type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 'non-core-activity' | 'reports'
+type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 'non-core-activity' | 'allocations' | 'reports'
 
 const pageTitles: Record<string, string> = {
   '/': 'Home',
@@ -283,6 +285,7 @@ const pageTitles: Record<string, string> = {
   '/employee/review-status': 'Employee',
   '/employee/skills': 'Employee',
   '/employee/non-core-activity': 'Employee',
+  '/employee/allocations': 'Employee',
   '/employee/reports': 'Employee',
   '/employee/temp-inspector': 'Temporary Inspector Login',
   '/employee/documents': 'General Employee Documents',
@@ -295,6 +298,8 @@ const pageTitles: Record<string, string> = {
   '/hr/candidates/$candidateId': 'Candidate',
   '/accidents-incidents/view': 'View Accidents & Incidents',
   '/accidents-incidents/raise': 'Raise Accidents & Incidents',
+  '/incidents/feedback': 'Complaints & Compliments',
+  '/incidents/feedback/$feedbackId': 'Complaints & Compliments',
   '/account': 'My account',
   '/admin/security': 'Security administration',
   '/admin/audit': 'Audit log',
@@ -1363,6 +1368,13 @@ const employeeNonCoreActivityRoute = createRoute({
   component: () => <EmployeeRouteWrapper tab="non-core-activity" />,
 })
 
+const employeeAllocationsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/employee/allocations',
+  beforeLoad: requirePermission('employees.read'),
+  component: () => <EmployeeRouteWrapper tab="allocations" />,
+})
+
 const employeeReportsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/employee/reports',
@@ -1568,6 +1580,22 @@ const incidentsAnalyticsRoute = createRoute({
   path: '/incidents/analytics',
   beforeLoad: requirePermission('incidents.view_analytics'),
   component: IncidentAnalyticsPage,
+})
+
+const complaintsComplimentsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/feedback',
+  validateSearch: (raw: Record<string, unknown>): { tab?: 'complaints' | 'compliments' } =>
+    raw.tab === 'compliments' || raw.tab === 'complaints' ? { tab: raw.tab } : {},
+  beforeLoad: requirePermission('complaints.read'),
+  component: ComplaintsComplimentsPage,
+})
+
+const feedbackDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/feedback/$feedbackId',
+  beforeLoad: requirePermission('complaints.read'),
+  component: FeedbackDetailPage,
 })
 
 const incidentDetailRoute = createRoute({
@@ -2251,6 +2279,7 @@ const routeTree = rootRoute.addChildren([
     employeeReviewStatusRoute,
     employeeSkillsRoute,
     employeeNonCoreActivityRoute,
+    employeeAllocationsRoute,
     employeeReportsRoute,
     employeeTempInspectorRoute,
     employeeGeneralDocumentsRoute,
@@ -2274,6 +2303,8 @@ const routeTree = rootRoute.addChildren([
     incidentsRaiseRoute,
     incidentsMyActionsRoute,
     incidentsAnalyticsRoute,
+    complaintsComplimentsRoute,
+    feedbackDetailRoute,
     incidentDetailRoute,
     accountRoute,
     adminSecurityRoute,

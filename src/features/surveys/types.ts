@@ -8,13 +8,27 @@ export const SURVEY_TARGET_KIND_LABELS: Record<SurveyTargetKind, string> = {
 }
 
 /** Who answered a service-user survey. */
-export type SurveyRespondentRelation = 'SELF' | 'FAMILY_MEMBER' | 'REPRESENTATIVE'
+export type SurveyRespondentRelation = 'SELF' | 'FAMILY_MEMBER' | 'REPRESENTATIVE' | 'STAFF'
 
 export const SURVEY_RESPONDENT_RELATION_LABELS: Record<SurveyRespondentRelation, string> = {
   SELF: 'The service user',
   FAMILY_MEMBER: 'Family member',
   REPRESENTATIVE: 'Representative',
+  STAFF: 'Staff on their behalf',
 }
+
+/** How a response was collected. Telephone / paper / in person are recorded by office staff. */
+export type SurveyResponseChannel = 'ONLINE' | 'PORTAL' | 'TELEPHONE' | 'PAPER' | 'IN_PERSON'
+
+export const SURVEY_RESPONSE_CHANNEL_LABELS: Record<SurveyResponseChannel, string> = {
+  ONLINE: 'Online',
+  PORTAL: 'Portal',
+  TELEPHONE: 'Telephone',
+  PAPER: 'Paper',
+  IN_PERSON: 'In person',
+}
+
+export type StaffRecordedChannel = 'TELEPHONE' | 'PAPER' | 'IN_PERSON'
 
 export const SURVEY_RECURRENCE_LABELS: Record<SurveyRecurrence, string> = {
   WEEKLY: 'Weekly',
@@ -153,9 +167,46 @@ export type SurveyResponseItem = {
   serviceUserId?: string | null
   respondentRelation?: SurveyRespondentRelation | null
   respondentName?: string | null
+  channel?: SurveyResponseChannel
+  /** This response is not linked to anyone. */
+  isAnonymous?: boolean
+  /** Office user who recorded it (telephone / paper / in person). */
+  recordedByName?: string | null
+  contactedAt?: string | null
+  contactNumber?: string | null
+  contactNotes?: string | null
+  consentGiven?: boolean | null
+  /** Staff-recorded responses can be corrected (with a reason). */
+  canEdit?: boolean
   answerCount: number
   answers: SurveyResponseAnswer[]
 }
+
+/** A person a response can be recorded for. */
+export type SurveyRecordCandidate = {
+  id: string
+  name: string
+  recipientStatus: SurveyRecipientStatus | null
+  hasResponse: boolean
+}
+
+type RecordedResponseDetails = {
+  answers: SurveyAnswerInput[]
+  respondentRelation?: SurveyRespondentRelation
+  respondentName?: string
+  contactedAt?: string
+  contactNumber?: string
+  contactNotes?: string
+}
+
+export type RecordSurveyResponseInput = RecordedResponseDetails & {
+  channel: StaffRecordedChannel
+  isAnonymous?: boolean
+  personId?: string
+  consentGiven?: boolean
+}
+
+export type UpdateRecordedSurveyResponseInput = RecordedResponseDetails & { reason: string }
 
 export type SurveyResponsesPayload = {
   isAnonymous: boolean

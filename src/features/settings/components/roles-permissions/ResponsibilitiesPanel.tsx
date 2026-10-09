@@ -50,7 +50,7 @@ const GROUPS: Group[] = [
     id: 'quality',
     title: 'Quality & safety',
     icon: <ShieldAlert className="h-4 w-4" aria-hidden />,
-    keys: ['incidents', 'surveys'],
+    keys: ['incidents', 'complaints', 'surveys', 'survey_responses'],
   },
 ]
 

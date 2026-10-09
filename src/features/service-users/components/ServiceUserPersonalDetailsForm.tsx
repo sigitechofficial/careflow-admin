@@ -214,6 +214,9 @@ type FormState = {
   referralNotes: string
   referralRecordedBy: string
   referralRecordedAt: string
+  referralReceivedVia: string
+  /** datetime-local (organisation wall clock). */
+  referralReceivedAt: string
 }
 
 /** Rebuild the phone / email / other-method rows and extra addresses from the saved record. */
@@ -333,6 +336,8 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     referralNotes: extValue(r, PROFILE_REF.referralNotes),
     referralRecordedBy: extValue(r, PROFILE_REF.referralRecordedBy),
     referralRecordedAt: extValue(r, PROFILE_REF.referralRecordedAt),
+    referralReceivedVia: extValue(r, PROFILE_REF.referralReceivedVia),
+    referralReceivedAt: isoToOrgDatetimeLocal(extValue(r, PROFILE_REF.referralReceivedAt)),
   }
 }
 
@@ -582,7 +587,9 @@ export function ServiceUserPersonalDetailsForm({
         form.referralAuthority.trim() ||
           form.referralSource.trim() ||
           form.referralDate.trim() ||
-          form.referralNotes.trim(),
+          form.referralNotes.trim() ||
+          form.referralReceivedVia.trim() ||
+          form.referralReceivedAt.trim(),
       )
       const referralRecordedBy =
         form.referralRecordedBy || (hasReferralInfo ? currentUserName : '')
@@ -624,6 +631,8 @@ export function ServiceUserPersonalDetailsForm({
           [PROFILE_REF.referralNotes]: form.referralNotes,
           [PROFILE_REF.referralRecordedBy]: referralRecordedBy,
           [PROFILE_REF.referralRecordedAt]: referralRecordedAt,
+          [PROFILE_REF.referralReceivedVia]: form.referralReceivedVia,
+          [PROFILE_REF.referralReceivedAt]: orgDatetimeLocalToIso(form.referralReceivedAt),
         },
         detail.references,
       )
@@ -1109,7 +1118,7 @@ export function ServiceUserPersonalDetailsForm({
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
         <h2 className="mb-1 text-sm font-semibold text-sky-600 dark:text-sky-400">Referral</h2>
         <p className="mb-4 text-xs text-muted-foreground">
-          Which authority referred this person, when the referral was received, and who recorded it.
+          Which authority referred this person, when and how the referral was received, and who recorded it.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <FieldEditable
@@ -1120,10 +1129,34 @@ export function ServiceUserPersonalDetailsForm({
           />
           <FieldEditable
             label="Referral date"
-            tooltip="Date the referral was received."
+            tooltip="Date of the referral."
             value={form.referralDate}
             onChange={set('referralDate')}
             type="date"
+          />
+          <LookupSelect
+            label="Received via"
+            tooltip="How the referral reached you."
+            value={form.referralReceivedVia}
+            onChange={set('referralReceivedVia')}
+            rows={['Email', 'Phone', 'Letter / post', 'Portal / online', 'In person', 'Other']
+              .concat(
+                form.referralReceivedVia &&
+                  !['Email', 'Phone', 'Letter / post', 'Portal / online', 'In person', 'Other'].includes(
+                    form.referralReceivedVia,
+                  )
+                  ? [form.referralReceivedVia]
+                  : [],
+              )
+              .map((v) => ({ id: v, name: v }))}
+            placeholder="Select"
+          />
+          <FieldEditable
+            label="Received date & time"
+            tooltip="When the referral was received, e.g. the time of the email."
+            value={form.referralReceivedAt}
+            onChange={set('referralReceivedAt')}
+            type="datetime-local"
           />
           <FieldEditable
             label="Referred by (name / contact)"
