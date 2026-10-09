@@ -938,9 +938,51 @@ interface NavChildLinkProps {
   pathname: string
   search: unknown
   onNavigate: () => void
+  /** `panel` = module page menu next to the rail (illustration tiles, pill highlight). */
+  variant?: 'classic' | 'panel'
 }
 
-function NavChildLink({ child, pathname, search, onNavigate }: NavChildLinkProps) {
+function PanelNavLink({ child, active, onNavigate }: { child: SubNavItem; active: boolean; onNavigate: () => void }) {
+  const planned = !!child.planned
+  return (
+    <Link
+      {...navLinkProps(child.label, child.href, child.ready, child.search)}
+      onClick={onNavigate}
+      data-testid={child.navTestId}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'group relative flex w-full items-center gap-3 rounded-xl py-1.5 pl-2 pr-2.5 text-[13.5px] transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+        active
+          ? 'bg-primary/10 font-semibold text-primary before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-primary'
+          : planned
+            ? 'text-sidebar-foreground/55 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground/80'
+            : 'text-sidebar-foreground/90 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground',
+      )}
+    >
+      <span
+        className={cn(
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform',
+          active ? 'bg-background shadow-sm ring-1 ring-primary/25' : 'bg-background/80 ring-1 ring-sidebar-border/70 group-hover:scale-105',
+          planned && !active && 'opacity-60 grayscale-[40%]',
+        )}
+      >
+        <PageIllustration label={child.label} fallback={child.icon} className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-left">{child.label}</span>
+      {planned ? (
+        <span
+          className="shrink-0 rounded-full bg-amber-100/80 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          title="Coming soon"
+        >
+          Soon
+        </span>
+      ) : null}
+    </Link>
+  )
+}
+
+function NavChildLink({ child, pathname, search, onNavigate, variant = 'classic' }: NavChildLinkProps) {
   const childActive = matchNavTarget(
     child.label,
     child.href,
@@ -949,6 +991,7 @@ function NavChildLink({ child, pathname, search, onNavigate }: NavChildLinkProps
     search,
     child.search,
   )
+  if (variant === 'panel') return <PanelNavLink child={child} active={childActive} onNavigate={onNavigate} />
   return (
     <Link
       {...navLinkProps(child.label, child.href, child.ready, child.search)}
@@ -990,11 +1033,13 @@ function NavChildList({
   pathname,
   search,
   onNavigate,
+  variant = 'classic',
 }: {
   items: SubNavItem[]
   pathname: string
   search: unknown
   onNavigate: () => void
+  variant?: 'classic' | 'panel'
 }) {
   const showHeadings = items.some((c) => c.section)
   return (
@@ -1007,19 +1052,33 @@ function NavChildList({
         return (
           <React.Fragment key={child.label}>
             {heading ? (
-              <li
-                role="presentation"
-                data-testid="sidebar-section-heading"
-                className={cn(
-                  'px-2.5 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/60',
-                  i === 0 ? 'pt-1' : 'pt-2.5',
-                )}
-              >
-                {heading}
-              </li>
+              variant === 'panel' ? (
+                <li
+                  role="presentation"
+                  data-testid="sidebar-section-heading"
+                  className={cn(
+                    'flex items-center gap-2 px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/45',
+                    i === 0 ? 'pt-1' : 'pt-4',
+                  )}
+                >
+                  <span className="shrink-0">{heading}</span>
+                  <span className="h-px flex-1 bg-sidebar-border/80" aria-hidden />
+                </li>
+              ) : (
+                <li
+                  role="presentation"
+                  data-testid="sidebar-section-heading"
+                  className={cn(
+                    'px-2.5 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/60',
+                    i === 0 ? 'pt-1' : 'pt-2.5',
+                  )}
+                >
+                  {heading}
+                </li>
+              )
             ) : null}
             <li>
-              <NavChildLink child={child} pathname={pathname} search={search} onNavigate={onNavigate} />
+              <NavChildLink child={child} pathname={pathname} search={search} onNavigate={onNavigate} variant={variant} />
             </li>
           </React.Fragment>
         )
@@ -1177,6 +1236,57 @@ function moduleForLocation(items: NavItem[], pathname: string, search: unknown):
   return best?.label
 }
 
+/** Header of the module page menu (hover card and pinned panel). */
+function ModulePanelHeader({
+  module,
+  onNavigate,
+  trailing,
+}: {
+  module: NavItem
+  onNavigate: () => void
+  trailing?: React.ReactNode
+}) {
+  const meta = NAV_MODULES[module.label]
+  const pages = module.children ?? []
+  const soon = pages.filter((p) => p.planned).length
+  const live = pages.length - soon
+  return (
+    <div className="shrink-0 border-b border-sidebar-border/70 bg-gradient-to-b from-sidebar-accent/80 to-transparent px-3.5 pb-3 pt-3.5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-background shadow-sm ring-1 ring-sidebar-border/70">
+          <ModuleIllustration
+            label={module.label}
+            fallback={meta ? <meta.Icon className="h-5 w-5 text-sidebar-foreground/80" /> : null}
+            className="h-7 w-7"
+          />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-display text-[15px] font-semibold leading-tight text-sidebar-foreground" data-testid="sidebar-panel-title">
+            {module.label}
+          </p>
+          {meta ? <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-sidebar-foreground/60">{meta.description}</p> : null}
+        </div>
+        {trailing}
+      </div>
+      <div className="mt-2.5 flex items-center justify-between gap-2">
+        <span className="text-[11px] text-sidebar-foreground/50">
+          {live} {live === 1 ? 'page' : 'pages'}
+          {soon ? ` · ${soon} coming soon` : ''}
+        </span>
+        {moduleLandingPath(module.label) ? (
+          <Link
+            to={moduleLandingPath(module.label)!}
+            onClick={onNavigate}
+            className="inline-flex items-center gap-0.5 rounded-full bg-background px-2.5 py-1 text-[11px] font-semibold text-primary shadow-sm ring-1 ring-sidebar-border/70 transition-colors hover:bg-primary/10"
+          >
+            Overview <ChevronRight className="h-3 w-3" />
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function ModuleSidebar() {
   const { pagePanelPinned, togglePagePanelPinned, sidebarMobileOpen, setSidebarMobileOpen } = useUIStore()
   const navigate = useNavigate()
@@ -1201,7 +1311,6 @@ function ModuleSidebar() {
   const panelModule = items.find((i) => i.label === openModule && i.children?.length)
   // Desktop: pages show on hover (fly-out) unless the user pins the panel open. Mobile drawer always shows it.
   const panelVisible = (!!panelModule || searching) && (pagePanelPinned || sidebarMobileOpen)
-  const meta = panelModule ? NAV_MODULES[panelModule.label] : undefined
 
   const closeMobile = () => setSidebarMobileOpen(false)
 
@@ -1354,36 +1463,26 @@ function ModuleSidebar() {
 
         {/* ── Page panel ── */}
         {panelVisible ? (
-          <div className="flex w-[244px] min-w-0 flex-col" data-testid="sidebar-panel">
-            <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-sidebar-border px-3">
-              {meta && !searching ? (
-                <>
-                  <ModuleIllustration
-                    label={panelModule!.label}
-                    fallback={<meta.Icon className="h-5 w-5 text-sidebar-foreground/80" />}
-                    className="h-8 w-8"
-                  />
-                  <Link
-                    to={moduleLandingPath(panelModule!.label)!}
-                    onClick={closeMobile}
-                    className="min-w-0 flex-1 truncate font-display text-[15px] font-semibold text-sidebar-foreground hover:underline"
-                    data-testid="sidebar-panel-title"
-                  >
-                    {panelModule!.label}
-                  </Link>
-                </>
-              ) : (
+          <div className="flex w-[268px] min-w-0 flex-col" data-testid="sidebar-panel">
+            {panelModule && !searching ? (
+              <ModulePanelHeader
+                module={panelModule}
+                onNavigate={closeMobile}
+                trailing={
+                  <button className="shrink-0 text-muted-foreground hover:text-foreground lg:hidden" onClick={closeMobile} aria-label="Close menu">
+                    <X className="h-5 w-5" />
+                  </button>
+                }
+              />
+            ) : (
+              <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-sidebar-border px-3.5">
                 <span className="flex-1 font-display text-[15px] font-semibold text-sidebar-foreground">Search results</span>
-              )}
-              <button
-                className="shrink-0 text-muted-foreground hover:text-foreground lg:hidden"
-                onClick={closeMobile}
-                aria-label="Close menu"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="shrink-0 px-2 pt-2">
+                <button className="shrink-0 text-muted-foreground hover:text-foreground lg:hidden" onClick={closeMobile} aria-label="Close menu">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+            <div className="shrink-0 px-3 pt-2.5">
               <Input
                 type="search"
                 value={menuQuery}
@@ -1392,10 +1491,10 @@ function ModuleSidebar() {
                 placeholder="Search all pages"
                 data-testid="sidebar-search"
                 leftElement={<Search className="h-4 w-4" />}
-                className="h-9 border-sidebar-border bg-sidebar text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus-visible:border-sidebar-ring focus-visible:ring-sidebar-ring"
+                className="h-9 rounded-xl border-sidebar-border bg-background/70 text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus-visible:border-sidebar-ring focus-visible:ring-sidebar-ring"
               />
             </div>
-            <nav aria-label={searching ? 'Search results' : `${panelModule?.label} pages`} className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-2">
+            <nav aria-label={searching ? 'Search results' : `${panelModule?.label} pages`} className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
               {searching ? (
                 searchResults.length === 0 ? (
                   <p className="px-2 py-6 text-center text-sm text-sidebar-foreground/70">No matching pages</p>
@@ -1405,6 +1504,7 @@ function ModuleSidebar() {
                       mod.children?.length ? (
                         <React.Fragment key={mod.label}>
                           <NavChildList
+                            variant="panel"
                             items={mod.children.map((c) => ({ ...c, section: mod.label }))}
                             pathname={pathname}
                             search={search}
@@ -1417,6 +1517,7 @@ function ModuleSidebar() {
                       ) : (
                         <li key={mod.label}>
                           <NavChildLink
+                            variant="panel"
                             child={{ label: mod.label, icon: mod.icon, href: mod.href }}
                             pathname={pathname}
                             search={search}
@@ -1432,14 +1533,14 @@ function ModuleSidebar() {
                 )
               ) : panelModule ? (
                 <ul className="space-y-0.5">
-                  <NavChildList items={panelModule.children!} pathname={pathname} search={search} onNavigate={closeMobile} />
+                  <NavChildList variant="panel" items={panelModule.children!} pathname={pathname} search={search} onNavigate={closeMobile} />
                 </ul>
               ) : null}
             </nav>
           </div>
         ) : null}
 
-        {/* ── Hover fly-out (desktop) ── */}
+        {/* ── Hover fly-out (desktop): floating card; the transparent left padding bridges the gap from the rail ── */}
         {showFlyout && flyoutModule && flyoutMeta ? (
           <div
             role="menu"
@@ -1449,35 +1550,28 @@ function ModuleSidebar() {
             onMouseLeave={scheduleClose}
             onFocus={cancelClose}
             onBlur={scheduleClose}
-            className="absolute inset-y-0 left-[76px] z-[60] hidden w-[244px] flex-col border-r border-sidebar-border bg-sidebar shadow-xl lg:flex"
+            className="absolute inset-y-0 left-[76px] z-[60] hidden py-2.5 pl-2 lg:flex"
           >
-            <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-sidebar-border px-3">
-              <ModuleIllustration
-                label={flyoutModule.label}
-                fallback={<flyoutMeta.Icon className="h-5 w-5 text-sidebar-foreground/80" />}
-                className="h-8 w-8"
-              />
-              <Link
-                to={moduleLandingPath(flyoutModule.label)!}
-                onClick={() => {
+            <div className="flex w-[280px] flex-col overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar shadow-2xl ring-1 ring-black/5 animate-in fade-in-0 slide-in-from-left-1 duration-150">
+              <ModulePanelHeader
+                module={flyoutModule}
+                onNavigate={() => {
                   setOpenModule(flyoutModule.label)
                   setHoverModule(undefined)
                 }}
-                className="min-w-0 flex-1 truncate font-display text-[15px] font-semibold text-sidebar-foreground hover:underline"
-              >
-                {flyoutModule.label}
-              </Link>
+              />
+              <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
+                <ul className="space-y-0.5">
+                  <NavChildList
+                    variant="panel"
+                    items={flyoutModule.children!}
+                    pathname={pathname}
+                    search={search}
+                    onNavigate={() => setHoverModule(undefined)}
+                  />
+                </ul>
+              </nav>
             </div>
-            <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-2">
-              <ul className="space-y-0.5">
-                <NavChildList
-                  items={flyoutModule.children!}
-                  pathname={pathname}
-                  search={search}
-                  onNavigate={() => setHoverModule(undefined)}
-                />
-              </ul>
-            </nav>
           </div>
         ) : null}
       </aside>
