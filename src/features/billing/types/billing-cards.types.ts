@@ -51,6 +51,11 @@ export type BillingRateType =
   | 'DEDUCTION'
   | 'SLEEP_IN'
   | 'WAKING_NIGHT'
+  | 'OVERTIME'
+  | 'ON_CALL'
+  | 'TRAINING'
+  | 'LIVE_IN_DAILY'
+  | 'LIVE_IN_WEEKLY'
 
 export type BillingDayType =
   | 'WEEKDAY'
@@ -124,6 +129,8 @@ export type PayCard = {
   travelInheritsTimeBands?: boolean
   mileageVehicleType?: string
   useUkMileageRates?: boolean
+  /** Bank holiday calendar for pay: UK (England & Wales, default), SCOTLAND, NORTHERN_IRELAND. */
+  bankHolidayRegion?: string | null
   status: BillingCardStatus
   effectiveFrom: string
   effectiveTo?: string | null
@@ -179,11 +186,30 @@ export type PayCardInput = {
   travelInheritsTimeBands?: boolean
   useUkMileageRates?: boolean
   mileageVehicleType?: string
+  bankHolidayRegion?: string | null
   status?: BillingCardStatus
   effectiveFrom: string
   effectiveTo?: string | null
   notes?: string
   rules?: PayCardRule[]
+  /** Edit only: when rates change on a non-draft card, the date the new version applies from. */
+  versionEffectiveFrom?: string
+  /** Edit only: reason stored on the new version. */
+  versionNote?: string
+}
+
+/** One entry of a pay card's rate history (`GET /billing/pay-cards/:id/versions`). */
+export type PayCardVersionHistoryItem = {
+  id: string
+  version: number
+  effectiveFrom: string
+  /** Last day this version priced (day before the next version, or the card end). */
+  effectiveTo?: string | null
+  isCurrent: boolean
+  changeNote?: string | null
+  createdAt: string
+  createdByName?: string | null
+  rules: PayCardRule[]
 }
 
 export type ChargeCardInput = {
@@ -245,6 +271,45 @@ export type PayCardResolveResult = {
   payCard: PayCard | null
   matchedLevel: PayCardAssignmentLevel | null
   funderId?: string | null
+}
+
+/** One row of a carer's dated pay card history (`GET /billing/pay-cards/employee-history/:employeeId`). */
+export type EmployeePayCardHistoryRow = {
+  id: string
+  payCard: Pick<PayCard, 'id' | 'name' | 'code' | 'status' | 'version' | 'assignmentLevel'> | null
+  /** null = from the start. */
+  effectiveFrom: string | null
+  effectiveTo: string | null
+  reason?: string | null
+  createdAt: string
+  createdByName?: string | null
+  isCurrent: boolean
+  isScheduled: boolean
+}
+
+export type EmployeePayCardHistory = {
+  history: EmployeePayCardHistoryRow[]
+  /** Earliest YYYY-MM-DD a change may start (after the latest change and any locked pay run). */
+  earliestEffectiveFrom: string | null
+  lastLockedPayPeriodEnd: string | null
+}
+
+export type ChangeEmployeePayCardInput = {
+  payCardId?: string
+  personalCard?: { name: string; code?: string; rules: PayCardRule[] }
+  effectiveFrom: string
+  reason: string
+  /** Optional new grade (updated straight away — grades have no effective date). */
+  gradeId?: string
+}
+
+export type ChangeEmployeePayCardResult = {
+  payCardId: string
+  effectiveFrom: string
+  /** Completed visits since the date already priced on the old card and not yet in a pay run. */
+  affectedPricedVisitCount: number
+  /** Name of the new grade when the grade was changed too. */
+  gradeName?: string | null
 }
 
 export type EmployeeFunderPayAssignment = {
@@ -468,6 +533,14 @@ export function formatPayCardRuleAmount(
     return `${symbol}${amount.toFixed(2)} per ${durationLabel.toLowerCase()} visit`
   }
   if (rule.rateType === 'MILEAGE') return `${symbol}${amount.toFixed(2)}/mile`
+  if (rule.rateType === 'ON_CALL') return `${symbol}${amount.toFixed(2)} per on-call period`
+  if (rule.rateType === 'TRAINING') return `${symbol}${amount.toFixed(2)}/hr training`
+  if (rule.rateType === 'LIVE_IN_DAILY') return `${symbol}${amount.toFixed(2)} per day`
+  if (rule.rateType === 'LIVE_IN_WEEKLY') return `${symbol}${amount.toFixed(2)} per week`
+  if (rule.rateType === 'OVERTIME') {
+    const threshold = rule.minimumMinutes ? ` over ${rule.minimumMinutes / 60}h/week` : ''
+    return `${rule.multiplier != null ? `${Number(rule.multiplier)}×` : `${symbol}${amount.toFixed(2)}`} overtime${threshold}`
+  }
   if (rule.rateType === 'FIXED' || rule.rateType === 'PER_VISIT_FEE') return `${symbol}${amount.toFixed(2)} flat`
   if (rule.rateType === 'PREMIUM') return `+${symbol}${amount.toFixed(2)}/hr`
   if (rule.rateType === 'DEDUCTION') return amount > 0 ? `−${symbol}${amount.toFixed(2)}` : 'Deduction (variable)'
@@ -488,6 +561,7 @@ export type PayCardRuleCategory =
   | 'Premiums & overtime'
   | 'Travel & expenses'
   | 'Fees & adjustments'
+  | 'Additional pay'
 
 export function categorizePayCardRule(
   rule: Pick<PayCardRule, 'rateType' | 'dayType' | 'startTime' | 'endTime'>,
@@ -506,6 +580,12 @@ export function categorizePayCardRule(
     case 'SLEEP_IN':
     case 'WAKING_NIGHT':
       return 'Time of day & night'
+    case 'OVERTIME':
+    case 'ON_CALL':
+    case 'TRAINING':
+    case 'LIVE_IN_DAILY':
+    case 'LIVE_IN_WEEKLY':
+      return 'Additional pay'
     case 'FIXED':
       // Fixed visit slots are visit pay, not time-of-day bands.
       if (rule.dayType === 'BANK_HOLIDAY' || rule.dayType === 'SATURDAY' || rule.dayType === 'SUNDAY') {
@@ -528,6 +608,7 @@ export const PAY_CARD_RULE_CATEGORY_ORDER: PayCardRuleCategory[] = [
   'Premiums & overtime',
   'Travel & expenses',
   'Fees & adjustments',
+  'Additional pay',
 ]
 
 export function slugBillingCode(name: string): string {

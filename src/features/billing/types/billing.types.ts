@@ -5,6 +5,8 @@ export type BillingTabId =
   | 'charge-cards'
   | 'funding-contracts'
   | 'invoice-templates'
+  | 'wage-types'
+  | 'bank-holidays'
   | 'visit-reconciliation'
   | 'payroll-runs'
   | 'invoice-runs'

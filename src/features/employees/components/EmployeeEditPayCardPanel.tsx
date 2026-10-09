@@ -10,6 +10,7 @@ import {
   Sparkles,
   Target,
   Trash2,
+  TrendingUp,
   Users,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
@@ -17,6 +18,7 @@ import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { PayCardDetailsView } from '@/features/billing/components/PayCardDetailsView'
+import { EmployeePayCardHistoryList } from '@/features/billing/components/EmployeePayCardHistoryList'
 import {
   useDeleteEmployeeFunderPayAssignment,
   useEmployeeFunderPayAssignments,
@@ -334,16 +336,29 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
         iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
         action={
           canManageBilling ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link
-                to="/billing"
-                search={{ tab: 'pay-cards' }}
-                className="inline-flex items-center gap-1.5"
-              >
-                Manage pay cards
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" asChild>
+                <Link
+                  to="/employee/$employeeId/pay-card/change"
+                  params={{ employeeId }}
+                  className="inline-flex items-center gap-1.5"
+                  data-testid="employee-pay-card-change-link"
+                >
+                  <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+                  Change pay card / promotion
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  to="/billing"
+                  search={{ tab: 'pay-cards' }}
+                  className="inline-flex items-center gap-1.5"
+                >
+                  Manage pay cards
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                </Link>
+              </Button>
+            </div>
           ) : null
         }
       />
@@ -547,6 +562,10 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
             </div>
           ) : null}
         </ContentCard>
+      ) : null}
+
+      {!loading && (canReadBilling || canManageBilling) ? (
+        <EmployeePayCardHistoryList employeeId={employeeId} />
       ) : null}
 
       {!loading && (canReadBilling || canManageBilling) ? (

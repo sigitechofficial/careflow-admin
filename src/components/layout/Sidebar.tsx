@@ -671,6 +671,13 @@ const navItems: NavItem[] = [
       },
       // Visit pay runs: hidden for now. Route remains available by URL if needed.
       {
+        label: 'Pay items',
+        icon: <Wallet className="h-4 w-4" />,
+        href: '/billing/pay-items',
+        permission: 'billing.payroll_runs.read',
+        navTestId: 'nav-billing-pay-items',
+      },
+      {
         label: 'Salary',
         icon: <CircleDollarSign className="h-4 w-4" />,
         href: '/billing/salary',

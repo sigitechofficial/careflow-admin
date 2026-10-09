@@ -137,6 +137,10 @@ import InvoiceAuditTrailPage from '@/features/billing/pages/InvoiceAuditTrailPag
 import ServiceUserInvoicesPage from '@/features/billing/pages/ServiceUserInvoicesPage'
 import PaymentsPage from '@/features/billing/pages/PaymentsPage'
 import AuditExportPage from '@/features/billing/pages/AuditExportPage'
+import PayCardEditorPage from '@/features/billing/pages/PayCardEditorPage'
+import EmployeePayCardChangePage from '@/features/billing/pages/EmployeePayCardChangePage'
+import PayItemsPage from '@/features/billing/pages/PayItemsPage'
+import PayItemCreatePage from '@/features/billing/pages/PayItemCreatePage'
 import EcmLiveMonitoringPage from '@/features/ecm/pages/EcmLiveMonitoringPage'
 import EcmGraphPage from '@/features/ecm/pages/EcmGraphPage'
 import EcmReportsPage from '@/features/ecm/pages/EcmReportsPage'
@@ -313,6 +317,11 @@ const pageTitles: Record<string, string> = {
   '/settings/roles-permissions': 'Roles & permissions',
   '/settings/care-pathway': 'Care Pathway',
   '/billing': 'Billing Management',
+  '/billing/pay-cards/new': 'New pay card',
+  '/billing/pay-items': 'Pay items',
+  '/billing/pay-items/new': 'New pay item',
+  '/employee/$employeeId/pay-card/change': 'Change pay card',
+  '/billing/pay-cards/$payCardId/edit': 'Edit pay card',
   '/billing/visit-reconciliation': 'Visit reconciliation',
   '/billing/payroll-runs': 'Visit pay runs',
   '/billing/salary': 'Salary',
@@ -1836,6 +1845,41 @@ const billingRoute = createRoute({
   component: BillingManagementPage,
 })
 
+const billingPayCardNewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/pay-cards/new',
+  beforeLoad: requirePermission('billing.pay_cards.manage'),
+  component: PayCardEditorPage,
+})
+
+const billingPayCardEditRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/pay-cards/$payCardId/edit',
+  beforeLoad: requirePermission('billing.pay_cards.manage'),
+  component: PayCardEditorPage,
+})
+
+const billingPayItemsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/pay-items',
+  beforeLoad: requirePermission('billing.payroll_runs.read'),
+  component: PayItemsPage,
+})
+
+const billingPayItemNewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/pay-items/new',
+  beforeLoad: requirePermission('billing.payroll_runs.manage'),
+  component: PayItemCreatePage,
+})
+
+const employeePayCardChangeRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/employee/$employeeId/pay-card/change',
+  beforeLoad: requirePermission('billing.pay_cards.manage'),
+  component: EmployeePayCardChangePage,
+})
+
 const billingVisitReconciliationRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/visit-reconciliation',
@@ -2320,6 +2364,11 @@ const routeTree = rootRoute.addChildren([
     rolesPermissionsRoute,
     carePathwayRoute,
     billingRoute,
+    billingPayCardNewRoute,
+    billingPayCardEditRoute,
+    employeePayCardChangeRoute,
+    billingPayItemsRoute,
+    billingPayItemNewRoute,
     billingVisitReconciliationRoute,
     billingPayrollRunsRoute,
     billingSalaryRoute,
