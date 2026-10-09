@@ -7,7 +7,7 @@ import { adminNavItems, filterNavByPermission } from '@/components/layout/Sideba
 import { NAV_MODULES, moduleLabelForSlug } from '@/components/layout/nav-modules'
 import { ModuleIllustration, PageIllustration } from '@/components/layout/NavIllustration'
 import type { SubNavItem } from '@/components/layout/sidebar-types'
-import { ModuleDashboard, hasModuleDashboard } from '@/features/home/module-dashboards'
+import { ModuleInsights, hasModuleInsights } from '@/features/home/module-insights'
 
 /** Landing page for a module picked on the rail: one tile per page, grouped by the panel's sub-headings. */
 export default function ModuleHomePage() {
@@ -51,17 +51,17 @@ export default function ModuleHomePage() {
         </div>
       </header>
 
-      {item && hasModuleDashboard(meta.slug) ? (
-        <section aria-labelledby="module-glance-heading" className="space-y-3">
-          <h2 id="module-glance-heading" className="font-display text-[15px] font-semibold text-foreground">
-            At a glance
+      {item && hasModuleInsights(meta.slug) ? (
+        <section aria-labelledby="module-glance-heading" className="space-y-5">
+          <h2 id="module-glance-heading" className="sr-only">
+            {label} dashboard
           </h2>
-          <ModuleDashboard slug={meta.slug} />
+          <ModuleInsights slug={meta.slug} />
         </section>
       ) : null}
 
-      {pages.length > 0 && hasModuleDashboard(meta.slug) ? (
-        <h2 className="-mb-3 font-display text-[15px] font-semibold text-foreground">Pages</h2>
+      {pages.length > 0 && hasModuleInsights(meta.slug) ? (
+        <h2 className="-mb-3 border-t border-border pt-6 font-display text-[15px] font-semibold text-foreground">Pages in {label}</h2>
       ) : null}
 
       {pages.length === 0 ? (

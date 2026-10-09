@@ -1,7 +1,7 @@
 These illustrations are from Fluent Emoji (flat style) by Microsoft Corporation:
 https://github.com/microsoft/fluentui-emoji
 Extracted from the npm package @iconify-json/fluent-emoji-flat 1.2.6.
-Only the files referenced by the navigation (src/components/layout/nav-illustrations.ts) and the Home page are included.
+Only the files referenced by the navigation (src/components/layout/nav-illustrations.ts) , the Home page and the module dashboards (src/features/home/module-insights.tsx) are included.
 
 MIT License
 
