@@ -20,6 +20,7 @@ describe('service-user-profile-tabs', () => {
       'calendar',
       'privacy',
       'dom',
+      'nfc',
       'assessment',
       'funding',
       'charge-card',

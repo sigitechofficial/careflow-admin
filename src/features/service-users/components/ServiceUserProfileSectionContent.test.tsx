@@ -48,6 +48,9 @@ vi.mock('@/features/service-users/components/ServiceUserEditVisitsPanel', () => 
 vi.mock('@/features/service-users/components/ServiceUserLiveInProfileTab', () => ({
   ServiceUserLiveInProfileTab: () => <div>livein-form</div>,
 }))
+vi.mock('@/features/service-users/components/ServiceUserNfcTagsSection', () => ({
+  ServiceUserNfcTagsSection: () => <div>nfc-form</div>,
+}))
 
 const lookups: ServiceUserLookupsBundle = {
   statuses: [],
@@ -99,6 +102,7 @@ describe('ServiceUserProfileSectionContent', () => {
     ['calendar', 'calendar-form'],
     ['privacy', 'Privacy'],
     ['dom', 'dom-form'],
+    ['nfc', 'nfc-form'],
     ['assessment', 'assessment-form'],
     ['funding', 'funding-form'],
     ['charge-card', 'charge-card-form'],

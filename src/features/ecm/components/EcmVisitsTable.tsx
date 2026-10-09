@@ -4,7 +4,7 @@ import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { cn } from '@/shared/lib/utils'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
-import type { EcmLiveVisitRow } from '@/features/ecm/types/ecm.types'
+import type { EcmLiveVisitCarer, EcmLiveVisitRow } from '@/features/ecm/types/ecm.types'
 import {
   dayKeyFromInstant,
   formatOpsCalendarDate,
@@ -55,6 +55,38 @@ function VarianceGroupCell({
         {formatSignedMinutes(minutes)}
         {minutes != null ? ' min' : ''}
       </span>
+    </div>
+  )
+}
+
+function carerRoleLabel(carer: EcmLiveVisitCarer, carers: EcmLiveVisitCarer[]): string {
+  if (carer.isLeadCarer) return 'Lead'
+  return carers.some((c) => c.isLeadCarer) ? 'Support' : 'Carer'
+}
+
+/** Double-up: carers late against their own planned start, or not yet clocked in. */
+function CarerArrivalWarnings({ carers }: { carers: EcmLiveVisitCarer[] }) {
+  const flagged = carers.filter((c) => c.lateArrivalMinutes != null || c.notClockedIn)
+  if (flagged.length === 0) return null
+  return (
+    <div className="mt-1 flex flex-col items-start gap-0.5">
+      {flagged.map((c) => {
+        const role = carerRoleLabel(c, carers)
+        const planned = formatClockTime(c.plannedStartDateTime)
+        const title = c.checkInAt
+          ? `${c.name} — planned ${planned}, clocked in ${formatClockTime(c.checkInAt)}`
+          : `${c.name} — planned ${planned}, not clocked in`
+        return (
+          <Badge
+            key={c.employeeId}
+            variant="outline"
+            title={title}
+            className="w-fit border-orange-500/30 bg-orange-500/10 text-[10px] font-medium text-orange-800 dark:text-orange-200"
+          >
+            {c.notClockedIn ? `${role} not clocked in` : `${role} late +${c.lateArrivalMinutes} min`}
+          </Badge>
+        )
+      })}
     </div>
   )
 }
@@ -268,7 +300,7 @@ export type EcmVisitsTableExtraColumn = {
   render: (row: EcmLiveVisitRow) => React.ReactNode
 }
 
-const BASE_COLUMN_COUNT = 18
+const BASE_COLUMN_COUNT = 19
 
 /**
  * ECM visits table (ECM live monitoring). Shared by the service user and employee
@@ -313,7 +345,7 @@ export function EcmVisitsTable({
       ref={tableScrollRef}
       className={cn('overflow-x-auto rounded-lg border border-border', className)}
     >
-      <table className="w-full min-w-[1940px] border-separate border-spacing-0 text-sm">
+      <table className="w-full min-w-[2060px] border-separate border-spacing-0 text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/40">
             <th className="sticky left-0 z-30 w-[8.5rem] min-w-[8.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
@@ -348,6 +380,9 @@ export function EcmVisitsTable({
             </th>
             <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
               Actual end
+            </th>
+            <th className="min-w-[8rem] border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+              Clock-in
             </th>
             <th className="min-w-[8.5rem] border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
               Start punctuality
@@ -455,12 +490,30 @@ export function EcmVisitsTable({
                   <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
                     {formatClockTime(row.actualCheckOutAt)}
                   </td>
+                  <td className="border-b border-border px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                    {row.checkInMethod && row.checkInMethod !== 'NONE' ? (
+                      <span
+                        className={cn(
+                          'font-medium',
+                          row.checkInMethod === 'NFC' && 'text-sky-700 dark:text-sky-300',
+                          (row.checkInMethod === 'MANUAL' || row.checkInMethod === 'OFFICE') &&
+                            'text-amber-700 dark:text-amber-300',
+                          row.checkInMethod === 'GPS' && 'text-foreground',
+                        )}
+                      >
+                        {row.checkInMethodLabel ?? row.checkInMethod}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td className="border-b border-border px-3 py-2.5">
                     <VarianceGroupCell
                       label={startPunctuality}
                       badgeClassName={punctualityBadgeClass(row.arrivalClassification)}
                       minutes={row.startVarianceMinutes}
                     />
+                    <CarerArrivalWarnings carers={row.carers ?? []} />
                   </td>
                   <td className="border-b border-border px-3 py-2.5">
                     <VarianceGroupCell

@@ -542,6 +542,10 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
   const visitType = visitTypeLabel(d.jobName, d.serviceUser.name)
   const VisitIcon = visitTypeIcon(visitType)
   const carers = d.allocatedCarers
+  // Per-carer timing comes back for double-up visits only.
+  const hasCarerTiming = carers.some(c => c.plannedStartDateTime != null)
+  const hasLead = carers.some(c => c.isLeadCarer)
+  const carerNameById = new Map(carers.map(c => [c.employeeId, c.name || c.employeeId]))
   const jobCompleted =
     d.jobStatus === 'COMPLETED' ||
     d.jobStatus === 'PARTIALLY_COMPLETED' ||
@@ -685,6 +689,39 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
               </span>
             ))
           )}
+          {hasCarerTiming ? (
+            <ul className="mt-1.5 w-full space-y-1 border-t border-border pt-2">
+              {carers.map(c => (
+                <li
+                  key={c.allocationId || c.employeeId}
+                  className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm"
+                >
+                  <span className="font-medium text-foreground">{c.name || c.employeeId}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {c.isLeadCarer ? 'Lead' : hasLead ? 'Support' : 'Carer'}
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    Planned {formatTimeOnly(c.plannedStartDateTime)}–{formatTimeOnly(c.plannedEndDateTime)}
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    · In {c.checkInAt ? formatTimeOnly(c.checkInAt) : '—'}
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    · Out {c.checkOutAt ? formatTimeOnly(c.checkOutAt) : '—'}
+                  </span>
+                  {c.lateArrivalMinutes != null ? (
+                    <span className="rounded border border-orange-500/30 bg-orange-500/10 px-1.5 text-xs font-medium text-orange-800 dark:text-orange-200">
+                      Late +{c.lateArrivalMinutes} min
+                    </span>
+                  ) : c.notClockedIn ? (
+                    <span className="rounded border border-orange-500/30 bg-orange-500/10 px-1.5 text-xs font-medium text-orange-800 dark:text-orange-200">
+                      Not clocked in
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       </header>
 
@@ -883,7 +920,10 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold">{ev.eventType}</span>
-                    <span className="text-muted-foreground">{ev.verificationMethod}</span>
+                    {carerNameById.has(ev.employeeId) ? (
+                      <span className="font-medium">{carerNameById.get(ev.employeeId)}</span>
+                    ) : null}
+                    <span className="text-muted-foreground">{ev.methodLabel ?? ev.verificationMethod}</span>
                     <span className="tabular-nums">{formatWhen(ev.occurredAt)}</span>
                   </div>
                   {(ev.outsideGeofence || ev.isMockLocation) && (

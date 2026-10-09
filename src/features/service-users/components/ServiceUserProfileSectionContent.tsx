@@ -11,6 +11,7 @@ import { ServiceUserEditVisitsPanel } from '@/features/service-users/components/
 import { ServiceUserFundingTab } from '@/features/service-users/components/ServiceUserFundingTab'
 import { ServiceUserInventoryTab } from '@/features/service-users/components/ServiceUserInventoryTab'
 import { ServiceUserLiveInProfileTab } from '@/features/service-users/components/ServiceUserLiveInProfileTab'
+import { ServiceUserNfcTagsSection } from '@/features/service-users/components/ServiceUserNfcTagsSection'
 import { ServiceUserPersonalDetailsForm } from '@/features/service-users/components/ServiceUserPersonalDetailsForm'
 import { ServiceUserPhotosTab } from '@/features/service-users/components/ServiceUserPhotosTab'
 import { ServiceUserPortalAccessSection } from '@/features/service-users/components/ServiceUserPortalAccessSection'
@@ -99,6 +100,8 @@ export function ServiceUserProfileSectionContent({
       {tab === 'dom' && (
         <ServiceUserDomCareTab serviceUserId={serviceUserId} detail={detail} onSaved={onSaved} />
       )}
+
+      {tab === 'nfc' && <ServiceUserNfcTagsSection serviceUserId={serviceUserId} />}
 
       {tab === 'assessment' && (
         <ServiceUserInitialAssessmentEnterpriseTab

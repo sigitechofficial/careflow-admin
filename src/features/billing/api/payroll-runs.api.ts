@@ -209,6 +209,9 @@ export type EmployeeSalaryDeductionRow = {
   notes: string | null
   salaryMonth: string
   createdAt: string
+  /** Set when the fine was decided on an incident (changed / removed there). */
+  incidentId?: string | null
+  incidentReference?: string | null
 }
 
 export type EmployeeEarningsSummary = {

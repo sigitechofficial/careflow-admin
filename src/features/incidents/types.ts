@@ -59,6 +59,8 @@ export type IncidentVisitOption = {
 
 export type IncidentListItem = {
   id: string
+  /** Duty of Candour overdue (organisation setting). */
+  candourOverdue?: boolean
   referenceNumber: string
   status: IncidentStatus
   statusLabel: string
@@ -100,6 +102,10 @@ export type IncidentListItem = {
   reportedBy?: IncidentReportedBy
   /** Readable visit reference (VIS-…) when raised during a visit — list endpoint only. */
   visitRef?: string | null
+  /** Primary service user's name — list endpoint only. */
+  serviceUserName?: string | null
+  /** Branch name — list endpoint only. */
+  locationName?: string | null
   ownerId: string | null
   description: string
   contextBefore: string | null
@@ -108,6 +114,8 @@ export type IncidentListItem = {
   immediateActionCodes: string[]
   injuryOccurred: boolean
   injuryDetails: string | null
+  /** Carer-app witness text, kept exactly as the carer wrote it. */
+  witnessDetails: string | null
   peopleInvolved: string | null
   whoInformedKeys: string[]
   carerSafeguardingConcern: boolean | null
@@ -365,6 +373,162 @@ export type IncidentCarerSuspension = {
   continueReason?: string | null
 }
 
+/** Duty of Candour (Regulation 20). */
+export type CandourDecisionValue = 'YES' | 'NO' | 'NOT_KNOWN' | 'NOT_APPLICABLE'
+export type CandourStatus = 'NOT_DECIDED' | 'NOT_KNOWN' | 'NOT_REQUIRED' | 'IN_PROGRESS' | 'COMPLETE'
+
+export const CANDOUR_HARM_OPTIONS: { value: string; label: string }[] = [
+  { value: 'DEATH', label: 'Death caused by the incident (not the natural course of an illness)' },
+  { value: 'IMPAIRMENT_28_DAYS', label: 'Impairment of sensory, motor or intellectual function for 28 days or more' },
+  { value: 'BODY_STRUCTURE_CHANGE', label: 'Change to the structure of the body (e.g. fracture)' },
+  { value: 'PROLONGED_PAIN', label: 'Pain for a continuous 28 days or more' },
+  { value: 'PROLONGED_PSYCH_HARM', label: 'Psychological harm for a continuous 28 days or more' },
+  { value: 'SHORTENED_LIFE', label: 'Shortened life expectancy' },
+  { value: 'TREATMENT_TO_PREVENT', label: 'Treatment needed to prevent one of these' },
+]
+export const CANDOUR_LETTER_METHOD_OPTIONS = [
+  { value: 'POST', label: 'Post' },
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'HANDED', label: 'Handed in person' },
+]
+export const CANDOUR_UNABLE_REASON_OPTIONS = [
+  { value: 'DECLINED', label: 'Declined to speak' },
+  { value: 'NOT_CONTACTABLE', label: 'Could not be contacted' },
+  { value: 'NO_REPRESENTATIVE', label: 'No one can act for them' },
+]
+export const CANDOUR_ATTEMPT_METHOD_OPTIONS = [
+  { value: 'PHONE', label: 'Phone' },
+  { value: 'VISIT', label: 'Visit' },
+  { value: 'LETTER', label: 'Letter' },
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+type CandourPersonRef = { id: string; name: string } | null
+
+export type CandourRecordDetail = {
+  id: string
+  decision: CandourDecisionValue
+  decisionReason: string | null
+  harmTypes: string[]
+  healthProfessionalName: string | null
+  healthProfessionalRole: string | null
+  healthProfessional: CandourPersonRef
+  decidedAt: string | null
+  dutyStartedAt: string | null
+  toldOn: string | null
+  toldBy: CandourPersonRef
+  toldPersonKind: 'SERVICE_USER' | 'REPRESENTATIVE' | null
+  toldPersonName: string | null
+  toldRelationship: string | null
+  factsExplained: boolean
+  enquiriesExplained: boolean
+  apologyGiven: boolean
+  supportOffered: string | null
+  writtenSentOn: string | null
+  writtenBy: CandourPersonRef
+  writtenMethod: string | null
+  writtenAttachment: { id: string; name: string } | null
+  resultsSharedOn: string | null
+  resultsMethod: string | null
+  resultsAttachment: { id: string; name: string } | null
+  noFurtherEnquiriesReason: string | null
+  unableToNotify: boolean
+  unableReason: string | null
+  unableNote: string | null
+  attempts: { id: string; attemptedOn: string; method: string; by: CandourPersonRef; outcome: string }[]
+}
+
+export type CandourPersonEntry = {
+  serviceUserId: string
+  serviceUserName: string
+  /** False when the person is no longer on the incident (kept as history). */
+  onIncident: boolean
+  deceased: boolean
+  status: CandourStatus
+  missing: string[]
+  overdue: boolean
+  record: CandourRecordDetail | null
+}
+
+export type IncidentCandourPanel = {
+  applies: boolean
+  overdueDays: number | null
+  hintReasons: string[]
+  hasInvestigation: boolean
+  records: CandourPersonEntry[]
+  /** "Outcome shared with" rows that come from results letters. */
+  outcomeRows?: OutcomeSharingEntry[]
+}
+
+/** "Care plan update" measure: the plans to open and the published versions that can complete it. */
+export type CarePlanMeasureEvidence = {
+  newRecordNeeded: boolean
+  measureCreatedAt: string
+  serviceUserIds: string[]
+  plans: { instanceId: string; serviceUserId: string; carePathwayFormId: string; formName: string }[]
+  versions: {
+    id: string
+    instanceId: string
+    serviceUserId: string
+    carePathwayFormId: string
+    formName: string
+    versionNumber: number
+    summary: string | null
+    publishedAt: string
+    publishedByName: string | null
+    linkedToThisMeasure: boolean
+  }[]
+}
+
+/** Outcome & close → Staff actions: what was decided for a staff member. */
+export type IncidentStaffActionType =
+  | 'NO_ACTION'
+  | 'INFORMAL_DISCUSSION'
+  | 'VERBAL_WARNING'
+  | 'WRITTEN_WARNING'
+  | 'FINAL_WRITTEN_WARNING'
+  | 'FINE'
+  | 'DISMISSAL'
+  | 'HR_PROCESS'
+
+export const STAFF_ACTION_TYPE_OPTIONS: { value: IncidentStaffActionType; label: string }[] = [
+  { value: 'NO_ACTION', label: 'No action' },
+  { value: 'INFORMAL_DISCUSSION', label: 'Informal discussion' },
+  { value: 'VERBAL_WARNING', label: 'Verbal warning' },
+  { value: 'WRITTEN_WARNING', label: 'Written warning' },
+  { value: 'FINAL_WRITTEN_WARNING', label: 'Final written warning' },
+  { value: 'FINE', label: 'Fine (deducted from salary)' },
+  { value: 'DISMISSAL', label: 'Dismissal' },
+  { value: 'HR_PROCESS', label: 'Referred to HR process' },
+]
+
+export type IncidentStaffAction = {
+  id: string
+  employeeId: string
+  actionType: IncidentStaffActionType
+  actionLabel: string
+  reason: string
+  /** YYYY-MM-DD the staff member was told, or null = not told yet. */
+  staffInformedOn: string | null
+  fineAmount: number | null
+  /** YYYY-MM. */
+  fineSalaryMonth: string | null
+  deductionAllowedConfirmed: boolean
+  salaryDeductionId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type IncidentStaffActionInput = {
+  actionType: IncidentStaffActionType
+  reason: string
+  staffInformedOn: string | null
+  fineAmount?: number | null
+  fineSalaryMonth?: string | null
+  deductionAllowedConfirmed?: boolean
+}
+
 /** A carer's suspension as listed on their employee record. */
 export type EmployeeIncidentSuspension = IncidentCarerSuspension & {
   incidentReference: string
@@ -524,6 +688,9 @@ export type OutcomeSharingEntry = {
   method: string | null
   notSharedReason: string | null
   note: string | null
+  /** Set by the server: filled from the Duty of Candour results letter (read-only here). */
+  source?: 'CANDOUR' | null
+  attachmentId?: string | null
 }
 
 export const OUTCOME_SHARING_METHOD_OPTIONS = [
@@ -619,6 +786,10 @@ export type IncidentAnalytics = {
   bySubtype: { key: string; label: string; count: number }[]
   byLocation: { id: string; name: string; count: number }[]
   byServiceUser: { id: string; name: string; count: number }[]
+  /** Carers who reported the most incidents. */
+  byReporter: { id: string; name: string; count: number }[]
+  /** Reported from the carer app vs recorded by the office. */
+  bySource: { carerApp: number; office: number }
   byTimeOfDay: { key: string; label: string; count: number }[]
   byDayOfWeek: { day: string; count: number }[]
   injuryTypes: { type: string; count: number }[]
@@ -649,6 +820,10 @@ export type IncidentDetail = IncidentListItem & {
   outcome: IncidentOutcome | null
   actions: IncidentAction[]
   carerSuspensions: IncidentCarerSuspension[]
+  /** Outcome & close → Staff actions (warning, fine, …). */
+  staffActions?: IncidentStaffAction[]
+  /** Duty of Candour (Regulation 20); null for older responses. */
+  candour?: IncidentCandourPanel | null
   externalBodies?: IncidentExternalBody[]
   courseRecommendations: IncidentCarerCourseRecommendation[]
   injuries: IncidentInjury[]
@@ -735,6 +910,7 @@ export type IncidentClarificationField =
   | 'IMMEDIATE_ACTIONS'
   | 'PEOPLE_INVOLVED'
   | 'EMERGENCY_SERVICES'
+  | 'WITNESS_DETAILS'
 
 export type IncidentClarificationNote = {
   id: string
@@ -836,6 +1012,8 @@ export type IncidentStats = {
   underInvestigation: number
   actionsRequired: number
   highOrCritical: number
+  /** Open incidents with Duty of Candour overdue. */
+  candourOverdue?: number
   /** First day of the current organisation month (YYYY-MM-DD). */
   monthStart?: string
   byStatus: Partial<Record<IncidentStatus, number>>
@@ -1146,6 +1324,10 @@ export type IncidentListFilters = {
   serviceUserId?: string
   /** Staff member recorded as affected. */
   employeeId?: string
+  /** Carer who reported it. */
+  reporterEmployeeId?: string
+  /** Duty of Candour overdue only. */
+  candour?: 'overdue'
   locationId?: string
   openOnly?: boolean
   /** Which date the range filter and newest-first sort use (API default: occurredAt). */

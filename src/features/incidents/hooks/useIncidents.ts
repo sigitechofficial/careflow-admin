@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { incidentKeys } from '@/features/incidents/keys'
@@ -33,6 +34,12 @@ import {
   liftIncidentCarerSuspension,
   extendIncidentCarerSuspension,
   continueIncidentCarerSuspension,
+  createIncidentStaffAction,
+  saveCandourStep,
+  type CandourStep,
+  fetchCarePlanMeasureEvidence,
+  updateIncidentStaffAction,
+  removeIncidentStaffAction,
   fetchEmployeeIncidentSuspensions,
 } from '@/features/incidents/api/incidents.api'
 import type {
@@ -45,6 +52,7 @@ import type {
   IncidentSeverity,
   IncidentStatus,
   IncidentExternalBodyInput,
+  IncidentStaffActionInput,
   UpdateIncidentActionInput,
   UpsertIncidentInvestigationInput,
   UpsertIncidentOutcomeInput,
@@ -74,6 +82,22 @@ export function useIncidents(filters: IncidentListFilters) {
     queryKey: incidentKeys.list(filters),
     queryFn: ({ signal }) => fetchIncidents(filters, { signal }),
   })
+}
+
+/**
+ * Every incident matching the filters (all pages), for CSV export. Same API and access rules as the
+ * All Incidents list, so restricted incidents only come back for people allowed to see them.
+ */
+export function useFetchAllIncidents() {
+  return useCallback(async (filters: Omit<IncidentListFilters, 'page' | 'limit'>) => {
+    const limit = 100
+    const first = await fetchIncidents({ ...filters, page: 1, limit })
+    const items = [...first.items]
+    for (let page = 2; page <= first.totalPages; page++) {
+      items.push(...(await fetchIncidents({ ...filters, page, limit })).items)
+    }
+    return items
+  }, [])
 }
 
 export function useIncident(id: string | undefined) {
@@ -247,6 +271,47 @@ export function useContinueIncidentCarerSuspension(id: string) {
   })
 }
 
+export function useCreateIncidentStaffAction(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: IncidentStaffActionInput & { employeeId: string }) =>
+      createIncidentStaffAction(id, input),
+    onSuccess: () => {
+      toastSuccess('Staff action recorded')
+      void qc.invalidateQueries({ queryKey: incidentKeys.all() })
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+export function useUpdateIncidentStaffAction(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: IncidentStaffActionInput & { staffActionId: string; changeReason: string }) => {
+      const { staffActionId, ...body } = input
+      return updateIncidentStaffAction(id, staffActionId, body)
+    },
+    onSuccess: () => {
+      toastSuccess('Staff action updated')
+      void qc.invalidateQueries({ queryKey: incidentKeys.all() })
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+export function useRemoveIncidentStaffAction(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { staffActionId: string; reason: string }) =>
+      removeIncidentStaffAction(id, input.staffActionId, input.reason),
+    onSuccess: () => {
+      toastSuccess('Staff action removed')
+      void qc.invalidateQueries({ queryKey: incidentKeys.all() })
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
 /** A carer's suspension history across incidents (employee record). */
 export function useEmployeeIncidentSuspensions(employeeId: string | undefined) {
   return useQuery({
@@ -331,12 +396,43 @@ export function useCompleteIncidentAction() {
       actionId: string
       completionNotes: string
       completedRecords?: { id: string; label: string }[]
-    }) => completeIncidentAction(vars.actionId, vars.completionNotes, vars.completedRecords),
+      carePlanVersionId?: string
+    }) =>
+      completeIncidentAction(
+        vars.actionId,
+        vars.completionNotes,
+        vars.completedRecords,
+        vars.carePlanVersionId,
+      ),
     onSuccess: () => {
       toastSuccess('Corrective measure completed')
       void qc.invalidateQueries({ queryKey: incidentKeys.all() })
     },
     onError: (e) => toastApiError(e),
+  })
+}
+
+/** Duty of Candour: save one step for one service user. */
+export function useSaveCandourStep(incidentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { serviceUserId: string; step: CandourStep; body: Record<string, unknown> }) =>
+      saveCandourStep(incidentId, vars.serviceUserId, vars.step, vars.body),
+    onSuccess: () => {
+      toastSuccess('Duty of Candour saved')
+      void qc.invalidateQueries({ queryKey: incidentKeys.all() })
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+/** Care plan update measure: plans to open and published versions that can complete it. */
+export function useCarePlanMeasureEvidence(actionId: string, enabled = true) {
+  return useQuery({
+    queryKey: incidentKeys.carePlanEvidence(actionId),
+    queryFn: ({ signal }) => fetchCarePlanMeasureEvidence(actionId, { signal }),
+    enabled: enabled && Boolean(actionId),
+    staleTime: 15_000,
   })
 }
 
@@ -372,6 +468,7 @@ export function useChangeIncidentStatus(id: string) {
       reason?: string
       overrideMandatoryActions?: boolean
       overrideOpenExternalBodies?: boolean
+      overrideIncompleteCandour?: boolean
     }) =>
       changeIncidentStatus(
         id,
@@ -379,6 +476,7 @@ export function useChangeIncidentStatus(id: string) {
         vars.reason,
         vars.overrideMandatoryActions,
         vars.overrideOpenExternalBodies,
+        vars.overrideIncompleteCandour,
       ),
     onSuccess: () => {
       toastSuccess('Incident status updated')

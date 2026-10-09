@@ -14,6 +14,12 @@ import {
 } from '@/features/incidents/hooks/useIncidents'
 import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { IncidentReviewSection } from '@/features/incidents/components/IncidentReviewSection'
+import {
+  IncidentCandourDecisionSection,
+  IncidentCandourStepsSection,
+  IncidentCandourSummary,
+  candourStepsTabVisible,
+} from '@/features/incidents/components/IncidentCandourSection'
 import { IncidentInvestigationSection } from '@/features/incidents/components/IncidentInvestigationSection'
 import { IncidentActionsSection } from '@/features/incidents/components/IncidentActionsSection'
 import {
@@ -179,6 +185,8 @@ export default function IncidentDetailPage() {
 
   // Closed incidents are read-only (the API enforces this); changes require reopening first.
   const isClosed = incident.status === 'CLOSED'
+  // Duty of Candour steps get their own tab once anyone's answer is Yes / Not known.
+  const showCandourTab = candourStepsTabVisible(incident.candour)
   const canEditRecord = canEdit && !isClosed
   const canInvestigateRecord = canInvestigate && !isClosed
   const canReviewRecord = canReview && !isClosed
@@ -201,6 +209,8 @@ export default function IncidentDetailPage() {
 
   const hasFinalOutcome = Boolean(incident.outcome?.finalOutcome?.trim())
   const workflow = resolveIncidentDetailWorkflow(incident.status, hasFinalOutcome)
+  // The Duty of Candour tab can disappear (decision changed to No); fall back to the current step.
+  const activeTab = tab === 'candour' && !showCandourTab ? workflow.currentId : (tab ?? workflow.currentId)
   const stepState = Object.fromEntries(workflow.steps.map((s) => [s.id, s])) as Record<
     (typeof workflow.steps)[number]['id'],
     (typeof workflow.steps)[number]
@@ -285,11 +295,20 @@ export default function IncidentDetailPage() {
           .filter((b) => isExternalBodyOpen(b.status))
           .map(externalBodyDisplayName)}
         openMandatoryActions={openMandatoryActions}
+        candourUndecided={(incident.candour?.records ?? [])
+          .filter((r) => r.onIncident && (r.status === 'NOT_DECIDED' || r.status === 'NOT_KNOWN'))
+          .map((r) => r.serviceUserName)}
+        candourIncomplete={(incident.candour?.records ?? [])
+          .filter((r) => r.onIncident && r.status === 'IN_PROGRESS')
+          .map((r) => r.serviceUserName)}
+        outcomeSharingUnanswered={
+          (incident.outcome?.outcomeSharing ?? []).filter((r) => !r.shared && !r.notSharedReason).length
+        }
         canReview={canReview}
         canClose={canClose}
         canReopen={canReopen}
         onGoToReview={() => setTab('review')}
-        onReviewTab={(tab ?? workflow.currentId) === 'review'}
+        onReviewTab={activeTab === 'review'}
         onCompleteInvestigation={
           canInvestigateRecord
             ? () => {
@@ -300,7 +319,7 @@ export default function IncidentDetailPage() {
         }
       />
 
-      <Tabs value={tab ?? workflow.currentId} onValueChange={setTab}>
+      <Tabs value={activeTab} onValueChange={setTab}>
         <div className="overflow-x-auto">
           <TabsList variant="underline" className="h-auto min-w-max justify-start">
             {workflow.steps.map((step, index) => (
@@ -308,6 +327,11 @@ export default function IncidentDetailPage() {
                 <StepTabLabel n={index + 1} label={step.label.replace(/^\d+\.\s*/, '')} state={step.state} />
               </TabsTrigger>
             ))}
+            {showCandourTab && (
+              <TabsTrigger value="candour" variant="underline">
+                Duty of Candour
+              </TabsTrigger>
+            )}
             <TabsTrigger value="records" variant="underline">
               Supporting records
             </TabsTrigger>
@@ -576,6 +600,20 @@ export default function IncidentDetailPage() {
           </SubBlock>
 
           <SubBlock title="Witnesses">
+            {incident.witnessDetails && (
+              <div className="mb-3">
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {locked('Witness details from the reporter', REPORTER_ACCOUNT_LOCK)}
+                </p>
+                <p className="whitespace-pre-wrap text-sm text-foreground">{incident.witnessDetails}</p>
+                <ClarificationNotes
+                  incidentId={incident.id}
+                  field="WITNESS_DETAILS"
+                  notes={clarifications}
+                  canAdd={canCorrect}
+                />
+              </div>
+            )}
             <IncidentWitnessesSection incident={incident} canManage={canEditRecord} />
           </SubBlock>
         </IncidentWorkflowStepCard>
@@ -607,6 +645,14 @@ export default function IncidentDetailPage() {
           ) : (
             <p className="text-sm text-muted-foreground">No review recorded yet.</p>
           )}
+          <div className="mt-4">
+            <IncidentCandourDecisionSection
+              incidentId={incident.id}
+              panel={incident.candour}
+              isClosed={isClosed}
+              onOpenSteps={() => setTab('candour')}
+            />
+          </div>
         </IncidentWorkflowStepCard>
         </TabsContent>
 
@@ -652,6 +698,7 @@ export default function IncidentDetailPage() {
         >
           <IncidentActionsSection
             incidentId={incident.id}
+            incidentReference={incident.referenceNumber}
             actions={incident.actions}
             canManage={canManageActionsRecord}
             findings={
@@ -677,6 +724,12 @@ export default function IncidentDetailPage() {
           state={stepState.outcome.state}
         >
           {/* Closing and reopening happen in the "Next step" bar; this section only records the outcome. */}
+          <div className="mb-4">
+            <IncidentCandourSummary
+              panel={incident.candour}
+              onOpen={() => setTab(showCandourTab ? 'candour' : 'review')}
+            />
+          </div>
           {canReview || incident.outcome || incident.status === 'CLOSED' || incident.status === 'AWAITING_CLOSURE' ? (
             <IncidentOutcomeSection
               incident={incident}
@@ -690,6 +743,17 @@ export default function IncidentDetailPage() {
           )}
         </IncidentWorkflowStepCard>
         </TabsContent>
+
+        {showCandourTab && (
+          <TabsContent value="candour" forceMount>
+            <IncidentCandourStepsSection
+              incidentId={incident.id}
+              panel={incident.candour}
+              isClosed={isClosed}
+              onOpenReview={() => setTab('review')}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="records" forceMount>
         <Section title="Supporting records">
