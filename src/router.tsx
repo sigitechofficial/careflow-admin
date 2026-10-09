@@ -108,6 +108,9 @@ import { portalPageTitles } from '@/features/service-user-portal/portal-nav'
 import AccountPage from '@/features/account/pages/AccountPage'
 import HomePage from '@/features/home/pages/HomePage'
 import ModuleHomePage from '@/features/home/pages/ModuleHomePage'
+import MedicationExceptionsPage from '@/features/emar/pages/MedicationExceptionsPage'
+import MedicationStockPage from '@/features/emar/pages/MedicationStockPage'
+import { MedicationAdministeredPage, MedicationLatePage } from '@/features/emar/pages/MedicationDoseLogPage'
 import { moduleLabelForSlug } from '@/components/layout/nav-modules'
 import InProgressPage from '@/features/home/pages/InProgressPage'
 import ComponentShowcase from '@/features/home/pages/ComponentShowcase'
@@ -368,6 +371,10 @@ const pageTitles: Record<string, string> = {
   '/policies/$policyId/edit': 'Edit policy',
   '/policies/categories': 'Policy categories',
   '/policies/tags': 'Policy tags',
+  '/medication/exceptions': 'Missed & refused doses',
+  '/medication/late': 'Late doses',
+  '/medication/administered': 'Administration log',
+  '/medication/stock': 'Stock movements',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -747,6 +754,43 @@ const moduleHomeRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/apps/$module',
   component: ModuleHomePage,
+})
+
+/* Medication (eMAR) module: organisation-wide views; each service user's MAR stays on their profile. */
+const medicationIndexRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication',
+  beforeLoad: () => {
+    throw redirect({ to: '/apps/$module', params: { module: 'medication' } })
+  },
+})
+
+const medicationExceptionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/exceptions',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationExceptionsPage,
+})
+
+const medicationLateRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/late',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationLatePage,
+})
+
+const medicationAdministeredRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/administered',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationAdministeredPage,
+})
+
+const medicationStockRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/stock',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationStockPage,
 })
 
 const serviceUsersRoute = createRoute({
@@ -2288,6 +2332,11 @@ const routeTree = rootRoute.addChildren([
   ]),
   appShellRoute.addChildren([
     moduleHomeRoute,
+    medicationIndexRoute,
+    medicationExceptionsRoute,
+    medicationLateRoute,
+    medicationAdministeredRoute,
+    medicationStockRoute,
     indexRoute,
     serviceUsersRoute,
     serviceUsersAllRoute,

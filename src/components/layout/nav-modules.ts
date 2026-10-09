@@ -5,6 +5,7 @@ import {
   GraduationCap,
   Home,
   MessagesSquare,
+  Pill,
   PoundSterling,
   Settings,
   ShieldCheck,
@@ -57,6 +58,13 @@ export const NAV_MODULES: Record<string, NavModuleMeta> = {
     description: 'Rota, live visits and reconciliation',
     Icon: Calendar,
     tone: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+  },
+  Medication: {
+    slug: 'medication',
+    railLabel: 'eMAR',
+    description: 'Medication administration, exceptions, reviews and stock',
+    Icon: Pill,
+    tone: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300',
   },
   Workforce: {
     slug: 'workforce',

@@ -27,6 +27,7 @@ import { illustrationSrc } from '@/components/layout/nav-illustrations'
 import { useEcmLiveDashboard } from '@/features/ecm/hooks/useEcm'
 import { useFundingContractsSummary } from '@/features/billing/hooks/useFundingContracts'
 import { useSetupChecklist } from '@/features/setup-checklist/hooks'
+import { useMedicationOverview } from '@/features/emar/hooks/useEmar'
 import {
   useBodyMapReviewQueue,
   useComplianceSummary,
@@ -362,6 +363,63 @@ function CareOperationsDashboard() {
       {canSchedule ? <WeekCoverStat key="week" /> : null}
     </StatRow>
   )
+}
+
+/* ─── Medication (eMAR) ─────────────────────────────────────────────────── */
+
+function MedicationStats() {
+  const { locationId } = useGlobalLocationScope()
+  const q = useMedicationOverview(locationId, 30, true)
+  const d = q.data
+  const todayExceptions = n(d?.today.exceptions)
+  const unreviewed = n(d?.doses.awaitingReview)
+  const onTime = d?.doses.onTimePct
+  const reviewsOverdue = n(d?.reviews.overdue)
+  return (
+    <>
+      <Metric
+        label="Missed or refused today"
+        value={todayExceptions}
+        hint={`${n(d?.today.byStatus.MISSED)} missed · ${n(d?.today.byStatus.REFUSED)} refused`}
+        icon={ill('pill')}
+        tone={todayExceptions > 0 ? 'rose' : 'muted'}
+        loading={q.isLoading}
+        to="/medication/exceptions"
+      />
+      <Metric
+        label="Not reviewed by a manager"
+        value={unreviewed}
+        hint="Missed or refused doses in the last 30 days with no manager review"
+        icon={ill('magnifying-glass-tilted-left')}
+        tone={unreviewed > 0 ? 'amber' : 'muted'}
+        loading={q.isLoading}
+        to="/medication/exceptions"
+      />
+      <Metric
+        label="Given on time (30 days, %)"
+        value={onTime ?? 0}
+        hint={`${n(d?.doses.late)} given late`}
+        icon={ill('stopwatch')}
+        tone={onTime === null || onTime === undefined ? 'muted' : onTime >= 90 ? 'emerald' : 'amber'}
+        loading={q.isLoading}
+        to="/medication/late"
+      />
+      <Metric
+        label="Medication reviews overdue"
+        value={reviewsOverdue}
+        hint={`${n(d?.reviews.dueSoon)} due in 30 days`}
+        icon={ill('memo')}
+        tone={reviewsOverdue > 0 ? 'rose' : 'muted'}
+        loading={q.isLoading}
+        to="/apps/medication"
+      />
+    </>
+  )
+}
+
+function MedicationDashboard() {
+  const canAny = useCanAny()
+  return <StatRow>{canAny('service_users.read') ? <MedicationStats key="meds" /> : null}</StatRow>
 }
 
 /* ─── Workforce ─────────────────────────────────────────────────────────── */
@@ -786,6 +844,7 @@ function AdministrationDashboard() {
 const DASHBOARDS: Record<string, () => React.ReactElement> = {
   'service-users': ServiceUsersDashboard,
   'care-operations': CareOperationsDashboard,
+  medication: MedicationDashboard,
   workforce: WorkforceDashboard,
   learning: LearningDashboard,
   'quality-compliance': QualityDashboard,

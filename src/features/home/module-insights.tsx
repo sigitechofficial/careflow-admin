@@ -25,6 +25,7 @@ import { usePayrollRunsSummary } from '@/features/billing/hooks/usePayrollRuns'
 import { usePayrollOverview } from '@/features/payroll/hooks/usePayroll'
 import { useRecruitmentSummary } from '@/features/hr/recruitment/hooks/useRecruitment'
 import { useSetupChecklist } from '@/features/setup-checklist/hooks'
+import { useMedicationOverview } from '@/features/emar/hooks/useEmar'
 import {
   useAssessmentReviewQueue,
   useBodyMapGovernanceAlerts,
@@ -258,7 +259,7 @@ function ServiceUsersInsights() {
 
       <Group title="Safety & wellbeing" description="Signals that someone may need extra support">
         <Kpi label="Missed a visit this month" value={missedMonth.value} art="cross-mark" tone={attn(missedMonth.value, 'bad')} loading={missedMonth.loading} to="/service-users/all" hint="Service users with at least one missed visit" />
-        <Kpi label="Doses not given today" value={meds.data?.total} art="pill" tone={attn(meds.data?.total, 'bad')} loading={meds.isLoading} hint={`${n0(meds.data?.awaitingReview)} not reviewed by a manager`} />
+        <Kpi label="Doses not given today" value={meds.data?.total} art="pill" tone={attn(meds.data?.total, 'bad')} loading={meds.isLoading} hint={`${n0(meds.data?.awaitingReview)} not reviewed by a manager`} to="/medication/exceptions" />
         <Kpi label="Body map safeguarding alerts" value={bodyMapAlerts.data?.total} art="heart-hands" tone={attn(bodyMapAlerts.data?.total, 'bad')} loading={bodyMapAlerts.isLoading} to="/body-map/review-queue" />
         <Kpi label="Body map entries to review" value={bodyMap.data?.total} art="adhesive-bandage" tone={attn(bodyMap.data?.total, 'warn')} loading={bodyMap.isLoading} to="/body-map/review-queue" />
         <Kpi label="DoLS to renew (30 days)" value={u?.dols.count} art="scroll" tone={attn(u?.dols.overdue, 'bad')} loading={upcoming.isLoading} hint={`${n0(u?.dols.overdue)} overdue`} />
@@ -346,12 +347,12 @@ function CareOperationsInsights() {
 
       {canMeds ? (
         <Group title="Medication today" description="Doses recorded on visits">
-          <Kpi label="Missed" value={b?.MISSED} art="pill" tone={attn(b?.MISSED, 'bad')} loading={meds.isLoading} />
-          <Kpi label="Refused" value={b?.REFUSED} art="no-entry" tone={attn(b?.REFUSED, 'warn')} loading={meds.isLoading} />
-          <Kpi label="Not given" value={b?.NOT_GIVEN} art="cross-mark" tone={attn(b?.NOT_GIVEN, 'bad')} loading={meds.isLoading} />
-          <Kpi label="Held" value={b?.HELD} art="pause-button" tone={attn(b?.HELD, 'warn')} loading={meds.isLoading} />
-          <Kpi label="Given late" value={late.data} art="alarm-clock" tone={attn(late.data, 'warn')} loading={late.isLoading} />
-          <Kpi label="Not reviewed by a manager" value={meds.data?.awaitingReview} art="magnifying-glass-tilted-left" tone={attn(meds.data?.awaitingReview, 'bad')} loading={meds.isLoading} />
+          <Kpi label="Missed" value={b?.MISSED} art="pill" tone={attn(b?.MISSED, 'bad')} loading={meds.isLoading} to="/medication/exceptions" />
+          <Kpi label="Refused" value={b?.REFUSED} art="no-entry" tone={attn(b?.REFUSED, 'warn')} loading={meds.isLoading} to="/medication/exceptions" />
+          <Kpi label="Not given" value={b?.NOT_GIVEN} art="cross-mark" tone={attn(b?.NOT_GIVEN, 'bad')} loading={meds.isLoading} to="/medication/exceptions" />
+          <Kpi label="Held" value={b?.HELD} art="pause-button" tone={attn(b?.HELD, 'warn')} loading={meds.isLoading} to="/medication/exceptions" />
+          <Kpi label="Given late" value={late.data} art="alarm-clock" tone={attn(late.data, 'warn')} loading={late.isLoading} to="/medication/late" />
+          <Kpi label="Not reviewed by a manager" value={meds.data?.awaitingReview} art="magnifying-glass-tilted-left" tone={attn(meds.data?.awaitingReview, 'bad')} loading={meds.isLoading} to="/medication/exceptions" />
         </Group>
       ) : null}
 
@@ -369,6 +370,91 @@ function CareOperationsInsights() {
         <Planned label="Mileage per visit" art="round-pushpin" needs="Mileage claims linked to visits." />
         <Planned label="Overrun minutes this week" art="hourglass-done" needs="Sum of actual minus planned time on approved overruns." />
         <Planned label="Cancellations this week" art="wastebasket" needs="Call-offs and cancellations counted by reason." />
+      </Group>
+    </>
+  )
+}
+
+/* ─── Medication (eMAR) ──────────────────────────────────────────────────── */
+
+function MedicationInsights() {
+  const can = useCan()
+  const ok = can('service_users.read')
+  const { locationId } = useGlobalLocationScope()
+  const q = useMedicationOverview(locationId, 30, ok)
+  const d = q.data
+  const L = q.isLoading
+  const t = d?.today.byStatus
+  const p = d?.doses
+  const m = d?.medicines
+  const sup = d?.support
+  const pk = d?.packs
+  const pctTone = (v: number | null | undefined, good = 95, warn = 85): Tone =>
+    v === null || v === undefined ? 'neutral' : v >= good ? 'good' : v >= warn ? 'warn' : 'bad'
+
+  if (!ok) return null
+  return (
+    <>
+      <Group title="Today" description="Doses recorded on visits so far today · refreshes every minute">
+        <Kpi label="Doses recorded" value={d?.today.recorded} art="clipboard" loading={L} to="/medication/administered" hint={`${n0(t?.GIVEN)} given`} />
+        <Kpi label="Missed" value={t?.MISSED} art="cross-mark" tone={attn(t?.MISSED, 'bad')} loading={L} to="/medication/exceptions" />
+        <Kpi label="Refused" value={t?.REFUSED} art="no-entry" tone={attn(t?.REFUSED, 'warn')} loading={L} to="/medication/exceptions" />
+        <Kpi label="Not given" value={t?.NOT_GIVEN} art="pill" tone={attn(t?.NOT_GIVEN, 'bad')} loading={L} to="/medication/exceptions" />
+        <Kpi label="Held" value={t?.HELD} art="pause-button" tone={attn(t?.HELD, 'warn')} loading={L} to="/medication/exceptions" hint="Withheld on instruction" />
+      </Group>
+
+      <Group title="Administration · last 30 days" description="How reliably medicines are given">
+        <Kpi label="Doses given" value={p?.givenPct === null || p?.givenPct === undefined ? null : `${p.givenPct}%`} progress={p?.givenPct} art="check-mark-button" tone={pctTone(p?.givenPct)} loading={L} to="/medication/administered" hint={`${n0(p?.byStatus.GIVEN).toLocaleString('en-GB')} of ${n0(p?.recorded).toLocaleString('en-GB')} recorded doses`} />
+        <Kpi label="Given on time" value={p?.onTimePct === null || p?.onTimePct === undefined ? null : `${p.onTimePct}%`} progress={p?.onTimePct} art="stopwatch" tone={pctTone(p?.onTimePct, 90, 75)} loading={L} to="/medication/late" hint="Within each medicine's time window" />
+        <Kpi label="Given late" value={p?.late} art="alarm-clock" tone={attn(p?.late, 'warn')} loading={L} to="/medication/late" hint={`${n0(p?.early)} given early`} />
+        <Kpi label="Time-critical given late" value={p?.timeCriticalLate} art="red-exclamation-mark" tone={attn(p?.timeCriticalLate, 'bad')} loading={L} to="/medication/late" hint="For example Parkinson's or insulin" />
+        <Kpi label="Missed or refused" value={p?.exceptions} art="cross-mark" tone={attn(p?.exceptions, 'warn')} loading={L} to="/medication/exceptions" hint={`${n0(p?.byStatus.MISSED)} missed · ${n0(p?.byStatus.REFUSED)} refused`} />
+        <Kpi label="Not reviewed by a manager" value={p?.awaitingReview} art="magnifying-glass-tilted-left" tone={attn(p?.awaitingReview, 'bad')} loading={L} to="/medication/exceptions" hint="Exceptions with no manager review yet" />
+        <Kpi label="PRN doses given" value={p?.prnGiven} art="hourglass-not-done" loading={L} to="/medication/administered" hint="As-needed medicines" />
+      </Group>
+
+      <Group title="Controlled drugs" description="Higher-risk medicines that need a witness">
+        <Kpi label="Controlled drugs on record" value={m?.controlled} art="locked" loading={L} />
+        <Kpi label="Controlled doses given (30 days)" value={p?.controlledGiven} art="syringe" loading={L} to="/medication/administered" />
+        <Kpi label="Given without a witness" value={p?.controlledWithoutWitness} art="warning" tone={attn(p?.controlledWithoutWitness, 'bad')} loading={L} to="/medication/administered" hint="No witness recorded on the visit" />
+        <Planned label="Running balance checks" art="balance-scale" needs="A controlled drugs register with a balance after every dose and weekly stock checks." />
+      </Group>
+
+      <Group title="Medicines on record" description="What service users are prescribed">
+        <Kpi label="Service users on medication" value={m?.serviceUsersOnMedication} art="older-person" loading={L} to="/service-users/all" />
+        <Kpi label="Active medicines" value={m?.active} art="pill" loading={L} hint={`${n0(m?.regular)} regular · ${n0(m?.prn)} PRN`} />
+        <Kpi label="Time-critical medicines" value={m?.timeCritical} art="alarm-clock" loading={L} hint="Must be given within a tight window" />
+        <Kpi label="Ending in 14 days" value={m?.endingSoon} art="hourglass-done" tone={attn(m?.endingSoon, 'warn')} loading={L} hint="Check for a new prescription" />
+        <Kpi label="Past expiry date" value={m?.expired} art="wastebasket" tone={attn(m?.expired, 'bad')} loading={L} hint="Still active with an expired supply" />
+        <Kpi label="Allergies recorded" value={d?.allergies.serviceUsersWithAllergies} art="warning" loading={L} hint="Service users with a medication allergy" />
+      </Group>
+
+      <Group title="Support & reviews" description="How each person is helped, and when their medicines were last reviewed">
+        <Kpi label="Carer administers" value={sup?.carerAdministers} art="woman-health-worker" loading={L} />
+        <Kpi label="Prompting or supervision" value={n0(sup?.prompting) + n0(sup?.supervision)} art="handshake" loading={L} hint={`${n0(sup?.prompting)} prompt · ${n0(sup?.supervision)} supervise`} />
+        <Kpi label="Self-administers" value={sup?.selfAdministers} art="person-walking" loading={L} hint={`${n0(sup?.familySupports)} supported by family`} />
+        <Kpi label="No support level recorded" value={sup?.onMedicationWithoutProfile} art="page-facing-up" tone={attn(sup?.onMedicationWithoutProfile, 'bad')} loading={L} hint="On medication without a support profile" />
+        <Kpi label="Medication reviews overdue" value={d?.reviews.overdue} art="magnifying-glass-tilted-left" tone={attn(d?.reviews.overdue, 'bad')} loading={L} hint={`${n0(d?.reviews.dueSoon)} due in 30 days`} />
+        <Kpi label="Never reviewed" value={d?.reviews.neverReviewed} art="spiral-notepad" tone={attn(d?.reviews.neverReviewed, 'warn')} loading={L} hint="On medication with no review recorded" />
+      </Group>
+
+      <Group title="Packs, deliveries & stock" description="Supply from the pharmacy · stock over 30 days">
+        <Kpi label="Active packs" value={pk?.active} art="package" loading={L} hint={`${n0(pk?.draft)} in draft`} />
+        <Kpi label="Prescription not checked" value={pk?.prescriptionNotChecked} art="memo" tone={attn(pk?.prescriptionNotChecked, 'bad')} loading={L} hint="Active packs not checked against the prescription" />
+        <Kpi label="Pack review due (14 days)" value={pk?.reviewDue} art="calendar" tone={attn(pk?.reviewDue, 'warn')} loading={L} />
+        <Kpi label="Deliveries to countersign" value={pk?.deliveriesAwaitingCountersign} art="fountain-pen" tone={attn(pk?.deliveriesAwaitingCountersign, 'warn')} loading={L} hint={`${n0(pk?.deliveriesFlagged)} flagged`} />
+        <Kpi label="Damaged deliveries" value={pk?.deliveriesDamaged} art="delivery-truck" tone={attn(pk?.deliveriesDamaged, 'bad')} loading={L} />
+        <Kpi label="Stock received" value={d?.stock.ADDED} art="inbox-tray" loading={L} to="/medication/stock" hint={`${n0(d?.stock.USED)} used · ${n0(d?.stock.ADJUSTED)} adjusted`} />
+        <Kpi label="Stock wasted" value={d?.stock.WASTED} art="wastebasket" tone={attn(d?.stock.WASTED, 'warn')} loading={L} to="/medication/stock" />
+      </Group>
+
+      <Group title="Governance" description="Planned KPIs for medicines safety and inspection">
+        <Planned label="Medication errors per 1,000 doses" art="chart-increasing" needs="Medication incidents linked to doses, divided by doses given each month." />
+        <Planned label="Monthly audit score" art="check-mark-button" needs="A monthly MAR and stock audit per service user, scored." />
+        <Planned label="Carers with a current competency check" art="bullseye" needs="Observed medication competency checks with renewal dates." />
+        <Planned label="MAR completion" art="spiral-notepad" needs="Due doses generated from schedules, so gaps (no record at all) can be counted." />
+        <Planned label="Pharmacy orders outstanding" art="outbox-tray" needs="Repeat orders sent to the pharmacy and marked when received." />
+        <Planned label="Covert medication agreements due" art="test-tube" needs="Covert administration agreements with best-interest review dates." />
       </Group>
     </>
   )
@@ -732,9 +818,10 @@ function ReportsInsights() {
 
 /* ─── Registry ───────────────────────────────────────────────────────────── */
 
-const INSIGHTS: Record<string, () => React.ReactElement> = {
+const INSIGHTS: Record<string, () => React.ReactElement | null> = {
   'service-users': ServiceUsersInsights,
   'care-operations': CareOperationsInsights,
+  medication: MedicationInsights,
   workforce: WorkforceInsights,
   learning: LearningInsights,
   'quality-compliance': QualityInsights,
