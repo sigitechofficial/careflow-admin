@@ -18,6 +18,7 @@ import {
   ListChecks,
   LogOut,
   MapPin,
+  Package,
   Pill,
   Scale,
   Settings,
@@ -56,6 +57,7 @@ import { EcmThresholdLookupsSettingsPanel } from '@/features/settings/components
 import { EmergencyProtocolsSettingsPanel } from '@/features/settings/components/EmergencyProtocolsSettingsPanel'
 import { GeneralSettingsEmployeeVisaPanel } from '@/features/settings/components/GeneralSettingsEmployeeVisaPanel'
 import { MedicalConditionsCatalogSettingsPanel } from '@/features/settings/components/MedicalConditionsCatalogSettingsPanel'
+import { AllocationItemsSettingsPanel } from '@/features/settings/components/AllocationItemsSettingsPanel'
 
 export type SettingsTabId =
   | 'job-titles'
@@ -68,6 +70,7 @@ export type SettingsTabId =
   | 'grades'
   | 'certifications'
   | 'non-core'
+  | 'allocation-items'
   | 'leaving-reasons'
   | 'visit-status-reasons'
   | 'review-types'
@@ -106,6 +109,7 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string; Icon: LucideIcon }[] = 
   { id: 'grades', label: 'Grades', Icon: BadgeCheck },
   { id: 'certifications', label: 'Certifications', Icon: GraduationCap },
   { id: 'non-core', label: 'Non-core activities', Icon: LayoutList },
+  { id: 'allocation-items', label: 'Allocation items', Icon: Package },
   { id: 'leaving-reasons', label: 'Leaving reasons', Icon: LogOut },
   { id: 'visit-status-reasons', label: 'Visit status reasons', Icon: ListChecks },
   { id: 'review-types', label: 'Review types', Icon: UserCheck },
@@ -259,6 +263,7 @@ export default function SettingsPage() {
               description="Reasons for non-core time on employee calendars."
             />
           )}
+          {activeTab === 'allocation-items' && <AllocationItemsSettingsPanel />}
           {activeTab === 'leaving-reasons' && (
             <LookupNamePanel
               resource="leaving-reasons"

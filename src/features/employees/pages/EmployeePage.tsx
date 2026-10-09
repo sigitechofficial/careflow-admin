@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import {
-  Users, ShieldCheck, Star, Award, Activity, TrendingUp,
+  Users, ShieldCheck, Star, Award, Activity, TrendingUp, Package,
   PenLine, Plus, X, Filter, FileText, Globe, Trash2,
   ChevronDown, ChevronUp, ChevronsUpDown,
 } from 'lucide-react'
@@ -32,6 +32,7 @@ import { ComplianceBoardPanel } from '@/features/employees/components/Compliance
 import { StaffListBranchesCell } from '@/features/employees/components/StaffListBranchesCell'
 import { StaffListFilters } from '@/features/employees/components/StaffListFilters'
 import { EmployeeNonCoreActivityTab } from '@/features/employees/components/EmployeeNonCoreActivityTab'
+import { EmployeeAllocationsTab } from '@/features/employees/components/EmployeeAllocationsTab'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import {
@@ -66,7 +67,7 @@ import {
 } from 'recharts'
 
 /* --- Types --------------------------------------------------- */
-type TabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 'non-core-activity' | 'reports'
+type TabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 'non-core-activity' | 'allocations' | 'reports'
 
 interface EmployeePageProps {
   activeTab?: TabId
@@ -80,6 +81,7 @@ const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'review-status',     label: 'Review Status',     icon: <Star className="h-5 w-5" /> },
   { id: 'skills',            label: 'Skills',            icon: <Award className="h-5 w-5" /> },
   { id: 'non-core-activity', label: 'Non Core Activity', icon: <Activity className="h-5 w-5" /> },
+  { id: 'allocations',       label: 'Allocations',       icon: <Package className="h-5 w-5" /> },
   { id: 'reports',           label: 'Reports',           icon: <TrendingUp className="h-5 w-5" /> },
 ]
 
@@ -183,6 +185,7 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
           {activeTab === 'review-status' && <ReviewStatusTab />}
           {activeTab === 'skills' && <EmployeeSkillsTab />}
           {activeTab === 'non-core-activity' && <EmployeeNonCoreActivityTab />}
+          {activeTab === 'allocations' && <EmployeeAllocationsTab />}
           {activeTab === 'reports' && <ReportsTab />}
         </div>
       </div>

@@ -27,10 +27,26 @@ function lineTypeLabel(lineType: PayrollRunLineDetail['lineType']): string {
       return 'Mileage'
     case 'TRAVEL_TIME':
       return 'Travel time'
+    case 'WAITING_TIME':
+      return 'Waiting time'
     case 'NMW_TOP_UP':
       return 'NMW top-up'
     case 'ADJUSTMENT':
       return 'Adjustment'
+    case 'OVERTIME':
+      return 'Overtime premium'
+    case 'ON_CALL_STANDBY':
+      return 'On-call'
+    case 'NON_VISIT_ACTIVITY':
+      return 'Training / activity'
+    case 'HOLIDAY_PAY':
+      return 'Holiday pay'
+    case 'SICK_PAY':
+      return 'Sick pay'
+    case 'BONUS':
+      return 'Bonus'
+    case 'LIVE_IN':
+      return 'Live-in'
     default:
       return 'Visit pay'
   }

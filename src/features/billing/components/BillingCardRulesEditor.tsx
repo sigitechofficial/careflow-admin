@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Car, ChevronDown, Clock, Moon, Plus, PoundSterling, Trash2 } from 'lucide-react'
+import { Briefcase, Car, ChevronDown, Clock, Moon, Plus, PoundSterling, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
@@ -22,6 +22,8 @@ import {
   type ChargeCardRule,
   type PayCardRule,
   type PayCardRuleCategory,
+  type PayEnhancementMethod,
+  type BillingRateType,
 } from '@/features/billing/types/billing-cards.types'
 import {
   PAY_TIME_PERIOD_GROUPS,
@@ -111,6 +113,108 @@ function DecimalAmountInput({
       }}
     />
   )
+}
+
+/** Pay only: how an hourly rule's number is used (absolute £/hr, or on top of the card's weekday base rate). */
+const PAY_RATE_METHOD_OPTIONS: { value: PayEnhancementMethod; label: string; amountLabel: string }[] = [
+  { value: 'ABSOLUTE_HOURLY', label: '£ per hour (actual hourly rate)', amountLabel: '£ per hour' },
+  { value: 'ADDITIONAL_PER_HOUR', label: 'Base rate + £ per hour premium', amountLabel: '+ £ per hour' },
+  { value: 'MULTIPLIER', label: 'Base rate × multiplier', amountLabel: 'Multiplier (×)' },
+  { value: 'PERCENTAGE_UPLIFT', label: 'Base rate + % uplift', amountLabel: 'Uplift (%)' },
+]
+
+function payRateAmountLabel(method?: PayEnhancementMethod | null): string {
+  return PAY_RATE_METHOD_OPTIONS.find(o => o.value === method)?.amountLabel ?? '£ per hour'
+}
+
+/** Keeps the method-specific field in step with the amount so the engine never guesses (e.g. multiplier). */
+function payRateMethodFields(
+  method: PayEnhancementMethod | null | undefined,
+  amount: number,
+): Pick<PayCardRule, 'enhancementMethod' | 'multiplier' | 'additionalAmount' | 'percentageUplift'> {
+  const m = method ?? 'ABSOLUTE_HOURLY'
+  return {
+    enhancementMethod: m,
+    multiplier: m === 'MULTIPLIER' ? amount : null,
+    additionalAmount: m === 'ADDITIONAL_PER_HOUR' ? amount : null,
+    percentageUplift: m === 'PERCENTAGE_UPLIFT' ? amount : null,
+  }
+}
+
+/** Pay only: non-visit pay rates (paid in visit pay runs / pay items, never as a visit rate). */
+const ADDITIONAL_PAY_TYPES: {
+  rateType: BillingRateType
+  title: string
+  amountLabel: string
+  defaultLabel: string
+  hint: string
+}[] = [
+  {
+    rateType: 'OVERTIME',
+    title: 'Overtime',
+    amountLabel: 'Multiplier (×)',
+    defaultLabel: 'Overtime',
+    hint: 'Weekly visit hours above the threshold get this premium in the visit pay run. Base pay for those hours is already paid, so only the extra is added.',
+  },
+  {
+    rateType: 'ON_CALL',
+    title: 'On-call allowance',
+    amountLabel: '£ per on-call period',
+    defaultLabel: 'On-call allowance',
+    hint: 'Paid for non-core activity marked "on call" (and on-call pay items). Visits attended while on call are paid as normal visits.',
+  },
+  {
+    rateType: 'TRAINING',
+    title: 'Training pay',
+    amountLabel: '£ per hour',
+    defaultLabel: 'Training',
+    hint: 'Paid for non-core activity marked "include in payroll" (training, meetings) and training pay items. Counts as working time for the minimum wage check.',
+  },
+  {
+    rateType: 'LIVE_IN_DAILY',
+    title: 'Live-in (daily)',
+    amountLabel: '£ per day',
+    defaultLabel: 'Live-in daily rate',
+    hint: 'Used as the default rate when live-in days are entered as pay items.',
+  },
+  {
+    rateType: 'LIVE_IN_WEEKLY',
+    title: 'Live-in (weekly)',
+    amountLabel: '£ per week',
+    defaultLabel: 'Live-in weekly rate',
+    hint: 'Used as the default rate when live-in weeks are entered as pay items.',
+  },
+]
+
+const OVERTIME_METHOD_OPTIONS: { value: PayEnhancementMethod; label: string; amountLabel: string }[] = [
+  { value: 'MULTIPLIER', label: 'Base rate × multiplier (e.g. time and a half)', amountLabel: 'Multiplier (×)' },
+  { value: 'ADDITIONAL_PER_HOUR', label: '+ £ per overtime hour', amountLabel: '+ £ per hour' },
+  { value: 'ABSOLUTE_HOURLY', label: 'Overtime £ per hour (premium = rate − base)', amountLabel: 'Overtime £ per hour' },
+]
+
+function isAdditionalPayRule(rule: Pick<PayCardRule, 'rateType'>): boolean {
+  return ADDITIONAL_PAY_TYPES.some(t => t.rateType === rule.rateType)
+}
+
+function emptyAdditionalPayRule(rateType: BillingRateType): PayCardRule {
+  const meta = ADDITIONAL_PAY_TYPES.find(t => t.rateType === rateType)!
+  const base: PayCardRule = {
+    label: meta.defaultLabel,
+    dayType: 'ANY',
+    startTime: null,
+    endTime: null,
+    rateType,
+    amount: 0,
+    priority: 0,
+    appliesToVisit: false,
+    appliesToTravel: false,
+    appliesToWaiting: false,
+    appliesToTraining: rateType === 'TRAINING',
+  }
+  if (rateType === 'OVERTIME') {
+    return { ...base, amount: 1.5, enhancementMethod: 'MULTIPLIER', multiplier: 1.5, minimumMinutes: 40 * 60 }
+  }
+  return { ...base, enhancementMethod: 'ABSOLUTE_HOURLY' }
 }
 
 function emptyFixedPayRule(minutes = DEFAULT_VISIT_DURATION_MINUTES): PayCardRule {
@@ -455,6 +559,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     deriveVisitPayMethod(payRules),
   )
   const [travelOpen, setTravelOpen] = React.useState(() => payRules.some(r => isSupplementRule(r)))
+  const [additionalOpen, setAdditionalOpen] = React.useState(() => payRules.some(r => isAdditionalPayRule(r)))
   const [advancedOpen, setAdvancedOpen] = React.useState<Record<number, boolean>>({})
   const [forceCustomPeriod, setForceCustomPeriod] = React.useState<Record<number, boolean>>({})
   const [flashIndices, setFlashIndices] = React.useState<Set<number>>(() => new Set())
@@ -603,7 +708,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
       endTime: nextEnd,
       priority: period.priority,
       rateType: 'HOURLY',
-      enhancementMethod: 'ABSOLUTE_HOURLY',
+      enhancementMethod: mode === 'pay' ? (current.enhancementMethod ?? 'ABSOLUTE_HOURLY') : 'ABSOLUTE_HOURLY',
     }
     const overlap = findOverlappingHourlyPayRule(rules as PayCardRule[], candidate, index)
     if (overlap) {
@@ -617,7 +722,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
       endTime: nextEnd,
       priority: period.priority,
       rateType: 'HOURLY',
-      enhancementMethod: 'ABSOLUTE_HOURLY',
+      enhancementMethod: mode === 'pay' ? (current.enhancementMethod ?? 'ABSOLUTE_HOURLY') : 'ABSOLUTE_HOURLY',
       ...(mode === 'charge'
         ? { chargeMethod: 'HOURLY_PRO_RATA' as const, chargeableFlag: true }
         : {}),
@@ -825,6 +930,106 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     }
     return map
   }, [rules])
+
+  const addAdditionalPayRule = (rateType: BillingRateType) => {
+    onChange([emptyAdditionalPayRule(rateType), ...rules])
+    setAdditionalOpen(true)
+    flashNewRules(1)
+  }
+
+  const renderAdditionalPayRule = (rule: PayCardRule, index: number) => {
+    const meta = ADDITIONAL_PAY_TYPES.find(t => t.rateType === rule.rateType)
+    const overtime = rule.rateType === 'OVERTIME'
+    const method = (rule.enhancementMethod ?? (overtime ? 'MULTIPLIER' : 'ABSOLUTE_HOURLY')) as PayEnhancementMethod
+    const amountLabel = overtime
+      ? (OVERTIME_METHOD_OPTIONS.find(o => o.value === method)?.amountLabel ?? 'Multiplier (×)')
+      : (meta?.amountLabel ?? '£')
+    return (
+      <div key={index} className={ruleShellClass(index)} data-testid={`additional-pay-${rule.rateType}`}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 space-y-1">
+            <p className="truncate text-sm font-medium text-foreground">{rule.label?.trim() || meta?.title}</p>
+            <Badge variant="secondary" className="text-[10px] font-normal">{meta?.title}</Badge>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 shrink-0 p-0 text-destructive"
+            onClick={() => removeRule(index)}
+            disabled={disabled}
+            title="Remove rule"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="space-y-1 text-sm">
+            <span className="text-xs font-medium text-foreground/90">Label</span>
+            <Input
+              value={rule.label ?? ''}
+              onChange={e => updateRule(index, { label: e.target.value })}
+              disabled={disabled}
+            />
+          </label>
+          {overtime ? (
+            <label className="space-y-1 text-sm">
+              <span className="text-xs font-medium text-foreground/90">How overtime is paid</span>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={method}
+                onChange={e => updateRule(index, payRateMethodFields(e.target.value as PayEnhancementMethod, Number(rule.amount)))}
+                disabled={disabled}
+                data-testid="overtime-method"
+              >
+                {OVERTIME_METHOD_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <label className="space-y-1 text-sm">
+            <span className="text-xs font-medium text-foreground/90">
+              {amountLabel} <span className="text-destructive" aria-hidden>*</span>
+            </span>
+            <DecimalAmountInput
+              value={rule.amount}
+              onValueChange={value =>
+                updateRule(index, {
+                  amount: value,
+                  ...(overtime ? payRateMethodFields(method, Number(value)) : {}),
+                })
+              }
+              disabled={disabled}
+              placeholder="0.00"
+              required
+            />
+          </label>
+          {overtime ? (
+            <label className="space-y-1 text-sm">
+              <span className="text-xs font-medium text-foreground/90">
+                Weekly threshold (hours) <span className="text-destructive" aria-hidden>*</span>
+              </span>
+              <Input
+                type="number"
+                min={1}
+                step="0.5"
+                value={rule.minimumMinutes ? rule.minimumMinutes / 60 : ''}
+                onChange={e => {
+                  const hrs = Number(e.target.value)
+                  updateRule(index, { minimumMinutes: Number.isFinite(hrs) && hrs > 0 ? Math.round(hrs * 60) : null })
+                }}
+                disabled={disabled}
+                data-testid="overtime-threshold"
+                required
+              />
+            </label>
+          ) : null}
+        </div>
+        {meta?.hint ? <p className="text-xs text-muted-foreground">{meta.hint}</p> : null}
+      </div>
+    )
+  }
 
   const renderRuleCard = (rule: PayCardRule, index: number) => {
     const hourly = isHourlyRule(rule, mode)
@@ -1184,7 +1389,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                   setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
                   updateRule(index, {
                     label: 'Custom period',
-                    enhancementMethod: 'ABSOLUTE_HOURLY',
+                    enhancementMethod:
+                      mode === 'pay' ? (rule.enhancementMethod ?? 'ABSOLUTE_HOURLY') : 'ABSOLUTE_HOURLY',
                     rateType: 'HOURLY',
                     ...(mode === 'charge'
                       ? { chargeMethod: 'HOURLY_PRO_RATA' as const, chargeableFlag: true }
@@ -1213,14 +1419,17 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
 
           <label className="space-y-1 text-sm">
             <span className={fieldLabelClass}>
-              £ per hour <span className="text-destructive" aria-hidden>*</span>
+              {mode === 'pay' ? payRateAmountLabel(rule.enhancementMethod) : '£ per hour'}{' '}
+              <span className="text-destructive" aria-hidden>*</span>
             </span>
             <DecimalAmountInput
               value={rule.amount}
               onValueChange={value => {
                 updateRule(index, {
                   amount: value,
-                  enhancementMethod: 'ABSOLUTE_HOURLY',
+                  ...(mode === 'pay'
+                    ? payRateMethodFields(rule.enhancementMethod, Number(value))
+                    : { enhancementMethod: 'ABSOLUTE_HOURLY' as const }),
                   rateType: 'HOURLY',
                   ...(mode === 'charge'
                     ? { chargeMethod: 'HOURLY_PRO_RATA' as const, chargeableFlag: true }
@@ -1232,6 +1441,33 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               required
             />
           </label>
+
+          {mode === 'pay' ? (
+            <label className="space-y-1 text-sm sm:col-span-2">
+              <span className={fieldLabelClass}>How this rate is paid</span>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={rule.enhancementMethod ?? 'ABSOLUTE_HOURLY'}
+                onChange={e =>
+                  updateRule(
+                    index,
+                    payRateMethodFields(e.target.value as PayEnhancementMethod, Number(rule.amount)),
+                  )
+                }
+                disabled={disabled}
+                data-testid="pay-rule-method"
+              >
+                {PAY_RATE_METHOD_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              {rule.enhancementMethod && rule.enhancementMethod !== 'ABSOLUTE_HOURLY' ? (
+                <p className="text-xs text-muted-foreground">
+                  Applied to this card&apos;s weekday base hourly rate — check the result in Pay preview.
+                </p>
+              ) : null}
+            </label>
+          ) : null}
 
           {isCustom ? (
             <label className="space-y-1 text-sm sm:col-span-2">
@@ -1258,7 +1494,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                   const ok = tryUpdateHourlyWindow(index, {
                     dayType,
                     label: rule.label?.trim() || 'Custom period',
-                    enhancementMethod: 'ABSOLUTE_HOURLY',
+                    enhancementMethod:
+                      mode === 'pay' ? (rule.enhancementMethod ?? 'ABSOLUTE_HOURLY') : 'ABSOLUTE_HOURLY',
                   })
                   if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
                 }}
@@ -1807,6 +2044,65 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           </>
         ) : null}
       </div>
+
+      {mode === 'pay' ? (
+        <div className="space-y-3 border-t border-border pt-3" data-testid="additional-pay-section">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 text-left"
+            onClick={() => setAdditionalOpen(o => !o)}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-300">
+                <Briefcase className="h-4 w-4" aria-hidden />
+              </span>
+              <BillingFieldLabel
+                label="Additional pay"
+                tooltip="Optional non-visit pay: overtime, on-call, training and live-in rates. Bonuses, adjustments, holiday and sick pay are entered as pay items (Billing → Pay items)."
+                className="text-sm font-semibold text-foreground"
+              />
+            </div>
+            <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${additionalOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {additionalOpen ? (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {ADDITIONAL_PAY_TYPES.map(t => {
+                  const exists = payRules.some(r => r.rateType === t.rateType)
+                  return (
+                    <Button
+                      key={t.rateType}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      leftIcon={<Plus className="h-3.5 w-3.5" />}
+                      onClick={() => addAdditionalPayRule(t.rateType)}
+                      disabled={disabled || exists}
+                      title={exists ? `This card already has a ${t.title.toLowerCase()} rate` : undefined}
+                      data-testid={`add-additional-${t.rateType}`}
+                    >
+                      {t.title}
+                    </Button>
+                  )
+                })}
+              </div>
+              {(() => {
+                const items = payRules
+                  .map((rule, index) => ({ rule, index }))
+                  .filter(({ rule }) => isAdditionalPayRule(rule))
+                if (!items.length) {
+                  return (
+                    <p className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-3 text-sm text-muted-foreground">
+                      Optional — add only the rates this card pays. Nothing changes for carers until a rate is added.
+                    </p>
+                  )
+                }
+                return <div className="space-y-3">{items.map(({ rule, index }) => renderAdditionalPayRule(rule, index))}</div>
+              })()}
+            </>
+          ) : null}
+        </div>
+      ) : null}
     </div>
     </TooltipProvider>
   )

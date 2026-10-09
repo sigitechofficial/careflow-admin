@@ -3,6 +3,16 @@ import { useNavigate } from '@tanstack/react-router'
 import { Info, Loader2, Upload } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
+import { useAuthStore } from '@/features/auth/store'
+import {
+  ReferralFormFields,
+  emptyReferralForm,
+  referralFormHasContent,
+  referralPayload,
+  validateReferralForm,
+  type ReferralFormState,
+} from '@/features/service-users/referrals/components/ReferralFormFields'
+import { useCreateReferralFor } from '@/features/service-users/referrals/useReferrals'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { type AddressPlacesValue } from '@/shared/ui/address-places-field'
@@ -539,6 +549,9 @@ export default function AddServiceUserPage() {
   const [nnDebounced, setNnDebounced] = React.useState('')
   const [keyWorkerLabel, setKeyWorkerLabel] = React.useState('')
   const [namedNurseLabel, setNamedNurseLabel] = React.useState('')
+  const currentUserName = useAuthStore((st) => st.user?.displayName ?? '')
+  const [referralForm, setReferralForm] = React.useState<ReferralFormState>(emptyReferralForm)
+  const createReferralMutation = useCreateReferralFor()
   const [carerPreferences, setCarerPreferences] =
     React.useState<ServiceUserCarerPreferencesState>(emptyCarerPreferences)
 
@@ -644,6 +657,16 @@ export default function AddServiceUserPage() {
       return
     }
     try {
+      // Referral is saved as its own record (Referral & Quotes tab) right after the service user.
+      const withReferral = referralFormHasContent(referralForm)
+      if (withReferral) {
+        const referralProblem = validateReferralForm(referralForm)
+        if (referralProblem) {
+          setSubmitError(`Referral Information: ${referralProblem}`)
+          toastError('Cannot create service user', `Referral Information: ${referralProblem}`)
+          return
+        }
+      }
       const payload = buildPayload(form)
       const created = await createMutation.mutateAsync({
         payload,
@@ -670,6 +693,16 @@ export default function AddServiceUserPage() {
           })
         } catch (portalErr) {
           toastApiError(portalErr, 'Service user created, but portal access could not be enabled')
+        }
+      }
+      if (withReferral) {
+        try {
+          await createReferralMutation.mutateAsync({
+            serviceUserId: created.id,
+            body: referralPayload(referralForm),
+          })
+        } catch (refErr) {
+          toastApiError(refErr, 'Service user created, but the referral could not be saved — add it on the Referral & Quotes tab')
         }
       }
       toastSuccess('Service user created', 'Redirecting to the service user list.')
@@ -719,9 +752,9 @@ export default function AddServiceUserPage() {
           </div>
         )}
 
-        {/* Header: Picture + NHS + Status */}
+        {/* Header: Picture + identifiers + Status */}
         <Section>
-          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-3 xl:grid-cols-6">
             <div>
               <LabelWithTip tip="Optional profile picture — uploaded after the record is created.">
                 Picture
@@ -742,6 +775,20 @@ export default function AddServiceUserPage() {
                   onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
                 />
               </label>
+            </div>
+            <div>
+              <LabelWithTip tip="Organisation service user / case number.">Service User ID</LabelWithTip>
+              <Input
+                value={form.serviceUserNumber}
+                onChange={(e) => set('serviceUserNumber')(e.target.value)}
+              />
+            </div>
+            <div>
+              <LabelWithTip tip="UK National Insurance number.">NI Number</LabelWithTip>
+              <Input
+                value={form.nationalInsuranceNumber}
+                onChange={(e) => set('nationalInsuranceNumber')(e.target.value)}
+              />
             </div>
             <div>
               <LabelWithTip tip="NHS number (10 digits in England and Wales).">NHS Number</LabelWithTip>
@@ -1071,13 +1118,6 @@ export default function AddServiceUserPage() {
           <SHead>Reference Information</SHead>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
-              <LabelWithTip tip="Organisation service user / case number.">Service User ID</LabelWithTip>
-              <Input
-                value={form.serviceUserNumber}
-                onChange={(e) => set('serviceUserNumber')(e.target.value)}
-              />
-            </div>
-            <div>
               <LabelWithTip tip="Date and time service started.">Service Start Date/Time</LabelWithTip>
               <Input
                 data-testid="service-user-service-start"
@@ -1166,13 +1206,6 @@ export default function AddServiceUserPage() {
             <div>
               <LabelWithTip tip="Category or package of care.">Category of Care</LabelWithTip>
               {lookups ? mapSelect('careTypeId', 'Please select a Category of Care', lookups.careTypes) : <Input disabled />}
-            </div>
-            <div>
-              <LabelWithTip tip="UK National Insurance number.">NI Number</LabelWithTip>
-              <Input
-                value={form.nationalInsuranceNumber}
-                onChange={(e) => set('nationalInsuranceNumber')(e.target.value)}
-              />
             </div>
 
             <div className="md:col-span-3">
@@ -1282,6 +1315,15 @@ export default function AddServiceUserPage() {
               />
             </div>
           </div>
+        </Section>
+
+        <Section>
+          <SHead>Referral Information</SHead>
+          <p className="-mt-2 mb-4 text-xs text-muted-foreground">
+            Who referred this person, when and how it reached you. Optional — more detail, follow-ups and private
+            quotations are on the service user&apos;s Referral &amp; Quotes tab after saving.
+          </p>
+          <ReferralFormFields value={referralForm} onChange={setReferralForm} compact currentUserName={currentUserName} />
         </Section>
 
         <Section>

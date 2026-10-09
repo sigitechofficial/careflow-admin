@@ -30,6 +30,7 @@ import {
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
+import { ReferralSummaryCard } from '@/features/service-users/referrals/components/ReferralSummaryCard'
 import { isoToOrgDatetimeLocal, orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 import {
   ContactAddressList,
@@ -214,6 +215,9 @@ type FormState = {
   referralNotes: string
   referralRecordedBy: string
   referralRecordedAt: string
+  referralReceivedVia: string
+  /** datetime-local (organisation wall clock). */
+  referralReceivedAt: string
 }
 
 /** Rebuild the phone / email / other-method rows and extra addresses from the saved record. */
@@ -333,6 +337,8 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     referralNotes: extValue(r, PROFILE_REF.referralNotes),
     referralRecordedBy: extValue(r, PROFILE_REF.referralRecordedBy),
     referralRecordedAt: extValue(r, PROFILE_REF.referralRecordedAt),
+    referralReceivedVia: extValue(r, PROFILE_REF.referralReceivedVia),
+    referralReceivedAt: isoToOrgDatetimeLocal(extValue(r, PROFILE_REF.referralReceivedAt)),
   }
 }
 
@@ -582,7 +588,9 @@ export function ServiceUserPersonalDetailsForm({
         form.referralAuthority.trim() ||
           form.referralSource.trim() ||
           form.referralDate.trim() ||
-          form.referralNotes.trim(),
+          form.referralNotes.trim() ||
+          form.referralReceivedVia.trim() ||
+          form.referralReceivedAt.trim(),
       )
       const referralRecordedBy =
         form.referralRecordedBy || (hasReferralInfo ? currentUserName : '')
@@ -624,6 +632,8 @@ export function ServiceUserPersonalDetailsForm({
           [PROFILE_REF.referralNotes]: form.referralNotes,
           [PROFILE_REF.referralRecordedBy]: referralRecordedBy,
           [PROFILE_REF.referralRecordedAt]: referralRecordedAt,
+          [PROFILE_REF.referralReceivedVia]: form.referralReceivedVia,
+          [PROFILE_REF.referralReceivedAt]: orgDatetimeLocalToIso(form.referralReceivedAt),
         },
         detail.references,
       )
@@ -1109,62 +1119,20 @@ export function ServiceUserPersonalDetailsForm({
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
         <h2 className="mb-1 text-sm font-semibold text-sky-600 dark:text-sky-400">Referral</h2>
         <p className="mb-4 text-xs text-muted-foreground">
-          Which authority referred this person, when the referral was received, and who recorded it.
+          Latest referral. Full details, follow-ups, documents and private quotations are on the Referral &amp; Quotes tab.
         </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FieldEditable
-            label="Referring authority"
-            tooltip="The council, NHS body, GP or organisation that referred this person."
-            value={form.referralAuthority}
-            onChange={set('referralAuthority')}
-          />
-          <FieldEditable
-            label="Referral date"
-            tooltip="Date the referral was received."
-            value={form.referralDate}
-            onChange={set('referralDate')}
-            type="date"
-          />
-          <FieldEditable
-            label="Referred by (name / contact)"
-            tooltip="Name or contact of the person who made the referral."
-            value={form.referralSource}
-            onChange={set('referralSource')}
-          />
-          <div className="sm:col-span-2 space-y-1">
-            <LabelWithTooltip
-              label="Referral notes"
-              tooltip="Any additional context about the referral."
-            />
-            <textarea
-              rows={3}
-              className={cn(
-                'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm',
-                'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-              )}
-              value={form.referralNotes}
-              onChange={(e) => set('referralNotes')(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <LabelWithTooltip
-              label="Recorded by"
-              tooltip="Captured automatically when the referral details are first saved."
-            />
-            <p className="text-sm text-foreground">{form.referralRecordedBy || '—'}</p>
-          </div>
-          <div className="space-y-1">
-            <LabelWithTooltip
-              label="Recorded at"
-              tooltip="Date & time the referral details were first saved."
-            />
-            <p className="text-sm text-foreground">
-              {form.referralRecordedAt
-                ? new Date(form.referralRecordedAt).toLocaleString()
-                : '—'}
-            </p>
-          </div>
-        </div>
+        <ReferralSummaryCard
+          serviceUserId={serviceUserId}
+          legacy={{
+            authority: form.referralAuthority,
+            source: form.referralSource,
+            date: form.referralDate,
+            receivedVia: form.referralReceivedVia,
+            receivedAt: form.referralReceivedAt ? orgDatetimeLocalToIso(form.referralReceivedAt) : '',
+            notes: form.referralNotes,
+            recordedBy: form.referralRecordedBy,
+          }}
+        />
       </section>
 
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">

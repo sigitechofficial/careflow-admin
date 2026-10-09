@@ -56,7 +56,8 @@ function groupRulesByCategory(rules: PayCardRule[]): Map<PayCardRuleCategory, Pa
   return grouped
 }
 
-function RuleTable({
+/** Read-only rate table (also used by the pay card rate history). */
+export function PayCardRuleTable({
   rules,
   currency,
 }: {
@@ -237,13 +238,13 @@ export function PayCardDetailsView({
             <div key={category} className="space-y-2">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{category}</h4>
               <div className="overflow-x-auto rounded-md border border-border bg-background">
-                <RuleTable rules={grouped.get(category)!} currency={card.currency} />
+                <PayCardRuleTable rules={grouped.get(category)!} currency={card.currency} />
               </div>
             </div>
           ))
         ) : (
           <div className="overflow-x-auto rounded-md border border-border bg-background">
-            <RuleTable rules={rules} currency={card.currency} />
+            <PayCardRuleTable rules={rules} currency={card.currency} />
           </div>
         )}
       </div>

@@ -2,3 +2,4 @@
 export type * from '@/features/employees/api/employees.api'
 export type * from '@/features/employees/api/temporary-inspectors-api'
 export type * from '@/features/employees/api/employee-compliance-api'
+export type * from '@/features/employees/api/employee-allocations.api'

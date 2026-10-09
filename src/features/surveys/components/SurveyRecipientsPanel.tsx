@@ -44,7 +44,7 @@ export function SurveyRecipientsPanel({
     return iso && day ? `${formatDate(day)} ${formatTime(iso)}` : '—'
   }
 
-  // Shared-link answers have no named person — counted separately, not listed.
+  // Shared-link and anonymous answers have no named person — counted separately, not listed.
   const named = data.filter(r => r.employeeId || r.serviceUserId)
   const sharedLinkCount = data.length - named.length
   const completedCount = named.filter(r => r.status === 'COMPLETED').length
@@ -63,7 +63,7 @@ export function SurveyRecipientsPanel({
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {completedCount} of {named.length} completed
-            {sharedLinkCount > 0 ? ` · ${sharedLinkCount} answered via the shared link` : ''}
+            {sharedLinkCount > 0 ? ` · ${sharedLinkCount} answered without a name (shared link or anonymous)` : ''}
           </p>
         </div>
         <div className="flex gap-1 rounded-lg bg-muted/50 p-1 text-xs">

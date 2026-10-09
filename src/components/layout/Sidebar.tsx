@@ -49,6 +49,7 @@ import {
   ListChecks,
   ClipboardCheck,
   MessagesSquare,
+  MessageSquareWarning,
   // Briefcase, // TODO(later): restore with HR sidebar tab
 
   Inbox,
@@ -225,8 +226,8 @@ const navItems: NavItem[] = [
         permission: 'service_users.portal.read',
         navTestId: 'nav-service-user-portal-admin',
       },
-      planned("People", "Referrals & enquiries", <Inbox className="h-4 w-4" />, "Take referrals from councils, NHS and private clients and move them through triage to admission."),
-      planned("People", "Private quotations", <Calculator className="h-4 w-4" />, "Price private care packages and send quotes before a client starts."),
+      planned("People", "Referrals & enquiries", <Inbox className="h-4 w-4" />, "Every referral and enquiry across all service users, from triage to admission. Today referrals are recorded on each service user's profile (Referrals tab)."),
+      planned("People", "Private quotations", <Calculator className="h-4 w-4" />, "All private care quotations in one list. Today quotations are created from a referral on each service user's profile."),
       planned("People", "Family & funder access", <HeartHandshake className="h-4 w-4" />, "Let next of kin and funders sign in to see the parts of the care record they are allowed to see."),
       {
         section: 'Assessment & care plans',
@@ -522,7 +523,7 @@ const navItems: NavItem[] = [
       { section: 'Incidents', label: 'All Incidents', icon: <Eye className="h-4 w-4" />, href: '/incidents/view', permission: 'incidents.read' },
       { section: 'Incidents', label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
       { section: 'Incidents', label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read', hideForRoles: ['super_admin'] },
-      planned("Incidents", "Complaints & compliments", <MessageCircle className="h-4 w-4" />, "Log complaints and compliments, responses, outcomes and lessons learned."),
+      { section: 'Incidents', label: 'Complaints & Compliments', icon: <MessageSquareWarning className="h-4 w-4" />, href: '/incidents/feedback', permission: 'complaints.read', navTestId: 'nav-complaints-compliments' },
       planned("Incidents", "Safeguarding cases", <ShieldAlert className="h-4 w-4" />, "Dedicated safeguarding cases with a chronology, actions and evidence."),
       {
         section: 'Policies',
@@ -619,6 +620,15 @@ const navItems: NavItem[] = [
         href: '/billing/employee-payouts',
         permission: 'billing.employee_payouts.read',
         navTestId: 'nav-billing-employee-payouts',
+      },
+      {
+        // From main (sigiofficials): additional pay items for carers.
+        section: 'Carer pay',
+        label: 'Pay items',
+        icon: <Wallet className="h-4 w-4" />,
+        href: '/billing/pay-items',
+        permission: 'billing.payroll_runs.read',
+        navTestId: 'nav-billing-pay-items',
       },
       planned("Carer pay", "On-demand pay", <Zap className="h-4 w-4" />, "Let carers draw pay they have already earned before payday."),
       {
