@@ -62,6 +62,10 @@ export type StaffOff = {
 /** API: GET /dashboard/policy-reviews — published policies due for review. */
 export type PolicyReviews = {
   days: number
+  /** Policy documents by status (DRAFT, IN_REVIEW, APPROVED, PUBLISHED, …). */
+  byStatus?: Record<string, number>
+  /** Published policies whose current version has no review date set. */
+  publishedNoReviewDate?: number
   count: number
   overdue: number
   items: Array<{ id: string; reference: string; title: string; reviewDate: string; overdue: boolean }>
@@ -201,5 +205,37 @@ export async function fetchOperationsOverview(
     method: 'GET',
     signal,
   })
+  return res.data
+}
+
+/** API: GET /dashboard/finance-overview — income invoiced, cash received, disputes (organisation-wide). */
+export type FinanceOverview = {
+  month: string
+  currency: string
+  invoicedThisMonth: { amount: number; runs: number }
+  invoicedLastMonth: { amount: number; runs: number }
+  receivedThisMonth: { amount: number; payments: number }
+  disputed: { amount: number; runs: number }
+  invoiceRunsAwaitingReview: number
+}
+
+export async function fetchFinanceOverview(signal?: AbortSignal): Promise<FinanceOverview> {
+  const res = await apiJson<ApiEnvelope<FinanceOverview>>('/dashboard/finance-overview', { method: 'GET', signal })
+  return res.data
+}
+
+/** API: GET /dashboard/admin-overview — platform usage and security signals (organisation-wide). */
+export type AdminOverview = {
+  users: number
+  activeUsers7d: number
+  dormantDays: number
+  dormantUsers: number
+  failedSignIns24h: number
+  failedSignIns7d: number
+  securityEvents7d: Record<string, number>
+}
+
+export async function fetchAdminOverview(signal?: AbortSignal): Promise<AdminOverview> {
+  const res = await apiJson<ApiEnvelope<AdminOverview>>('/dashboard/admin-overview', { method: 'GET', signal })
   return res.data
 }

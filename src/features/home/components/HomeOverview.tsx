@@ -837,7 +837,7 @@ function BillingRows({ locationId }: { locationId: string | null }) {
     .join(' · ')
   return (
     <>
-      <Row illustration="no-entry" label="Service users with no funding contract" detail="Their visits cannot be invoiced" value={n(funding.data?.missingFundingContracts)} tone="critical" to="/billing" loading={funding.isLoading} />
+      <Row illustration="no-entry" label="Service users not ready to invoice" detail="No ready funding contract (missing or incomplete)" value={n(funding.data?.missingFundingContracts)} tone="critical" to="/billing" loading={funding.isLoading} />
       <Row illustration="balance-scale" label="Visits with finance exceptions" detail={breakdown || 'Nothing blocking billing or pay'} value={n(recon.data?.visitsWithExceptions)} to="/billing/visit-reconciliation" loading={recon.isLoading} />
       <Row illustration="pound-banknote" quiet label="Visits ready to bill" detail="Reconciled and approved" value={n(recon.data?.visitsReady)} to="/billing/visit-reconciliation" loading={recon.isLoading} />
     </>

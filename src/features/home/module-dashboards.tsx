@@ -134,12 +134,13 @@ function StatRow({ children }: { children: React.ReactNode }) {
 /* ─── Service users ─────────────────────────────────────────────────────── */
 
 function ActiveServiceUsersStat() {
-  const q = useServiceUsers({ page: 1, limit: 1 })
+  const { locationId } = useGlobalLocationScope()
+  const q = useServiceUsers({ page: 1, limit: 1, locationId: locationId ?? undefined })
   return (
     <Metric
-      label="Service users"
+      label="Service users on the books"
       value={n(q.data?.meta?.total)}
-      hint="On your books"
+      hint="Receiving care or pre-admission (not discharged)"
       icon={ill('busts-in-silhouette')}
       tone="sky"
       loading={q.isLoading}
@@ -801,9 +802,9 @@ function NoFundingStat() {
   const missing = n(q.data?.missingFundingContracts)
   return (
     <Metric
-      label="No funding contract"
+      label="Not ready to invoice"
       value={missing}
-      hint="Service users whose visits cannot be invoiced"
+      hint="Service users without a ready funding contract (missing or incomplete)"
       icon={ill('no-entry')}
       tone={missing > 0 ? 'rose' : 'muted'}
       loading={q.isLoading}

@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import {
+  fetchAdminOverview,
   fetchComplianceSummary,
+  fetchFinanceOverview,
   fetchLateMedicationCount,
   fetchMedicationExceptions,
   fetchOperationsOverview,
@@ -38,6 +40,8 @@ const homeKeys = {
   financeExceptions: () => [...homeKeys.all, 'finance-exceptions'] as const,
   appointments: (loc?: string | null, day?: string) => [...homeKeys.all, 'appointments', loc ?? null, day] as const,
   operations: (loc?: string | null) => [...homeKeys.all, 'operations', loc ?? null] as const,
+  finance: () => [...homeKeys.all, 'finance'] as const,
+  admin: () => [...homeKeys.all, 'admin'] as const,
 }
 
 const LIVE = { refetchInterval: 60_000, refetchOnWindowFocus: true, staleTime: 0 } as const
@@ -189,7 +193,7 @@ export function useAppointmentsToday(locationId: string | null | undefined, enab
   })
 }
 
-export type { OperationsOverview, UpcomingCategory } from '@/features/home/api/home-signals.api'
+export type { AdminOverview, FinanceOverview, OperationsOverview, UpcomingCategory } from '@/features/home/api/home-signals.api'
 
 /** Care Operations dashboard counts: alert backlog, unfilled visits, cancellations, continuity. Refreshes every minute. */
 export function useOperationsOverview(locationId: string | null | undefined, enabled: boolean) {
@@ -198,5 +202,25 @@ export function useOperationsOverview(locationId: string | null | undefined, ena
     queryFn: ({ signal }) => fetchOperationsOverview({ locationId }, signal),
     enabled,
     ...LIVE,
+  })
+}
+
+/** Finance dashboard: invoiced this month vs last, cash received, disputes. */
+export function useFinanceOverview(enabled: boolean) {
+  return useQuery({
+    queryKey: homeKeys.finance(),
+    queryFn: ({ signal }) => fetchFinanceOverview(signal),
+    enabled,
+    staleTime: 60_000,
+  })
+}
+
+/** Administration dashboard: active and dormant users, failed sign-ins, security events. */
+export function useAdminOverview(enabled: boolean) {
+  return useQuery({
+    queryKey: homeKeys.admin(),
+    queryFn: ({ signal }) => fetchAdminOverview(signal),
+    enabled,
+    staleTime: 60_000,
   })
 }

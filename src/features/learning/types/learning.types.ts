@@ -117,6 +117,19 @@ export type LearningDashboardSummary = {
   competencies: number
   upcomingTrainingEvents: number
   externalTrainingPending: number
+  /** Added for the module dashboard; optional so older API builds still type-check at runtime. */
+  assignmentsByStatus?: Record<string, number>
+  /** Assignments still owed (not cancelled or exempt). */
+  owedAssignments?: number
+  completedAssignments?: number
+  awaitingSignOff?: number
+  failedAssignments?: number
+  expiredAssignments?: number
+  mandatoryOwed?: number
+  mandatoryCompleted?: number
+  dueNext30?: number
+  certificatesExpiring30?: number
+  certificatesExpired?: number
 }
 
 export type LearningCategory = {

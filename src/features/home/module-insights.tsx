@@ -27,11 +27,13 @@ import { useRecruitmentSummary } from '@/features/hr/recruitment/hooks/useRecrui
 import { useSetupChecklist } from '@/features/setup-checklist/hooks'
 import { useMedicationOverview } from '@/features/emar/hooks/useEmar'
 import {
+  useAdminOverview,
   useAssessmentReviewQueue,
   useBodyMapGovernanceAlerts,
   useBodyMapReviewQueue,
   useComplianceSummary,
   useFinanceExceptionQueue,
+  useFinanceOverview,
   useLateMedicationToday,
   useMedicationExceptionsToday,
   useOperationsOverview,
@@ -180,34 +182,40 @@ function ServiceUsersInsights() {
   const lookupsQ = useServiceUserLookups()
   const lookups = lookupsQ.data
   const ready = !!lookups
-  const statusId = (code: string) => lookups?.statuses.find((s) => s.code === code)?.id
+  const statusId = (code: string) => lookups?.statuses.find((x) => x.code === code)?.id
   const riskId = (code: string) => lookups?.riskLevels.find((r) => r.code === code)?.id
   const monthStart = monthStartIso()
-  const today = operationalTodayIso()
+  // Caseload figures cover people receiving care (status Active), so percentages share one denominator.
+  const activeId = statusId('ACTIVE')
+  const inCare = { statusId: activeId }
 
-  const active = useSuCount({ statusId: statusId('ACTIVE') }, ready)
+  const active = useSuCount(inCare, ready)
   const onHold = useSuCount({ statusId: statusId('ON_HOLD'), showInactive: true }, ready)
   const discharged = useSuCount({ statusId: statusId('DISCHARGED'), showInactive: true }, ready)
+  const preAdmission = useSuCount({ statusId: statusId('PRE_ADMISSION'), showInactive: true }, ready)
+  const pending = useSuCount({ statusId: statusId('PENDING'), showInactive: true }, ready)
   const newStarts = useSuCount({ serviceStartDateFrom: monthStart })
   const hospital = useSuCount({ hospitalisedOnly: true })
-  const noKw = useSuCount({ unassignedKeyWorker: true })
-  const flash = useSuCount({ hasActiveFlashMessage: true })
+  const noKw = useSuCount({ ...inCare, unassignedKeyWorker: true }, ready)
+  const flash = useSuCount({ ...inCare, hasActiveFlashMessage: true }, ready)
 
-  const low = useSuCount({ riskLevelId: riskId('LOW') }, ready)
-  const medium = useSuCount({ riskLevelId: riskId('MEDIUM') }, ready)
-  const high = useSuCount({ riskLevelId: riskId('HIGH') }, ready)
-  const critical = useSuCount({ riskLevelId: riskId('CRITICAL') }, ready)
-  const loneWorker = useSuCount({ loneWorkerRisk: true })
-  const safeguarding = useSuCount({ safeguardingHistory: true })
+  const low = useSuCount({ ...inCare, riskLevelId: riskId('LOW') }, ready)
+  const medium = useSuCount({ ...inCare, riskLevelId: riskId('MEDIUM') }, ready)
+  const high = useSuCount({ ...inCare, riskLevelId: riskId('HIGH') }, ready)
+  const critical = useSuCount({ ...inCare, riskLevelId: riskId('CRITICAL') }, ready)
+  const loneWorker = useSuCount({ ...inCare, loneWorkerRisk: true }, ready)
+  const safeguarding = useSuCount({ ...inCare, safeguardingHistory: true }, ready)
 
+  // Initial assessments cover everyone on the books, including pre-admission.
   const iaNone = useSuCount({ initialAssessmentStatus: 'none' })
   const iaProgress = useSuCount({ initialAssessmentStatus: 'in_progress' })
   const iaReview = useSuCount({ initialAssessmentStatus: 'awaiting_review' })
   const iaDone = useSuCount({ initialAssessmentStatus: 'completed' })
-  const cpNone = useSuCount({ carePlanListStatus: 'none' })
-  const cpOverdue = useSuCount({ carePlanListStatus: 'overdue' })
-  const cpWeek = useSuCount({ carePlanListStatus: 'due_within_week' })
-  const missedMonth = useSuCount({ missedVisitsMin: 1, missedVisitsFrom: monthStart, missedVisitsTo: today })
+  const cpNone = useSuCount({ ...inCare, carePlanListStatus: 'none' }, ready)
+  const cpOverdue = useSuCount({ ...inCare, carePlanListStatus: 'overdue' }, ready)
+  const cpWeek = useSuCount({ ...inCare, carePlanListStatus: 'due_within_week' }, ready)
+  // No upper bound: only past visits can be confirmed missed, and a bare 'to' date would cut off today.
+  const missedMonth = useSuCount({ missedVisitsMin: 1, missedVisitsFrom: monthStart })
 
   const { locationId } = useGlobalLocationScope()
   const assessments = useAssessmentReviewQueue(locationId, can('service_users.assessments.read'))
@@ -219,8 +227,11 @@ function ServiceUsersInsights() {
   const u = upcoming.data
 
   const activeN = n0(active.value)
-  const coverage = activeN ? pct(activeN - n0(cpNone.value), activeN) : null
-  const iaCoverage = activeN ? pct(n0(iaDone.value), activeN) : null
+  const coverage = activeN && cpNone.value !== undefined ? pct(activeN - n0(cpNone.value), activeN) : null
+  const iaTotal = n0(iaNone.value) + n0(iaProgress.value) + n0(iaReview.value) + n0(iaDone.value)
+  const iaCoverage = iaTotal ? pct(n0(iaDone.value), iaTotal) : null
+  const riskLoaded = [low, medium, high, critical].every((x) => x.value !== undefined)
+  const unscored = riskLoaded ? Math.max(0, activeN - n0(low.value) - n0(medium.value) - n0(high.value) - n0(critical.value)) : undefined
 
   return (
     <>
@@ -230,7 +241,8 @@ function ServiceUsersInsights() {
         <Kpi label="On hold" value={onHold.value} art="pause-button" tone={attn(onHold.value, 'warn')} loading={onHold.loading} to="/service-users/all" hint="Care paused" />
         <Kpi label="In hospital" value={hospital.value} art="hospital" tone={attn(hospital.value, 'warn')} loading={hospital.loading} to="/service-users/all" hint="Currently hospitalised" />
         <Kpi label="Discharged" value={discharged.value} art="door" tone="neutral" loading={discharged.loading} to="/service-users/all" hint="Service ended" />
-        <Kpi label="No key worker" value={noKw.value} art="identification-card" tone={attn(noKw.value, 'warn')} loading={noKw.loading} to="/service-users/all" hint="Need a key worker assigned" />
+        <Kpi label="Pre-admission" value={preAdmission.value} art="inbox-tray" loading={preAdmission.loading} to="/service-users/all" hint={`${n0(pending.value)} pending · not receiving care yet`} />
+        <Kpi label="No key worker" value={noKw.value} art="identification-card" tone={attn(noKw.value, 'warn')} loading={noKw.loading} to="/service-users/all" hint={`Of ${activeN} receiving care`} />
         <Kpi label="Active flash messages" value={flash.value} art="megaphone" tone={attn(flash.value, 'warn')} loading={flash.loading} to="/service-users/all" hint="Shown to carers on visits" />
         <Planned label="Contracted vs delivered hours" art="hourglass-not-done" needs="Weekly commissioned hours per service user compared with delivered visit time." />
       </Group>
@@ -240,13 +252,14 @@ function ServiceUsersInsights() {
         <Kpi label="Medium risk" value={medium.value} art="yellow-heart" tone={attn(medium.value, 'warn')} loading={medium.loading} to="/service-users/all" />
         <Kpi label="High risk" value={high.value} art="orange-heart" tone={attn(high.value, 'bad')} loading={high.loading} to="/service-users/all" />
         <Kpi label="Critical risk" value={critical.value} art="heart-exclamation" tone={attn(critical.value, 'bad')} loading={critical.loading} to="/service-users/all" />
+        <Kpi label="No risk level" value={unscored} art="white-question-mark" tone={attn(unscored, 'bad')} loading={!riskLoaded} to="/service-users/all" hint="Receiving care without a risk rating" />
         <Kpi label="Lone worker risk" value={loneWorker.value} art="person-walking" tone={attn(loneWorker.value, 'warn')} loading={loneWorker.loading} to="/service-users/all" hint="Flagged in the initial assessment" />
         <Kpi label="Safeguarding history" value={safeguarding.value} art="heart-hands" tone={attn(safeguarding.value, 'warn')} loading={safeguarding.loading} to="/service-users/all" />
       </Group>
 
       <Group title="Assessment & care planning" description="Coverage and what is due">
-        <Kpi label="Care plan coverage" value={coverage === null ? null : `${coverage}%`} progress={coverage} art="memo" tone={coverage === null ? 'neutral' : coverage >= 95 ? 'good' : coverage >= 80 ? 'warn' : 'bad'} loading={cpNone.loading || active.loading} hint={`${n0(cpNone.value)} active service users without a care plan`} to="/care-plans/reviews" />
-        <Kpi label="Initial assessments complete" value={iaCoverage === null ? null : `${iaCoverage}%`} progress={iaCoverage} art="clipboard" tone={iaCoverage === null ? 'neutral' : iaCoverage >= 95 ? 'good' : 'warn'} loading={iaDone.loading || active.loading} hint={`${n0(iaDone.value)} completed`} to="/service-users/initial-assessment" />
+        <Kpi label="Care plan coverage" value={coverage === null ? null : `${coverage}%`} progress={coverage} art="memo" tone={coverage === null ? 'neutral' : coverage >= 95 ? 'good' : coverage >= 80 ? 'warn' : 'bad'} loading={cpNone.loading || active.loading} hint={`${n0(cpNone.value)} receiving care without a care plan`} to="/care-plans/reviews" />
+        <Kpi label="Initial assessments complete" value={iaCoverage === null ? null : `${iaCoverage}%`} progress={iaCoverage} art="clipboard" tone={iaCoverage === null ? 'neutral' : iaCoverage >= 95 ? 'good' : 'warn'} loading={iaDone.loading || active.loading} hint={`${n0(iaDone.value)} of ${iaTotal} reviewed and completed`} to="/service-users/initial-assessment" />
         <Kpi label="Assessments not started" value={iaNone.value} art="page-facing-up" tone={attn(iaNone.value, 'warn')} loading={iaNone.loading} to="/service-users/initial-assessment" />
         <Kpi label="Assessments in progress" value={iaProgress.value} art="writing-hand" loading={iaProgress.loading} to="/service-users/initial-assessment" />
         <Kpi label="Waiting for review" value={iaReview.value} art="magnifying-glass-tilted-left" tone={attn(iaReview.value, 'warn')} loading={iaReview.loading} to="/initial-assessments/review-queue" />
@@ -258,7 +271,7 @@ function ServiceUsersInsights() {
       </Group>
 
       <Group title="Safety & wellbeing" description="Signals that someone may need extra support">
-        <Kpi label="Missed a visit this month" value={missedMonth.value} art="cross-mark" tone={attn(missedMonth.value, 'bad')} loading={missedMonth.loading} to="/service-users/all" hint="Service users with at least one missed visit" />
+        <Kpi label="Confirmed missed visit this month" value={missedMonth.value} art="cross-mark" tone={attn(missedMonth.value, 'bad')} loading={missedMonth.loading} to="/service-users/all" hint="Service users with a missed visit confirmed by a manager; unconfirmed ones are in Care Operations" />
         <Kpi label="Doses not given today" value={meds.data?.total} art="pill" tone={attn(meds.data?.total, 'bad')} loading={meds.isLoading} hint={`${n0(meds.data?.awaitingReview)} not reviewed by a manager`} to="/medication/exceptions" />
         <Kpi label="Body map safeguarding alerts" value={bodyMapAlerts.data?.total} art="heart-hands" tone={attn(bodyMapAlerts.data?.total, 'bad')} loading={bodyMapAlerts.isLoading} to="/body-map/review-queue" />
         <Kpi label="Body map entries to review" value={bodyMap.data?.total} art="adhesive-bandage" tone={attn(bodyMap.data?.total, 'warn')} loading={bodyMap.isLoading} to="/body-map/review-queue" />
@@ -621,30 +634,43 @@ function LearningInsights() {
   const ok = can('learning.dashboard.read')
   const q = useLearningDashboard(locationId ?? undefined)
   const d = ok ? q.data : undefined
-  const onTrack = d && d.assignments ? pct(d.assignments - d.overdueAssignments, d.assignments) : null
+  const L = q.isLoading
+  const owed = d?.owedAssignments ?? d?.assignments
+  const onTrack = d && owed ? pct(owed - d.overdueAssignments, owed) : null
+  const completion = d && owed ? pct(n0(d.completedAssignments), owed) : null
+  const mandatory = d && d.mandatoryOwed ? pct(n0(d.mandatoryCompleted), d.mandatoryOwed) : null
+  const rate = (v: number | null, good: number, warn: number): Tone => (v === null ? 'neutral' : v >= good ? 'good' : v >= warn ? 'warn' : 'bad')
   return (
     <>
       {ok ? (
         <>
-          <Group title="Training delivery" description="Assignments, events and certificates">
-            <Kpi label="Assignments on track" value={onTrack === null ? null : `${onTrack}%`} progress={onTrack} art="check-mark-button" tone={onTrack === null ? 'neutral' : onTrack >= 90 ? 'good' : 'warn'} loading={q.isLoading} to="/learning/assignments" hint={`${n0(d?.assignments)} assignments`} />
-            <Kpi label="Overdue training" value={d?.overdueAssignments} art="books" tone={attn(d?.overdueAssignments, 'bad')} loading={q.isLoading} to="/learning/assignments" />
-            <Kpi label="Upcoming training events" value={d?.upcomingTrainingEvents} art="teacher" loading={q.isLoading} to="/learning/training-events" />
-            <Kpi label="Active certificates" value={d?.activeCertificates} art="scroll" tone="good" loading={q.isLoading} to="/learning/certificates" />
-            <Kpi label="External training to approve" value={d?.externalTrainingPending} art="school" tone={attn(d?.externalTrainingPending, 'warn')} loading={q.isLoading} to="/learning/external-training" />
+          <Group title="Training compliance" description="Assigned training that staff owe (cancelled and exempt excluded)">
+            <Kpi label="Mandatory training complete" value={mandatory === null ? null : `${mandatory}%`} progress={mandatory} art="shield" tone={rate(mandatory, 95, 80)} loading={L} to="/learning/assignments" hint={`${n0(d?.mandatoryCompleted)} of ${n0(d?.mandatoryOwed)} mandatory assignments`} />
+            <Kpi label="All training complete" value={completion === null ? null : `${completion}%`} progress={completion} art="check-mark-button" tone={rate(completion, 90, 70)} loading={L} to="/learning/assignments" hint={`${n0(d?.completedAssignments)} of ${n0(owed)} assignments`} />
+            <Kpi label="Not overdue" value={onTrack === null ? null : `${onTrack}%`} progress={onTrack} art="stopwatch" tone={rate(onTrack, 95, 85)} loading={L} to="/learning/assignments" hint="Assignments still within their due date" />
+            <Kpi label="Overdue training" value={d?.overdueAssignments} art="books" tone={attn(d?.overdueAssignments, 'bad')} loading={L} to="/learning/assignments" />
+            <Kpi label="Due in 30 days" value={d?.dueNext30} art="calendar" tone={attn(d?.dueNext30, 'warn')} loading={L} to="/learning/assignments" />
+            <Kpi label="Waiting for sign-off" value={d?.awaitingSignOff} art="writing-hand" tone={attn(d?.awaitingSignOff, 'warn')} loading={L} to="/learning/assignments" hint="Assessment or approval outstanding" />
+            <Kpi label="Failed or expired" value={n0(d?.failedAssignments) + n0(d?.expiredAssignments)} art="cross-mark" tone={attn(n0(d?.failedAssignments) + n0(d?.expiredAssignments), 'bad')} loading={L} to="/learning/assignments" hint={`${n0(d?.failedAssignments)} failed · ${n0(d?.expiredAssignments)} expired`} />
+          </Group>
+          <Group title="Certificates & events" description="Proof of training and what is coming up">
+            <Kpi label="Active certificates" value={d?.activeCertificates} art="scroll" tone="good" loading={L} to="/learning/certificates" />
+            <Kpi label="Certificates expiring (30 days)" value={d?.certificatesExpiring30} art="hourglass-not-done" tone={attn(d?.certificatesExpiring30, 'warn')} loading={L} to="/learning/certificates" />
+            <Kpi label="Certificates expired" value={d?.certificatesExpired} art="hourglass-done" tone={attn(d?.certificatesExpired, 'bad')} loading={L} to="/learning/certificates" />
+            <Kpi label="Upcoming training events" value={d?.upcomingTrainingEvents} art="teacher" loading={L} to="/learning/training-events" />
+            <Kpi label="External training to approve" value={d?.externalTrainingPending} art="school" tone={attn(d?.externalTrainingPending, 'warn')} loading={L} to="/learning/external-training" />
           </Group>
           <Group title="Catalogue" description="What staff can learn">
-            <Kpi label="Published courses" value={d?.publishedCourses} art="open-book" loading={q.isLoading} to="/learning/courses" hint={`${n0(d?.courses)} courses in total`} />
-            <Kpi label="Categories" value={d?.categories} art="card-index-dividers" loading={q.isLoading} to="/learning/courses" />
-            <Kpi label="Competencies" value={d?.competencies} art="bullseye" loading={q.isLoading} to="/learning/settings" />
+            <Kpi label="Published courses" value={d?.publishedCourses} art="open-book" loading={L} to="/learning/courses" hint={`${n0(d?.courses)} courses in total`} />
+            <Kpi label="Categories" value={d?.categories} art="card-index-dividers" loading={L} to="/learning/courses" />
+            <Kpi label="Competencies" value={d?.competencies} art="bullseye" loading={L} to="/learning/settings" />
           </Group>
         </>
       ) : null}
-      <Group title="Learning quality" description="Planned KPIs for training compliance">
-        <Planned label="Mandatory training compliance" art="shield" needs="Each role's mandatory courses compared with completed certificates." />
-        <Planned label="Certificates expiring (30 days)" art="hourglass-not-done" needs="Certificate expiry dates reported in one list." />
+      <Group title="Learning quality" description="Planned KPIs">
         <Planned label="Care Certificate completion" art="graduation-cap" needs="Care Certificate standards tracked per new carer." />
         <Planned label="Training hours per carer" art="stopwatch" needs="Course durations summed per carer per quarter." />
+        <Planned label="Staff with no training assigned" art="busts-in-silhouette" needs="Active staff compared with those who have any assignment." />
       </Group>
     </>
   )
@@ -689,7 +715,12 @@ function QualityInsights() {
 
       <Group title="Governance" description="Policies, audits and inspection readiness">
         {can('policies.read') ? (
-          <Kpi label="Policies due for review" value={policies.data?.count} art="ledger" tone={attn(policies.data?.overdue, 'bad')} loading={policies.isLoading} to="/policies" hint={`${n0(policies.data?.overdue)} overdue`} />
+          <>
+            <Kpi label="Published policies" value={policies.data ? n0(policies.data.byStatus?.PUBLISHED) : undefined} art="ledger" loading={policies.isLoading} to="/policies" hint={`${n0(policies.data?.byStatus?.DRAFT)} in draft`} />
+            <Kpi label="Policies awaiting approval" value={n0(policies.data?.byStatus?.IN_REVIEW) + n0(policies.data?.byStatus?.APPROVED)} art="fountain-pen" tone={attn(n0(policies.data?.byStatus?.IN_REVIEW) + n0(policies.data?.byStatus?.APPROVED), 'warn')} loading={policies.isLoading} to="/policies" hint={`${n0(policies.data?.byStatus?.IN_REVIEW)} in review · ${n0(policies.data?.byStatus?.APPROVED)} approved, not published`} />
+            <Kpi label="Policies due for review (30 days)" value={policies.data?.count} art="calendar" tone={attn(policies.data?.overdue, 'bad')} loading={policies.isLoading} to="/policies" hint={`${n0(policies.data?.overdue)} overdue`} />
+            <Kpi label="Published without a review date" value={policies.data?.publishedNoReviewDate} art="warning" tone={attn(policies.data?.publishedNoReviewDate, 'warn')} loading={policies.isLoading} to="/policies" hint="Will never come up for review" />
+          </>
         ) : null}
         {can('service_users.read') ? (
           <Kpi label="Body map safeguarding alerts" value={bodyMapAlerts.data?.total} art="heart-hands" tone={attn(bodyMapAlerts.data?.total, 'bad')} loading={bodyMapAlerts.isLoading} to="/body-map/review-queue" />
@@ -737,6 +768,7 @@ function FinanceInsights() {
   const canPayroll = can('payroll.runs.read', 'payroll.settings.read')
   const canPayRuns = can('billing.payroll_runs.read')
 
+  const income = useFinanceOverview(canInvoices || canPayments)
   const recon = useVisitReconciliationsSummary(canRecon ? locationId : undefined)
   const funding = useFundingContractsSummary(canRecon ? locationId : undefined)
   const inv = useInvoiceRunsSummary(canInvoices ? locationId : undefined)
@@ -758,8 +790,23 @@ function FinanceInsights() {
   }
   const amountOf = (v: string | undefined) => Number(String(v ?? '0').replace(/[^0-9.-]/g, '')) || 0
 
+  const inc = income.data
+  const thisM = inc?.invoicedThisMonth.amount
+  const lastM = inc?.invoicedLastMonth.amount
+  const change = thisM !== undefined && lastM ? Math.round(((thisM - lastM) / lastM) * 100) : null
+
   return (
     <>
+      {canInvoices || canPayments ? (
+        <Group title="Income" description={`This month (${inc?.month ?? '…'}) · invoices counted by the period they cover`}>
+          <Kpi label="Invoiced this month" value={thisM === undefined ? undefined : formatCurrency(thisM)} art="chart-increasing" tone="good" loading={income.isLoading} to="/billing/invoice-runs" hint={`${n0(inc?.invoicedThisMonth.runs)} invoice runs${change === null ? '' : ` · ${change >= 0 ? '+' : ''}${change}% on last month`}`} />
+          <Kpi label="Invoiced last month" value={lastM === undefined ? undefined : formatCurrency(lastM)} art="calendar" loading={income.isLoading} to="/billing/invoice-runs" hint={`${n0(inc?.invoicedLastMonth.runs)} invoice runs`} />
+          <Kpi label="Cash received this month" value={inc ? formatCurrency(inc.receivedThisMonth.amount) : undefined} art="money-with-wings" loading={income.isLoading} to="/billing" hint={`${n0(inc?.receivedThisMonth.payments)} payments`} />
+          <Kpi label="Disputed invoices" value={inc?.disputed.runs} art="balance-scale" tone={attn(inc?.disputed.runs, 'bad')} loading={income.isLoading} to="/billing/invoice-runs" hint={inc ? `${formatCurrency(inc.disputed.amount)} in dispute` : undefined} />
+          <Kpi label="Invoice runs to review" value={inc?.invoiceRunsAwaitingReview} art="magnifying-glass-tilted-left" tone={attn(inc?.invoiceRunsAwaitingReview, 'warn')} loading={income.isLoading} to="/billing/invoice-runs" hint="Ready for review or with exceptions" />
+        </Group>
+      ) : null}
+
       {canRecon || canInvoices ? (
         <Group title="Billing pipeline" description="From delivered visit to invoice">
           {canRecon ? (
@@ -787,7 +834,7 @@ function FinanceInsights() {
 
       {canRecon ? (
         <Group title="Funding" description="Who pays for each package">
-          <Kpi label="Funding coverage" value={fundingPct === null ? null : `${fundingPct}%`} progress={fundingPct} art="bank" tone={fundingPct === null ? 'neutral' : fundingPct >= 95 ? 'good' : 'bad'} loading={funding.isLoading} to="/billing" hint={`${n0(fd?.serviceUsersWithFunding)} of ${n0(fd?.activeServiceUsers)} active service users`} />
+          <Kpi label="Funding coverage" value={fundingPct === null ? null : `${fundingPct}%`} progress={fundingPct} art="bank" tone={fundingPct === null ? 'neutral' : fundingPct >= 95 ? 'good' : 'bad'} loading={funding.isLoading} to="/billing" hint={`${n0(fd?.serviceUsersWithFunding)} of ${n0(fd?.activeServiceUsers)} service users on the books have a funding contract`} />
           <Kpi label="Not ready to invoice" value={fd?.missingFundingContracts} art="no-entry" tone={attn(fd?.missingFundingContracts, 'bad')} loading={funding.isLoading} to="/billing" hint="Active service users without a ready funding contract" />
           <Kpi label="Contracts ready" value={fd?.ready} art="check-box-with-check" tone="good" loading={funding.isLoading} to="/billing" />
           <Kpi label="Contracts incomplete" value={fd?.incomplete} art="page-facing-up" tone={attn(fd?.incomplete, 'warn')} loading={funding.isLoading} to="/billing" />
@@ -822,7 +869,6 @@ function FinanceInsights() {
       ) : null}
 
       <Group title="Profitability" description="Planned KPIs for the business view">
-        <Planned label="Revenue this month" art="chart-increasing" needs="Issued invoice totals by month." />
         <Planned label="Gross margin" art="balance-scale" needs="Charge-card income compared with pay-card cost per visit." />
         <Planned label="Average charge vs pay rate" art="pound-banknote" needs="Hourly charge and pay rates on delivered visits." />
         <Planned label="Unbilled hours" art="hourglass-done" needs="Delivered hours not yet on an invoice run." />
@@ -838,6 +884,15 @@ function FinanceInsights() {
 function AdministrationInsights() {
   const can = useCan()
   const ok = can('setup_checklist.read')
+  const canSecurity = can('audit_logs.read', 'users.read')
+  const admin = useAdminOverview(canSecurity)
+  const a = admin.data
+  const securityEntries = Object.entries(a?.securityEvents7d ?? {}).sort((x, y) => y[1] - x[1])
+  const securityTotal = a ? securityEntries.reduce((n, [, v]) => n + v, 0) : undefined
+  const securityTop = securityEntries
+    .slice(0, 2)
+    .map(([k, v]) => `${v} ${k.replace(/_/g, ' ').toLowerCase()}`)
+    .join(' · ')
   const q = useSetupChecklist()
   const s = ok ? q.data?.summary : undefined
   const setupPct = s && s.total ? pct(s.complete, s.total) : null
@@ -855,9 +910,15 @@ function AdministrationInsights() {
           <Kpi label="Areas still to finish" value={sectionsLeft} art="card-index-dividers" loading={q.isLoading} to="/checklist" />
         </Group>
       ) : null}
+      {canSecurity ? (
+        <Group title="Users & security" description="From the sign-in history and security log">
+          <Kpi label="Active users (7 days)" value={a?.activeUsers7d} art="busts-in-silhouette" loading={admin.isLoading} to="/settings/users-access" hint={`Of ${n0(a?.users)} active accounts`} />
+          <Kpi label={`Dormant accounts (${a?.dormantDays ?? 90} days)`} value={a?.dormantUsers} art="zzz" tone={attn(a?.dormantUsers, 'warn')} loading={admin.isLoading} to="/settings/users-access" hint="No sign-in in that time: review or disable access" />
+          <Kpi label="Failed sign-ins (24 hours)" value={a?.failedSignIns24h} art="locked" tone={attn(a?.failedSignIns24h, 'warn')} loading={admin.isLoading} to="/admin/audit" hint={`${n0(a?.failedSignIns7d)} in the last 7 days`} />
+          <Kpi label="Security events (7 days)" value={securityTotal} art="shield" tone={attn(securityTotal, 'warn')} loading={admin.isLoading} to="/admin/audit" hint={securityTop || 'None recorded'} />
+        </Group>
+      ) : null}
       <Group title="System health" description="Planned KPIs for running the platform">
-        <Planned label="Active users (7 days)" art="busts-in-silhouette" needs="Sign-in activity summarised per day." />
-        <Planned label="Failed sign-ins today" art="locked" needs="Security events counted per day." />
         <Planned label="Integrations healthy" art="satellite-antenna" needs="Status checks for email, SMS, payroll and other connections." />
         <Planned label="Data quality score" art="bullseye" needs="Checks such as service users without an NHS number or staff without a role." />
       </Group>
