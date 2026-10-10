@@ -79,6 +79,8 @@ export type EcmDashboardBucket =
 export type EcmLiveVisitRow = {
   scheduledJobId: string
   scheduledVisitId: string | null
+  /** Visit ID shown on the carer app (VIS-…). */
+  visitRef?: string | null
   jobName: string
   slotLabel?: string | null
   serviceUserId: string
@@ -105,6 +107,16 @@ export type EcmLiveVisitRow = {
   appliedSettingsLevel: EcmSettingsLevel | string
   operationalExceptionCodes: string[]
   buckets: EcmDashboardBucket[]
+}
+
+/** ECM visit rows for one service user or employee over a date range. */
+export type EcmVisitsTableData = {
+  dateFrom: string
+  dateTo: string
+  operationalTimezone: string
+  rows: EcmLiveVisitRow[]
+  /** More visits exist than one request returns. */
+  truncated: boolean
 }
 
 export type EcmLiveDashboardCounts = Record<EcmDashboardBucket, number> & {

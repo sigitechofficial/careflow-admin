@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useAuthStore } from '@/features/auth/store'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
+import { usePortalDisplaySettings } from '@/features/service-user-portal/hooks/usePortalAboutMe'
 import {
   DEFAULT_DATE_DISPLAY_FORMAT,
   DEFAULT_TIME_DISPLAY_FORMAT,
@@ -68,21 +69,27 @@ const OrganisationDisplayFormatContext = React.createContext<OrganisationDisplay
   null,
 )
 
-export function OrganisationDisplayFormatProvider({ children }: { children: React.ReactNode }) {
+export function OrganisationDisplayFormatProvider({
+  children,
+  portal = false,
+}: {
+  children: React.ReactNode
+  /** Service user portal: read settings from the portal endpoint (no admin permissions). */
+  portal?: boolean
+}) {
   const accessToken = useAuthStore((s) => s.accessToken)
-  const { data, isError } = useGeneralSettings(Boolean(accessToken))
+  const adminSettings = useGeneralSettings(Boolean(accessToken) && !portal)
+  const portalSettings = usePortalDisplaySettings(Boolean(accessToken) && portal)
+  const { data, isError } = portal ? portalSettings : adminSettings
   // Treat a failed settings load as ready (fallback zone) so pages never wait forever.
   const timezoneReady = Boolean(data) || isError
   const dateDisplayFormat = data?.dateDisplayFormat ?? DEFAULT_DATE_DISPLAY_FORMAT
   const timeDisplayFormat = data?.timeDisplayFormat ?? DEFAULT_TIME_DISPLAY_FORMAT
   const operationalTimezone = data?.timezone ?? DEFAULT_OPERATIONAL_TIMEZONE
 
-  React.useEffect(() => {
-    syncOrganisationDisplayFormats(dateDisplayFormat, timeDisplayFormat)
-    syncOrganisationDateDisplayFormat(dateDisplayFormat)
-  }, [dateDisplayFormat, timeDisplayFormat])
-
-  // Synced during render (not in an effect) so consumers re-rendered by the memo below already see the org timezone.
+  // Synced during render (not in an effect) so consumers re-rendered by the memo below already see the org formats/timezone.
+  syncOrganisationDisplayFormats(dateDisplayFormat, timeDisplayFormat)
+  syncOrganisationDateDisplayFormat(dateDisplayFormat)
   syncOrganisationOperationalTimezone(operationalTimezone)
 
   const value = React.useMemo(

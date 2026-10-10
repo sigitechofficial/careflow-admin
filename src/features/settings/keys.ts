@@ -26,6 +26,9 @@ export const settingsKeys = {
     [...settingsKeys.all(), 'service-user-ethnicities'] as const,
 
   serviceUserLanguages: () => [...settingsKeys.all(), 'service-user-languages'] as const,
+  serviceUserGenders: () => [...settingsKeys.all(), 'service-user-genders'] as const,
+  serviceUserSexes: () => [...settingsKeys.all(), 'service-user-sexes'] as const,
+  serviceUserSexualOrientations: () => [...settingsKeys.all(), 'service-user-sexual-orientations'] as const,
 
   bodyMapRecordTypes: () => [...settingsKeys.all(), 'body-map-record-types'] as const,
 
@@ -67,4 +70,5 @@ export const settingsKeys = {
   identityRoles: () => [...settingsKeys.all(), 'identity-roles'] as const,
 
   permissionsCatalog: () => [...settingsKeys.all(), 'permissions-catalog'] as const,
+  roleResponsibilities: () => [...settingsKeys.all(), 'role-responsibilities'] as const,
 } as const

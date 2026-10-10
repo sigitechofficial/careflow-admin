@@ -1,24 +1,17 @@
 import type * as React from 'react'
 import type { PortalEmployeeBrief } from '@/features/service-user-portal/api/portal.api'
+import { formatDate, formatDateTime } from '@/shared/lib/utils'
 
+/** Date in the organisation's date format and timezone (admin General settings). */
 export function formatPortalDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  if (!iso || Number.isNaN(new Date(iso).getTime())) return '—'
+  return formatDate(iso)
 }
 
+/** Date + time in the organisation's formats and timezone. */
 export function formatPortalDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  if (!iso || Number.isNaN(new Date(iso).getTime())) return '—'
+  return formatDateTime(iso)
 }
 
 export function toInputDate(iso: string | null | undefined): string {

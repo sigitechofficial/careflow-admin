@@ -1,6 +1,9 @@
 import type { Config } from 'tailwindcss'
 import animate from 'tailwindcss-animate'
 
+/** rem value × the reader's text scale (1 by default). */
+const scaled = (rem: number) => `calc(${rem}rem * var(--text-scale, 1))`
+
 const config: Config = {
   darkMode: ['class'],
   content: [
@@ -15,6 +18,23 @@ const config: Config = {
       center: true,
       padding: '2rem',
       screens: { '2xl': '1400px' },
+    },
+    // Tailwind's default sizes, multiplied by --text-scale so people can enlarge text
+    // (Top bar → Aa). Spacing and layout stay the same; only text grows.
+    fontSize: {
+      xs: [scaled(0.75), { lineHeight: scaled(1) }],
+      sm: [scaled(0.875), { lineHeight: scaled(1.25) }],
+      base: [scaled(1), { lineHeight: scaled(1.5) }],
+      lg: [scaled(1.125), { lineHeight: scaled(1.75) }],
+      xl: [scaled(1.25), { lineHeight: scaled(1.75) }],
+      '2xl': [scaled(1.5), { lineHeight: scaled(2) }],
+      '3xl': [scaled(1.875), { lineHeight: scaled(2.25) }],
+      '4xl': [scaled(2.25), { lineHeight: scaled(2.5) }],
+      '5xl': [scaled(3), { lineHeight: '1' }],
+      '6xl': [scaled(3.75), { lineHeight: '1' }],
+      '7xl': [scaled(4.5), { lineHeight: '1' }],
+      '8xl': [scaled(6), { lineHeight: '1' }],
+      '9xl': [scaled(8), { lineHeight: '1' }],
     },
     extend: {
       fontFamily: {

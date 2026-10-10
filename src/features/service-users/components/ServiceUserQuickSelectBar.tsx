@@ -5,10 +5,16 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shar
 import { FigmaActionIcon } from '@/features/service-users/components/FigmaActionIcon'
 import {
   figmaQuickSelectIcon,
-  QUICK_SELECT_LIST_ICON,
-  QUICK_SELECT_RISK_ICON,
   type ServiceUserQuickSelectIconId,
 } from '@/features/service-users/figma-action-icons'
+import {
+  carePlanListStatusPresentation,
+  type CarePlanListStatus,
+} from '@/features/service-users/care-plans/care-plan-list-status'
+import {
+  SERVICE_USER_RISK_ICON,
+  ServiceUserRiskIcon,
+} from '@/features/service-users/components/ServiceUserRiskIcon'
 
 export type QuickSelectListId = 'all' | 'active' | 'discharged' | 'deleted'
 
@@ -75,14 +81,18 @@ function FigmaFilterBtn({
   onClick,
   testId,
   figmaId,
+  src,
 }: {
   tooltip: string
   active?: boolean
   disabled?: boolean
   onClick?: () => void
   testId?: string
-  figmaId: ServiceUserQuickSelectIconId
+  figmaId?: ServiceUserQuickSelectIconId
+  /** Icon URL when not one of the quick-select assets (e.g. care plan status icons). */
+  src?: string
 }) {
+  const iconSrc = src ?? (figmaId ? figmaQuickSelectIcon(figmaId) : '')
   const button = (
     <button
       type="button"
@@ -93,7 +103,35 @@ function FigmaFilterBtn({
       onClick={onClick}
       className={cn(figmaBtnClass(active), disabled && 'pointer-events-none opacity-40')}
     >
-      <FigmaActionIcon src={figmaQuickSelectIcon(figmaId)} title={tooltip} className="h-9 w-9" />
+      <FigmaActionIcon src={iconSrc} title={tooltip} className="h-9 w-9" />
+    </button>
+  )
+  return <QuickSelectTooltip label={tooltip}>{button}</QuickSelectTooltip>
+}
+
+function RiskFilterBtn({
+  code,
+  active,
+  disabled,
+  onClick,
+}: {
+  code: QuickSelectRiskId
+  active?: boolean
+  disabled?: boolean
+  onClick?: () => void
+}) {
+  const tooltip = SERVICE_USER_RISK_ICON[code].label
+  const button = (
+    <button
+      type="button"
+      title={tooltip}
+      aria-label={tooltip}
+      disabled={disabled}
+      data-testid={`service-users-quick-risk-${code.toLowerCase()}`}
+      onClick={onClick}
+      className={cn(figmaBtnClass(active), disabled && 'pointer-events-none opacity-40')}
+    >
+      <ServiceUserRiskIcon code={code} className="h-9 w-9" />
     </button>
   )
   return <QuickSelectTooltip label={tooltip}>{button}</QuickSelectTooltip>
@@ -132,22 +170,21 @@ function LegacySolidBtn({
   return <QuickSelectTooltip label={tooltip}>{button}</QuickSelectTooltip>
 }
 
-const PERSON_FILTERS: { id: QuickSelectListId; tooltip: string }[] = [
-  { id: 'all', tooltip: 'All actions up to date' },
-  { id: 'active', tooltip: 'Regular action or timed task overdue' },
-  { id: 'discharged', tooltip: 'Critical tasks overdue' },
+/** Same icons as each row's care plan status (care plan review dates). */
+const CARE_PLAN_FILTERS: { id: CarePlanListStatus; tooltip: string }[] = [
+  { id: 'none', tooltip: 'No care plan' },
+  { id: 'ok', tooltip: 'Care plans up to date' },
+  { id: 'due_within_week', tooltip: 'Care plan review due within a week' },
+  { id: 'overdue', tooltip: 'Care plan review overdue' },
 ]
 
-const RISK_FILTERS: { id: QuickSelectRiskId; tooltip: string }[] = [
-  { id: 'LOW', tooltip: 'Low risk profile' },
-  { id: 'MEDIUM', tooltip: 'Medium risk profile' },
-  { id: 'HIGH', tooltip: 'High risk profile' },
-  { id: 'CRITICAL', tooltip: 'Critical risk profile' },
-]
+const RISK_FILTERS: QuickSelectRiskId[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
 
 export type ServiceUserQuickSelectBarProps = {
   listFilter: QuickSelectListId | null
   onListFilterChange: (id: QuickSelectListId) => void
+  carePlanFilter: CarePlanListStatus | ''
+  onCarePlanFilterChange: (next: CarePlanListStatus | '') => void
   riskFilter: QuickSelectRiskId | null
   onRiskFilterChange: (id: QuickSelectRiskId | null) => void
   unassignedOnly: boolean
@@ -160,6 +197,8 @@ export type ServiceUserQuickSelectBarProps = {
 export function ServiceUserQuickSelectBar({
   listFilter,
   onListFilterChange,
+  carePlanFilter,
+  onCarePlanFilterChange,
   riskFilter,
   onRiskFilterChange,
   unassignedOnly,
@@ -176,32 +215,27 @@ export function ServiceUserQuickSelectBar({
       >
         <span className="shrink-0 pr-0.5 text-sm font-medium text-muted-foreground">Select</span>
 
-        {PERSON_FILTERS.map(item => {
-          const figmaId = QUICK_SELECT_LIST_ICON[item.id]
-          return figmaId ? (
-            <FigmaFilterBtn
-              key={item.id}
-              tooltip={item.tooltip}
-              active={listFilter === item.id}
-              disabled={disabled}
-              testId={`service-users-quick-${item.id}`}
-              figmaId={figmaId}
-              onClick={() => onListFilterChange(item.id)}
-            />
-          ) : null
-        })}
-
-        <QuickDivider />
-
-        {RISK_FILTERS.map(item => (
+        {CARE_PLAN_FILTERS.map(item => (
           <FigmaFilterBtn
             key={item.id}
             tooltip={item.tooltip}
-            active={riskFilter === item.id}
+            active={carePlanFilter === item.id}
             disabled={disabled}
-            testId={`service-users-quick-risk-${item.id.toLowerCase()}`}
-            figmaId={QUICK_SELECT_RISK_ICON[item.id]}
-            onClick={() => onRiskFilterChange(riskFilter === item.id ? null : item.id)}
+            testId={`service-users-quick-care-plan-${item.id}`}
+            src={carePlanListStatusPresentation(item.id).src}
+            onClick={() => onCarePlanFilterChange(carePlanFilter === item.id ? '' : item.id)}
+          />
+        ))}
+
+        <QuickDivider />
+
+        {RISK_FILTERS.map(code => (
+          <RiskFilterBtn
+            key={code}
+            code={code}
+            active={riskFilter === code}
+            disabled={disabled}
+            onClick={() => onRiskFilterChange(riskFilter === code ? null : code)}
           />
         ))}
 
@@ -233,7 +267,7 @@ export function ServiceUserQuickSelectBar({
           active={listFilter === 'deleted'}
           disabled={disabled}
           testId="service-users-quick-deleted"
-          onClick={() => onListFilterChange('deleted')}
+          onClick={() => onListFilterChange(listFilter === 'deleted' ? 'active' : 'deleted')}
         >
           <Trash2 strokeWidth={2.25} />
         </LegacySolidBtn>

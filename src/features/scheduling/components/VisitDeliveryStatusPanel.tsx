@@ -2,6 +2,8 @@ import { Badge } from '@/shared/ui/badge'
 import { cn } from '@/shared/lib/utils'
 import type { VisitDeliveryAssessment } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { visitTimingExceptionReasonLabel } from '@/features/scheduling/utils/visit-timing-exception-reason.util'
+import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
+import type { VisitVoiceNote } from '@/features/scheduling/types/visit-voice-note.types'
 
 type TimingExceptionSummary = {
   reasonCode?: string | null
@@ -27,6 +29,10 @@ type Props = {
   timingException?: TimingExceptionSummary
   careNotDelivered?: CareNotDeliveredSummary
   cancellation?: CancellationSummary
+  /** Carer voice notes recorded at clock-out (timing / overrun notes). */
+  clockOutVoiceNotes?: VisitVoiceNote[]
+  /** Carer voice notes recorded with "Unable to start". */
+  unableToStartVoiceNotes?: VisitVoiceNote[]
   className?: string
 }
 
@@ -50,6 +56,8 @@ export function VisitDeliveryStatusPanel({
   timingException,
   careNotDelivered,
   cancellation,
+  clockOutVoiceNotes,
+  unableToStartVoiceNotes,
   className,
 }: Props) {
   const reasonLabel =
@@ -163,6 +171,12 @@ export function VisitDeliveryStatusPanel({
               Overrun notes: {timingException.overrunReason}
             </p>
           ) : null}
+          <VoiceNoteList voiceNotes={clockOutVoiceNotes} label="Carer voice notes" />
+        </div>
+      ) : clockOutVoiceNotes?.length ? (
+        <div className="mt-3 rounded-md border border-border/80 bg-background/60 px-3 py-2 text-xs">
+          <p className="font-medium text-foreground">Clock-out notes</p>
+          <VoiceNoteList voiceNotes={clockOutVoiceNotes} label="Carer voice notes" />
         </div>
       ) : null}
 
@@ -180,6 +194,7 @@ export function VisitDeliveryStatusPanel({
           {careNotDelivered.notes ? (
             <p className="mt-0.5 text-muted-foreground">{careNotDelivered.notes}</p>
           ) : null}
+          <VoiceNoteList voiceNotes={unableToStartVoiceNotes} label="Carer voice notes" />
         </div>
       ) : null}
 

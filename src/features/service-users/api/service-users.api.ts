@@ -15,6 +15,8 @@ export type ServiceUserLookupsBundle = {
   statuses: Array<SuLookupRow & { description?: string | null }>
   titles: SuLookupRow[]
   genders: SuLookupRow[]
+  sexes: SuLookupRow[]
+  sexualOrientations: SuLookupRow[]
   maritalStatuses: SuLookupRow[]
   careTypes: SuLookupRow[]
   fundingTypes: SuLookupRow[]
@@ -104,6 +106,8 @@ export type ListServiceUsersParams = {
   sortOrder?: 'asc' | 'desc'
   /** Branch / location scope (singular). */
   locationId?: string
+  /** Several branches (e.g. every branch in a zone); takes precedence over `locationId`. */
+  locationIds?: string[]
   riskLevelId?: string
   careTypeId?: string
   fundingTypeId?: string
@@ -1873,7 +1877,8 @@ export async function listServiceUsers(
   if (params.showDeleted === true) qs.set('showDeleted', 'true')
   if (params.sortBy) qs.set('sortBy', params.sortBy)
   if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
-  if (params.locationId) qs.set('locationId', params.locationId)
+  if (params.locationIds?.length) qs.set('locationIds', params.locationIds.join(','))
+  else if (params.locationId) qs.set('locationId', params.locationId)
   if (params.riskLevelId) qs.set('riskLevelId', params.riskLevelId)
   if (params.careTypeId) qs.set('careTypeId', params.careTypeId)
   if (params.fundingTypeId) qs.set('fundingTypeId', params.fundingTypeId)

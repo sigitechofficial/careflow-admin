@@ -1,4 +1,6 @@
 import type { CarePlanListStatus } from '@/features/service-users/api/service-users.api'
+
+export type { CarePlanListStatus }
 import {
   figmaQuickSelectIcon,
   type ServiceUserQuickSelectIconId,

@@ -7,6 +7,8 @@ export const SECTION_1_HOLISTIC_EXTRA_CANONICAL = [
   'Middle name',
   'Last name',
   'NI number',
+  'Sex',
+  'Sexual orientation',
   'Ethnicity',
   'Languages spoken',
   'NHS number',

@@ -2,12 +2,20 @@ import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Info, Loader2, Upload } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import { orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
+import { useAuthStore } from '@/features/auth/store'
+import {
+  ReferralFormFields,
+  emptyReferralForm,
+  referralFormHasContent,
+  referralPayload,
+  validateReferralForm,
+  type ReferralFormState,
+} from '@/features/service-users/referrals/components/ReferralFormFields'
+import { useCreateReferralFor } from '@/features/service-users/referrals/useReferrals'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import {
-  AddressPlacesField,
-  type AddressPlacesValue,
-} from '@/shared/ui/address-places-field'
+import { type AddressPlacesValue } from '@/shared/ui/address-places-field'
 import {
   Select,
   SelectContent,
@@ -48,6 +56,18 @@ import {
   SU_PROFILE_REF,
 } from '@/features/service-users/utils/service-user-profile-refs'
 import { HomeAccessFields } from '@/features/service-users/components/HomeAccessFields'
+import {
+  ContactAddressList,
+  ContactEmailRows,
+  ContactOtherMethodRows,
+  ContactPhoneRows,
+  emptyContactAddress,
+  firstMobileNumber,
+  withContactExtraReferences,
+  type ContactAddress,
+  type ContactEmailRow,
+  type ContactPhoneRow,
+} from '@/features/service-users/components/ServiceUserContactRows'
 
 type FormState = {
   firstName: string
@@ -59,15 +79,12 @@ type FormState = {
   nhsNumber: string
   nhsNumberStatus: string
   nationalInsuranceNumber: string
-  email: string
-  emailType: string
-  emailPreference: boolean
-  phone: string
-  phoneType: string
-  phonePreference: boolean
-  mobile: string
+  /** First row = core phone / email / other method; the rest are saved as extras. */
+  phones: ContactPhoneRow[]
+  emails: ContactEmailRow[]
   preferredContactMethod: string
-  otherContactMethod: string
+  otherMethods: string[]
+  extraAddresses: ContactAddress[]
   dateOfBirth: string
   placeOfBirth: string
   religion: string
@@ -79,6 +96,8 @@ type FormState = {
   language: string
   serviceStartDate: string
   serviceEndDate: string
+  /** No end date — service continues until an end date is recorded. */
+  serviceOngoing: boolean
   dateOfDeath: string
   serviceUserNumber: string
   notes: string
@@ -123,15 +142,11 @@ const emptyForm: FormState = {
   nhsNumber: '',
   nhsNumberStatus: '',
   nationalInsuranceNumber: '',
-  email: '',
-  emailType: '',
-  emailPreference: false,
-  phone: '',
-  phoneType: '',
-  phonePreference: false,
-  mobile: '',
+  phones: [],
+  emails: [],
   preferredContactMethod: '',
-  otherContactMethod: '',
+  otherMethods: [],
+  extraAddresses: [],
   dateOfBirth: '',
   placeOfBirth: '',
   religion: '',
@@ -143,6 +158,7 @@ const emptyForm: FormState = {
   language: '',
   serviceStartDate: '',
   serviceEndDate: '',
+  serviceOngoing: true,
   dateOfDeath: '',
   serviceUserNumber: '',
   notes: '',
@@ -186,9 +202,6 @@ const emptyForm: FormState = {
 
 const NHS_STATUS_OPTIONS = ['Verified', 'Not verified', 'Tracing', 'Unknown']
 const PREF_CONTACT_OPTIONS = ['Mobile', 'Phone', 'Email', 'Post', 'Other']
-const PHONE_TYPE_OPTIONS = ['Mobile', 'Home', 'Work', 'Other']
-const EMAIL_TYPE_OPTIONS = ['Personal', 'Work', 'Shared', 'Other']
-const SEX_OPTIONS = ['Male', 'Female', 'Intersex', 'Not stated', 'Unknown']
 const SCAN_TYPE_OPTIONS = ['None', 'QR', 'Barcode', 'NFC', 'Other']
 const YES_NO_OPTIONS = ['No', 'Yes', 'Not applicable', 'Prefer not to say']
 
@@ -370,15 +383,18 @@ function buildPayload(f: FormState): CreateServiceUserPayload {
   p.preferredName = opt(f.preferredName)
   p.nhsNumber = opt(f.nhsNumber)
   p.nationalInsuranceNumber = opt(f.nationalInsuranceNumber)
-  p.email = opt(f.email)
-  p.phone = opt(f.phone)
-  p.mobile = opt(f.mobile)
+  const firstPhone = f.phones[0]
+  const firstEmail = f.emails[0]
+  p.email = opt(firstEmail?.email ?? '')
+  p.phone = opt(firstPhone?.number ?? '')
+  p.mobile = opt(firstMobileNumber(f.phones))
   // Date inputs are YYYY-MM-DD; omit blanks — empty string fails Nest @IsDateString.
   const dateOfBirth = opt(f.dateOfBirth)
   if (dateOfBirth) p.dateOfBirth = dateOfBirth
-  const serviceStartDate = opt(f.serviceStartDate)
+  // datetime-local values are organisation wall-clock time.
+  const serviceStartDate = orgDatetimeLocalToIso(f.serviceStartDate)
   if (serviceStartDate) p.serviceStartDate = serviceStartDate
-  const serviceEndDate = opt(f.serviceEndDate)
+  const serviceEndDate = f.serviceOngoing ? '' : orgDatetimeLocalToIso(f.serviceEndDate)
   if (serviceEndDate) p.serviceEndDate = serviceEndDate
   p.serviceUserNumber = opt(f.serviceUserNumber)
   p.notes = opt(f.notes)
@@ -407,14 +423,14 @@ function buildPayload(f: FormState): CreateServiceUserPayload {
     [SU_PROFILE_REF.maternity]: f.maternity,
     [SU_PROFILE_REF.language]: f.language,
     [SU_PROFILE_REF.preferredContactMethod]: f.preferredContactMethod,
-    [SU_PROFILE_REF.emailType]: f.emailType,
-    [SU_PROFILE_REF.otherContactMethod]: f.otherContactMethod,
+    [SU_PROFILE_REF.emailType]: firstEmail?.type ?? '',
+    [SU_PROFILE_REF.otherContactMethod]: f.otherMethods[0] ?? '',
     [SU_PROFILE_REF.dateOfDeath]: f.dateOfDeath,
     [SU_PROFILE_REF.nhsNumberStatus]: f.nhsNumberStatus,
     [SU_PROFILE_REF.sex]: f.sex,
-    [SU_PROFILE_REF.phoneType]: f.phoneType,
-    [SU_PROFILE_REF.phonePreference]: f.phonePreference ? 'true' : '',
-    [SU_PROFILE_REF.emailPreference]: f.emailPreference ? 'true' : '',
+    [SU_PROFILE_REF.phoneType]: firstPhone?.type ?? '',
+    [SU_PROFILE_REF.phonePreference]: firstPhone?.preference ?? '',
+    [SU_PROFILE_REF.emailPreference]: firstEmail?.preference ?? '',
     [SU_PROFILE_REF.changePreference]: f.changePreference,
     [SU_PROFILE_REF.orderNumber]: f.orderNumber,
     [SU_PROFILE_REF.scanType]: f.scanType === 'None' ? '' : f.scanType,
@@ -425,7 +441,13 @@ function buildPayload(f: FormState): CreateServiceUserPayload {
     [SU_PROFILE_REF.nhsReferences]: f.nhsReferences,
     [SU_PROFILE_REF.asNumber]: f.asNumber,
   })
-  if (references.length) p.references = references
+  const allReferences = withContactExtraReferences(references, {
+    phones: f.phones.slice(1),
+    emails: f.emails.slice(1),
+    otherMethods: f.otherMethods.slice(1),
+    addresses: f.extraAddresses,
+  })
+  if (allReferences.length) p.references = allReferences
   return p
 }
 
@@ -527,6 +549,9 @@ export default function AddServiceUserPage() {
   const [nnDebounced, setNnDebounced] = React.useState('')
   const [keyWorkerLabel, setKeyWorkerLabel] = React.useState('')
   const [namedNurseLabel, setNamedNurseLabel] = React.useState('')
+  const currentUserName = useAuthStore((st) => st.user?.displayName ?? '')
+  const [referralForm, setReferralForm] = React.useState<ReferralFormState>(emptyReferralForm)
+  const createReferralMutation = useCreateReferralFor()
   const [carerPreferences, setCarerPreferences] =
     React.useState<ServiceUserCarerPreferencesState>(emptyCarerPreferences)
 
@@ -576,6 +601,8 @@ export default function AddServiceUserPage() {
   const age = ageFromDob(form.dateOfBirth)
   const ethnicityRows = profileLookupSelectRows(lookups?.ethnicities ?? [], form.ethnicity)
   const languageRows = profileLookupSelectRows(lookups?.languages ?? [], form.language)
+  const sexRows = profileLookupSelectRows(lookups?.sexes ?? [], form.sex)
+  const sexualOrientationRows = profileLookupSelectRows(lookups?.sexualOrientations ?? [], form.sexualOrientation)
 
   const mapSelect = (
     field: keyof FormState,
@@ -630,6 +657,16 @@ export default function AddServiceUserPage() {
       return
     }
     try {
+      // Referral is saved as its own record (Referral & Quotes tab) right after the service user.
+      const withReferral = referralFormHasContent(referralForm)
+      if (withReferral) {
+        const referralProblem = validateReferralForm(referralForm)
+        if (referralProblem) {
+          setSubmitError(`Referral Information: ${referralProblem}`)
+          toastError('Cannot create service user', `Referral Information: ${referralProblem}`)
+          return
+        }
+      }
       const payload = buildPayload(form)
       const created = await createMutation.mutateAsync({
         payload,
@@ -647,14 +684,25 @@ export default function AddServiceUserPage() {
           toastApiError(photoErr, 'Service user created, but photo upload failed')
         }
       }
-      if (form.accessServiceUserApp && form.email.trim()) {
+      const portalEmail = form.emails[0]?.email.trim() ?? ''
+      if (form.accessServiceUserApp && portalEmail) {
         try {
           await upsertServiceUserPortalAccount(created.id, {
-            email: form.email.trim(),
+            email: portalEmail,
             isEnabled: true,
           })
         } catch (portalErr) {
           toastApiError(portalErr, 'Service user created, but portal access could not be enabled')
+        }
+      }
+      if (withReferral) {
+        try {
+          await createReferralMutation.mutateAsync({
+            serviceUserId: created.id,
+            body: referralPayload(referralForm),
+          })
+        } catch (refErr) {
+          toastApiError(refErr, 'Service user created, but the referral could not be saved — add it on the Referral & Quotes tab')
         }
       }
       toastSuccess('Service user created', 'Redirecting to the service user list.')
@@ -704,9 +752,9 @@ export default function AddServiceUserPage() {
           </div>
         )}
 
-        {/* Header: Picture + NHS + Status */}
+        {/* Header: Picture + identifiers + Status */}
         <Section>
-          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-3 xl:grid-cols-6">
             <div>
               <LabelWithTip tip="Optional profile picture — uploaded after the record is created.">
                 Picture
@@ -727,6 +775,20 @@ export default function AddServiceUserPage() {
                   onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
                 />
               </label>
+            </div>
+            <div>
+              <LabelWithTip tip="Organisation service user / case number.">Service User ID</LabelWithTip>
+              <Input
+                value={form.serviceUserNumber}
+                onChange={(e) => set('serviceUserNumber')(e.target.value)}
+              />
+            </div>
+            <div>
+              <LabelWithTip tip="UK National Insurance number.">NI Number</LabelWithTip>
+              <Input
+                value={form.nationalInsuranceNumber}
+                onChange={(e) => set('nationalInsuranceNumber')(e.target.value)}
+              />
             </div>
             <div>
               <LabelWithTip tip="NHS number (10 digits in England and Wales).">NHS Number</LabelWithTip>
@@ -881,21 +943,46 @@ export default function AddServiceUserPage() {
               />
             </div>
             <div>
-              <LabelWithTip tip="Sex recorded separately from gender identity where collected.">Sex</LabelWithTip>
-              <StringSelect
-                value={form.sex}
-                onChange={set('sex')}
-                options={SEX_OPTIONS}
-                placeholder="Select sex"
-              />
+              <LabelWithTip tip="Sex recorded separately from gender identity where collected. Options are managed in Settings → Lookup data → Sex.">
+                Sex
+              </LabelWithTip>
+              <Select
+                value={form.sex || '__none__'}
+                onValueChange={(v) => set('sex')(v === '__none__' ? '' : v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select sex" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— None —</SelectItem>
+                  {sexRows.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <LabelWithTip tip="Optional — collect only with consent.">Sexual Orientation</LabelWithTip>
-              <Input
-                value={form.sexualOrientation}
-                onChange={(e) => set('sexualOrientation')(e.target.value)}
-                placeholder="Only if the person chooses to share"
-              />
+              <LabelWithTip tip="Optional — collect only with consent. Options are managed in Settings → Lookup data → Sexual orientation.">
+                Sexual Orientation
+              </LabelWithTip>
+              <Select
+                value={form.sexualOrientation || '__none__'}
+                onValueChange={(v) => set('sexualOrientation')(v === '__none__' ? '' : v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select sexual orientation" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— None —</SelectItem>
+                  {sexualOrientationRows.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </Section>
@@ -903,44 +990,78 @@ export default function AddServiceUserPage() {
         <Section>
           <SHead>Contact Details</SHead>
           <div className="space-y-4">
-            <div className="max-w-md">
-              <LabelWithTip tip="How this person prefers to be contacted first.">
-                Preferred Contact Method
-              </LabelWithTip>
-              <StringSelect
-                value={form.preferredContactMethod}
-                onChange={set('preferredContactMethod')}
-                options={PREF_CONTACT_OPTIONS}
-                placeholder="Select"
-              />
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
+              <div className="w-36 shrink-0">
+                <LabelWithTip tip="How this person prefers to be contacted first.">
+                  Preferred Contact Method
+                </LabelWithTip>
+              </div>
+              <div className="lg:w-96">
+                <StringSelect
+                  value={form.preferredContactMethod}
+                  onChange={set('preferredContactMethod')}
+                  options={PREF_CONTACT_OPTIONS}
+                  placeholder="Please select contact method"
+                />
+              </div>
             </div>
 
-            <div>
-              <LabelWithTip tip="Primary service address (optional on create).">Address</LabelWithTip>
-              <AddressPlacesField
-                postcodeLabel="Secondary postcode"
-                value={{
-                  addressLine1: form.addressLine1,
-                  addressLine2: form.addressLine2,
-                  town: form.town,
-                  county: form.county,
-                  country: form.country,
-                  postcode: form.secondaryPostcode,
-                  latitude: form.latitude,
-                  longitude: form.longitude,
-                }}
-                onChange={(patch) =>
-                  setForm((prev) => {
-                    const { postcode, ...rest } = patch
-                    return {
-                      ...prev,
-                      ...rest,
-                      ...(postcode !== undefined ? { secondaryPostcode: postcode } : {}),
-                    }
-                  })
-                }
-              />
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-3">
+              <div className="w-36 shrink-0 lg:pt-7">
+                <LabelWithTip required tip="Branch and area for scheduling. The zone is set from the branch.">
+                  Location
+                </LabelWithTip>
+              </div>
+              <div className="min-w-0 flex-1">
+                <ServiceUserZoneBranchSelect
+                  value={form.locationId}
+                  areaId={form.serviceUserAreaId}
+                  onChange={({ locationId, serviceUserAreaId }) => {
+                    set('locationId')(locationId)
+                    setForm((prev) => ({ ...prev, serviceUserAreaId }))
+                  }}
+                />
+                <FieldError message={fieldErrors.locationId} />
+              </div>
             </div>
+
+            <ContactAddressList
+              primary={{
+                addressLine1: form.addressLine1,
+                addressLine2: form.addressLine2,
+                town: form.town,
+                county: form.county,
+                country: form.country,
+                postcode: form.secondaryPostcode,
+                latitude: form.latitude,
+                longitude: form.longitude,
+              }}
+              onPrimaryChange={(patch) =>
+                setForm((prev) => {
+                  const { postcode, ...rest } = patch
+                  return {
+                    ...prev,
+                    ...rest,
+                    ...(postcode !== undefined ? { secondaryPostcode: postcode } : {}),
+                  }
+                })
+              }
+              onPrimaryClear={() =>
+                setForm((prev) => {
+                  const { postcode, ...rest } = emptyContactAddress()
+                  return { ...prev, ...rest, secondaryPostcode: postcode }
+                })
+              }
+              extras={form.extraAddresses}
+              onExtrasChange={(extraAddresses) => setForm((prev) => ({ ...prev, extraAddresses }))}
+            />
+
+            <ContactPhoneRows rows={form.phones} onChange={(phones) => setForm((prev) => ({ ...prev, phones }))} />
+            <ContactEmailRows rows={form.emails} onChange={(emails) => setForm((prev) => ({ ...prev, emails }))} />
+            <ContactOtherMethodRows
+              rows={form.otherMethods}
+              onChange={(otherMethods) => setForm((prev) => ({ ...prev, otherMethods }))}
+            />
 
             <div>
               <LabelWithTip tip="Separate from the service address. Choose how carers get in.">
@@ -959,72 +1080,6 @@ export default function AddServiceUserPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-[10rem] flex-1">
-                <LabelWithTip tip="Main contact number.">Phone Number</LabelWithTip>
-                <Input value={form.phone} onChange={(e) => set('phone')(e.target.value)} />
-              </div>
-              <div className="min-w-[8rem] w-40">
-                <LabelWithTip>Phone Type</LabelWithTip>
-                <StringSelect
-                  value={form.phoneType}
-                  onChange={set('phoneType')}
-                  options={PHONE_TYPE_OPTIONS}
-                  placeholder="Type"
-                />
-              </div>
-              <label className="mb-2 flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.phonePreference}
-                  onChange={(e) => setForm((p) => ({ ...p, phonePreference: e.target.checked }))}
-                  className="h-4 w-4 rounded border-border"
-                />
-                Preference
-              </label>
-              <div className="min-w-[10rem] flex-1">
-                <LabelWithTip tip="Mobile number.">Mobile</LabelWithTip>
-                <Input value={form.mobile} onChange={(e) => set('mobile')(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-[12rem] flex-1">
-                <LabelWithTip tip="Email for notifications.">Email</LabelWithTip>
-                <Input
-                  data-testid="service-user-email"
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set('email')(e.target.value)}
-                />
-              </div>
-              <div className="min-w-[10rem] w-48">
-                <LabelWithTip>Email Type</LabelWithTip>
-                <StringSelect
-                  value={form.emailType}
-                  onChange={set('emailType')}
-                  options={EMAIL_TYPE_OPTIONS}
-                  placeholder="Please select email type."
-                />
-              </div>
-              <label className="mb-2 flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.emailPreference}
-                  onChange={(e) => setForm((p) => ({ ...p, emailPreference: e.target.checked }))}
-                  className="h-4 w-4 rounded border-border"
-                />
-                Preference
-              </label>
-            </div>
-
-            <div className="max-w-xl">
-              <LabelWithTip tip="Any other agreed contact channel.">Other Contact Method</LabelWithTip>
-              <Input
-                value={form.otherContactMethod}
-                onChange={(e) => set('otherContactMethod')(e.target.value)}
-              />
-            </div>
           </div>
         </Section>
 
@@ -1063,45 +1118,39 @@ export default function AddServiceUserPage() {
           <SHead>Reference Information</SHead>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
-              <LabelWithTip tip="Organisation service user / case number.">Service User ID</LabelWithTip>
-              <Input
-                value={form.serviceUserNumber}
-                onChange={(e) => set('serviceUserNumber')(e.target.value)}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <LabelWithTip required tip="Zone, branch and area for scheduling.">
-                Location
-              </LabelWithTip>
-              <ServiceUserZoneBranchSelect
-                value={form.locationId}
-                areaId={form.serviceUserAreaId}
-                mainPostcode={form.postcode}
-                onChange={({ locationId, serviceUserAreaId }) => {
-                  set('locationId')(locationId)
-                  setForm((prev) => ({ ...prev, serviceUserAreaId }))
-                }}
-                onApplyMainPostcode={(postcode) => setForm((prev) => ({ ...prev, postcode }))}
-              />
-              <FieldError message={fieldErrors.locationId} />
-            </div>
-
-            <div>
-              <LabelWithTip tip="Date service started.">Service Start Date/Time</LabelWithTip>
+              <LabelWithTip tip="Date and time service started.">Service Start Date/Time</LabelWithTip>
               <Input
                 data-testid="service-user-service-start"
-                type="date"
+                type="datetime-local"
                 value={form.serviceStartDate}
                 onChange={(e) => set('serviceStartDate')(e.target.value)}
               />
             </div>
             <div>
-              <LabelWithTip tip="Last day of service if known.">Service End Date/Time</LabelWithTip>
+              <LabelWithTip tip="Last day and time of service, or Ongoing if there is no end date yet.">
+                Service End Date/Time
+              </LabelWithTip>
               <Input
-                type="date"
-                value={form.serviceEndDate}
+                type="datetime-local"
+                value={form.serviceOngoing ? '' : form.serviceEndDate}
+                disabled={form.serviceOngoing}
                 onChange={(e) => set('serviceEndDate')(e.target.value)}
               />
+              <label className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={form.serviceOngoing}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      serviceOngoing: e.target.checked,
+                      serviceEndDate: e.target.checked ? '' : prev.serviceEndDate,
+                    }))
+                  }
+                  className="h-4 w-4 rounded border-border"
+                />
+                Ongoing
+              </label>
             </div>
             <div>
               <LabelWithTip tip="Only when verified.">Date of Death</LabelWithTip>
@@ -1157,13 +1206,6 @@ export default function AddServiceUserPage() {
             <div>
               <LabelWithTip tip="Category or package of care.">Category of Care</LabelWithTip>
               {lookups ? mapSelect('careTypeId', 'Please select a Category of Care', lookups.careTypes) : <Input disabled />}
-            </div>
-            <div>
-              <LabelWithTip tip="UK National Insurance number.">NI Number</LabelWithTip>
-              <Input
-                value={form.nationalInsuranceNumber}
-                onChange={(e) => set('nationalInsuranceNumber')(e.target.value)}
-              />
             </div>
 
             <div className="md:col-span-3">
@@ -1273,6 +1315,15 @@ export default function AddServiceUserPage() {
               />
             </div>
           </div>
+        </Section>
+
+        <Section>
+          <SHead>Referral Information</SHead>
+          <p className="-mt-2 mb-4 text-xs text-muted-foreground">
+            Who referred this person, when and how it reached you. Optional — more detail, follow-ups and private
+            quotations are on the service user&apos;s Referral &amp; Quotes tab after saving.
+          </p>
+          <ReferralFormFields value={referralForm} onChange={setReferralForm} compact currentUserName={currentUserName} />
         </Section>
 
         <Section>

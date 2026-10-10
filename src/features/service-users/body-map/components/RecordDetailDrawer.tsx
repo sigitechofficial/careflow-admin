@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { BodyMapVideoList } from '@/features/service-users/body-map/components/BodyMapVideoList'
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/shared/ui/button'
@@ -335,6 +336,8 @@ export function RecordDetailDrawer({
             </ul>
           </div>
         ) : null}
+
+        <BodyMapVideoList videos={record.videos} />
 
         {(record.recordType === 'PRESSURE' || record.recordType === 'WOUND') &&
         !links.some(l => l.linkedModule === 'CARE_PLAN') ? (

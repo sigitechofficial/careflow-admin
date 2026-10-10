@@ -28,6 +28,19 @@ export type BodyMapMarkerRow = {
   createdAt: string
 }
 
+export type BodyMapVideo = {
+  id: string
+  /** Phone file name, or the camera default (VID_yyyyMMdd_HHmmss.mp4). */
+  originalName: string | null
+  mimeType: string
+  fileSize: number
+  durationMs: number | null
+  source: 'camera' | 'gallery' | null
+  createdAt: string
+  videoUrl: string
+  thumbnailUrl: string | null
+}
+
 export type BodyMapRecordRow = {
   id: string
   serviceUserId: string
@@ -67,6 +80,8 @@ export type BodyMapRecordRow = {
     caption: string | null
     createdAt: string
   }[]
+  /** Carer-app video (max 1). URLs are short-lived signed links. */
+  videos?: BodyMapVideo[]
   safeguardingCheck?: BodyMapSafeguardingCheck | null
   woundAssessment?: BodyMapWoundAssessment | null
   pressureAssessment?: BodyMapPressureAssessment | null

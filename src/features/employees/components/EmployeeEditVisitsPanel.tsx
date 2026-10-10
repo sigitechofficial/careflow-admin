@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Download,
   ExternalLink,
   Filter,
   FlaskConical,
@@ -20,11 +21,8 @@ import {
   employeeVisitActualDurationMinutes,
   employeeVisitActualEnd,
   employeeVisitActualStart,
-  employeeVisitOutcomeBadgeClass,
-  employeeVisitOutcomeLabel,
   employeeVisitPlannedDurationMinutes,
   employeeVisitSlotLabel,
-  formatDurationMinutes,
   useEmployeeVisits,
   type EmployeeVisitBucket,
 } from '@/features/employees/hooks/useEmployeeVisits'
@@ -41,16 +39,18 @@ import {
 } from '@/features/employees/utils/visit-status-sample-jobs.util'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
-import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import {
   dayKeyFromInstant,
-  formatOpsCalendarDate,
-  formatOpsClockTime,
   getSyncedOperationalTimeZone,
   operationalTodayIso,
   syncOrganisationOperationalTimezone,
 } from '@/shared/lib/operational-day.util'
 import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { buildEcmVisitsCsv, EcmVisitsTable } from '@/features/ecm/components/EcmVisitsTable'
+import { useEcmVisitsTable } from '@/features/ecm/hooks/useEcm'
+import type { EcmLiveVisitRow } from '@/features/ecm/types/ecm.types'
+import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import type { VisitDeliveryAssessment } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
@@ -88,38 +88,49 @@ function currentOrgMonth(): string {
   return operationalTodayIso().slice(0, 7)
 }
 
-function formatVisitDate(
-  iso: string,
-  formatDate: (dayIso: string) => string,
-): string {
-  const day = dayKeyFromInstant(iso)
-  if (!day) return formatOpsCalendarDate(iso)
-  return formatDate(day)
+function monthDateRange(month: string): { dateFrom: string; dateTo: string } {
+  const [y = 1970, m = 1] = month.split('-').map(Number)
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  return { dateFrom: `${month}-01`, dateTo: `${month}-${String(lastDay).padStart(2, '0')}` }
 }
 
-function formatClockLabel(iso: string | null | undefined): string {
-  const value = formatOpsClockTime(iso)
-  if (!value || value === '?' || value === '-') return '-'
-  if (value.charCodeAt(0) === 8212 || value.charCodeAt(0) === 8211) return '-'
-  return value
-}
-
-function formatDurationLabel(minutes: number | null): string {
-  const value = formatDurationMinutes(minutes)
-  if (!value || value === '?' || value.charCodeAt(0) === 8212) return '-'
-  return value
-}
-
-function formatTimeRange(
-  start: string | null | undefined,
-  end: string | null | undefined,
-): string {
-  const from = formatClockLabel(start)
-  const to = formatClockLabel(end)
-  if (from === '-' && to === '-') return '-'
-  if (to === '-') return from
-  if (from === '-') return to
-  return `${from} - ${to}`
+/** Table row for a visit ECM has no row for (sample visits, or no ECM access). */
+function jobToEcmRow(job: TimelineJob, delivery: VisitDeliveryAssessment): EcmLiveVisitRow {
+  return {
+    scheduledJobId: job.id,
+    scheduledVisitId: job.visits?.[0]?.id ?? null,
+    visitRef: job.visitRef ?? null,
+    jobName: job.jobName,
+    slotLabel: employeeVisitSlotLabel(job) || null,
+    serviceUserId: job.serviceUserId,
+    serviceUserName: serviceUserLabel(job.serviceUser),
+    carers: job.allocations.map((a) => ({
+      employeeId: a.employeeId,
+      name: [a.employee?.firstName, a.employee?.lastName].filter(Boolean).join(' ').trim(),
+      isLeadCarer: Boolean(a.isLeadCarer),
+    })),
+    address: job.address ?? null,
+    postcode: job.postcode ?? null,
+    plannedStartDateTime: job.scheduledStartDateTime,
+    plannedEndDateTime: job.scheduledEndDateTime,
+    actualCheckInAt: employeeVisitActualStart(job),
+    actualCheckOutAt: employeeVisitActualEnd(job),
+    plannedDurationMinutes: employeeVisitPlannedDurationMinutes(job),
+    actualDurationMinutes: employeeVisitActualDurationMinutes(job),
+    lifecycleStatus: job.status,
+    arrivalClassification: 'NOT_ASSESSED',
+    departureClassification: 'NOT_ASSESSED',
+    durationClassification: 'NOT_ASSESSED',
+    missedClassification: 'NONE',
+    confidence: '',
+    criticality: '',
+    startVarianceMinutes: null,
+    endVarianceMinutes: null,
+    durationVarianceMinutes: null,
+    appliedSettingsLevel: '',
+    operationalExceptionCodes: delivery.flags.map((flag) => flag.code),
+    buckets: [],
+  }
 }
 
 function bucketLabel(bucket: EmployeeVisitBucket): string {
@@ -184,13 +195,12 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
       s.can('schedule_timelines.read' as never),
   )
   const canOpenSchedule = useAuthStore((s) => s.can('schedule_timelines.read' as never))
+  const canReadEcm = useAuthStore((s) => s.can('ecm.read') || s.can('ecm.monitor'))
 
   const [month, setMonth] = React.useState(currentOrgMonth)
   const [filter, setFilter] = React.useState<StatusFilter>('all')
   const [codeFilter, setCodeFilter] = React.useState<CodeFilter>({ kind: 'none' })
   const [showStatusSamples, setShowStatusSamples] = React.useState(false)
-  const tableScrollRef = React.useRef<HTMLDivElement>(null)
-  const [isScrolledX, setIsScrolledX] = React.useState(false)
 
   const settingsQuery = useGeneralSettings(canRead)
   React.useEffect(() => {
@@ -198,7 +208,6 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
       syncOrganisationOperationalTimezone(settingsQuery.data.timezone)
     }
   }, [settingsQuery.data?.timezone])
-  const { formatDate } = useOrganisationDisplayFormat()
   const query = useEmployeeVisits(employeeId, month, canRead)
   const organisationTimezone =
     query.data?.organisationTimezone?.trim() ||
@@ -295,18 +304,36 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
     })
   }, [])
 
-  React.useEffect(() => {
-    const el = tableScrollRef.current
-    if (!el) return
-    const update = () => setIsScrolledX(el.scrollLeft > 0)
-    update()
-    el.addEventListener('scroll', update, { passive: true })
-    window.addEventListener('resize', update)
-    return () => {
-      el.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
-    }
-  }, [visible.length])
+  // Same columns and timings as ECM live monitoring, for the visits shown below.
+  const ecmQuery = useEcmVisitsTable(
+    { employeeId, ...monthDateRange(month) },
+    canRead && canReadEcm,
+  )
+  const tableRows = React.useMemo(() => {
+    const ecmByJob = new Map((ecmQuery.data?.rows ?? []).map((row) => [row.scheduledJobId, row]))
+    return visible.map(
+      ({ job, delivery, isSample }) =>
+        (!isSample && ecmByJob.get(job.id)) || jobToEcmRow(job, delivery),
+    )
+  }, [ecmQuery.data?.rows, visible])
+  const sampleJobIds = React.useMemo(
+    () => new Set(visible.filter((r) => r.isSample).map((r) => r.job.id)),
+    [visible],
+  )
+  // Sample visits are demo rows — never exported.
+  const exportRows = tableRows.filter((row) => !sampleJobIds.has(row.scheduledJobId))
+  const downloadCsv = () => {
+    // BOM so Excel reads UTF-8 characters correctly.
+    const blob = new Blob(['﻿', buildEcmVisitsCsv(exportRows)], {
+      type: 'text/csv;charset=utf-8;',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `employee-visits-${month}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   if (!canRead) {
     return (
@@ -552,8 +579,23 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                   {query.data?.totalMinutes
                     ? ` | ${(query.data.totalMinutes / 60).toFixed(1)}h planned`
                     : ''}
+                  {ecmQuery.isLoading ? ' | loading ECM timings…' : ''}
+                  {!canReadEcm || ecmQuery.isError
+                    ? ' | punctuality and variance need ECM access'
+                    : ''}
                 </p>
               </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                leftIcon={<Download className="h-3.5 w-3.5" />}
+                disabled={exportRows.length === 0 || ecmQuery.isLoading}
+                onClick={downloadCsv}
+                data-testid="employee-visits-export-csv"
+              >
+                Export CSV
+              </Button>
             </div>
 
             {visible.length === 0 ? (
@@ -566,206 +608,37 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                 </p>
               </div>
             ) : (
-              <div
-                ref={tableScrollRef}
-                className="max-h-[min(70vh,36rem)] overflow-auto rounded-lg border border-border"
-              >
-                <table className="w-full min-w-[920px] border-separate border-spacing-0 text-sm">
-                  <thead>
-                    <tr className="bg-muted/40">
-                      <th
-                        className={cn(
-                          'sticky left-0 top-0 z-40 w-[11rem] min-w-[11rem] border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground',
-                          isScrolledX && 'border-r shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]',
-                        )}
+              <EcmVisitsTable
+                rows={tableRows}
+                className="max-h-[min(70vh,36rem)] overflow-auto"
+                rowClassName={(row) =>
+                  sampleJobIds.has(row.scheduledJobId) ? 'bg-amber-500/5' : undefined
+                }
+                renderAction={(row) =>
+                  sampleJobIds.has(row.scheduledJobId) ? (
+                    <span className="text-xs text-muted-foreground">Verify</span>
+                  ) : canOpenSchedule ? (
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link
+                        to="/scheduling/visits/$jobId"
+                        params={{ jobId: row.scheduledJobId }}
+                        search={{
+                          date:
+                            dayKeyFromInstant(row.plannedStartDateTime) ||
+                            row.plannedStartDateTime.slice(0, 10),
+                          returnTo: `/employee/${employeeId}/edit?tab=visits`,
+                        }}
+                        className="inline-flex items-center gap-1"
                       >
-                        Visit
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
-                        Planned
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
-                        Actual
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
-                        Duration
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
-                        Status
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
-                        Exceptions
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-right text-xs font-medium text-muted-foreground">
                         Open
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visible.map(({ job, bucket, delivery, isSample }) => {
-                      const outcome = employeeVisitOutcomeLabel(job, bucket)
-                      const actualStart = employeeVisitActualStart(job)
-                      const actualEnd = employeeVisitActualEnd(job)
-                      const plannedDurationMins = employeeVisitPlannedDurationMinutes(job)
-                      const actualDurationMins = employeeVisitActualDurationMinutes(job)
-                      const stickyBg = isSample
-                        ? 'bg-amber-50 dark:bg-amber-950/20'
-                        : 'bg-card'
-                      const stickyHover = 'group-hover:bg-muted'
-                      const address = [job.address, job.postcode].filter(Boolean).join(', ')
-
-                      return (
-                        <tr
-                          key={job.id}
-                          className={cn(
-                            'group border-b border-border last:border-0 hover:bg-muted/20',
-                            isSample && 'bg-amber-500/5',
-                          )}
-                        >
-                          <td
-                            className={cn(
-                              'sticky left-0 z-20 w-[11rem] min-w-[11rem] border-b border-border px-3 py-2.5 align-top',
-                              stickyBg,
-                              stickyHover,
-                              isScrolledX &&
-                                'border-r shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]',
-                            )}
-                          >
-                            <p className="font-medium leading-snug">
-                              {serviceUserLabel(job.serviceUser)}
-                            </p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              {formatVisitDate(job.scheduledStartDateTime, formatDate)}
-                              {employeeVisitSlotLabel(job)
-                                ? ` | ${employeeVisitSlotLabel(job)}`
-                                : ''}
-                            </p>
-                            {job.visitRef ? (
-                              <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
-                                {job.visitRef}
-                              </p>
-                            ) : null}
-                            {address ? (
-                              <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground" title={address}>
-                                {address}
-                              </p>
-                            ) : null}
-                            {isSample ? (
-                              <span className="mt-1 inline-block text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200">
-                                Sample
-                              </span>
-                            ) : null}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 align-top whitespace-nowrap tabular-nums text-muted-foreground">
-                            {formatTimeRange(
-                              job.scheduledStartDateTime,
-                              job.scheduledEndDateTime,
-                            )}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 align-top whitespace-nowrap tabular-nums text-muted-foreground">
-                            {formatTimeRange(actualStart, actualEnd)}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 align-top whitespace-nowrap tabular-nums">
-                            {formatDurationLabel(plannedDurationMins)} /{' '}
-                            {formatDurationLabel(actualDurationMins)}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 align-top">
-                            <button
-                              type="button"
-                              className="block w-fit text-left"
-                              title={`${delivery.lifecycleLabel} — click to filter`}
-                              onClick={() =>
-                                selectCodeFilter({
-                                  kind: 'lifecycle',
-                                  code: delivery.lifecycleStatus,
-                                })
-                              }
-                            >
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  'w-fit cursor-pointer font-medium',
-                                  employeeVisitOutcomeBadgeClass(job, bucket),
-                                )}
-                              >
-                                {outcome}
-                              </Badge>
-                            </button>
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 align-top">
-                            <div className="flex max-w-[180px] flex-wrap gap-1">
-                              {delivery.flags.length === 0 ? (
-                                <span className="text-muted-foreground">-</span>
-                              ) : (
-                                delivery.flags.slice(0, 4).map((flag) => (
-                                  <Badge
-                                    key={`${job.id}-${flag.code}`}
-                                    variant="outline"
-                                    className={cn(
-                                      'w-fit cursor-pointer text-[10px] font-medium',
-                                      flag.severity === 'critical' &&
-                                        'bg-destructive/10 text-destructive border-destructive/30',
-                                      flag.severity === 'warning' &&
-                                        'bg-orange-500/10 text-orange-800 border-orange-500/30 dark:text-orange-200',
-                                      flag.severity === 'info' &&
-                                        'bg-sky-500/10 text-sky-800 border-sky-500/30 dark:text-sky-200',
-                                    )}
-                                    title={`${flag.detail ?? flag.label} - click to filter`}
-                                    onClick={() => {
-                                      if (
-                                        flag.code === 'LATE_START' ||
-                                        flag.code === 'CRITICALLY_LATE' ||
-                                        flag.code === 'EARLY_ARRIVAL' ||
-                                        flag.code === 'ON_TIME'
-                                      ) {
-                                        selectCodeFilter({ kind: 'timing', code: flag.code })
-                                      } else if (
-                                        flag.code === 'MISSED' ||
-                                        flag.code === 'CANCELLED' ||
-                                        flag.code === 'CALLED_OFF'
-                                      ) {
-                                        selectCodeFilter({ kind: 'lifecycle', code: flag.code })
-                                      } else {
-                                        selectCodeFilter({ kind: 'duration', code: flag.code })
-                                      }
-                                    }}
-                                  >
-                                    {flag.label}
-                                  </Badge>
-                                ))
-                              )}
-                            </div>
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 align-top text-right">
-                            {isSample ? (
-                              <span className="text-xs text-muted-foreground">Verify</span>
-                            ) : canOpenSchedule ? (
-                              <Button variant="ghost" size="sm" asChild>
-                                <Link
-                                  to="/scheduling/visits/$jobId"
-                                  params={{ jobId: job.id }}
-                                  search={{
-                                    date:
-                                      dayKeyFromInstant(job.scheduledStartDateTime) ||
-                                      job.scheduledStartDateTime.slice(0, 10),
-                                    returnTo: `/employee/${employeeId}/edit?tab=visits`,
-                                  }}
-                                  className="inline-flex items-center gap-1"
-                                >
-                                  Open
-                                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                                </Link>
-                              </Button>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">?</span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">?</span>
+                  )
+                }
+              />
             )}
           </ContentCard>
 

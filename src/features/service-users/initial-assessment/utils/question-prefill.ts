@@ -26,6 +26,8 @@ export type PrefillContext = {
 
 const PROFILE_REF_ETHNICITY = 'SU_PROFILE_ETHNICITY'
 const PROFILE_REF_LANGUAGE = 'SU_PROFILE_LANGUAGE'
+const PROFILE_REF_SEX = 'SU_PROFILE_SEX'
+const PROFILE_REF_SEXUAL_ORIENTATION = 'SU_PROFILE_SEXUAL_ORIENTATION'
 
 function profileReferenceValue(
   detail: ServiceUserDetail,
@@ -56,11 +58,11 @@ function formatGpContact(detail: ServiceUserDetail): string {
   if (!gp) return ''
   const name = [gp.firstName, gp.lastName].filter(Boolean).join(' ').trim()
   const phone = (gp.mobile || gp.phone || '').trim()
-  const other = [gp.address, gp.notes].filter((x) => x?.trim()).join('\n').trim()
+  const address = gp.address?.trim() ?? ''
   return [
     name ? `Name: ${name}` : '',
     phone ? `Tel: ${phone}` : '',
-    other,
+    address ? `Address: ${address}` : '',
   ]
     .filter(Boolean)
     .join('\n')
@@ -123,8 +125,9 @@ export function mapGenderToAssessmentOption(
 ): string {
   const code = gender?.code?.trim().toLowerCase() ?? ''
   const name = gender?.name?.trim().toLowerCase() ?? ''
-  if (code === 'female' || code === 'f' || name === 'female') return 'female'
-  if (code === 'male' || code === 'm' || name === 'male') return 'male'
+  if (code === 'f' || name === 'female') return 'female'
+  if (code === 'm' || name === 'male') return 'male'
+  if (code) return code
   if (code.includes('non') || name.includes('non-binary') || name.includes('non binary')) {
     return 'non_binary'
   }
@@ -165,6 +168,8 @@ export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
   const cultureParts = [about.religiousSpiritualPreferences].filter((s) => s?.trim())
   const ethnicityStored = profileReferenceValue(detail, PROFILE_REF_ETHNICITY)
   const languageStored = profileReferenceValue(detail, PROFILE_REF_LANGUAGE)
+  const sexStored = profileReferenceValue(detail, PROFILE_REF_SEX)
+  const sexualOrientationStored = profileReferenceValue(detail, PROFILE_REF_SEXUAL_ORIENTATION)
 
   const aboutMePrefill: Record<string, string> = {
     aboutMe_whatIsMostImportantToMe: about.whatIsMostImportantToMe?.trim() ?? '',
@@ -220,6 +225,8 @@ export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
     preferredName: detail.preferredName?.trim() || detail.firstName || '',
     dateOfBirth: detail.dateOfBirth?.slice(0, 10) ?? '',
     gender: mapGenderToAssessmentOption(detail.gender),
+    sex: prefillLookupAnswerCode(sexStored, lookups?.sexes),
+    sexualOrientation: prefillLookupAnswerCode(sexualOrientationStored, lookups?.sexualOrientations),
     addressContact: [
       formatAddress(detail),
       detail.phone ? `Tel: ${detail.phone}` : '',
@@ -285,6 +292,8 @@ const PREFILL_SOURCE_BY_KEY: Readonly<Record<string, string>> = {
   preferredName: 'Profile',
   dateOfBirth: 'Profile',
   gender: 'Profile',
+  sex: 'Profile',
+  sexualOrientation: 'Profile',
   addressContact: 'Profile',
   ethnicity: 'Profile',
   language: 'Profile',

@@ -17,8 +17,8 @@ export const schedulingKeys = {
 
   reportTypes: () => [...schedulingKeys.all(), 'report-types'] as const,
 
-  report: (endpoint: string, from: string, to: string, generate: boolean) =>
-    [...schedulingKeys.all(), 'report', endpoint, from, to, generate] as const,
+  report: (endpoint: string, params: Record<string, string | number | undefined>) =>
+    [...schedulingKeys.all(), 'report', endpoint, params] as const,
 
   housekeeping: () => [...schedulingKeys.all(), 'housekeeping'] as const,
 

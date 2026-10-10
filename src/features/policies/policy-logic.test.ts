@@ -443,6 +443,8 @@ describe('partial draft round-trip', () => {
       primaryCategoryId: 'c1',
       source: 'EDITOR',
       ownerId: 'u1',
+      // New policies are read and signed by default.
+      acknowledgementRequired: true,
     })
     expect(payload.applicability).toBeUndefined()
     expect(payload.contentHtml).toBeUndefined()

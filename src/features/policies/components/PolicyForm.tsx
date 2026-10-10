@@ -47,6 +47,7 @@ export type PolicyFormValues = {
   approverId: string
   effectiveDate: string
   reviewDate: string
+  acknowledgementRequired: boolean
   contentMode: PolicyContentMode
   contentHtml: string
   contentJson: Record<string, unknown> | null
@@ -70,6 +71,8 @@ export function emptyPolicyForm(userId: string, organisationWide: boolean): Poli
     approverId: '',
     effectiveDate: '',
     reviewDate: '',
+    // Policies are read and signed by default (as in Access Policies & Procedures).
+    acknowledgementRequired: true,
     contentMode: 'EDITOR',
     contentHtml: '',
     contentJson: null,
@@ -99,6 +102,7 @@ export function formFromPolicy(document: PolicyDocument, version: PolicyVersion 
     approverId: document.approverId ?? '',
     effectiveDate: current?.effectiveDate ?? '',
     reviewDate: current?.reviewDate ?? '',
+    acknowledgementRequired: current?.acknowledgementRequired ?? false,
     contentMode: uploaded ? 'UPLOAD' : 'EDITOR',
     contentHtml: editorHtmlFromVersion(current?.contentJson, current?.contentHtml),
     contentJson: isPolicyTiptapDoc(current?.contentJson) ? current.contentJson.doc : null,
@@ -158,6 +162,7 @@ export function policyFormToWriteInput(values: PolicyFormValues): PolicyWriteInp
   if (values.approverId) payload.approverId = values.approverId
   if (values.effectiveDate) payload.effectiveDate = values.effectiveDate
   if (values.reviewDate) payload.reviewDate = values.reviewDate
+  payload.acknowledgementRequired = values.acknowledgementRequired
   if (values.tagIds.length) payload.tagIds = values.tagIds
   if (applicability.length) payload.applicability = applicability
   if (audiences.length) payload.audiences = audiences
@@ -418,6 +423,23 @@ export function PolicyForm({
             />
           </FormField>
         </div>
+        <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm" htmlFor="policy-ack">
+          <input
+            id="policy-ack"
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 accent-primary"
+            checked={values.acknowledgementRequired}
+            onChange={e => patch({ acknowledgementRequired: e.target.checked })}
+            disabled={readOnly}
+          />
+          <span>
+            <span className="font-medium text-foreground">Staff must read and acknowledge</span>
+            <span className="block text-muted-foreground">
+              Once published, everyone in the audience is asked to confirm they have read and understood this version. A new
+              version asks them again.
+            </span>
+          </span>
+        </label>
       </section>
 
       <section className="space-y-3">

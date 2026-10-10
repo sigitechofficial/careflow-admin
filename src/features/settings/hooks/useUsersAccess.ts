@@ -4,9 +4,11 @@ import {
   fetchOfficeUsers,
   setOfficeUserLocations,
   setOfficeUserRoles,
+  updateOfficeUser,
   BRANCH_SCOPED_ROLE_NAMES,
   COMPANY_WIDE_ROLE_NAMES,
   type CreateOfficeUserInput,
+  type UpdateOfficeUserInput,
 } from '@/features/settings/api/users-access.api'
 import { settingsKeys } from '@/features/settings/keys'
 import { apiErrorMessage } from '@/shared/lib/api-error-message'
@@ -55,6 +57,29 @@ export function useCreateOfficeUser() {
     onError: (err) => {
       useToastStore.getState().push({
         title: 'Could not create user',
+        description: apiErrorMessage(err),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useUpdateOfficeUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, ...input }: UpdateOfficeUserInput & { userId: string }) =>
+      updateOfficeUser(userId, input),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: settingsKeys.officeUsers() })
+      useToastStore.getState().push({
+        title: 'Office user updated',
+        description: vars.password ? 'The new password works from their next sign-in.' : undefined,
+        variant: 'success',
+      })
+    },
+    onError: (err) => {
+      useToastStore.getState().push({
+        title: 'Could not update user',
         description: apiErrorMessage(err),
         variant: 'destructive',
       })

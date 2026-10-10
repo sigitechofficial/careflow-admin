@@ -4,6 +4,9 @@ import {
   deletePayCard,
   fetchPayCard,
   fetchPayCards,
+  fetchPayCardVersions,
+  fetchEmployeePayCardHistory,
+  changeEmployeePayCard,
   updatePayCard,
   fetchPayCardAssignmentPreview,
   assignPayCardToMatching,
@@ -14,7 +17,9 @@ import {
   deleteEmployeeFunderPayAssignment,
 } from '@/features/billing/api/pay-cards.api'
 import { billingKeys } from '@/features/billing/keys'
+import { employeeKeys } from '@/features/employees/keys'
 import type {
+  ChangeEmployeePayCardInput,
   EmployeeFunderPayAssignmentInput,
   PayCardInput,
 } from '@/features/billing/types/billing-cards.types'
@@ -31,6 +36,36 @@ export function usePayCard(id: string | null, enabled = true) {
     queryKey: billingKeys.payCard(id ?? ''),
     queryFn: () => fetchPayCard(id!),
     enabled: enabled && !!id,
+  })
+}
+
+/** Rate history of a pay card (every version with its own rules). */
+export function usePayCardVersions(id: string | null, enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.payCardVersions(id ?? ''),
+    queryFn: () => fetchPayCardVersions(id!),
+    enabled: enabled && !!id,
+  })
+}
+
+/** Dated history of a carer's own pay card. */
+export function useEmployeePayCardHistory(employeeId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.employeePayCardHistory(employeeId ?? ''),
+    queryFn: () => fetchEmployeePayCardHistory(employeeId!),
+    enabled: enabled && !!employeeId,
+  })
+}
+
+/** Move one carer to another pay card (or a new personal card) from a date, e.g. promotion. */
+export function useChangeEmployeePayCard(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: ChangeEmployeePayCardInput) => changeEmployeePayCard(employeeId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+      void qc.invalidateQueries({ queryKey: employeeKeys.detail(employeeId) })
+    },
   })
 }
 

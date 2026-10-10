@@ -919,6 +919,7 @@ export function ScheduleJobCompleteDialog({
               <VisitJobTasksChecklist
                 idPrefix="schedule-complete-visit-task"
                 tasks={visitTasks}
+                jobId={job?.id}
                 disabled={busy}
                 loading={visitTasksQuery.isLoading}
                 roundLabel={visitTasksRoundLabel}

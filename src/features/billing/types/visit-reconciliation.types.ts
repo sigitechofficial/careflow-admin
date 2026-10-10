@@ -41,6 +41,9 @@ export function listBlockingExceptionCodes(
 
 export type VisitOverrunDecision = 'PENDING' | 'APPROVED' | 'REJECTED'
 
+/** Acknowledged overrun: price on the planned slot or the actual clock times. */
+export type VisitOverrunTimeBasis = 'PLANNED' | 'ACTUAL'
+
 export type VisitReconciliationRow = {
   id: string
   visitRef: string
@@ -65,6 +68,9 @@ export type VisitReconciliationRow = {
   overrunMinutes: number | null
   overrunReason: string | null
   overrunDecision: VisitOverrunDecision | null
+  /** Null on both = legacy acknowledged rule (carer pay actual, charge from actual). */
+  overrunPayBasis?: VisitOverrunTimeBasis | null
+  overrunBillBasis?: VisitOverrunTimeBasis | null
   approvalNotes: string | null
   /** Visit-log columns (client format). */
   emonitored?: 'LOGGED' | 'NOT LOG'

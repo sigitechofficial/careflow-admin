@@ -8,6 +8,8 @@ export type EmployeeReviewRow = {
   lastDone: string | null
   nextDue: string | null
   notes: string | null
+  /** Supporting document (stored in employee Documents). */
+  documentUrl: string | null
   reviewedById: string | null
   reviewType?: {
     id: string
@@ -50,6 +52,7 @@ export async function createEmployeeReview(
     lastDone?: string
     nextDue?: string
     notes?: string
+    documentUrl?: string
   },
 ): Promise<EmployeeReviewRow> {
   const res = await apiJson<ApiEnvelope<EmployeeReviewRow>>(`/employees/${employeeId}/reviews`, {
@@ -68,6 +71,7 @@ export async function updateEmployeeReview(
     lastDone?: string | null
     nextDue?: string | null
     notes?: string | null
+    documentUrl?: string
   },
 ): Promise<EmployeeReviewRow> {
   const res = await apiJson<ApiEnvelope<EmployeeReviewRow>>(

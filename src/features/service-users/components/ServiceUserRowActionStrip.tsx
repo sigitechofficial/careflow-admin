@@ -12,6 +12,11 @@ import {
   type ServiceUserFigmaReportId,
 } from '@/features/service-users/figma-action-icons'
 import { carePlanListStatusPresentation } from '@/features/service-users/care-plans/care-plan-list-status'
+import {
+  SERVICE_USER_RISK_ICON,
+  ServiceUserRiskIcon,
+  toServiceUserRiskCode,
+} from '@/features/service-users/components/ServiceUserRiskIcon'
 
 /** Locked destinations for list row actions — Profile work must not change these. */
 export const SERVICE_USER_ROW_ACTION_LINKS = {
@@ -184,6 +189,7 @@ export function ServiceUserRowActionStrip({ user, className, archived, onFlashCl
   const id = user.id
   const params = { serviceUserId: id }
   const carePlanIcon = carePlanListStatusPresentation(user.carePlanListStatus)
+  const riskCode = toServiceUserRiskCode(user.riskLevel?.code)
 
   if (archived) {
     return (
@@ -222,16 +228,27 @@ export function ServiceUserRowActionStrip({ user, className, archived, onFlashCl
           figmaIcon="flash"
         />
       )}
+      {/* Care plan review status and risk profile — shown on every row, compact included. */}
+      {riskCode ? (
+        <span
+          title={user.riskLevel?.name ? `${user.riskLevel.name} risk` : SERVICE_USER_RISK_ICON[riskCode].label}
+          data-testid="su-row-risk"
+          data-risk={riskCode}
+          className="inline-flex"
+        >
+          <ServiceUserRiskIcon code={riskCode} className="h-8 w-8" />
+        </span>
+      ) : null}
+      <CircleLink
+        to={SERVICE_USER_ROW_ACTION_LINKS.carePlan.to}
+        params={params}
+        title={carePlanIcon.title}
+        testId="su-action-care-plan"
+        figmaSrc={carePlanIcon.src}
+        carePlanListStatus={carePlanIcon.status}
+      />
       {!compact && (
         <>
-          <CircleLink
-            to={SERVICE_USER_ROW_ACTION_LINKS.carePlan.to}
-            params={params}
-            title={carePlanIcon.title}
-            testId="su-action-care-plan"
-            figmaSrc={carePlanIcon.src}
-            carePlanListStatus={carePlanIcon.status}
-          />
           <CircleLink
             to={SERVICE_USER_ROW_ACTION_LINKS.details.to}
             params={params}

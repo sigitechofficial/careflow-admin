@@ -176,7 +176,13 @@ export async function rejectVisitReconciliation(
 
 export async function approveVisitOverrun(
   id: string,
-  body?: { notes?: string },
+  body?: {
+    notes?: string
+    /** Price on the planned slot or the actual clock times. */
+    timeBasis?: 'PLANNED' | 'ACTUAL'
+    /** Which side(s) the time basis applies to; the other side stays planned. */
+    applyTo?: 'PAY' | 'CHARGE' | 'BOTH'
+  },
 ): Promise<VisitReconciliationDetail> {
   const res = await apiJson<ApiEnvelope<VisitReconciliationDetail>>(
     `/billing/visit-reconciliations/${id}/overrun/approve`,
@@ -229,16 +235,50 @@ export async function backfillVisitReconciliations(body?: {
   return res.data
 }
 
-export async function recalculateVisitReconciliationAmounts(body?: {
+export type VisitReconciliationRecalculateSummary = {
+  reEvaluated: number
+  /** Visits whose pay or charge amount changed. */
+  changed: number
+  unchanged: number
+  failed: number
+  /** Selected rows skipped because they are locked. */
+  skippedLocked: number
+  /** Only the first 1000 rows are processed per run. */
+  limitReached: boolean
+  totals: {
+    payableBefore: number
+    payableAfter: number
+    billableBefore: number
+    billableAfter: number
+  }
+  /** Each recalculated visit with its amounts before and after. */
+  visits: Array<{
+    id: string
+    visitRef: string
+    plannedStartDateTime: string
+    serviceUserName: string | null
+    employeeName: string | null
+    payableBefore: number | null
+    payableAfter: number | null
+    billableBefore: number | null
+    billableAfter: number | null
+    changed: boolean
+    failed: boolean
+  }>
+  ids: string[]
+}
+
+export async function recalculateVisitReconciliationAmounts(body: {
   ids?: string[]
   dateFrom?: string
   dateTo?: string
-}): Promise<{ reEvaluated: number; ids: string[] }> {
-  const res = await apiJson<ApiEnvelope<{ reEvaluated: number; ids: string[] }>>(
+  reason: string
+}): Promise<VisitReconciliationRecalculateSummary> {
+  const res = await apiJson<ApiEnvelope<VisitReconciliationRecalculateSummary>>(
     '/billing/visit-reconciliations/recalculate-amounts',
     {
       method: 'POST',
-      body: JSON.stringify(body ?? {}),
+      body: JSON.stringify(body),
     },
   )
   return res.data

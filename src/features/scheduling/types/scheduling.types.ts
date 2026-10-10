@@ -367,4 +367,6 @@ export type DateRangeQuery = {
   scheduleAreaId?: string
   includeCancelled?: boolean
   export?: boolean
+  /** Branch (organisation location) filter. */
+  locationId?: string
 }

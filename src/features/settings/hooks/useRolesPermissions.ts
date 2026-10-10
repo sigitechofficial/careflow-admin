@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  assignRoleResponsibility,
   createRole,
   fetchPermissionsCatalog,
+  fetchRoleResponsibilities,
   fetchRoles,
   setRolePermissions,
   updateRole,
@@ -87,6 +89,41 @@ export function useSetRolePermissions() {
         description: apiErrorMessage(err),
         variant: 'destructive',
       })
+    },
+  })
+}
+
+export function useRoleResponsibilities(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.roleResponsibilities(),
+    queryFn: ({ signal }) => fetchRoleResponsibilities(signal),
+    enabled,
+  })
+}
+
+/** Save several jobs at once (one toast). */
+export function useAssignRoleResponsibilities() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (changes: Array<{ key: string; roleIds: string[] }>) => {
+      for (const c of changes) await assignRoleResponsibility(c.key, c.roleIds)
+    },
+    onSuccess: (_data, changes) => {
+      useToastStore.getState().push({
+        title: changes.length === 1 ? 'Responsibility saved' : `${changes.length} responsibilities saved`,
+        variant: 'success',
+      })
+    },
+    onError: (err) => {
+      useToastStore.getState().push({
+        title: 'Could not save responsibilities',
+        description: apiErrorMessage(err),
+        variant: 'destructive',
+      })
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: settingsKeys.roleResponsibilities() })
+      void qc.invalidateQueries({ queryKey: settingsKeys.identityRoles() })
     },
   })
 }

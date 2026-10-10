@@ -13,6 +13,8 @@ import {
 import { Button } from '@/shared/ui/button'
 import { AuthoriseManualCheckInDialog } from '@/features/ecm/components/AuthoriseManualCheckInDialog'
 import { RejectManualCheckInDialog } from '@/features/ecm/components/RejectManualCheckInDialog'
+import { useVisitVoiceNotes } from '@/features/scheduling/hooks/useVisitVoiceNotes'
+import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
 import { AllowCarerContinueDialog } from '@/features/ecm/components/AllowCarerContinueDialog'
 import {
   useAcknowledgeEcmException,
@@ -87,15 +89,20 @@ function sosDisplayList(alerts: UrgentOfficeDialogAlert[], rows: EcmExceptionRow
 }
 
 function SosSection({
+  jobId,
   alerts,
   rows,
   ackAction,
 }: {
+  jobId: string
   alerts: UrgentOfficeDialogAlert[]
   rows: EcmExceptionRow[]
   ackAction?: React.ReactNode
 }) {
   const items = sosDisplayList(alerts, rows)
+  // SOS audio uploads right after the alert, so keep checking while the popup is open.
+  const { groups } = useVisitVoiceNotes(jobId || null, { refetchInterval: 10_000 })
+  const voiceNotes = groups.filter((g) => g.entryType === 'sos').flatMap((g) => g.voiceNotes)
   if (items.length === 0) return null
 
   return (
@@ -129,6 +136,7 @@ function SosSection({
           </li>
         ))}
       </ul>
+      <VoiceNoteList voiceNotes={voiceNotes} label="Carer voice notes" />
       {ackAction}
     </section>
   )
@@ -194,11 +202,13 @@ function LeftAreaSection({
 }
 
 function ManualAuthSection({
+  jobId,
   row,
   fallbackMessage,
   showHeading,
   onDecided,
 }: {
+  jobId: string
   row: EcmExceptionRow | undefined
   fallbackMessage: string
   showHeading: boolean
@@ -213,6 +223,11 @@ function ManualAuthSection({
   const note = grant?.carerNote?.trim()
   const href = mapsHref(grant?.latitude, grant?.longitude, grant?.locationUnavailable)
   const busy = authorise.isPending || reject.isPending
+  // The request reaches the office first; its voice notes upload right after, so keep checking.
+  const { groups } = useVisitVoiceNotes(row?.scheduledJobId ?? jobId, { refetchInterval: 10_000 })
+  const voiceNotes = groups
+    .filter((g) => g.entryType === 'check_in_request')
+    .flatMap((g) => g.voiceNotes)
 
   return (
     <section className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
@@ -229,11 +244,16 @@ function ManualAuthSection({
             {note}
           </>
         ) : row ? (
-          'The carer asked to check in without a geo match. No note was added.'
+          voiceNotes.length ? (
+            'The carer asked to check in without a geo match.'
+          ) : (
+            'The carer asked to check in without a geo match. No note was added.'
+          )
         ) : (
           fallbackMessage
         )}
       </p>
+      <VoiceNoteList voiceNotes={voiceNotes} label="Carer voice notes" />
       {href ? (
         <a
           href={href}
@@ -418,6 +438,7 @@ export function UrgentOfficeAlertDialog({
         <DialogBody className="space-y-3">
           {showSos ? (
             <SosSection
+              jobId={visit?.scheduledJobId ?? ''}
               alerts={sosAlertList}
               rows={sosRows}
               ackAction={
@@ -445,6 +466,7 @@ export function UrgentOfficeAlertDialog({
           ) : null}
           {showAuth ? (
             <ManualAuthSection
+              jobId={visit?.scheduledJobId ?? ''}
               row={authRow}
               showHeading={sectionCount > 1}
               fallbackMessage={

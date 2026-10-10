@@ -22,7 +22,7 @@ export const contentBodyClass = 'text-sm text-muted-foreground'
 export const contentHelperClass = 'text-xs text-muted-foreground'
 
 /** Validation and destructive helper text. */
-export const contentHelperErrorClass = 'text-xs font-medium text-destructive'
+export const contentHelperErrorClass = 'text-xs font-medium text-destructive dark:text-red-400'
 
 /** Compact status badge (On/Off, fit labels, version status). */
 export const contentBadgeClass =

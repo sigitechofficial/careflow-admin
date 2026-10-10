@@ -9,10 +9,7 @@ import {
   useUpdateServiceUserContact,
 } from '@/features/service-users/hooks/useServiceUserMutations'
 import type { ServiceUserDetail, ServiceUserDetailContact } from '@/features/service-users/api'
-import {
-  InitialAssessmentTextarea as Textarea,
-  plainTextFromHtml,
-} from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
+import { plainTextFromHtml } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { holisticQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import type { InitialAssessmentAnswerInput, InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
 import {
@@ -35,7 +32,9 @@ type Props = {
 
 type GpContactDraft = {
   name: string
+  /** Contact number. */
   phone: string
+  /** GP / surgery address (kept as `otherDetails` for older callers). */
   otherDetails: string
 }
 
@@ -54,15 +53,23 @@ function gpContactPhone(contact: ServiceUserDetailContact | undefined): string {
 }
 
 function gpContactOther(contact: ServiceUserDetailContact | undefined): string {
-  if (!contact) return ''
-  return [contact.address, contact.notes].filter((x) => x?.trim()).join('\n').trim()
+  return contact?.address?.trim() ?? ''
+}
+
+/** One-line address (older answers may hold several lines / rich text). */
+function singleLine(text: string): string {
+  return plainTextFromHtml(text.replace(/<br\s*\/?>|<\/(p|div|li)>/gi, '\n'))
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(', ')
 }
 
 export function formatGpContactAssessmentText(draft: GpContactDraft): string {
   return [
     draft.name.trim() ? `Name: ${draft.name.trim()}` : '',
     draft.phone.trim() ? `Tel: ${draft.phone.trim()}` : '',
-    draft.otherDetails.trim(),
+    draft.otherDetails.trim() ? `Address: ${singleLine(draft.otherDetails)}` : '',
   ]
     .filter(Boolean)
     .join('\n')
@@ -88,9 +95,10 @@ export function parseGpContactAssessmentText(text: string | undefined | null): G
     rest = rest.slice(telMatch[0].length).replace(/^\r?\n/, '')
   }
 
-  const otherDetails = rest.trim()
+  // "Address: …" from this widget; older answers kept the address / surgery as plain lines.
+  const otherDetails = singleLine(rest.trim().replace(/^Address:\s*/i, ''))
   if (!name && !phone && !nameMatch && !telMatch) {
-    return { name: '', phone: '', otherDetails: raw }
+    return { name: '', phone: '', otherDetails }
   }
 
   return { name, phone, otherDetails }
@@ -199,7 +207,7 @@ export function InitialAssessmentGpContactField({
         firstName: firstName.trim() || 'GP',
         lastName: lastName?.trim() || undefined,
         phone: valueOrNull(draft.phone) ?? undefined,
-        notes: valueOrNull(plainTextFromHtml(draft.otherDetails)) ?? undefined,
+        address: valueOrNull(singleLine(draft.otherDetails)) ?? undefined,
       }
 
       if (gpContact?.id) {
@@ -208,7 +216,7 @@ export function InitialAssessmentGpContactField({
           body: {
             ...(nameChanged ? { firstName: payload.firstName, lastName: payload.lastName } : {}),
             ...(phoneChanged ? { phone: payload.phone } : {}),
-            ...(otherChanged ? { notes: payload.notes } : {}),
+            ...(otherChanged ? { address: payload.address } : {}),
           },
         })
       } else if (firstName.trim()) {
@@ -292,11 +300,11 @@ export function InitialAssessmentGpContactField({
         <div className="space-y-1">
           {simple ? (
             <Label htmlFor={`${question.id}-gpPhone`} className={IA_LABEL_SECONDARY_CLASS}>
-              GP phone
+              GP contact number
             </Label>
           ) : (
             <Label htmlFor={`${question.id}-gpPhone`} className={IA_LABEL_SECONDARY_CLASS}>
-              Phone
+              Contact number
             </Label>
           )}
           <Input
@@ -305,29 +313,23 @@ export function InitialAssessmentGpContactField({
             onChange={(e) => setField('phone', e.target.value)}
             onBlur={() => void persistProfile()}
             disabled={disabled || gpLocked('phone')}
-            placeholder="Phone number"
+            placeholder="Contact number"
             className={cn('h-10 text-base', simple && 'w-full')}
           />
         </div>
-        <div className={cn('space-y-1.5', !simple && 'sm:col-span-2')}>
+        <div className={cn('space-y-1', !simple && 'sm:col-span-2')}>
           <Label htmlFor={`${question.id}-gpOther`} className={IA_LABEL_SECONDARY_CLASS}>
-            Surgery / other details
+            {simple ? 'GP address' : 'Address'}
           </Label>
-          <div className="block w-full">
-            <Textarea
-              id={`${question.id}-gpOther`}
-              value={draft.otherDetails}
-              onChange={(e) => setField('otherDetails', e.target.value)}
-              onBlur={() => void persistProfile()}
-              disabled={disabled || gpLocked('otherDetails')}
-              rows={simple ? 2 : 3}
-              compact={simple}
-              placeholder={
-                simple ? 'Enter details…' : 'Surgery name, address, or other GP contact notes'
-              }
-              className={cn(disabled && 'opacity-70', simple && 'min-h-[72px]')}
-            />
-          </div>
+          <Input
+            id={`${question.id}-gpOther`}
+            value={draft.otherDetails}
+            onChange={(e) => setField('otherDetails', e.target.value)}
+            onBlur={() => void persistProfile()}
+            disabled={disabled || gpLocked('otherDetails')}
+            placeholder="Surgery / GP address"
+            className={cn('h-10 text-base', simple && 'w-full')}
+          />
         </div>
       </div>
 

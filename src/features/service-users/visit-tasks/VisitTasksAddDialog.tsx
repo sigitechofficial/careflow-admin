@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Check,
+  Clock,
   ListChecks,
   Loader2,
   Plus,
@@ -55,6 +56,8 @@ export type VisitTaskAddItem = {
   priority: VisitTaskPriorityCode
   schedule: VisitTaskSchedule
   bodyMapRequired: boolean
+  /** HH:mm — the task shows on the visit whose time covers this (like medicine due times). */
+  dueTime: string
 }
 
 type ReviewDraft = {
@@ -67,6 +70,7 @@ type ReviewDraft = {
   priority: VisitTaskPriorityCode
   schedule: VisitTaskSchedule
   bodyMapRequired: boolean
+  dueTime: string
 }
 
 type Props = {
@@ -76,8 +80,12 @@ type Props = {
   catalogue: TaskCatalogueGroup[]
   existingTaskIds: Set<string>
   saving?: boolean
+  /** Pre-fill for each new task's due time (client's slot start for the round, else round time). */
+  defaultDueTime?: string | null
   onAdd: (items: VisitTaskAddItem[]) => void | Promise<void>
 }
+
+const DUE_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 
 function buildTaskLookup(catalogue: TaskCatalogueGroup[]) {
   const map = new Map<
@@ -113,6 +121,7 @@ export function VisitTasksAddDialog({
   catalogue,
   existingTaskIds,
   saving = false,
+  defaultDueTime = null,
   onAdd,
 }: Props) {
   const [step, setStep] = React.useState<1 | 2>(1)
@@ -179,6 +188,7 @@ export function VisitTasksAddDialog({
           priority: DEFAULT_VISIT_TASK_PRIORITY,
           schedule: { ...DEFAULT_VISIT_TASK_SCHEDULE },
           bodyMapRequired: meta.bodyMapRequiredDefault,
+          dueTime: defaultDueTime ?? '',
         }
       })
       .filter((row): row is ReviewDraft => row != null)
@@ -211,6 +221,12 @@ export function VisitTasksAddDialog({
     )
   }
 
+  const updateReviewDueTime = (taskId: string, dueTime: string) => {
+    setReviewDrafts((prev) =>
+      prev.map((draft) => (draft.taskId === taskId ? { ...draft, dueTime } : draft)),
+    )
+  }
+
   const updateReviewBodyMapRequired = (taskId: string, bodyMapRequired: boolean) => {
     setReviewDrafts((prev) =>
       prev.map((draft) => (draft.taskId === taskId ? { ...draft, bodyMapRequired } : draft)),
@@ -230,8 +246,10 @@ export function VisitTasksAddDialog({
     })
   }
 
+  const missingDueTime = reviewDrafts.some((draft) => !DUE_TIME_RE.test(draft.dueTime.trim()))
+
   const handleAdd = async () => {
-    if (reviewDrafts.length === 0 || saving || adding) return
+    if (reviewDrafts.length === 0 || saving || adding || missingDueTime) return
     setAdding(true)
     try {
       await onAdd(
@@ -241,6 +259,7 @@ export function VisitTasksAddDialog({
           priority: draft.priority,
           schedule: draft.schedule,
           bodyMapRequired: draft.bodyMapRequired,
+          dueTime: draft.dueTime.trim(),
         })),
       )
     } finally {
@@ -429,6 +448,29 @@ export function VisitTasksAddDialog({
                     </div>
 
                     <div className="mt-3">
+                      <label
+                        htmlFor={`add-due-time-${draft.taskId}`}
+                        className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                      >
+                        <Clock className="h-3.5 w-3.5 text-primary" aria-hidden />
+                        Due time
+                      </label>
+                      <input
+                        id={`add-due-time-${draft.taskId}`}
+                        type="time"
+                        required
+                        value={draft.dueTime}
+                        onChange={(event) => updateReviewDueTime(draft.taskId, event.target.value)}
+                        aria-invalid={!DUE_TIME_RE.test(draft.dueTime.trim()) || undefined}
+                        className="h-9 w-36 rounded-lg border border-border bg-muted/40 px-2.5 text-sm tabular-nums outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 aria-[invalid=true]:border-destructive"
+                      />
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        The task shows on the visit whose time covers this — or the nearest visit
+                        if none does.
+                      </p>
+                    </div>
+
+                    <div className="mt-3">
                       <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                         Priority
                       </div>
@@ -518,7 +560,8 @@ export function VisitTasksAddDialog({
             <Button
               type="button"
               className="gap-1.5 rounded-xl"
-              disabled={reviewDrafts.length === 0 || isBusy}
+              disabled={reviewDrafts.length === 0 || isBusy || missingDueTime}
+              title={missingDueTime ? 'Set a due time for every task' : undefined}
               onClick={() => void handleAdd()}
             >
               {isBusy ? (

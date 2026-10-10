@@ -360,11 +360,15 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
   const [payableNotes, setPayableNotes] = React.useState('')
   const [billableInput, setBillableInput] = React.useState('')
   const [billableNotes, setBillableNotes] = React.useState('')
+  const [overrunTimeBasis, setOverrunTimeBasis] = React.useState<'PLANNED' | 'ACTUAL'>('ACTUAL')
+  const [overrunApplyTo, setOverrunApplyTo] = React.useState<'PAY' | 'CHARGE' | 'BOTH'>('BOTH')
 
   React.useEffect(() => {
     if (!detail) return
     setTravelMiles(detail.travelMiles != null ? String(detail.travelMiles) : '')
     setOverrunNotes('')
+    setOverrunTimeBasis('ACTUAL')
+    setOverrunApplyTo('BOTH')
     setPayableInput(parseStoredAmount(detail.payableAmount))
     setPayableNotes('')
     setBillableInput(parseStoredAmount(detail.billableAmount))
@@ -454,8 +458,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
         await approveOverrunMutation.mutateAsync({
           id: detail.id,
           notes: overrunNotes.trim() || undefined,
+          timeBasis: overrunTimeBasis,
+          applyTo: overrunApplyTo,
         })
-        toastSuccess('Overrun acknowledged. Gross pay remains on planned visit time.')
+        toastSuccess('Overrun acknowledged. Amounts recalculated with the chosen time.')
       } else {
         await rejectOverrunMutation.mutateAsync({
           id: detail.id,
@@ -622,8 +628,9 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                       Duration overrun — {detail.overrunMinutes} min
                     </h4>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Gross pay and invoice use the planned visit length. The extra{' '}
-                      {detail.overrunMinutes} minutes are flagged for review only.
+                      Until the overrun is acknowledged, carer pay and client charge use the planned
+                      visit length. When acknowledging, choose planned or actual time and which
+                      amount(s) to update.
                     </p>
                   </div>
                   <div className="rounded-md border border-border bg-background/80 px-3 py-2 text-sm">
@@ -637,13 +644,67 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                       Decision:{' '}
                       <span className="font-medium">
                         {detail.overrunDecision === 'APPROVED'
-                          ? 'Acknowledged — pay stays planned'
-                          : 'Rejected — pay stays planned'}
+                          ? detail.overrunPayBasis || detail.overrunBillBasis
+                            ? `Acknowledged — carer pay: ${
+                                detail.overrunPayBasis === 'ACTUAL' ? 'actual time' : 'planned time'
+                              }, client charge: ${
+                                detail.overrunBillBasis === 'ACTUAL' ? 'actual time' : 'planned time'
+                              }`
+                            : 'Acknowledged — carer pay and client charge on actual time'
+                          : 'Rejected — carer pay and client charge stay on planned time'}
                       </span>
                     </p>
                   ) : null}
                   {canManage && pendingOverrun ? (
                     <div className="space-y-2">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <fieldset className="space-y-1.5" disabled={overrunBusy}>
+                          <legend className="text-xs text-muted-foreground">Calculate using</legend>
+                          {(
+                            [
+                              ['ACTUAL', 'Actual time (clock-in to clock-out)'],
+                              ['PLANNED', 'Planned time (booked visit)'],
+                            ] as const
+                          ).map(([value, label]) => (
+                            <label key={value} className="flex items-center gap-2 text-sm">
+                              <input
+                                type="radio"
+                                name={`overrun-basis-${detail.id}`}
+                                checked={overrunTimeBasis === value}
+                                onChange={() => setOverrunTimeBasis(value)}
+                                data-testid={`overrun-basis-${value.toLowerCase()}`}
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </fieldset>
+                        <fieldset className="space-y-1.5" disabled={overrunBusy}>
+                          <legend className="text-xs text-muted-foreground">Update</legend>
+                          {(
+                            [
+                              ['BOTH', 'Carer pay and client charge'],
+                              ['PAY', 'Carer pay only'],
+                              ['CHARGE', 'Client charge only'],
+                            ] as const
+                          ).map(([value, label]) => (
+                            <label key={value} className="flex items-center gap-2 text-sm">
+                              <input
+                                type="radio"
+                                name={`overrun-apply-${detail.id}`}
+                                checked={overrunApplyTo === value}
+                                onChange={() => setOverrunApplyTo(value)}
+                                data-testid={`overrun-apply-${value.toLowerCase()}`}
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </fieldset>
+                      </div>
+                      {overrunApplyTo !== 'BOTH' ? (
+                        <p className="text-xs text-muted-foreground">
+                          {overrunApplyTo === 'PAY' ? 'Client charge' : 'Carer pay'} stays on the planned time.
+                        </p>
+                      ) : null}
                       <label className="block space-y-1 text-sm">
                         <span className="text-xs text-muted-foreground">Admin notes (optional)</span>
                         <Input

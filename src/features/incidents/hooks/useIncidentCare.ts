@@ -2,8 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { incidentKeys } from '@/features/incidents/keys'
 import {
-  addIncidentInjury,
-  addIncidentWitness,
   addRelatedCareRecord,
   deleteIncidentAttachment,
   deleteIncidentInjury,
@@ -17,34 +15,67 @@ import {
   updateRelatedCareRecord,
   uploadIncidentAttachment,
 } from '@/features/incidents/api/incidents-care.api'
+import {
+  persistIncidentInjury,
+  updatePersistedInjury,
+  type PendingIncidentInjury,
+} from '@/features/incidents/utils/incident-injury-persist'
+import {
+  persistIncidentWitness,
+  type PendingWitness,
+} from '@/features/incidents/utils/incident-raise-persist'
 
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: incidentKeys.all() })
 }
 
-export function useAddIncidentInjury(incidentId: string) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (input: Parameters<typeof addIncidentInjury>[1]) => addIncidentInjury(incidentId, input),
-    onSuccess: () => { toastSuccess('Injury recorded'); invalidateAll(qc) },
-    onError: (e) => toastApiError(e),
-  })
-}
-
 export function useDeleteIncidentInjury() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (injuryId: string) => deleteIncidentInjury(injuryId),
-    onSuccess: () => invalidateAll(qc),
+    mutationFn: (vars: { injuryId: string; reason: string }) => deleteIncidentInjury(vars.injuryId, vars.reason),
+    onSuccess: () => {
+      toastSuccess('Injury removed')
+      invalidateAll(qc)
+    },
     onError: (e) => toastApiError(e),
   })
 }
 
-export function useAddIncidentWitness(incidentId: string) {
+/** Record an injury from the injury dialog (creates the body-map pin for service users). */
+export function useRecordIncidentInjury(incidentId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (input: Parameters<typeof addIncidentWitness>[1]) => addIncidentWitness(incidentId, input),
-    onSuccess: () => { toastSuccess('Witness added'); invalidateAll(qc) },
+    mutationFn: (pending: PendingIncidentInjury) => persistIncidentInjury(incidentId, null, pending),
+    onSuccess: () => {
+      toastSuccess('Injury recorded')
+      invalidateAll(qc)
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+export function useUpdateIncidentInjury(incidentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { injuryId: string; pending: PendingIncidentInjury; reason: string }) =>
+      updatePersistedInjury(incidentId, vars.injuryId, vars.pending, vars.reason),
+    onSuccess: () => {
+      toastSuccess('Injury updated')
+      invalidateAll(qc)
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+/** Record a witness from the witness dialog (linked to the staff / service-user record when picked). */
+export function useRecordIncidentWitness(incidentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (witness: PendingWitness) => persistIncidentWitness(incidentId, witness),
+    onSuccess: () => {
+      toastSuccess('Witness added')
+      invalidateAll(qc)
+    },
     onError: (e) => toastApiError(e),
   })
 }
@@ -52,8 +83,11 @@ export function useAddIncidentWitness(incidentId: string) {
 export function useDeleteIncidentWitness() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (witnessId: string) => deleteIncidentWitness(witnessId),
-    onSuccess: () => invalidateAll(qc),
+    mutationFn: (vars: { witnessId: string; reason: string }) => deleteIncidentWitness(vars.witnessId, vars.reason),
+    onSuccess: () => {
+      toastSuccess('Witness removed')
+      invalidateAll(qc)
+    },
     onError: (e) => toastApiError(e),
   })
 }

@@ -21,11 +21,14 @@ import { ScrollToTopOnNavigate } from '@/components/layout/ScrollToTopOnNavigate
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
 import { SessionRefresh } from '@/features/auth/components/SessionRefresh'
 import { CompanyBrandingBootstrap } from '@/components/company/CompanyBrandingBootstrap'
-import { OrganisationDisplayFormatProvider } from '@/shared/context/organisation-display-format.context'
+import {
+  OrganisationDisplayFormatProvider,
+  useOrganisationDisplayFormat,
+} from '@/shared/context/organisation-display-format.context'
 import { useCompanyStore } from '@/store/company.store'
 import { useNotificationSocket } from '@/features/notifications/hooks/useNotificationSocket'
 import { UrgentOfficeAlertHost } from '@/features/ecm/components/UrgentOfficeAlertHost'
-import { useUIStore } from '@/store/ui.store'
+import { useUIStore, applyTextPreferences } from '@/store/ui.store'
 import { useAuthStore } from '@/features/auth/store'
 import { rootAuthBeforeLoad } from '@/features/auth/guard'
 import type { Permission } from '@/features/auth/types'
@@ -104,6 +107,11 @@ import PortalSurveysPage from '@/features/service-user-portal/pages/PortalSurvey
 import { portalPageTitles } from '@/features/service-user-portal/portal-nav'
 import AccountPage from '@/features/account/pages/AccountPage'
 import HomePage from '@/features/home/pages/HomePage'
+import ModuleHomePage from '@/features/home/pages/ModuleHomePage'
+import MedicationExceptionsPage from '@/features/emar/pages/MedicationExceptionsPage'
+import MedicationStockPage from '@/features/emar/pages/MedicationStockPage'
+import { MedicationAdministeredPage, MedicationLatePage } from '@/features/emar/pages/MedicationDoseLogPage'
+import { moduleLabelForSlug } from '@/components/layout/nav-modules'
 import InProgressPage from '@/features/home/pages/InProgressPage'
 import ComponentShowcase from '@/features/home/pages/ComponentShowcase'
 import SecurityAdminPage from '@/features/admin/pages/SecurityAdminPage'
@@ -124,6 +132,8 @@ import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
 import IncidentsDashboardPage from '@/features/incidents/pages/IncidentsDashboardPage'
 import MyActionsPage from '@/features/incidents/pages/MyActionsPage'
 import IncidentAnalyticsPage from '@/features/incidents/pages/IncidentAnalyticsPage'
+import ComplaintsComplimentsPage from '@/features/complaints/pages/ComplaintsComplimentsPage'
+import FeedbackDetailPage from '@/features/complaints/pages/FeedbackDetailPage'
 import ServiceUserAlertsPage from '@/features/alerts/pages/ServiceUserAlertsPage'
 import BillingManagementPage from '@/features/billing/pages/BillingManagementPage'
 import InvoiceRunDetailPage from '@/features/billing/pages/InvoiceRunDetailPage'
@@ -136,6 +146,10 @@ import InvoiceAuditTrailPage from '@/features/billing/pages/InvoiceAuditTrailPag
 import ServiceUserInvoicesPage from '@/features/billing/pages/ServiceUserInvoicesPage'
 import PaymentsPage from '@/features/billing/pages/PaymentsPage'
 import AuditExportPage from '@/features/billing/pages/AuditExportPage'
+import PayCardEditorPage from '@/features/billing/pages/PayCardEditorPage'
+import EmployeePayCardChangePage from '@/features/billing/pages/EmployeePayCardChangePage'
+import PayItemsPage from '@/features/billing/pages/PayItemsPage'
+import PayItemCreatePage from '@/features/billing/pages/PayItemCreatePage'
 import EcmLiveMonitoringPage from '@/features/ecm/pages/EcmLiveMonitoringPage'
 import EcmGraphPage from '@/features/ecm/pages/EcmGraphPage'
 import EcmReportsPage from '@/features/ecm/pages/EcmReportsPage'
@@ -146,6 +160,11 @@ import PayrollTaxesPage from '@/features/payroll/pages/PayrollTaxesPage'
 import PayrollEmployerSettingsPage from '@/features/payroll/pages/PayrollEmployerSettingsPage'
 import PayrollSchedulesPage from '@/features/payroll/pages/PayrollSchedulesPage'
 import PayrollEmployeesPage from '@/features/payroll/pages/PayrollEmployeesPage'
+import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesPage'
+import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
+import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
+import CarerReportsPage from '@/features/employees/pages/CarerReportsPage'
+import RoleTasksManagePage from '@/features/role-tasks/pages/RoleTasksManagePage'
 import UkPayrollRunsPage from '@/features/payroll/pages/UkPayrollRunsPage'
 import UkPayrollRunDetailPage from '@/features/payroll/pages/UkPayrollRunDetailPage'
 import UkPayrollPayslipsPage from '@/features/payroll/pages/UkPayrollPayslipsPage'
@@ -166,6 +185,8 @@ import PolicyDetailPage from '@/features/policies/pages/PolicyDetailPage'
 import PolicyEditPage from '@/features/policies/pages/PolicyEditPage'
 import PolicyCategoriesPage from '@/features/policies/pages/PolicyCategoriesPage'
 import PolicyTagsPage from '@/features/policies/pages/PolicyTagsPage'
+import MyPoliciesToReadPage from '@/features/policies/pages/MyPoliciesToReadPage'
+import PolicyAcknowledgementsPage from '@/features/policies/pages/PolicyAcknowledgementsPage'
 import { validatePolicyLibrarySearch } from '@/features/policies/policy-routes'
 import {
   BILLING_SECTION_PATHS,
@@ -208,6 +229,7 @@ import {
   parseServiceUsersListSearch,
   validateServiceUsersListSearch,
 } from '@/features/service-users/utils/service-users-list-url-state.util'
+import { validateIncidentsListSearch } from '@/features/incidents/utils/incidents-list-url-state'
 import { fetchEmployeeLookups } from '@/features/employees/api'
 import { fetchGeneralSettings } from '@/features/settings/api/general-settings-api'
 import { fetchCompanyProfile } from '@/features/settings/api/company-settings-api'
@@ -246,7 +268,7 @@ type RouterContext = {
   queryClient: QueryClient
 }
 
-type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 'non-core-activity' | 'reports'
+type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 'non-core-activity' | 'allocations' | 'reports'
 
 const pageTitles: Record<string, string> = {
   '/': 'Home',
@@ -278,6 +300,7 @@ const pageTitles: Record<string, string> = {
   '/employee/review-status': 'Employee',
   '/employee/skills': 'Employee',
   '/employee/non-core-activity': 'Employee',
+  '/employee/allocations': 'Employee',
   '/employee/reports': 'Employee',
   '/employee/temp-inspector': 'Temporary Inspector Login',
   '/employee/documents': 'General Employee Documents',
@@ -290,6 +313,8 @@ const pageTitles: Record<string, string> = {
   '/hr/candidates/$candidateId': 'Candidate',
   '/accidents-incidents/view': 'View Accidents & Incidents',
   '/accidents-incidents/raise': 'Raise Accidents & Incidents',
+  '/incidents/feedback': 'Complaints & Compliments',
+  '/incidents/feedback/$feedbackId': 'Complaints & Compliments',
   '/account': 'My account',
   '/admin/security': 'Security administration',
   '/admin/audit': 'Audit log',
@@ -305,6 +330,11 @@ const pageTitles: Record<string, string> = {
   '/settings/roles-permissions': 'Roles & permissions',
   '/settings/care-pathway': 'Care Pathway',
   '/billing': 'Billing Management',
+  '/billing/pay-cards/new': 'New pay card',
+  '/billing/pay-items': 'Pay items',
+  '/billing/pay-items/new': 'New pay item',
+  '/employee/$employeeId/pay-card/change': 'Change pay card',
+  '/billing/pay-cards/$payCardId/edit': 'Edit pay card',
   '/billing/visit-reconciliation': 'Visit reconciliation',
   '/billing/payroll-runs': 'Visit pay runs',
   '/billing/salary': 'Salary',
@@ -324,6 +354,11 @@ const pageTitles: Record<string, string> = {
   '/payroll/employer': 'Employer PAYE',
   '/payroll/schedules': 'Schedules & periods',
   '/payroll/employees': 'Employee payroll setup',
+  '/office-salaries': 'Office salaries',
+  '/checklist': 'Checklist',
+  '/my-tasks': 'My tasks',
+  '/reports/carers': 'Carer reports',
+  '/role-tasks': 'Role tasks',
   '/payroll/runs': 'UK payroll runs',
   '/payroll/runs/$runId': 'UK payroll run',
   '/payroll/payslips': 'Payslips',
@@ -344,6 +379,12 @@ const pageTitles: Record<string, string> = {
   '/policies/$policyId/edit': 'Edit policy',
   '/policies/categories': 'Policy categories',
   '/policies/tags': 'Policy tags',
+  '/policies/to-read': 'My policies to read',
+  '/policies/acknowledgements': 'Read and sign tracking',
+  '/medication/exceptions': 'Missed & refused doses',
+  '/medication/late': 'Late doses',
+  '/medication/administered': 'Administration log',
+  '/medication/stock': 'Stock movements',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -395,6 +436,12 @@ const BILLING_TAB_IDS: BillingTabId[] = [
 
 function RootDocument() {
   const { theme } = useUIStore()
+  const textSize = useUIStore((s) => s.textSize)
+  const textWeight = useUIStore((s) => s.textWeight)
+
+  useEffect(() => {
+    applyTextPreferences(textSize, textWeight)
+  }, [textSize, textWeight])
 
   useEffect(() => {
     const root = document.documentElement
@@ -428,6 +475,7 @@ function AppRootShell() {
 
   const pageTitle =
     pageTitles[pathname] ??
+    (pathname.startsWith('/apps/') ? moduleLabelForSlug(pathname.split('/')[2] ?? '') : undefined) ??
     (/^\/employee\/[^/]+\/edit$/.test(pathname)
       ? 'Edit Employee'
       : /^\/service-users\/[^/]+\/profile$/.test(pathname)
@@ -600,6 +648,13 @@ const publicTakeSurveyRoute = createRoute({
   component: TakeSurveyPage,
 })
 
+/** Portal pages format dates with plain helpers, so render them once org settings have loaded. */
+function PortalOutlet() {
+  const { timezoneReady } = useOrganisationDisplayFormat()
+  if (!timezoneReady) return null
+  return <Outlet />
+}
+
 function PortalRootShell() {
   const companyDisplayName = useCompanyStore(s => s.branding?.displayName)
   const pathname = useRouterState({ select: s => s.location.pathname })
@@ -610,10 +665,10 @@ function PortalRootShell() {
     <>
       <SessionRefresh />
       <CompanyBrandingBootstrap />
-      <OrganisationDisplayFormatProvider>
+      <OrganisationDisplayFormatProvider portal>
         <AppToaster />
         <AppLayout pageTitle={pageTitle} variant="portal">
-          <Outlet />
+          <PortalOutlet />
         </AppLayout>
       </OrganisationDisplayFormatProvider>
     </>
@@ -708,6 +763,50 @@ const indexRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/',
   component: HomePage,
+})
+
+/** Module landing page opened from the sidebar rail (tiles for every page in the module). */
+const moduleHomeRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/apps/$module',
+  component: ModuleHomePage,
+})
+
+/* Medication (eMAR) module: organisation-wide views; each service user's MAR stays on their profile. */
+const medicationIndexRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication',
+  beforeLoad: () => {
+    throw redirect({ to: '/apps/$module', params: { module: 'medication' } })
+  },
+})
+
+const medicationExceptionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/exceptions',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationExceptionsPage,
+})
+
+const medicationLateRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/late',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationLatePage,
+})
+
+const medicationAdministeredRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/administered',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationAdministeredPage,
+})
+
+const medicationStockRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/stock',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationStockPage,
 })
 
 const serviceUsersRoute = createRoute({
@@ -1348,6 +1447,13 @@ const employeeNonCoreActivityRoute = createRoute({
   component: () => <EmployeeRouteWrapper tab="non-core-activity" />,
 })
 
+const employeeAllocationsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/employee/allocations',
+  beforeLoad: requirePermission('employees.read'),
+  component: () => <EmployeeRouteWrapper tab="allocations" />,
+})
+
 const employeeReportsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/employee/reports',
@@ -1524,21 +1630,8 @@ const hoursApprovalsRoute = createRoute({
 const incidentsListRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/incidents/view',
-  // Optional presets so dashboard figures can open the matching filtered list.
-  validateSearch: (
-    raw: Record<string, unknown>,
-  ): { status?: string; severity?: string; open?: boolean; closedFrom?: string; overdue?: boolean } => {
-    const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
-    const flag = (v: unknown) => (v === true || v === 'true' || v === '1' || v === 1 ? true : undefined)
-    return {
-      status: str(raw.status),
-      severity: str(raw.severity),
-      open: flag(raw.open),
-      closedFrom: str(raw.closedFrom),
-      overdue: flag(raw.overdue),
-    }
-  },
   beforeLoad: requirePermission('incidents.read'),
+  validateSearch: validateIncidentsListSearch,
   component: IncidentsListPage,
 })
 
@@ -1566,6 +1659,22 @@ const incidentsAnalyticsRoute = createRoute({
   path: '/incidents/analytics',
   beforeLoad: requirePermission('incidents.view_analytics'),
   component: IncidentAnalyticsPage,
+})
+
+const complaintsComplimentsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/feedback',
+  validateSearch: (raw: Record<string, unknown>): { tab?: 'complaints' | 'compliments' } =>
+    raw.tab === 'compliments' || raw.tab === 'complaints' ? { tab: raw.tab } : {},
+  beforeLoad: requirePermission('complaints.read'),
+  component: ComplaintsComplimentsPage,
+})
+
+const feedbackDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/feedback/$feedbackId',
+  beforeLoad: requirePermission('complaints.read'),
+  component: FeedbackDetailPage,
 })
 
 const incidentDetailRoute = createRoute({
@@ -1824,6 +1933,41 @@ const billingRoute = createRoute({
   component: BillingManagementPage,
 })
 
+const billingPayCardNewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/pay-cards/new',
+  beforeLoad: requirePermission('billing.pay_cards.manage'),
+  component: PayCardEditorPage,
+})
+
+const billingPayCardEditRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/pay-cards/$payCardId/edit',
+  beforeLoad: requirePermission('billing.pay_cards.manage'),
+  component: PayCardEditorPage,
+})
+
+const billingPayItemsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/pay-items',
+  beforeLoad: requirePermission('billing.payroll_runs.read'),
+  component: PayItemsPage,
+})
+
+const billingPayItemNewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/pay-items/new',
+  beforeLoad: requirePermission('billing.payroll_runs.manage'),
+  component: PayItemCreatePage,
+})
+
+const employeePayCardChangeRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/employee/$employeeId/pay-card/change',
+  beforeLoad: requirePermission('billing.pay_cards.manage'),
+  component: EmployeePayCardChangePage,
+})
+
 const billingVisitReconciliationRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/visit-reconciliation',
@@ -1979,6 +2123,41 @@ const payrollSchedulesRoute = createRoute({
   component: PayrollSchedulesPage,
 })
 
+const setupChecklistRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/checklist',
+  beforeLoad: requirePermission('setup_checklist.read'),
+  component: SetupChecklistPage,
+})
+
+const carerReportsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/reports/carers',
+  beforeLoad: requirePermission('employees.reports.read'),
+  component: CarerReportsPage,
+})
+
+// Any office user: tasks given to their roles.
+const myTasksRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/my-tasks',
+  component: MyTasksPage,
+})
+
+const roleTasksRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/role-tasks',
+  beforeLoad: requirePermission('role_tasks.manage'),
+  component: RoleTasksManagePage,
+})
+
+const officeSalariesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/office-salaries',
+  beforeLoad: requirePermission('office_salaries.manage'),
+  component: OfficeSalariesPage,
+})
+
 const payrollEmployeesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/employees',
@@ -2121,6 +2300,20 @@ const policyTagsRoute = createRoute({
   component: PolicyTagsPage,
 })
 
+const myPoliciesToReadRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/to-read',
+  beforeLoad: requirePermission('policies.read'),
+  component: MyPoliciesToReadPage,
+})
+
+const policyAcknowledgementsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/acknowledgements',
+  beforeLoad: requirePermission('policies.read'),
+  component: PolicyAcknowledgementsPage,
+})
+
 const policyDetailRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/policies/$policyId',
@@ -2186,6 +2379,12 @@ const routeTree = rootRoute.addChildren([
     portalPhotosRoute,
   ]),
   appShellRoute.addChildren([
+    moduleHomeRoute,
+    medicationIndexRoute,
+    medicationExceptionsRoute,
+    medicationLateRoute,
+    medicationAdministeredRoute,
+    medicationStockRoute,
     indexRoute,
     serviceUsersRoute,
     serviceUsersAllRoute,
@@ -2232,6 +2431,7 @@ const routeTree = rootRoute.addChildren([
     employeeReviewStatusRoute,
     employeeSkillsRoute,
     employeeNonCoreActivityRoute,
+    employeeAllocationsRoute,
     employeeReportsRoute,
     employeeTempInspectorRoute,
     employeeGeneralDocumentsRoute,
@@ -2255,6 +2455,8 @@ const routeTree = rootRoute.addChildren([
     incidentsRaiseRoute,
     incidentsMyActionsRoute,
     incidentsAnalyticsRoute,
+    complaintsComplimentsRoute,
+    feedbackDetailRoute,
     incidentDetailRoute,
     accountRoute,
     adminSecurityRoute,
@@ -2272,6 +2474,11 @@ const routeTree = rootRoute.addChildren([
     rolesPermissionsRoute,
     carePathwayRoute,
     billingRoute,
+    billingPayCardNewRoute,
+    billingPayCardEditRoute,
+    employeePayCardChangeRoute,
+    billingPayItemsRoute,
+    billingPayItemNewRoute,
     billingVisitReconciliationRoute,
     billingPayrollRunsRoute,
     billingSalaryRoute,
@@ -2291,6 +2498,11 @@ const routeTree = rootRoute.addChildren([
     payrollEmployerRoute,
     payrollSchedulesRoute,
     payrollEmployeesRoute,
+    officeSalariesRoute,
+    setupChecklistRoute,
+    myTasksRoute,
+    carerReportsRoute,
+    roleTasksRoute,
     payrollRunsRoute,
     payrollRunDetailRoute,
     payrollPayslipsRoute,
@@ -2310,6 +2522,8 @@ const routeTree = rootRoute.addChildren([
     policyNewRoute,
     policyCategoriesRoute,
     policyTagsRoute,
+    myPoliciesToReadRoute,
+    policyAcknowledgementsRoute,
     policyDetailRoute,
     policyEditRoute,
   ]),
