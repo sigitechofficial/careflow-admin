@@ -37,16 +37,20 @@ export type MedicationOverview = {
     endingSoon: number
     expired: number
   }
+  /** One level per service user on medication: support profile first, else Initial Assessment §9.2. */
   support: {
-    profiles: number
+    recorded: number
+    notRecorded: number
+    fromProfile: number
+    fromAssessment: number
     selfAdministers: number
-    prompting: number
-    supervision: number
+    prompt: number
+    assist: number
     carerAdministers: number
-    familySupports: number
-    onMedicationWithoutProfile: number
+    othersProvide: number
   }
-  allergies: { serviceUsersWithAllergies: number }
+  /** Profile allergies and medication allergies combined. */
+  allergies: { serviceUsersWithAllergies: number; onMedicationWithAllergies: number }
   reviews: { overdue: number; dueSoon: number; neverReviewed: number }
   packs: {
     active: number

@@ -374,7 +374,7 @@ function MedicationStats() {
   const todayExceptions = n(d?.today.exceptions)
   const unreviewed = n(d?.doses.awaitingReview)
   const onTime = d?.doses.onTimePct
-  const reviewsOverdue = n(d?.reviews.overdue)
+  const noSupportLevel = n(d?.support.notRecorded)
   return (
     <>
       <Metric
@@ -405,11 +405,11 @@ function MedicationStats() {
         to="/medication/late"
       />
       <Metric
-        label="Medication reviews overdue"
-        value={reviewsOverdue}
-        hint={`${n(d?.reviews.dueSoon)} due in 30 days`}
-        icon={ill('memo')}
-        tone={reviewsOverdue > 0 ? 'rose' : 'muted'}
+        label="No support level recorded"
+        value={noSupportLevel}
+        hint={`Of ${n(d?.medicines.serviceUsersOnMedication)} service users on medication`}
+        icon={ill('page-facing-up')}
+        tone={noSupportLevel > 0 ? 'rose' : 'muted'}
         loading={q.isLoading}
         to="/apps/medication"
       />

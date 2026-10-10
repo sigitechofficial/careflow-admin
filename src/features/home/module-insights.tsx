@@ -426,16 +426,15 @@ function MedicationInsights() {
         <Kpi label="Time-critical medicines" value={m?.timeCritical} art="alarm-clock" loading={L} hint="Must be given within a tight window" />
         <Kpi label="Ending in 14 days" value={m?.endingSoon} art="hourglass-done" tone={attn(m?.endingSoon, 'warn')} loading={L} hint="Check for a new prescription" />
         <Kpi label="Past expiry date" value={m?.expired} art="wastebasket" tone={attn(m?.expired, 'bad')} loading={L} hint="Still active with an expired supply" />
-        <Kpi label="Allergies recorded" value={d?.allergies.serviceUsersWithAllergies} art="warning" loading={L} hint="Service users with a medication allergy" />
+        <Kpi label="Allergies recorded" value={d?.allergies.onMedicationWithAllergies} art="warning" loading={L} hint={`Of ${n0(m?.serviceUsersOnMedication)} on medication · ${n0(d?.allergies.serviceUsersWithAllergies)} across all service users`} />
       </Group>
 
-      <Group title="Support & reviews" description="How each person is helped, and when their medicines were last reviewed">
-        <Kpi label="Carer administers" value={sup?.carerAdministers} art="woman-health-worker" loading={L} />
-        <Kpi label="Prompting or supervision" value={n0(sup?.prompting) + n0(sup?.supervision)} art="handshake" loading={L} hint={`${n0(sup?.prompting)} prompt · ${n0(sup?.supervision)} supervise`} />
-        <Kpi label="Self-administers" value={sup?.selfAdministers} art="person-walking" loading={L} hint={`${n0(sup?.familySupports)} supported by family`} />
-        <Kpi label="No support level recorded" value={sup?.onMedicationWithoutProfile} art="page-facing-up" tone={attn(sup?.onMedicationWithoutProfile, 'bad')} loading={L} hint="On medication without a support profile" />
-        <Kpi label="Medication reviews overdue" value={d?.reviews.overdue} art="magnifying-glass-tilted-left" tone={attn(d?.reviews.overdue, 'bad')} loading={L} hint={`${n0(d?.reviews.dueSoon)} due in 30 days`} />
-        <Kpi label="Never reviewed" value={d?.reviews.neverReviewed} art="spiral-notepad" tone={attn(d?.reviews.neverReviewed, 'warn')} loading={L} hint="On medication with no review recorded" />
+      <Group title="Support levels" description="How each person on medication is helped (support tab, or Initial Assessment §9.2)">
+        <Kpi label="Carer administers" value={sup?.carerAdministers} art="woman-health-worker" loading={L} hint="Level 2b" />
+        <Kpi label="Prompt or assist" value={n0(sup?.prompt) + n0(sup?.assist)} art="handshake" loading={L} hint={`${n0(sup?.prompt)} prompt · ${n0(sup?.assist)} assist`} />
+        <Kpi label="Self-administers" value={sup?.selfAdministers} art="person-walking" loading={L} hint={`${n0(sup?.othersProvide)} given by family or a nurse`} />
+        <Kpi label="No support level recorded" value={sup?.notRecorded} art="page-facing-up" tone={attn(sup?.notRecorded, 'bad')} loading={L} hint={`Of ${n0(m?.serviceUsersOnMedication)} on medication · set it in IA §9.2 or the medication support tab`} />
+        <Planned label="Medication reviews due" art="magnifying-glass-tilted-left" needs="A screen to record medication reviews with a next review date (the API can store them, but nothing records them yet)." />
       </Group>
 
       <Group title="Packs, deliveries & stock" description="Supply from the pharmacy · stock over 30 days">
