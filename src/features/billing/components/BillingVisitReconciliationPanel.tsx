@@ -48,6 +48,11 @@ import { listAllEmployees } from '@/features/employees/api'
 import { SERVICE_USER_PROFILE_ROUTE } from '@/features/service-users/service-user-profile-tabs'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
+import { formatCurrency, formatDateTime } from '@/shared/lib/utils'
+
+type VisitReconciliationRecalculateSummary = NonNullable<
+  ReturnType<typeof useRecalculateVisitReconciliationAmounts>['data']
+>
 
 function serviceUserOptionLabel(row: {
   preferredName?: string | null
@@ -145,6 +150,9 @@ export function BillingVisitReconciliationPanel({
   const [detailRow, setDetailRow] = React.useState<VisitReconciliationRow | null>(null)
   const [pendingApprove, setPendingApprove] = React.useState<PendingApprove | null>(null)
   const [approvalReason, setApprovalReason] = React.useState('')
+  const [recalcOpen, setRecalcOpen] = React.useState(false)
+  const [recalcReason, setRecalcReason] = React.useState('')
+  const [recalcSummary, setRecalcSummary] = React.useState<VisitReconciliationRecalculateSummary | null>(null)
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 300)
@@ -336,14 +344,14 @@ export function BillingVisitReconciliationPanel({
   }
 
   const handleRecalculateAmounts = async () => {
+    const reason = recalcReason.trim()
+    if (!reason) return
     try {
       const ids = selectedIds.size ? [...selectedIds] : undefined
-      const data = await recalculateMutation.mutateAsync(ids ? { ids } : {})
-      toastSuccess(
-        data.reEvaluated > 0
-          ? `Recalculated amounts for ${data.reEvaluated} reconciliation(s).`
-          : 'No unlocked reconciliations to recalculate.',
-      )
+      const data = await recalculateMutation.mutateAsync(ids ? { ids, reason } : { reason })
+      setRecalcOpen(false)
+      setRecalcReason('')
+      setRecalcSummary(data)
     } catch (err) {
       toastApiError(err, 'Could not recalculate amounts.')
     }
@@ -479,7 +487,7 @@ export function BillingVisitReconciliationPanel({
                   className={`h-3.5 w-3.5 ${recalculateMutation.isPending ? 'animate-pulse' : ''}`}
                 />
               }
-              onClick={() => void handleRecalculateAmounts()}
+              onClick={() => setRecalcOpen(true)}
               disabled={isMutating || !rows.length}
               data-testid="visit-recon-recalculate-amounts"
             >
@@ -1013,6 +1021,182 @@ export function BillingVisitReconciliationPanel({
               data-testid="visit-recon-approve-confirm"
             >
               {isMutating ? 'Approving…' : 'Confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={recalcOpen}
+        onOpenChange={open => {
+          if (recalculateMutation.isPending) return
+          setRecalcOpen(open)
+          if (!open) setRecalcReason('')
+        }}
+      >
+        <DialogContent size="sm" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Recalculate amounts</DialogTitle>
+            <DialogDescription>
+              {selectedIds.size
+                ? `Re-run pay and charge card pricing for the ${selectedIds.size} selected visit(s).`
+                : 'Re-run pay and charge card pricing for all unlocked visits.'}{' '}
+              Locked visits are not changed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-3">
+            <label className="block space-y-1.5 text-sm">
+              <span className="text-xs font-medium text-foreground">
+                Reason <span className="text-destructive">*</span>
+              </span>
+              <textarea
+                value={recalcReason}
+                onChange={e => setRecalcReason(e.target.value.slice(0, 1000))}
+                rows={4}
+                maxLength={1000}
+                placeholder="e.g. Pay card rates updated from 1 October"
+                className="flex min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="visit-recon-recalculate-reason"
+              />
+            </label>
+            <p className="text-xs text-muted-foreground">The reason is saved on the audit log.</p>
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRecalcOpen(false)
+                setRecalcReason('')
+              }}
+              disabled={recalculateMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleRecalculateAmounts()}
+              disabled={recalculateMutation.isPending || !recalcReason.trim()}
+              leftIcon={
+                recalculateMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : undefined
+              }
+              data-testid="visit-recon-recalculate-confirm"
+            >
+              {recalculateMutation.isPending ? 'Recalculating…' : 'Recalculate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={recalcSummary != null} onOpenChange={open => !open && setRecalcSummary(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Recalculation summary</DialogTitle>
+            <DialogDescription>
+              {recalcSummary && recalcSummary.reEvaluated > 0
+                ? `${recalcSummary.reEvaluated} visit(s) recalculated.`
+                : 'No unlocked visits to recalculate.'}
+            </DialogDescription>
+          </DialogHeader>
+          {recalcSummary ? (
+            <DialogBody className="space-y-4" data-testid="visit-recon-recalculate-summary">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {[
+                  ['Visits recalculated', recalcSummary.reEvaluated],
+                  ['Amount changed', recalcSummary.changed],
+                  ['No change', recalcSummary.unchanged],
+                  ['Failed', recalcSummary.failed],
+                  ...(recalcSummary.skippedLocked > 0
+                    ? [['Skipped (locked)', recalcSummary.skippedLocked] as const]
+                    : []),
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-md border border-border px-3 py-2">
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="text-lg font-semibold text-foreground">{value}</p>
+                  </div>
+                ))}
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-muted-foreground">
+                    <th className="py-1 font-medium" />
+                    <th className="py-1 text-right font-medium">Before</th>
+                    <th className="py-1 text-right font-medium">After</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-border">
+                    <td className="py-1.5">Carer pay</td>
+                    <td className="py-1.5 text-right">{formatCurrency(recalcSummary.totals.payableBefore)}</td>
+                    <td className="py-1.5 text-right font-medium">{formatCurrency(recalcSummary.totals.payableAfter)}</td>
+                  </tr>
+                  <tr className="border-t border-border">
+                    <td className="py-1.5">Funder charge</td>
+                    <td className="py-1.5 text-right">{formatCurrency(recalcSummary.totals.billableBefore)}</td>
+                    <td className="py-1.5 text-right font-medium">{formatCurrency(recalcSummary.totals.billableAfter)}</td>
+                  </tr>
+                </tbody>
+              </table>
+              {recalcSummary.visits.length ? (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-foreground">Recalculated visits</p>
+                  <div className="max-h-72 overflow-auto rounded-md border border-border">
+                    <table className="w-full text-sm" data-testid="visit-recon-recalculate-visits">
+                      <thead className="sticky top-0 bg-muted text-left text-xs text-muted-foreground">
+                        <tr>
+                          <th className="px-2 py-1.5 font-medium">Visit</th>
+                          <th className="px-2 py-1.5 font-medium">Service user / carer</th>
+                          <th className="px-2 py-1.5 text-right font-medium">Carer pay</th>
+                          <th className="px-2 py-1.5 text-right font-medium">Funder charge</th>
+                          <th className="px-2 py-1.5 font-medium">Result</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recalcSummary.visits.map(v => {
+                          const money = (before: number | null, after: number | null) =>
+                            before === after
+                              ? formatCurrency(after ?? 0)
+                              : `${formatCurrency(before ?? 0)} → ${formatCurrency(after ?? 0)}`
+                          return (
+                            <tr
+                              key={v.id}
+                              className={`border-t border-border ${v.changed ? 'bg-amber-50 dark:bg-amber-950/20' : ''}`}
+                            >
+                              <td className="px-2 py-1.5">
+                                <p className="font-medium text-foreground">{v.visitRef || '—'}</p>
+                                <p className="text-xs text-muted-foreground">{formatDateTime(v.plannedStartDateTime)}</p>
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <p className="text-foreground">{v.serviceUserName ?? '—'}</p>
+                                <p className="text-xs text-muted-foreground">{v.employeeName ?? 'No carer'}</p>
+                              </td>
+                              <td className="px-2 py-1.5 text-right">{money(v.payableBefore, v.payableAfter)}</td>
+                              <td className="px-2 py-1.5 text-right">{money(v.billableBefore, v.billableAfter)}</td>
+                              <td className="px-2 py-1.5">
+                                {v.failed ? (
+                                  <Badge variant="destructive">Failed</Badge>
+                                ) : v.changed ? (
+                                  <Badge variant="warning">Changed</Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">No change</span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+              {recalcSummary.limitReached ? (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  Only the first 1000 visits were processed. Run it again to continue.
+                </p>
+              ) : null}
+            </DialogBody>
+          ) : null}
+          <DialogFooter>
+            <Button onClick={() => setRecalcSummary(null)} data-testid="visit-recon-recalculate-summary-close">
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -88,7 +88,7 @@ const ORGANISATION_TIMEZONE_DEFS: readonly TimezoneDef[] = [
 
 export type OrganisationTimezone = (typeof ORGANISATION_TIMEZONE_DEFS)[number]['value']
 
-export const DEFAULT_ORGANISATION_TIMEZONE: OrganisationTimezone = 'Asia/Karachi'
+export const DEFAULT_ORGANISATION_TIMEZONE: OrganisationTimezone = 'Europe/London'
 
 export const ORGANISATION_TIMEZONE_VALUES = ORGANISATION_TIMEZONE_DEFS.map(
   o => o.value,
@@ -144,8 +144,8 @@ function formatSignedOffset(totalMinutes: number, style: 'UTC' | 'relative'): st
 }
 
 /**
- * Offset vs organisation default (Asia/Karachi), e.g. London → `−4h`.
- * Karachi itself is `±0`.
+ * Offset vs organisation default (Europe/London), e.g. Karachi → `+4h` in summer.
+ * London itself is `±0`.
  */
 export function formatTimezoneOffsetVsDefault(
   timeZone: string,

@@ -6,6 +6,10 @@ import type {
   PayCardRule,
   PayCardAssignmentPreview,
   PayCardResolveResult,
+  PayCardVersionHistoryItem,
+  EmployeePayCardHistory,
+  ChangeEmployeePayCardInput,
+  ChangeEmployeePayCardResult,
   EmployeeFunderPayAssignment,
   EmployeeFunderPayAssignmentInput,
 } from '@/features/billing/types/billing-cards.types'
@@ -92,6 +96,33 @@ export async function updatePayCard(id: string, body: Partial<PayCardInput>): Pr
     body: JSON.stringify(body),
   })
   return normalizePayCard(res.data)
+}
+
+export async function fetchPayCardVersions(id: string): Promise<PayCardVersionHistoryItem[]> {
+  const res = await apiJson<ApiEnvelope<PayCardVersionHistoryItem[]>>(
+    `/billing/pay-cards/${id}/versions`,
+    { method: 'GET' },
+  )
+  return res.data.map(v => ({ ...v, rules: v.rules.map(normalizePayRule) }))
+}
+
+export async function fetchEmployeePayCardHistory(employeeId: string): Promise<EmployeePayCardHistory> {
+  const res = await apiJson<ApiEnvelope<EmployeePayCardHistory>>(
+    `/billing/pay-cards/employee-history/${employeeId}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function changeEmployeePayCard(
+  employeeId: string,
+  body: ChangeEmployeePayCardInput,
+): Promise<ChangeEmployeePayCardResult> {
+  const res = await apiJson<ApiEnvelope<ChangeEmployeePayCardResult>>(
+    `/billing/pay-cards/employee-history/${employeeId}/change`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
 }
 
 export async function deletePayCard(id: string): Promise<void> {

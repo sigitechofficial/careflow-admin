@@ -8,6 +8,9 @@ import { Button } from '@/shared/ui/button'
 import { fetchVisitObservations } from '@/features/scheduling/api/scheduling.api'
 import { flattenVisitObservationBodyMapPins } from '@/features/scheduling/utils/visit-observation-body-map-pins.util'
 import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
+import { BodyMapVideoList } from '@/features/service-users/body-map/components/BodyMapVideoList'
+import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
+import { useVisitVoiceNotes } from '@/features/scheduling/hooks/useVisitVoiceNotes'
 import {
   AddBodyMapRecordWizard,
   type PendingMarker,
@@ -40,6 +43,7 @@ export function VisitBodyMapCapture({ visitContext, onRecorded }: Props) {
     staleTime: 0,
   })
   const { create } = useBodyMapMutations(serviceUserId)
+  const voiceNoteLookup = useVisitVoiceNotes(scheduledJobId)
 
   const obsQuery = useQuery({
     queryKey: ['visit-observations', scheduledJobId],
@@ -284,7 +288,15 @@ export function VisitBodyMapCapture({ visitContext, onRecorded }: Props) {
                 {record.description ? (
                   <p className="mt-0.5 text-sm text-foreground">{record.description}</p>
                 ) : null}
+                <VoiceNoteList
+                  voiceNotes={[
+                    ...voiceNoteLookup.forSource('body_map', record.id),
+                    ...voiceNoteLookup.byEntryPrefix('body_map_review', `${record.id}:`),
+                  ]}
+                  label="Carer voice notes"
+                />
                 <VisitPhotoThumbnails photos={record.photos} />
+                <BodyMapVideoList videos={record.videos} />
               </li>
             )
           })}

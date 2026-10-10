@@ -32,6 +32,8 @@ export default function AccountPage() {
   const [lastName, setLastName] = React.useState(user?.lastName ?? '')
   const [name, setName] = React.useState(user?.displayName ?? '')
   const [title, setTitle] = React.useState(user?.jobTitle ?? '')
+  const [email, setEmail] = React.useState(user?.email ?? '')
+  const [emailPw, setEmailPw] = React.useState('')
   const [profileSaving, setProfileSaving] = React.useState(false)
 
   const meQuery = useMe(hasApi && !!user)
@@ -46,7 +48,9 @@ export default function AccountPage() {
     setLastName(user?.lastName ?? '')
     setName(user?.displayName ?? '')
     setTitle(user?.jobTitle ?? '')
-  }, [user?.firstName, user?.lastName, user?.displayName, user?.jobTitle])
+    setEmail(user?.email ?? '')
+    setEmailPw('')
+  }, [user?.firstName, user?.lastName, user?.displayName, user?.jobTitle, user?.email])
 
   React.useEffect(() => {
     if (meQuery.data) applyMeUser(meQuery.data)
@@ -70,19 +74,30 @@ export default function AccountPage() {
   if (!user) return null
 
   const isTemporaryInspector = user.role === 'temporary_inspector'
+  const canEditEmail = hasApi && !isTemporaryInspector
+  const emailChanged = canEditEmail && email.trim().toLowerCase() !== user.email.toLowerCase()
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 
   const handleSaveProfile = async () => {
     setProfileSaving(true)
     try {
       const r = await updateProfile(
         hasApi
-          ? { firstName: firstName.trim(), lastName: lastName.trim() }
+          ? {
+              firstName: firstName.trim(),
+              lastName: lastName.trim(),
+              ...(emailChanged ? { email: email.trim(), currentPassword: emailPw } : {}),
+            }
           : { displayName: name.trim(), jobTitle: title.trim() },
       )
       if (!r.ok) {
         toastApiError(new Error(r.error), 'Could not save profile')
       } else {
-        toastSuccess('Profile saved', 'Your account details were updated.')
+        toastSuccess(
+          'Profile saved',
+          emailChanged ? 'Use your new email next time you sign in.' : 'Your account details were updated.',
+        )
+        setEmailPw('')
       }
     } finally {
       setProfileSaving(false)
@@ -220,13 +235,43 @@ export default function AccountPage() {
                   )}
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label htmlFor="account-email">Email</Label>
-                    <Input
-                      id="account-email"
-                      readOnly
-                      value={user.email}
-                      className="bg-muted text-muted-foreground"
-                    />
+                    {canEditEmail ? (
+                      <>
+                        <Input
+                          id="account-email"
+                          type="email"
+                          value={email}
+                          maxLength={254}
+                          onChange={e => setEmail(e.target.value)}
+                        />
+                        {email && !emailValid ? (
+                          <p className="text-xs text-destructive">Enter a valid email.</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">You sign in with this email.</p>
+                        )}
+                      </>
+                    ) : (
+                      <Input
+                        id="account-email"
+                        readOnly
+                        value={user.email}
+                        className="bg-muted text-muted-foreground"
+                      />
+                    )}
                   </div>
+                  {emailChanged ? (
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label htmlFor="account-email-password">Current password</Label>
+                      <Input
+                        id="account-email-password"
+                        type="password"
+                        autoComplete="current-password"
+                        value={emailPw}
+                        onChange={e => setEmailPw(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">Needed to confirm a new sign-in email.</p>
+                    </div>
+                  ) : null}
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label>Role</Label>
                     <Input
@@ -237,7 +282,9 @@ export default function AccountPage() {
                   </div>
                 </div>
                 {!isTemporaryInspector ? (
-                  <Button type="button" onClick={() => void handleSaveProfile()} disabled={profileSaving}>
+                  <Button type="button" onClick={() => void handleSaveProfile()}
+                    disabled={profileSaving || (emailChanged && (!emailValid || !emailPw))}
+                  >
                     {profileSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Save profile
                   </Button>

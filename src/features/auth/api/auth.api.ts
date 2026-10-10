@@ -246,6 +246,9 @@ export async function backendResetPassword(token: string, newPassword: string): 
 export async function backendUpdateProfile(patch: {
   firstName?: string
   lastName?: string
+  /** New sign-in email — the server requires currentPassword with it. */
+  email?: string
+  currentPassword?: string
 }): Promise<BackendMeUser> {
   const res = await apiJson<ApiEnvelope<BackendMeUser>>('/auth/me', {
     method: 'PATCH',

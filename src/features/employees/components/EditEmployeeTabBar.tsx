@@ -10,9 +10,11 @@ import {
   FileText,
   GraduationCap,
   LayoutGrid,
+  Package,
   ShieldCheck,
   Star,
   UserCircle,
+  UserX,
   Wallet,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
@@ -32,6 +34,8 @@ export type EditEmployeeTabId =
   | 'working-pattern'
   | 'employment-compliance'
   | 'learning'
+  | 'suspensions'
+  | 'allocation'
 
 export const EDIT_EMPLOYEE_TABS: {
   id: EditEmployeeTabId
@@ -53,6 +57,8 @@ export const EDIT_EMPLOYEE_TABS: {
   { id: 'working-pattern', label: 'Working Pattern', Icon: CalendarClock, iconClassName: 'text-teal-600 dark:text-teal-400' },
   { id: 'employment-compliance', label: 'Employment Compliance', Icon: ShieldCheck, iconClassName: 'text-orange-600 dark:text-orange-400' },
   { id: 'learning', label: 'Learning', Icon: GraduationCap, iconClassName: 'text-blue-600 dark:text-blue-400' },
+  { id: 'suspensions', label: 'Suspensions', Icon: UserX, iconClassName: 'text-red-600 dark:text-red-400' },
+  { id: 'allocation', label: 'Allocation', Icon: Package, iconClassName: 'text-amber-700 dark:text-amber-400' },
 ]
 
 const EDIT_EMPLOYEE_TAB_IDS = new Set(EDIT_EMPLOYEE_TABS.map(t => t.id))

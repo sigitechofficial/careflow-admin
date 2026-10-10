@@ -23,7 +23,7 @@ const Label = React.forwardRef<
     {...props}
   >
     {children}
-    {required && <span className="ml-0.5 text-destructive">*</span>}
+    {required && <span className="ml-0.5 text-destructive dark:text-red-400">*</span>}
   </LabelPrimitive.Root>
 ))
 Label.displayName = LabelPrimitive.Root.displayName

@@ -164,8 +164,17 @@ export function useRejectVisitReconciliation() {
 export function useApproveVisitOverrun() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
-      approveVisitOverrun(id, { notes }),
+    mutationFn: ({
+      id,
+      notes,
+      timeBasis,
+      applyTo,
+    }: {
+      id: string
+      notes?: string
+      timeBasis?: 'PLANNED' | 'ACTUAL'
+      applyTo?: 'PAY' | 'CHARGE' | 'BOTH'
+    }) => approveVisitOverrun(id, { notes, timeBasis, applyTo }),
     onSuccess: (_data, vars) => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
       void qc.invalidateQueries({ queryKey: billingKeys.visitReconciliation(vars.id) })
@@ -209,7 +218,7 @@ export function useBackfillVisitReconciliations() {
 export function useRecalculateVisitReconciliationAmounts() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body?: { ids?: string[]; dateFrom?: string; dateTo?: string }) =>
+    mutationFn: (body: { ids?: string[]; dateFrom?: string; dateTo?: string; reason: string }) =>
       recalculateVisitReconciliationAmounts(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })

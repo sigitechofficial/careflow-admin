@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import {
   CheckCircle2,
   CreditCard,
@@ -27,7 +27,6 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
-import { PayCardFormDialog } from '@/features/billing/components/PayCardFormDialog'
 import { PayCardAssignDialog } from '@/features/billing/components/PayCardAssignDialog'
 import { RateCardStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import {
@@ -227,12 +226,11 @@ function AssignedCarersDialog({ cardId, open, onOpenChange }: AssignedCarersDial
 
 export function PayCardsPanel() {
   const canManage = useAuthStore(s => s.can('billing.pay_cards.manage' as never))
+  const navigate = useNavigate()
   const { locationId } = useGlobalLocationScope()
   const [search, setSearch] = React.useState('')
-  const [dialogOpen, setDialogOpen] = React.useState(false)
   const [assignDialogOpen, setAssignDialogOpen] = React.useState(false)
   const [viewCarersOpen, setViewCarersOpen] = React.useState(false)
-  const [editing, setEditing] = React.useState<PayCard | null>(null)
   const [assigning, setAssigning] = React.useState<PayCard | null>(null)
   const [viewingCarersId, setViewingCarersId] = React.useState<string | null>(null)
 
@@ -253,15 +251,10 @@ export function PayCardsPanel() {
         ? 'Could not load pay cards.'
         : null
 
-  const openCreate = () => {
-    setEditing(null)
-    setDialogOpen(true)
-  }
+  const openCreate = () => void navigate({ to: '/billing/pay-cards/new' })
 
-  const openEdit = (card: PayCard) => {
-    setEditing(card)
-    setDialogOpen(true)
-  }
+  const openEdit = (card: PayCard) =>
+    void navigate({ to: '/billing/pay-cards/$payCardId/edit', params: { payCardId: card.id } })
 
   const openAssign = (card: PayCard) => {
     setAssigning(card)
@@ -381,7 +374,10 @@ export function PayCardsPanel() {
                 return (
                   <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                     <td className="px-3 py-2.5 font-medium">{row.name}</td>
-                    <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">{row.code}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">
+                      {row.code}
+                      <span className="ml-1.5 font-sans">· v{row.version ?? 1}</span>
+                    </td>
                     <td className="px-3 py-2.5 text-muted-foreground">
                       {formatPayCardAssignmentDisplay(row)}
                     </td>
@@ -450,7 +446,6 @@ export function PayCardsPanel() {
         Carer pay and client charge must stay separate. Use premiums or overrides when a service user needs higher carer pay.
       </p>
 
-      <PayCardFormDialog open={dialogOpen} onOpenChange={setDialogOpen} card={editing} />
       <PayCardAssignDialog
         card={assigning}
         open={assignDialogOpen}

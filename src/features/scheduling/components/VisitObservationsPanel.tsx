@@ -21,6 +21,8 @@ import {
   type VisitObservationFormField,
 } from '@/features/scheduling/api/scheduling.api'
 import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
+import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
+import { useVisitVoiceNotes } from '@/features/scheduling/hooks/useVisitVoiceNotes'
 import { useCreateServiceUserObservation } from '@/features/service-users/hooks/useServiceUserObservations'
 import type { CreateServiceUserObservationPayload } from '@/features/service-users/api/observations-api'
 
@@ -35,6 +37,7 @@ export function VisitObservationsPanel({
   scheduledJobId,
   scheduledVisitId,
 }: Props) {
+  const voiceNoteLookup = useVisitVoiceNotes(scheduledJobId)
   const catalogQuery = useQuery({
     queryKey: ['visit-observations', scheduledJobId],
     queryFn: ({ signal }) => fetchVisitObservations(scheduledJobId, { signal }),
@@ -384,6 +387,10 @@ export function VisitObservationsPanel({
                         </p>
                       </div>
                     ) : null}
+                    <VoiceNoteList
+                      voiceNotes={voiceNoteLookup.forSource('observation', row.id)}
+                      label="Carer voice notes"
+                    />
                   </div>
                   <p className="shrink-0 text-xs text-muted-foreground">
                     {formatOrganisationDateTime(row.recordedAt)}

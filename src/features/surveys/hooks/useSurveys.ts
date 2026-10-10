@@ -4,26 +4,32 @@ import {
   addSurveyQuestion,
   createSurvey,
   deleteSurvey,
+  fetchPortalSurveyAnswers,
   fetchPortalSurveys,
   fetchPublicSurvey,
   fetchSurvey,
   fetchSurveyRecipients,
+  fetchSurveyRecordCandidates,
   fetchSurveyResponses,
   fetchSurveyResults,
   fetchSurveys,
   publishSurvey,
+  recordSurveyResponse,
   removeSurveyQuestion,
   sendSurvey,
   submitPublicSurveyResponse,
+  updateRecordedSurveyResponse,
   updateSurvey,
   updateSurveyQuestion,
 } from '@/features/surveys/api/surveys.api'
 import type {
   CreateQuestionInput,
   CreateSurveyInput,
+  RecordSurveyResponseInput,
   SurveyListFilters,
   SubmitSurveyResponseInput,
   UpdateQuestionInput,
+  UpdateRecordedSurveyResponseInput,
   UpdateSurveyInput,
 } from '@/features/surveys/types'
 
@@ -150,6 +156,41 @@ export function useSurveyRecipients(surveyId: string | undefined, enabled = true
   })
 }
 
+export function useSurveyRecordCandidates(surveyId: string | undefined, search: string, enabled = true) {
+  return useQuery({
+    queryKey: surveyKeys.recordCandidates(surveyId ?? '', search.trim()),
+    queryFn: ({ signal }) => fetchSurveyRecordCandidates(surveyId as string, search, { signal }),
+    enabled: Boolean(surveyId) && enabled,
+    staleTime: 30_000,
+  })
+}
+
+/** Refresh everything that shows responses, completion and results for this survey. */
+function invalidateSurveyResponses(qc: ReturnType<typeof useQueryClient>, surveyId: string) {
+  void qc.invalidateQueries({ queryKey: surveyKeys.responses(surveyId) })
+  void qc.invalidateQueries({ queryKey: surveyKeys.recipients(surveyId) })
+  void qc.invalidateQueries({ queryKey: surveyKeys.results(surveyId) })
+  void qc.invalidateQueries({ queryKey: surveyKeys.detail(surveyId) })
+  void qc.invalidateQueries({ queryKey: [...surveyKeys.all(), 'record-candidates', surveyId] })
+}
+
+export function useRecordSurveyResponse(surveyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: RecordSurveyResponseInput) => recordSurveyResponse(surveyId, input),
+    onSuccess: () => invalidateSurveyResponses(qc, surveyId),
+  })
+}
+
+export function useUpdateRecordedSurveyResponse(surveyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ responseId, input }: { responseId: string; input: UpdateRecordedSurveyResponseInput }) =>
+      updateRecordedSurveyResponse(surveyId, responseId, input),
+    onSuccess: () => invalidateSurveyResponses(qc, surveyId),
+  })
+}
+
 export function usePublicSurvey(token: string | undefined) {
   return useQuery({
     queryKey: surveyKeys.publicForm(token ?? ''),
@@ -175,5 +216,14 @@ export function usePortalSurveys() {
   return useQuery({
     queryKey: surveyKeys.portal(),
     queryFn: ({ signal }) => fetchPortalSurveys({ signal }),
+  })
+}
+
+/** Portal: answers the signed-in service user submitted for one survey. */
+export function usePortalSurveyAnswers(token: string | null) {
+  return useQuery({
+    queryKey: surveyKeys.portalAnswers(token ?? ''),
+    queryFn: ({ signal }) => fetchPortalSurveyAnswers(token!, { signal }),
+    enabled: Boolean(token),
   })
 }

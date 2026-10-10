@@ -21,6 +21,7 @@ describe('service-user-profile-tabs', () => {
       'privacy',
       'dom',
       'assessment',
+      'referrals',
       'funding',
       'charge-card',
       'visits',

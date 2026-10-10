@@ -4,7 +4,7 @@
  * Browser local TZ must never define "today" for board / ECM / visit days.
  */
 
-export const DEFAULT_OPERATIONAL_TIMEZONE = 'Asia/Karachi'
+export const DEFAULT_OPERATIONAL_TIMEZONE = 'Europe/London'
 
 /** Alias used by ECM period util historically. */
 export const ECM_OPERATIONAL_TIMEZONE = DEFAULT_OPERATIONAL_TIMEZONE
@@ -14,7 +14,7 @@ export type OperationalDateDisplayFormat = 'DD_MM_YYYY' | 'MM_DD_YYYY' | 'YYYY_M
 let syncedOperationalTimezone = DEFAULT_OPERATIONAL_TIMEZONE
 let syncedDateDisplayFormat: OperationalDateDisplayFormat = 'DD_MM_YYYY'
 
-/** Resolve org ops TZ from a settings value (falls back to Asia/Karachi). */
+/** Resolve org ops TZ from a settings value (falls back to Europe/London). */
 export function getOperationalTimeZone(orgTimezone?: string | null): string {
   const trimmed = orgTimezone?.trim()
   return trimmed || DEFAULT_OPERATIONAL_TIMEZONE
@@ -34,7 +34,7 @@ export function syncOrganisationDateDisplayFormat(
   }
 }
 
-/** Last synced organisation operational timezone (default Asia/Karachi until settings load). */
+/** Last synced organisation operational timezone (default Europe/London until settings load). */
 export function getSyncedOperationalTimeZone(): string {
   return syncedOperationalTimezone
 }
@@ -111,7 +111,7 @@ export function minutesInOperationalTimeZone(
   return hour * 60 + minute
 }
 
-/** Short label for UI: "Operational day · Asia/Karachi · 06/08/2026" (org date format). */
+/** Short label for UI: "Operational day · Europe/London · 06/08/2026" (org date format). */
 export function formatOperationalDayLabel(
   dayIso: string = operationalTodayIso(),
   timeZone = getSyncedOperationalTimeZone(),

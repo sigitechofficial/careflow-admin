@@ -34,6 +34,12 @@ import { AllowCarerContinueDialog } from '@/features/ecm/components/AllowCarerCo
 import { CloseSosDialog } from '@/features/ecm/components/CloseSosDialog'
 import type { EcmExceptionRow } from '@/features/ecm/types/ecm.types'
 import { formatOpsCalendarDate, formatOpsClockTime } from '@/shared/lib/operational-day.util'
+import { useVisitVoiceNotes } from '@/features/scheduling/hooks/useVisitVoiceNotes'
+import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
+import type {
+  VisitVoiceNote,
+  VisitVoiceNoteEntryType,
+} from '@/features/scheduling/types/visit-voice-note.types'
 
 function isVisitOutcomeKind(kind: string): boolean {
   const k = kind.toUpperCase()
@@ -759,6 +765,42 @@ function VisitBadges({ rows }: { rows: EcmExceptionRow[] }) {
   )
 }
 
+/**
+ * Carer voice notes for the alerts on this card (SOS, unable to start, outside-area check-in).
+ * Loaded only while the card is open; polls while one is still waiting for the office, because
+ * the app uploads the audio just after the alert itself.
+ */
+function QueueCardVoiceNotes({
+  jobId,
+  sos,
+  unableToStart,
+  checkInRequest,
+  waiting,
+}: {
+  jobId: string
+  sos: boolean
+  unableToStart: boolean
+  checkInRequest: boolean
+  waiting: boolean
+}) {
+  const { groups } = useVisitVoiceNotes(jobId, { refetchInterval: waiting ? 10_000 : false })
+  const pick = (type: VisitVoiceNoteEntryType) =>
+    groups.filter((g) => g.entryType === type).flatMap((g) => g.voiceNotes)
+  const sections = [
+    sos ? { label: 'SOS voice notes', notes: pick('sos') } : null,
+    unableToStart ? { label: 'Unable to start voice notes', notes: pick('unable_to_start') } : null,
+    checkInRequest ? { label: 'Check-in request voice notes', notes: pick('check_in_request') } : null,
+  ].filter((x): x is { label: string; notes: VisitVoiceNote[] } => Boolean(x && x.notes.length))
+  if (sections.length === 0) return null
+  return (
+    <div className="space-y-3" onClick={e => e.stopPropagation()} data-testid="ecm-card-voice-notes">
+      {sections.map(section => (
+        <VoiceNoteList key={section.label} voiceNotes={section.notes} label={section.label} />
+      ))}
+    </div>
+  )
+}
+
 export function VisitQueueCard({
   rows,
   expanded,
@@ -975,6 +1017,13 @@ export function VisitQueueCard({
           {gpsPoints.length > 0 ? (
             <EcmCarerCapturedLocationList points={gpsPoints} showOpenInMaps />
           ) : null}
+          <QueueCardVoiceNotes
+            jobId={row.scheduledJobId}
+            sos={sosRows.length > 0}
+            unableToStart={unableToStart}
+            checkInRequest={checkInRows.length > 0}
+            waiting={unackedSos || unableToStart || checkInPending}
+          />
           {sosRows.length > 0 ? <SosActions rows={sosRows} /> : null}
           {lockRow ? <AreaLockActions row={lockRow} /> : null}
           {checkInRows.map(grantRow => (

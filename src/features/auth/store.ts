@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { appendAuditEvent, loadAuditFromStorage } from '@/features/auth/audit'
 import { hasPermission as checkPerm, permissionsForRole } from '@/features/auth/roles'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
@@ -199,7 +199,11 @@ interface AuthState {
   resetPassword: (token: string, password: string) => { ok: boolean; error?: string }
   changePassword: (current: string, next: string) => Promise<{ ok: boolean; error?: string }>
   updateProfile: (
-    patch: Partial<Pick<AuthUser, 'displayName' | 'jobTitle' | 'firstName' | 'lastName'>>,
+    patch: Partial<Pick<AuthUser, 'displayName' | 'jobTitle' | 'firstName' | 'lastName'>> & {
+      /** New sign-in email (API mode); needs currentPassword. */
+      email?: string
+      currentPassword?: string
+    },
   ) => Promise<{ ok: boolean; error?: string }>
   applyMeUser: (me: BackendMeUser) => void
   setTwoFactorEnabled: (on: boolean) => void
@@ -303,6 +307,32 @@ function cidrMatch(ip: string, cidr: string): boolean {
   const fullOctets = Math.floor(bits / 8)
   for (let i = 0; i < fullOctets; i++) if (a[i] !== b[i]) return false
   return true
+}
+
+function isPortalPathname(): boolean {
+  if (typeof window === 'undefined') return false
+  const path = window.location.pathname
+  return path === '/portal' || path.startsWith('/portal/')
+}
+
+/**
+ * Staff and service-user portal sessions live under separate keys, so a portal login in one tab
+ * and a staff session in another tab never overwrite each other (refreshing the portal used to
+ * restore the staff session). Reads follow the current page; writes follow the signed-in account.
+ */
+const authSessionStorage: StateStorage = {
+  getItem: (name) => localStorage.getItem(isPortalPathname() ? `${name}:portal` : name),
+  setItem: (name, value) => {
+    let portal = isPortalPathname()
+    try {
+      const user = (JSON.parse(value) as { state?: { user?: AuthUser | null } }).state?.user
+      if (user) portal = user.accountKind === 'service_user' || user.role === 'service_user'
+    } catch {
+      // Fall back to the current page.
+    }
+    localStorage.setItem(portal ? `${name}:portal` : name, value)
+  },
+  removeItem: (name) => localStorage.removeItem(isPortalPathname() ? `${name}:portal` : name),
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -829,6 +859,7 @@ export const useAuthStore = create<AuthState>()(
             const me = await backendUpdateProfile({
               firstName: patch.firstName ?? patch.displayName?.split(/\s+/)[0],
               lastName: patch.lastName ?? patch.displayName?.split(/\s+/).slice(1).join(' '),
+              ...(patch.email ? { email: patch.email, currentPassword: patch.currentPassword } : {}),
             })
             set({ user: userFromMe(me, { ...u, jobTitle: patch.jobTitle ?? u.jobTitle }) })
             get().appendLocalAudit({
@@ -837,7 +868,7 @@ export const useAuthStore = create<AuthState>()(
               actorEmail: u.email,
               action: 'profile.updated',
               ip: nowIp(),
-              meta: { mode: 'api', ...patch },
+              meta: { mode: 'api', firstName: patch.firstName, lastName: patch.lastName, email: patch.email },
             })
             return { ok: true }
           } catch (e) {
@@ -963,6 +994,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'care-admin-auth',
+      storage: createJSONStorage(() => authSessionStorage),
       version: 2,
       migrate: (persisted) => {
         const state = persisted as AuthState

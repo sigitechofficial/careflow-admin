@@ -1,12 +1,63 @@
+import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { CheckCircle2, ClipboardList } from 'lucide-react'
-import { usePortalSurveys } from '@/features/surveys/hooks/useSurveys'
+import { CheckCircle2, ClipboardList, Eye, Loader2 } from 'lucide-react'
+import { usePortalSurveyAnswers, usePortalSurveys } from '@/features/surveys/hooks/useSurveys'
 import { describeSurveyRespondent } from '@/features/surveys/survey-respondent'
 import type { PortalSurveyItem } from '@/features/surveys/types'
 import { formatPortalDate } from '@/features/service-user-portal/components/portal-display.util'
 import { Button } from '@/shared/ui/button'
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog'
 
-function SurveyCard({ survey }: { survey: PortalSurveyItem }) {
+function MyAnswersDialog({ survey, onClose }: { survey: PortalSurveyItem | null; onClose: () => void }) {
+  const { data, isLoading, isError } = usePortalSurveyAnswers(survey?.token ?? null)
+  return (
+    <Dialog open={survey != null} onOpenChange={open => (open ? undefined : onClose())}>
+      <DialogContent size="lg">
+        <DialogHeader>
+          <DialogTitle>{survey?.title ?? 'Your answers'}</DialogTitle>
+          <DialogDescription>
+            {data
+              ? `Submitted ${formatPortalDate(data.submittedAt)}${
+                  data.respondentRelation
+                    ? ` · ${describeSurveyRespondent(data.respondentRelation, data.respondentName)}`
+                    : ''
+                }`
+              : 'The answers you submitted.'}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="space-y-2">
+          {isLoading ? (
+            <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading your answers…
+            </div>
+          ) : isError || !data ? (
+            <p className="py-6 text-center text-sm text-destructive">Could not load your answers.</p>
+          ) : data.answers.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No answers recorded.</p>
+          ) : (
+            data.answers.map((a, idx) => (
+              <div key={a.questionId} className="rounded-lg border border-border bg-card px-3 py-2.5">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Q{idx + 1}. {a.questionText}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{a.displayValue}</p>
+              </div>
+            ))
+          )}
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SurveyCard({ survey, onViewAnswers }: { survey: PortalSurveyItem; onViewAnswers: () => void }) {
   const completed = survey.state === 'COMPLETED'
   return (
     <li className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -46,6 +97,10 @@ function SurveyCard({ survey }: { survey: PortalSurveyItem }) {
             Answer survey
           </Link>
         </Button>
+      ) : completed ? (
+        <Button type="button" variant="outline" className="gap-1.5" onClick={onViewAnswers}>
+          <Eye className="h-4 w-4" aria-hidden /> View my answers
+        </Button>
       ) : null}
     </li>
   )
@@ -53,6 +108,7 @@ function SurveyCard({ survey }: { survey: PortalSurveyItem }) {
 
 export default function PortalSurveysPage() {
   const { data, isLoading, isError } = usePortalSurveys()
+  const [viewing, setViewing] = React.useState<PortalSurveyItem | null>(null)
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading surveys…</p>
@@ -82,10 +138,12 @@ export default function PortalSurveysPage() {
       ) : (
         <ul className="space-y-3">
           {surveys.map(s => (
-            <SurveyCard key={s.token} survey={s} />
+            <SurveyCard key={s.token} survey={s} onViewAnswers={() => setViewing(s)} />
           ))}
         </ul>
       )}
+
+      <MyAnswersDialog survey={viewing} onClose={() => setViewing(null)} />
     </div>
   )
 }

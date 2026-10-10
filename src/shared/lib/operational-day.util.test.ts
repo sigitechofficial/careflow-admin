@@ -11,11 +11,11 @@ afterEach(() => {
 })
 
 describe('operationalTodayIso', () => {
-  it('uses Asia/Karachi by default, not Europe/London when passed explicitly', () => {
-    // Already 7 Aug in Karachi (UTC+5); still 6 Aug in London (BST)
+  it('uses Europe/London by default, not Asia/Karachi when passed explicitly', () => {
+    // Still 6 Aug in London (BST); already 7 Aug in Karachi (UTC+5)
     const now = new Date('2026-08-06T21:05:00.000Z')
-    expect(operationalTodayIso(now, DEFAULT_OPERATIONAL_TIMEZONE)).toBe('2026-08-07')
-    expect(operationalTodayIso(now, 'Europe/London')).toBe('2026-08-06')
+    expect(operationalTodayIso(now, DEFAULT_OPERATIONAL_TIMEZONE)).toBe('2026-08-06')
+    expect(operationalTodayIso(now, 'Asia/Karachi')).toBe('2026-08-07')
   })
 
   it('uses synced organisation timezone by default', () => {

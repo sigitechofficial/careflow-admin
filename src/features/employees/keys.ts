@@ -53,6 +53,15 @@ export const employeeKeys = {
   /** Holidays / leave for one employee. */
   holidays: (id: string) => [...employeeKeys.detail(id), 'holidays'] as const,
 
+  /** Items issued to one employee (laptop, PPE, uniform…). */
+  allocations: (id: string) => [...employeeKeys.detail(id), 'allocations'] as const,
+
+  /** Allocations across employees (Employee → Allocations). */
+  allocationsRegistry: (params: object) => [...employeeKeys.all(), 'allocations-registry', params] as const,
+
+  /** Allocation item catalogue (Settings → Allocation items). */
+  allocationItems: () => [...employeeKeys.all(), 'allocation-items'] as const,
+
   /** Organisation-wide non-core activity registry. */
   nonCoreRegistry: () => [...employeeKeys.all(), 'non-core-registry'] as const,
 
@@ -68,6 +77,9 @@ export const employeeKeys = {
 
   /** Weekly working patterns for one employee. */
   workingPatterns: (id: string) => [...employeeKeys.detail(id), 'working-patterns'] as const,
+
+  /** Carer reports (activity, compliance, roles, leaving, details, holidays). */
+  carerReport: (slug: string, params: object) => [...employeeKeys.all(), 'carer-report', slug, params] as const,
 
   /** Organisation weekly hours overview. */
   hoursWeekly: (params?: Record<string, string | boolean | undefined>) =>

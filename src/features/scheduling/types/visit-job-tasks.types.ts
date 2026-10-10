@@ -50,10 +50,18 @@ export type VisitJobTaskRow = {
   completedAt: string | null
   completedById?: string | null
   completedByName?: string | null
+  /** HH:mm the planned task is due (Tasks Planner time). */
+  dueTime?: string | null
+  /** No visit that day covers the due time, so the task was moved to this nearest visit. */
+  placedAtNearestVisit?: boolean
+  /** This visit was cancelled / called off — the task stays here as not done (not moved). */
+  visitCancelled?: boolean
 }
 
 export type VisitJobTasksResponse = {
   medicationRoundCode: string | null
+  /** Cancelled / called-off visit: tasks are listed as not done, not moved elsewhere. */
+  visitCancelled?: boolean
   roundLabel: string | null
   windowStart: string | null
   windowEnd: string | null

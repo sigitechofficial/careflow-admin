@@ -7,6 +7,11 @@ export function describeSurveyRespondent(
 ): string | null {
   if (!relation) return null
   if (relation === 'SELF') return 'Answered by the service user'
-  const who = relation === 'FAMILY_MEMBER' ? 'a family member' : 'a representative'
+  const who =
+    relation === 'FAMILY_MEMBER'
+      ? 'a family member'
+      : relation === 'STAFF'
+        ? 'staff on their behalf'
+        : 'a representative'
   return `Answered by ${who}${name?.trim() ? ` (${name.trim()})` : ''}`
 }

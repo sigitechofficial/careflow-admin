@@ -164,14 +164,20 @@ export function VisitJobTasksPanel({
         serviceUserId={serviceUserId}
         allowTaskReset={allowTaskReset}
         noRoundMessage={
-          !tasksQuery.isLoading && !tasksQuery.data?.medicationRoundCode
-            ? 'This visit is not linked to a visit-plan time slot, so planned tasks cannot be resolved.'
+          // Tasks attach by visit time; only unresolvable when the visit has no time window
+          // and no visit-plan slot to fall back on.
+          !tasksQuery.isLoading &&
+          !tasksQuery.data?.medicationRoundCode &&
+          !(tasksQuery.data?.windowStart && tasksQuery.data?.windowEnd)
+            ? 'This visit has no end time or visit-plan slot, so planned tasks cannot be resolved.'
             : undefined
         }
         emptyMessage={
-          tasksQuery.data?.medicationRoundCode
-            ? `No tasks are planned for ${roundLabel ?? 'this time slot'}. Add tasks in the service user's Tasks Planner tab.`
-            : undefined
+          tasksQuery.data?.windowStart && tasksQuery.data?.windowEnd
+            ? `No tasks are due between ${tasksQuery.data.windowStart} and ${tasksQuery.data.windowEnd}. Set task due times in the service user's Tasks Planner tab.`
+            : tasksQuery.data?.medicationRoundCode
+              ? `No tasks are planned for ${roundLabel ?? 'this time slot'}. Add tasks in the service user's Tasks Planner tab.`
+              : undefined
         }
         onTaskChange={toggleTask}
       />

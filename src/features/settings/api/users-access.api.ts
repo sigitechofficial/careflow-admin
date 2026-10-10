@@ -57,6 +57,21 @@ export async function setOfficeUserRoles(
   return res.data ?? {}
 }
 
+export type UpdateOfficeUserInput = {
+  firstName?: string
+  lastName?: string
+  email?: string
+  /** New password — signs the user out of other sessions. */
+  password?: string
+}
+
+export async function updateOfficeUser(userId: string, input: UpdateOfficeUserInput): Promise<void> {
+  await apiJson(`/users/${userId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
 export async function setOfficeUserLocations(userId: string, locationIds: string[]): Promise<void> {
   await apiJson(`/users/${userId}/locations`, {
     method: 'PUT',

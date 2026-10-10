@@ -430,8 +430,8 @@ export function AddressPlacesField({
           Search address
         </Label>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Search with Google Places (UK). Pick a suggestion to fill the address and secondary
-          postcode, then confirm on the map.
+          Search with Google Places (UK). Pick a suggestion to fill the address and{' '}
+          {postcodeLabel.toLowerCase()}, then confirm on the map.
         </p>
         <div ref={searchWrapRef} className="relative mt-2">
           <div ref={placesAttrRef} className="hidden" aria-hidden />

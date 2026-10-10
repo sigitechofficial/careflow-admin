@@ -10,6 +10,7 @@ import { mapLookupRowsToQuestionOptions } from '@/features/service-users/initial
 import { InitialAssessmentSpecialistTriggerNote } from '@/features/service-users/initial-assessment/components/InitialAssessmentSpecialistTriggerNote'
 import { InitialAssessmentAddressContactField } from '@/features/service-users/initial-assessment/components/InitialAssessmentAddressContactField'
 import { InitialAssessmentGpContactField } from '@/features/service-users/initial-assessment/components/InitialAssessmentGpContactField'
+import { InitialAssessmentLpaContactField } from '@/features/service-users/initial-assessment/components/InitialAssessmentLpaContactField'
 import {
   InitialAssessmentAllergiesField,
   isAllergiesSummaryQuestion,
@@ -215,6 +216,9 @@ export function InitialAssessmentSectionQuestions({
   const fundingTypeCatalog = mapLookupRowsToQuestionOptions(suLookupsQuery.data?.fundingTypes ?? [])
   const ethnicityCatalog = mapLookupRowsToQuestionOptions(suLookupsQuery.data?.ethnicities ?? [])
   const languageCatalog = mapLookupRowsToQuestionOptions(suLookupsQuery.data?.languages ?? [])
+  const genderCatalog = mapLookupRowsToQuestionOptions(suLookupsQuery.data?.genders ?? [])
+  const sexCatalog = mapLookupRowsToQuestionOptions(suLookupsQuery.data?.sexes ?? [])
+  const sexualOrientationCatalog = mapLookupRowsToQuestionOptions(suLookupsQuery.data?.sexualOrientations ?? [])
 
   const isFieldDisabled = (q: InitialAssessmentQuestion) =>
     disabled || shouldLockVitalQuestion(q, allSections, draftAnswers)
@@ -241,6 +245,9 @@ export function InitialAssessmentSectionQuestions({
       fundingTypeCatalog,
       ethnicityCatalog,
       languageCatalog,
+      genderCatalog,
+      sexCatalog,
+      sexualOrientationCatalog,
     })
     const simpleLayout =
       isSection1SimpleGroup(specRefOf(q)) || isSection4FullWidthSpecRef(specRefOf(q))
@@ -268,6 +275,18 @@ export function InitialAssessmentSectionQuestions({
           value={merged}
           serviceUserId={serviceUserId}
           serviceUserDetail={serviceUserDetail}
+          errorMessage={questionErrors?.get(q.id)}
+          disabled={isFieldDisabled(q)}
+          variant={simpleLayout ? 'simple' : 'default'}
+          onChange={(patch) => onChange(q.id, patch)}
+        />
+      )
+    }
+    if (fieldKeyOf(q) === 'lpoaContactDetails') {
+      return (
+        <InitialAssessmentLpaContactField
+          question={q}
+          value={merged}
           errorMessage={questionErrors?.get(q.id)}
           disabled={isFieldDisabled(q)}
           variant={simpleLayout ? 'simple' : 'default'}
@@ -331,6 +350,9 @@ export function InitialAssessmentSectionQuestions({
         fundingTypeCatalog={fundingTypeCatalog}
         ethnicityCatalog={ethnicityCatalog}
         languageCatalog={languageCatalog}
+        genderCatalog={genderCatalog}
+        sexCatalog={sexCatalog}
+        sexualOrientationCatalog={sexualOrientationCatalog}
         lookupCatalogLoading={suLookupsQuery.isLoading}
         onChange={(patch) => onChange(q.id, patch)}
       />

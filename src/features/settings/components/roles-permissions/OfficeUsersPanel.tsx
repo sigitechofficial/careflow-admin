@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -17,6 +17,7 @@ import {
   useOfficeUsers,
   useSetOfficeUserLocations,
   useSetOfficeUserRoles,
+  useUpdateOfficeUser,
 } from '@/features/settings/hooks/useUsersAccess'
 import {
   assignableRolesForActor,
@@ -53,6 +54,7 @@ const emptyCreateForm = {
 export function OfficeUsersPanel() {
   const canManage = useAuthStore(s => s.can('roles.manage'))
   const canCreate = useAuthStore(s => s.can('users.create'))
+  const [editOpen, setEditOpen] = React.useState(false)
   const actorRoles = useAuthStore(s => s.user?.backendRoles ?? [])
   const actorBranchScoped = useAuthStore(s => isBranchScoped(s.user))
   const actorBranchIds = useAuthStore(s => accessibleBranchIds(s.user))
@@ -227,10 +229,30 @@ export function OfficeUsersPanel() {
             </p>
           ) : (
             <>
-              <div>
-                <h2 className="text-sm font-semibold">{displayName(selected)}</h2>
-                <p className="text-xs text-muted-foreground">{selected.email}</p>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold">{displayName(selected)}</h2>
+                  <p className="truncate text-xs text-muted-foreground">{selected.email}</p>
+                </div>
+                {canCreate ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<Pencil className="h-3.5 w-3.5" />}
+                    onClick={() => setEditOpen(true)}
+                    data-testid="office-user-edit"
+                  >
+                    Edit details
+                  </Button>
+                ) : null}
               </div>
+              <EditOfficeUserDialog
+                key={selected.id}
+                user={selected}
+                open={editOpen}
+                onClose={() => setEditOpen(false)}
+              />
 
               <fieldset disabled={!canManage || setRoles.isPending} className="space-y-2">
                 <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -542,5 +564,112 @@ export function OfficeUsersPanel() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+/** Admin edit of an office user: name, sign-in email and an optional new password. */
+function EditOfficeUserDialog({
+  user,
+  open,
+  onClose,
+}: {
+  user: OfficeUserRow
+  open: boolean
+  onClose: () => void
+}) {
+  const update = useUpdateOfficeUser()
+  const [firstName, setFirstName] = React.useState(user.firstName ?? '')
+  const [lastName, setLastName] = React.useState(user.lastName ?? '')
+  const [email, setEmail] = React.useState(user.email)
+  const [password, setPassword] = React.useState('')
+  const [confirm, setConfirm] = React.useState('')
+
+  React.useEffect(() => {
+    if (!open) return
+    setFirstName(user.firstName ?? '')
+    setLastName(user.lastName ?? '')
+    setEmail(user.email)
+    setPassword('')
+    setConfirm('')
+  }, [open, user])
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  const passwordError =
+    password && password.length < 8
+      ? 'Use at least 8 characters.'
+      : password && password !== confirm
+        ? 'Passwords do not match.'
+        : null
+  const canSave = emailValid && !passwordError && !update.isPending
+
+  const save = () => {
+    update.mutate(
+      {
+        userId: user.id,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        ...(email.trim() !== user.email ? { email: email.trim() } : {}),
+        ...(password ? { password } : {}),
+      },
+      { onSuccess: onClose },
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={o => (o ? undefined : onClose())}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit office user</DialogTitle>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">First name</span>
+              <Input value={firstName} onChange={e => setFirstName(e.target.value)} maxLength={100} />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">Last name</span>
+              <Input value={lastName} onChange={e => setLastName(e.target.value)} maxLength={100} />
+            </label>
+          </div>
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">Email (used to sign in)</span>
+            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} maxLength={254} />
+            {!emailValid ? <span className="text-xs text-destructive">Enter a valid email.</span> : null}
+          </label>
+          <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+            <p className="text-xs font-medium text-foreground">Set a new password (optional)</p>
+            <p className="text-xs text-muted-foreground">
+              Leave blank to keep the current password. A new password signs them out of other sessions.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="New password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="Confirm new password"
+                value={confirm}
+                onChange={e => setConfirm(e.target.value)}
+              />
+            </div>
+            {passwordError ? <p className="text-xs text-destructive">{passwordError}</p> : null}
+          </div>
+        </DialogBody>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" disabled={!canSave} onClick={save}>
+            {update.isPending ? 'Saving…' : 'Save changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

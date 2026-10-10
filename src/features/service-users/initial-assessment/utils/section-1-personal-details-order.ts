@@ -10,6 +10,8 @@ export const SECTION_1_1_PERSONAL_DETAILS_ORDER = [
   'Last name',
   'Preferred name',
   'Gender',
+  'Sex',
+  'Sexual orientation',
   'Date of birth',
   'NHS number',
   'NI number',

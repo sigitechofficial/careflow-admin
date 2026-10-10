@@ -18,6 +18,9 @@ import {
   type VisitJobTaskRow,
 } from '@/features/scheduling/types/visit-job-tasks.types'
 import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
+import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
+import { useVisitVoiceNotes } from '@/features/scheduling/hooks/useVisitVoiceNotes'
+import type { VisitVoiceNote } from '@/features/scheduling/types/visit-voice-note.types'
 import { VisitJobTaskResetButton } from '@/features/scheduling/components/ScheduleJobResetTaskDialog'
 import {
   normalizeVisitTaskPriority,
@@ -51,7 +54,8 @@ type Props = {
   /** Normalised observation type code → { label, value }, to surface the linked
    * observation on an obs-linked task (parity with the carer app). */
   observationsByType?: Record<string, RecordedObservation>
-  /** Office reset of one task — trailing the name. Carer app has no button. */
+  /** Office reset of one task — trailing the name. Carer app has no button.
+   * Also loads the carer's task voice notes for the "Carer app record" block. */
   jobId?: string
   serviceUserId?: string | null
   allowTaskReset?: boolean
@@ -199,10 +203,12 @@ function VisitJobTaskCarerRecord({
   task,
   observation,
   includeOutcomeNotes = true,
+  voiceNotes,
 }: {
   task: VisitJobTaskRow
   observation?: RecordedObservation | null
   includeOutcomeNotes?: boolean
+  voiceNotes?: VisitVoiceNote[]
 }) {
   const outcome = inferVisitJobTaskOutcome(task)
   if (!outcome && !task.isCompleted) return null
@@ -254,6 +260,7 @@ function VisitJobTaskCarerRecord({
         {includeOutcomeNotes ? (
           <CarerField label={noteLabel} value={outcomeNotes} />
         ) : null}
+        <VoiceNoteList voiceNotes={voiceNotes} label="Carer voice notes" />
       </div>
     </div>
   )
@@ -278,6 +285,20 @@ export function VisitJobTasksChecklist({
   allowTaskReset = false,
 }: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set())
+  const voiceNoteLookup = useVisitVoiceNotes(jobId)
+
+  /** Carer-app task entry is the assignmentId (or `extra-<catalogueId>` for extras). */
+  const taskVoiceNotes = (task: VisitJobTaskRow): VisitVoiceNote[] => {
+    const all = [
+      ...voiceNoteLookup.forEntry('task', task.assignmentId),
+      ...(task.isExtra
+        ? voiceNoteLookup.forEntry('task', `extra-${task.taskCatalogueTaskId}`)
+        : []),
+      ...voiceNoteLookup.forSource('task', task.assignmentId),
+    ]
+    const seen = new Set<string>()
+    return all.filter((note) => (seen.has(note.id) ? false : (seen.add(note.id), true)))
+  }
 
   const toggleExpanded = (assignmentId: string) => {
     setExpandedIds((prev) => {
@@ -370,6 +391,32 @@ export function VisitJobTasksChecklist({
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
               {task.name}
             </span>
+            {task.dueTime ? (
+              <span
+                className={cn(
+                  'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums',
+                  task.placedAtNearestVisit
+                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
+                    : 'bg-muted text-muted-foreground',
+                )}
+                title={
+                  task.placedAtNearestVisit
+                    ? `No visit covers ${task.dueTime}, so this task was moved to the nearest visit`
+                    : undefined
+                }
+              >
+                Due {task.dueTime}
+                {task.placedAtNearestVisit ? ' · nearest visit' : ''}
+              </span>
+            ) : null}
+            {task.visitCancelled ? (
+              <span
+                className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-800 dark:bg-rose-950 dark:text-rose-200"
+                title="This visit was cancelled — the task was not done and was not moved to another visit"
+              >
+                Not done · visit cancelled
+              </span>
+            ) : null}
             {outcome === 'completed' ? (
               <CheckSquare className="h-4 w-4 shrink-0 text-teal-600" aria-label="Completed" />
             ) : null}
@@ -458,6 +505,7 @@ export function VisitJobTasksChecklist({
                   task={task}
                   observation={observation}
                   includeOutcomeNotes={!showOutcomeFields}
+                  voiceNotes={taskVoiceNotes(task)}
                 />
 
                 {showOutcomeFields ? (
