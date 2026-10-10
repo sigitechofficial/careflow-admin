@@ -28,7 +28,7 @@ import {
 import { useCompanyStore } from '@/store/company.store'
 import { useNotificationSocket } from '@/features/notifications/hooks/useNotificationSocket'
 import { UrgentOfficeAlertHost } from '@/features/ecm/components/UrgentOfficeAlertHost'
-import { useUIStore } from '@/store/ui.store'
+import { useUIStore, applyTextPreferences } from '@/store/ui.store'
 import { useAuthStore } from '@/features/auth/store'
 import { rootAuthBeforeLoad } from '@/features/auth/guard'
 import type { Permission } from '@/features/auth/types'
@@ -430,6 +430,12 @@ const BILLING_TAB_IDS: BillingTabId[] = [
 
 function RootDocument() {
   const { theme } = useUIStore()
+  const textSize = useUIStore((s) => s.textSize)
+  const textWeight = useUIStore((s) => s.textWeight)
+
+  useEffect(() => {
+    applyTextPreferences(textSize, textWeight)
+  }, [textSize, textWeight])
 
   useEffect(() => {
     const root = document.documentElement

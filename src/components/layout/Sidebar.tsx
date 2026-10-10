@@ -1450,7 +1450,8 @@ function ModuleSidebar() {
                   </span>
                   <span
                     className={cn(
-                      'text-[10.5px] font-medium leading-tight',
+                      // rail-label: grows with the reader's text size but is capped to fit the fixed-width rail.
+                      'rail-label font-medium leading-tight',
                       active ? 'text-sidebar-foreground' : 'text-sidebar-foreground/75',
                     )}
                   >

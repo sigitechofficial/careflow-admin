@@ -91,7 +91,7 @@ function Metric(props: MetricProps) {
       >
         {loading ? '…' : value}
       </span>
-      <span className="truncate text-xs text-muted-foreground group-hover:text-foreground">{label}</span>
+      <span className="line-clamp-2 text-xs text-muted-foreground group-hover:text-foreground">{label}</span>
     </>
   )
   const box = 'group flex min-w-0 flex-col rounded-lg bg-muted/40 px-3 py-2'

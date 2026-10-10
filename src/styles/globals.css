@@ -150,6 +150,8 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    /* Reading comfort: --text-scale is set from the Aa menu (store/ui.store.ts). */
+    font-size: calc(1rem * var(--text-scale, 1));
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     font-variation-settings: "opsz" 32;
   }
@@ -394,3 +396,49 @@
   z-index: 10050 !important;
 }
 
+
+/* ─── Reading comfort (Top bar → Aa) ─────────────────────────────────────────
+ * --text-scale enlarges text; data-text-weight makes it heavier.
+ * Tailwind's named sizes already use --text-scale (tailwind.config.ts). The fixed pixel
+ * sizes used across the app are scaled here; :root raises specificity over the utilities.
+ */
+:root {
+  --text-scale: 1;
+}
+:root .text-\[6px\] { font-size: calc(6px * var(--text-scale)); }
+:root .text-\[6\.5px\] { font-size: calc(6.5px * var(--text-scale)); }
+:root .text-\[7px\] { font-size: calc(7px * var(--text-scale)); }
+:root .text-\[8px\] { font-size: calc(8px * var(--text-scale)); }
+:root .text-\[9px\] { font-size: calc(9px * var(--text-scale)); }
+:root .text-\[9\.5px\] { font-size: calc(9.5px * var(--text-scale)); }
+:root .text-\[10px\] { font-size: calc(10px * var(--text-scale)); }
+:root .text-\[10\.5px\] { font-size: calc(10.5px * var(--text-scale)); }
+:root .text-\[11px\] { font-size: calc(11px * var(--text-scale)); }
+:root .text-\[12px\] { font-size: calc(12px * var(--text-scale)); }
+:root .text-\[13px\] { font-size: calc(13px * var(--text-scale)); }
+:root .text-\[13\.5px\] { font-size: calc(13.5px * var(--text-scale)); }
+:root .text-\[14px\] { font-size: calc(14px * var(--text-scale)); }
+:root .text-\[15px\] { font-size: calc(15px * var(--text-scale)); }
+:root .text-\[16px\] { font-size: calc(16px * var(--text-scale)); }
+:root .text-\[26px\] { font-size: calc(26px * var(--text-scale)); }
+:root .text-\[0\.8rem\] { font-size: calc(0.8rem * var(--text-scale)); }
+
+/* Module rail labels sit under icons in a fixed 76px rail: grow a little, never overflow. */
+.rail-label {
+  font-size: min(calc(10.5px * var(--text-scale, 1)), 11.5px);
+}
+
+/* Heavier text: every weight steps up (DM Sans loads 300–700, Outfit up to 800). */
+:root[data-text-weight='medium'] body { font-weight: 500; }
+:root[data-text-weight='medium'] .font-light { font-weight: 400; }
+:root[data-text-weight='medium'] .font-normal { font-weight: 500; }
+:root[data-text-weight='medium'] .font-medium { font-weight: 600; }
+:root[data-text-weight='medium'] .font-semibold { font-weight: 700; }
+:root[data-text-weight='medium'] .font-bold { font-weight: 800; }
+
+:root[data-text-weight='bold'] body { font-weight: 600; }
+:root[data-text-weight='bold'] .font-light { font-weight: 500; }
+:root[data-text-weight='bold'] .font-normal { font-weight: 600; }
+:root[data-text-weight='bold'] .font-medium { font-weight: 700; }
+:root[data-text-weight='bold'] .font-semibold { font-weight: 700; }
+:root[data-text-weight='bold'] .font-bold { font-weight: 800; }

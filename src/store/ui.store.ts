@@ -3,6 +3,25 @@ import { persist } from 'zustand/middleware'
 
 type Theme = 'light' | 'dark' | 'system'
 
+/** Reading comfort: text size scale and weight, applied app-wide (see globals.css). */
+export type TextSize = 'standard' | 'large' | 'larger' | 'largest'
+export type TextWeight = 'standard' | 'medium' | 'bold'
+
+export const TEXT_SIZE_SCALE: Record<TextSize, number> = {
+  standard: 1,
+  large: 1.125,
+  larger: 1.25,
+  largest: 1.375,
+}
+
+/** Puts the reading preferences on <html> so CSS can scale text and weight everywhere. */
+export function applyTextPreferences(size: TextSize, weight: TextWeight) {
+  const root = document.documentElement
+  root.style.setProperty('--text-scale', String(TEXT_SIZE_SCALE[size] ?? 1))
+  root.dataset.textSize = size
+  root.dataset.textWeight = weight
+}
+
 interface UIState {
   theme: Theme
   sidebarCollapsed: boolean
@@ -11,6 +30,8 @@ interface UIState {
   pagePanelPinned: boolean
   /** null = All locations (org-wide). */
   selectedLocationId: string | null
+  textSize: TextSize
+  textWeight: TextWeight
 
   setTheme: (theme: Theme) => void
   toggleSidebar: () => void
@@ -18,6 +39,9 @@ interface UIState {
   setSidebarMobileOpen: (open: boolean) => void
   togglePagePanelPinned: () => void
   setSelectedLocationId: (locationId: string | null) => void
+  setTextSize: (size: TextSize) => void
+  setTextWeight: (weight: TextWeight) => void
+  resetTextPreferences: () => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -28,6 +52,8 @@ export const useUIStore = create<UIState>()(
       sidebarMobileOpen: false,
       pagePanelPinned: false,
       selectedLocationId: null,
+      textSize: 'standard',
+      textWeight: 'standard',
 
       setTheme: (theme) => {
         set({ theme })
@@ -50,6 +76,9 @@ export const useUIStore = create<UIState>()(
       setSidebarMobileOpen: (open) => set({ sidebarMobileOpen: open }),
       togglePagePanelPinned: () => set((state) => ({ pagePanelPinned: !state.pagePanelPinned })),
       setSelectedLocationId: (locationId) => set({ selectedLocationId: locationId }),
+      setTextSize: (textSize) => set({ textSize }),
+      setTextWeight: (textWeight) => set({ textWeight }),
+      resetTextPreferences: () => set({ textSize: 'standard', textWeight: 'standard' }),
     }),
     {
       name: 'care-admin-ui',
@@ -58,6 +87,8 @@ export const useUIStore = create<UIState>()(
         sidebarCollapsed: state.sidebarCollapsed,
         pagePanelPinned: state.pagePanelPinned,
         selectedLocationId: state.selectedLocationId,
+        textSize: state.textSize,
+        textWeight: state.textWeight,
       }),
     },
   ),
