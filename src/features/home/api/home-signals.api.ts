@@ -1,4 +1,5 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+import { addDaysToOperationalIso, combineOperationalDateAndHm } from '@/shared/lib/operational-day.util'
 
 /** API: GET /dashboard/medication-exceptions — missed, refused, not given and held doses. */
 export type MedicationExceptionStatus = 'MISSED' | 'REFUSED' | 'NOT_GIVEN' | 'HELD'
@@ -136,15 +137,69 @@ export async function fetchComplianceSummary(
   return res.data
 }
 
-/** Count of doses given more than the late threshold after they were due (GET /medication-reports/late-administrations). */
+/**
+ * Count of doses given more than the late threshold after they were due (GET /medication-reports/late-administrations).
+ * The report filters on date-times, so whole organisation days are sent (a bare date would be a zero-length range).
+ */
 export async function fetchLateMedicationCount(
   params: { dateFrom: string; dateTo: string },
   signal?: AbortSignal,
 ): Promise<number> {
+  const from = combineOperationalDateAndHm(params.dateFrom, '00:00')
+  const nextDay = combineOperationalDateAndHm(addDaysToOperationalIso(params.dateTo, 1), '00:00')
+  const to = new Date(Date.parse(nextDay) - 1).toISOString()
   const res = await apiJson<ApiEnvelope<unknown[]>>(
-    `/medication-reports/late-administrations${qs({ ...params, allServiceUsers: 'true', limit: 1 })}`,
+    `/medication-reports/late-administrations${qs({ dateFrom: from, dateTo: to, allServiceUsers: 'true', limit: 1 })}`,
     { method: 'GET', signal },
   )
   const meta = res.meta as { total?: number } | undefined
   return meta?.total ?? (Array.isArray(res.data) ? res.data.length : 0)
+}
+
+/** API: GET /dashboard/operations-overview — Care Operations dashboard counts (database-wide, branch-scoped). */
+export type OperationsOverview = {
+  today: string
+  timeZone: string
+  alerts: {
+    open: number
+    unacknowledged: number
+    pastResponseTarget: number
+    oldestOpenAt: string | null
+    byKind: Record<string, number>
+  }
+  cover: {
+    visitsToday: number
+    unfilledToday: number
+    visitsNext7: number
+    unfilledNext7: number
+    unfilledNext28: number
+    nextUnfilledAt: string | null
+    plannedHoursNext7: number
+    needsAttention: number
+  }
+  cancellations: {
+    last7: number
+    providerCaused: number
+    withoutWelfareCheck: number
+    timeCriticalNotEscalated: number
+    byReason: Record<string, number>
+  }
+  continuity: {
+    windowDays: number
+    serviceUsers: number
+    averageCarers: number | null
+    manyCarersThreshold: number
+    serviceUsersWithManyCarers: number
+  }
+}
+
+export async function fetchOperationsOverview(
+  params: { locationId?: string | null },
+  signal?: AbortSignal,
+): Promise<OperationsOverview> {
+  const res = await apiJson<ApiEnvelope<OperationsOverview>>(`/dashboard/operations-overview${qs(params)}`, {
+    method: 'GET',
+    signal,
+  })
+  return res.data
 }

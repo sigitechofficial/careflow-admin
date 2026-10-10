@@ -35,7 +35,7 @@ import {
   useServiceUserUpcoming,
   useStaffOffToday,
   useSuspensionReviewsOverdue,
-  useVisitsNeedingCarersNextWeek,
+  useOperationsOverview,
 } from '@/features/home/hooks/useHomeSignals'
 import type { UpcomingCategory } from '@/features/home/hooks/useHomeSignals'
 import { illustrationSrc } from '@/components/layout/nav-illustrations'
@@ -774,12 +774,14 @@ function StaffOffRow({ locationId }: { locationId: string | null }) {
 }
 
 function NextWeekCoverRow() {
-  const q = useVisitsNeedingCarersNextWeek(true)
+  const { locationId } = useGlobalLocationScope()
+  // Counted in the database: per-day lists are capped at 200 visits and would undercount.
+  const q = useOperationsOverview(locationId, true)
   return (
     <Row illustration="calendar"
       label="Visits needing a carer this week"
-      detail={`Next 7 days · ${plural(q.total, 'visit')} scheduled`}
-      value={q.needCarers}
+      detail={`Next 7 days · ${plural(n(q.data?.cover.visitsNext7), 'visit')} scheduled`}
+      value={n(q.data?.cover.unfilledNext7)}
       tone="critical"
       to="/scheduling/schedule-jobs"
       loading={q.isLoading}

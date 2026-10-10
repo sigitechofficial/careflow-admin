@@ -1,8 +1,9 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import {
   fetchComplianceSummary,
   fetchLateMedicationCount,
   fetchMedicationExceptions,
+  fetchOperationsOverview,
   fetchPolicyReviews,
   fetchServiceUserUpcoming,
   fetchStaffOff,
@@ -15,9 +16,7 @@ import { fetchCarePlanReviewQueue } from '@/features/service-users/care-plans/ap
 import { fetchBodyMapGovernanceAlerts, fetchBodyMapReviewQueue } from '@/features/service-users/body-map/api'
 import { fetchSuspensionReviewsOverdue } from '@/features/service-users/visit-plan/api'
 import { fetchVisitReconciliationExceptionQueue } from '@/features/billing/api/visit-reconciliations.api'
-import { getJobsDayTimeline } from '@/features/scheduling/api/scheduling.api'
-import { schedulingKeys } from '@/features/scheduling/keys'
-import { addDaysToOperationalIso, operationalTodayIso } from '@/shared/lib/operational-day.util'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { getGlobalServiceUsersCalendarEvents } from '@/features/service-users/api/service-user-calendar.api'
 
 /**
@@ -38,6 +37,7 @@ const homeKeys = {
   suspensionReviews: () => [...homeKeys.all, 'suspension-reviews'] as const,
   financeExceptions: () => [...homeKeys.all, 'finance-exceptions'] as const,
   appointments: (loc?: string | null, day?: string) => [...homeKeys.all, 'appointments', loc ?? null, day] as const,
+  operations: (loc?: string | null) => [...homeKeys.all, 'operations', loc ?? null] as const,
 }
 
 const LIVE = { refetchInterval: 60_000, refetchOnWindowFocus: true, staleTime: 0 } as const
@@ -154,26 +154,6 @@ export function useCarePlanReviewQueue(locationId: string | null | undefined, en
   })
 }
 
-/** Visits in the next 7 days (today included) that still need a carer. Shares cache with the rota pages. */
-export function useVisitsNeedingCarersNextWeek(enabled: boolean) {
-  const today = operationalTodayIso()
-  const days = Array.from({ length: 7 }, (_, i) => addDaysToOperationalIso(today, i))
-  const queries = useQueries({
-    queries: days.map((date) => ({
-      queryKey: schedulingKeys.list(date),
-      queryFn: ({ signal }: { signal: AbortSignal }) => getJobsDayTimeline(date, { limit: 200 }, { signal }),
-      enabled,
-    })),
-  })
-  let needCarers = 0
-  let total = 0
-  for (const q of queries) {
-    const jobs = q.data?.jobs ?? []
-    total += jobs.length
-    needCarers += jobs.filter((j) => j.underAllocated || j.needsCover).length
-  }
-  return { needCarers, total, isLoading: enabled && queries.some((q) => q.isLoading) }
-}
 
 export type AppointmentToday = { id: string; serviceUserId: string; serviceUserName: string; type: string; title: string; start: string; allDay: boolean }
 
@@ -209,4 +189,14 @@ export function useAppointmentsToday(locationId: string | null | undefined, enab
   })
 }
 
-export type { UpcomingCategory } from '@/features/home/api/home-signals.api'
+export type { OperationsOverview, UpcomingCategory } from '@/features/home/api/home-signals.api'
+
+/** Care Operations dashboard counts: alert backlog, unfilled visits, cancellations, continuity. Refreshes every minute. */
+export function useOperationsOverview(locationId: string | null | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: homeKeys.operations(locationId),
+    queryFn: ({ signal }) => fetchOperationsOverview({ locationId }, signal),
+    enabled,
+    ...LIVE,
+  })
+}

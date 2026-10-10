@@ -33,8 +33,8 @@ import {
   useComplianceSummary,
   usePolicyReviews,
   useServiceUserUpcoming,
+  useOperationsOverview,
   useStaffOffToday,
-  useVisitsNeedingCarersNextWeek,
 } from '@/features/home/hooks/useHomeSignals'
 
 /**
@@ -338,16 +338,36 @@ function MissedVisitsStat() {
 }
 
 function WeekCoverStat() {
-  const q = useVisitsNeedingCarersNextWeek(true)
+  const { locationId } = useGlobalLocationScope()
+  // Counted in the database: per-day lists are capped at 200 visits and would undercount.
+  const q = useOperationsOverview(locationId, true)
+  const unfilled = n(q.data?.cover.unfilledNext7)
   return (
     <Metric
       label="Need a carer, next 7 days"
-      value={q.needCarers}
-      hint={`${q.total} visits scheduled in the next 7 days`}
+      value={unfilled}
+      hint={`${n(q.data?.cover.visitsNext7)} visits scheduled in the next 7 days`}
       icon={ill('calendar')}
-      tone={q.needCarers > 0 ? 'rose' : 'muted'}
+      tone={unfilled > 0 ? 'rose' : 'muted'}
       loading={q.isLoading}
       to="/scheduling/schedule-jobs"
+    />
+  )
+}
+
+function OpenAlertsStat() {
+  const { locationId } = useGlobalLocationScope()
+  const q = useOperationsOverview(locationId, true)
+  const open = n(q.data?.alerts.unacknowledged)
+  return (
+    <Metric
+      label="ECM alerts not acknowledged"
+      value={open}
+      hint={`${n(q.data?.alerts.pastResponseTarget)} past their response target`}
+      icon={ill('bell')}
+      tone={open > 0 ? 'rose' : 'muted'}
+      loading={q.isLoading}
+      to="/ecm/live"
     />
   )
 }
@@ -360,6 +380,7 @@ function CareOperationsDashboard() {
       {canSchedule ? <TodayVisitsStats key="today" /> : null}
       {canAny(...SCHEDULE_READ, 'scheduled_jobs_housekeeping.read') ? <VisitsNeedingAttentionStat key="hk" /> : null}
       {canAny('ecm.read', 'ecm.monitor') ? <MissedVisitsStat key="missed" /> : null}
+      {canAny('ecm.read', 'ecm.monitor') ? <OpenAlertsStat key="alerts" /> : null}
       {canSchedule ? <WeekCoverStat key="week" /> : null}
     </StatRow>
   )

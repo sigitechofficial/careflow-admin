@@ -6,11 +6,11 @@ import { useAuthStore } from '@/features/auth/store'
 import type { Permission } from '@/features/auth/types'
 import { illustrationSrc } from '@/components/layout/nav-illustrations'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
-import { operationalTodayIso } from '@/shared/lib/operational-day.util'
+import { addDaysToOperationalIso, getSyncedOperationalTimeZone, operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import type { ListServiceUsersParams } from '@/features/service-users/api'
-import { useEcmExceptions, useEcmLiveDashboard } from '@/features/ecm/hooks/useEcm'
+import { useEcmLiveDashboard } from '@/features/ecm/hooks/useEcm'
 import { useHousekeepingJobsNeedingAttention, useScheduleList } from '@/features/scheduling/hooks/useScheduling'
 import { useEmployeeChartSummary } from '@/features/employees/hooks/useEmployees'
 import { useHoursApprovals } from '@/features/hours-approvals/hooks'
@@ -34,11 +34,11 @@ import {
   useFinanceExceptionQueue,
   useLateMedicationToday,
   useMedicationExceptionsToday,
+  useOperationsOverview,
   usePolicyReviews,
   useServiceUserUpcoming,
   useStaffOffToday,
   useSuspensionReviewsOverdue,
-  useVisitsNeedingCarersNextWeek,
 } from '@/features/home/hooks/useHomeSignals'
 
 /*
@@ -285,6 +285,32 @@ function ServiceUsersInsights() {
 
 const SCHEDULE_READ: Permission[] = ['schedule.read', 'schedules.read', 'scheduled_visits.read', 'scheduled_jobs.read']
 
+const CANCEL_REASON_LABEL: Record<string, string> = {
+  CLIENT_HOSPITAL_ADMISSION: 'Hospital admission',
+  CLIENT_REQUEST: 'Service user request',
+  CLIENT_UNAVAILABLE: 'Service user unavailable',
+  VISIT_PLAN_SUSPENDED: 'Visit plan paused',
+  SERVICE_NOT_REQUIRED: 'Not required',
+  PROVIDER_UNABLE_TO_STAFF: 'Could not staff',
+  PROVIDER_ROTA_ERROR: 'Rota error',
+  WEATHER_OR_EMERGENCY: 'Weather or emergency',
+  DUPLICATE_ENTRY: 'Duplicate',
+  OTHER: 'Other',
+}
+
+/** Short date and time in the organisation's timezone. */
+function orgDateTime(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  return new Date(iso).toLocaleString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: getSyncedOperationalTimeZone(),
+  })
+}
+
 function CareOperationsInsights() {
   const can = useCan()
   const canEcm = can('ecm.read', 'ecm.monitor')
@@ -292,56 +318,102 @@ function CareOperationsInsights() {
   const canMeds = can('service_users.read')
   const canRecon = can('billing.visit_reconciliations.read')
   const today = operationalTodayIso()
+  const weekAgo = addDaysToOperationalIso(today, -7)
+  const yesterday = addDaysToOperationalIso(today, -1)
   const { locationId } = useGlobalLocationScope()
+  const loc = locationId ?? undefined
 
-  const live = useEcmLiveDashboard({ dateFrom: today, dateTo: today, locationId: locationId ?? undefined, enabled: canEcm })
-  const exceptions = useEcmExceptions({ limit: 200, locationId: locationId ?? undefined, enabled: canEcm })
+  const ops = useOperationsOverview(locationId, canEcm || canSchedule)
+  const live = useEcmLiveDashboard({ dateFrom: today, dateTo: today, locationId: loc, enabled: canEcm })
+  // Last 7 complete days, so today's visits that have not happened yet do not drag the rates down.
+  const week = useEcmLiveDashboard({ dateFrom: weekAgo, dateTo: yesterday, locationId: loc, enabled: canEcm })
   const todayJobs = useScheduleList(today, canSchedule)
-  const week = useVisitsNeedingCarersNextWeek(canSchedule)
   const housekeeping = useHousekeepingJobsNeedingAttention(1)
   const meds = useMedicationExceptionsToday(locationId, canMeds)
   const late = useLateMedicationToday(canMeds)
   const recon = useVisitReconciliationsSummary(canRecon ? locationId : undefined)
 
+  const o = ops.data
+  const OL = ops.isLoading
   const s = live.data?.summary
+  const w = week.data?.summary
   const jobs = todayJobs.data?.jobs ?? []
-  const kinds = (k: string[]) => (exceptions.data ?? []).filter((r) => k.includes(String(r.kind))).length
+  const dayTotal = (todayJobs.data?.meta as { total?: number } | undefined)?.total ?? jobs.length
+  const partialDay = dayTotal > jobs.length ? ` · based on the first ${jobs.length} of ${dayTotal} visits` : ''
+  const kind = (...k: string[]) => k.reduce((n, key) => n + n0(o?.alerts.byKind[key]), 0)
   const onTime = s?.completedOnTimePct ?? null
   const completionPct = s && s.total ? pct(s.completed, s.total) : null
+  const weekCompletion = w && w.total ? pct(w.completed, w.total) : null
+  const weekMissed = n0(w?.confirmedMissed) + n0(w?.potentialMissed)
   const b = meds.data?.byStatus
+  const c = o?.cancellations
+  const topReasons = Object.entries(c?.byReason ?? {})
+    .sort((x, y) => y[1] - x[1])
+    .slice(0, 2)
+    .map(([r, n]) => `${n} ${CANCEL_REASON_LABEL[r]?.toLowerCase() ?? r.toLowerCase()}`)
+    .join(' · ')
+  const avgCarers = o?.continuity.averageCarers ?? null
+  const rateTone = (v: number | null, good: number, warn: number): Tone => (v === null ? 'neutral' : v >= good ? 'good' : v >= warn ? 'warn' : 'bad')
 
   return (
     <>
       {canEcm ? (
         <Group title="Today, live" description="Electronic call monitoring · refreshes every minute">
-          <Kpi label="Visits today" value={s?.total} art="spiral-calendar" loading={live.isLoading} to="/ecm/live" hint={`${n0(s?.inProgress)} in progress now`} />
+          <Kpi label="Visits today" value={s?.total} art="spiral-calendar" loading={live.isLoading} to="/ecm/live" hint={`${n0(s?.inProgress)} in progress now · ${n0(s?.outstanding)} still to happen or close`} />
           <Kpi label="Completed" value={completionPct === null ? s?.completed : `${completionPct}%`} progress={completionPct} art="check-mark-button" tone="good" loading={live.isLoading} to="/ecm/live" hint={`${n0(s?.completed)} of ${n0(s?.total)} visits`} />
-          <Kpi label="On time" value={onTime === null ? null : `${onTime}%`} progress={onTime} art="stopwatch" tone={onTime === null ? 'neutral' : onTime >= 90 ? 'good' : onTime >= 75 ? 'warn' : 'bad'} loading={live.isLoading} to="/ecm/live" hint={`${n0(s?.completedLate)} completed late`} />
-          <Kpi label="Missed visits" value={n0(s?.confirmedMissed) + n0(s?.potentialMissed)} art="cross-mark" tone={attn(n0(s?.confirmedMissed) + n0(s?.potentialMissed), 'bad')} loading={live.isLoading} to="/ecm/live" hint={`${n0(s?.confirmedMissed)} confirmed · ${n0(s?.potentialMissed)} at risk`} />
-          <Kpi label="Not checked in" value={s?.missingCheckIn} art="alarm-clock" tone={attn(s?.missingCheckIn, 'warn')} loading={live.isLoading} to="/ecm/live" hint="Start time passed, no check-in" />
-          <Kpi label="Not checked out" value={s?.missingCheckout} art="door" tone={attn(s?.missingCheckout, 'warn')} loading={live.isLoading} to="/ecm/live" />
-        </Group>
-      ) : null}
-
-      {canSchedule ? (
-        <Group title="Cover & allocation" description="Are all visits covered?">
-          <Kpi label="Need carers today" value={jobs.filter((j) => j.underAllocated || j.needsCover).length} art="woman-health-worker" tone={attn(jobs.filter((j) => j.underAllocated || j.needsCover).length, 'bad')} loading={todayJobs.isLoading} to="/scheduling/schedule-jobs" />
-          <Kpi label="Need carers, next 7 days" value={week.needCarers} art="calendar" tone={attn(week.needCarers, 'bad')} loading={week.isLoading} to="/scheduling/schedule-jobs" hint={`${week.total} visits scheduled`} />
-          <Kpi label="Time-critical visits today" value={jobs.filter((j) => j.timeSensitive?.hasAny).length} art="alarm-clock" tone="neutral" loading={todayJobs.isLoading} to="/scheduling/schedule-jobs" hint="Time-sensitive medicine or task" />
-          <Kpi label="Service user away today" value={jobs.filter((j) => j.serviceUserAbsent).length} art="pause-button" tone="neutral" loading={todayJobs.isLoading} to="/scheduling/schedule-jobs" hint="Visits affected by an absence" />
-          <Kpi label="Jobs needing attention" value={housekeeping.data?.meta?.total} art="warning" tone={attn(housekeeping.data?.meta?.total, 'warn')} loading={housekeeping.isLoading} to="/scheduling/jobs" />
-          <Planned label="Continuity of care" art="handshake" needs="Share of visits done by a service user's regular carers over the last 4 weeks." />
-          <Planned label="Rota utilisation" art="bar-chart" needs="Scheduled hours compared with carers' contracted hours this week." />
+          <Kpi label="Completed on time" value={onTime === null ? null : `${onTime}%`} progress={onTime} art="stopwatch" tone={rateTone(onTime, 90, 75)} loading={live.isLoading} to="/ecm/live" hint={s?.completed ? `${n0(s?.completedLate)} completed late` : 'No visits completed yet today'} />
+          <Kpi label="Missed or at risk" value={n0(s?.confirmedMissed) + n0(s?.potentialMissed)} art="cross-mark" tone={attn(n0(s?.confirmedMissed) + n0(s?.potentialMissed), 'bad')} loading={live.isLoading} to="/ecm/live" hint={`${n0(s?.confirmedMissed)} confirmed missed · ${n0(s?.potentialMissed)} past start with no check-in`} />
+          <Kpi label="Not checked out" value={s?.missingCheckout} art="door" tone={attn(s?.missingCheckout, 'warn')} loading={live.isLoading} to="/ecm/live" hint="Checked in but no check-out after the planned end" />
         </Group>
       ) : null}
 
       {canEcm ? (
-        <Group title="Alerts from carers" description="Open alerts raised during visits">
-          <Kpi label="SOS" value={kinds(['CARER_SOS'])} art="sos-button" tone={attn(kinds(['CARER_SOS']), 'bad')} loading={exceptions.isLoading} to="/ecm/live" />
-          <Kpi label="Left the visit area" value={kinds(['LEFT_VISIT_AREA', 'OUTSIDE_GEOFENCE'])} art="round-pushpin" tone={attn(kinds(['LEFT_VISIT_AREA', 'OUTSIDE_GEOFENCE']), 'warn')} loading={exceptions.isLoading} to="/ecm/live" />
-          <Kpi label="Unable to start" value={kinds(['UNABLE_TO_START'])} art="no-entry" tone={attn(kinds(['UNABLE_TO_START']), 'warn')} loading={exceptions.isLoading} to="/ecm/live" />
-          <Kpi label="Check-in requests" value={kinds(['OUTSIDE_AREA_CHECK_IN_REQUEST', 'MANUAL_ATTENDANCE'])} art="mobile-phone" tone={attn(kinds(['OUTSIDE_AREA_CHECK_IN_REQUEST', 'MANUAL_ATTENDANCE']), 'warn')} loading={exceptions.isLoading} to="/ecm/live" />
-          <Kpi label="Suspicious location" value={kinds(['MOCK_LOCATION'])} art="magnifying-glass-tilted-right" tone={attn(kinds(['MOCK_LOCATION']), 'bad')} loading={exceptions.isLoading} to="/ecm/live" hint="Faked GPS detected" />
+        <Group title="Alerts needing action" description="Open ECM alerts across all dates · counted in full">
+          <Kpi label="Open alerts" value={o?.alerts.open} art="bell" tone={attn(o?.alerts.open, 'warn')} loading={OL} to="/ecm/live" hint={o?.alerts.oldestOpenAt ? `Oldest raised ${orgDateTime(o.alerts.oldestOpenAt)}` : 'Nothing open'} />
+          <Kpi label="Not acknowledged" value={o?.alerts.unacknowledged} art="raising-hands" tone={attn(o?.alerts.unacknowledged, 'bad')} loading={OL} to="/ecm/live" hint="No one has picked these up" />
+          <Kpi label="Past response target" value={o?.alerts.pastResponseTarget} art="alarm-clock" tone={attn(o?.alerts.pastResponseTarget, 'bad')} loading={OL} to="/ecm/live" hint="Unacknowledged after the escalation deadline" />
+          <Kpi label="Potential missed visits" value={kind('POTENTIAL_MISSED', 'CONFIRMED_MISSED')} art="cross-mark" tone={attn(kind('POTENTIAL_MISSED', 'CONFIRMED_MISSED'), 'bad')} loading={OL} to="/ecm/live" hint="Open missed-visit alerts, including earlier days" />
+          <Kpi label="SOS" value={kind('CARER_SOS')} art="sos-button" tone={attn(kind('CARER_SOS'), 'bad')} loading={OL} to="/ecm/live" />
+          <Kpi label="Late arrivals" value={kind('LATE_ARRIVAL', 'VERY_LATE_ARRIVAL')} art="hourglass-not-done" tone={attn(kind('LATE_ARRIVAL', 'VERY_LATE_ARRIVAL'), 'warn')} loading={OL} to="/ecm/live" hint={`${kind('VERY_LATE_ARRIVAL')} very late`} />
+          <Kpi label="Left or outside the visit area" value={kind('LEFT_VISIT_AREA', 'OUTSIDE_GEOFENCE')} art="round-pushpin" tone={attn(kind('LEFT_VISIT_AREA', 'OUTSIDE_GEOFENCE'), 'warn')} loading={OL} to="/ecm/live" />
+          <Kpi label="Check-in requests" value={kind('OUTSIDE_AREA_CHECK_IN_REQUEST', 'MANUAL_ATTENDANCE')} art="mobile-phone" tone={attn(kind('OUTSIDE_AREA_CHECK_IN_REQUEST', 'MANUAL_ATTENDANCE'), 'warn')} loading={OL} to="/ecm/live" hint={`${kind('UNABLE_TO_START')} unable to start`} />
+          <Kpi label="Suspicious location" value={kind('MOCK_LOCATION')} art="magnifying-glass-tilted-right" tone={attn(kind('MOCK_LOCATION'), 'bad')} loading={OL} to="/ecm/live" hint="Faked GPS detected" />
+          <Kpi label="Duration problems" value={kind('SHORT_VISIT', 'EARLY_DEPARTURE', 'LONG_VISIT', 'EXCESSIVE_OVERRUN', 'MISSING_CHECKOUT')} art="stopwatch" tone={attn(kind('SHORT_VISIT', 'EARLY_DEPARTURE', 'LONG_VISIT', 'EXCESSIVE_OVERRUN', 'MISSING_CHECKOUT'), 'warn')} loading={OL} to="/ecm/live" hint={`${kind('SHORT_VISIT', 'EARLY_DEPARTURE')} short · ${kind('LONG_VISIT', 'EXCESSIVE_OVERRUN')} overran · ${kind('MISSING_CHECKOUT')} no check-out`} />
+        </Group>
+      ) : null}
+
+      {canSchedule ? (
+        <Group title="Cover & allocation" description="Visits without enough carers · counted in the database">
+          <Kpi label="Need carers today" value={o?.cover.unfilledToday} art="woman-health-worker" tone={attn(o?.cover.unfilledToday, 'bad')} loading={OL} to="/scheduling/schedule-jobs" hint={`${n0(o?.cover.visitsToday)} visits today`} />
+          <Kpi label="Need carers, next 7 days" value={o?.cover.unfilledNext7} art="calendar" tone={attn(o?.cover.unfilledNext7, 'bad')} loading={OL} to="/scheduling/schedule-jobs" hint={`${n0(o?.cover.visitsNext7)} visits · ${n0(o?.cover.plannedHoursNext7).toLocaleString('en-GB')} planned hours`} />
+          <Kpi label="Need carers, next 28 days" value={o?.cover.unfilledNext28} art="tear-off-calendar" tone={attn(o?.cover.unfilledNext28, 'warn')} loading={OL} to="/scheduling/jobs" hint={o?.cover.nextUnfilledAt ? `First one ${orgDateTime(o.cover.nextUnfilledAt)}` : 'All visits covered'} />
+          <Kpi label="Jobs needing attention" value={housekeeping.data?.meta?.total} art="warning" tone={attn(housekeeping.data?.meta?.total, 'warn')} loading={housekeeping.isLoading} to="/scheduling/jobs" hint="Any date: no carers, clashes or not closed" />
+          <Kpi label="Time-critical visits today" value={jobs.filter((j) => j.timeSensitive?.hasAny).length} art="alarm-clock" loading={todayJobs.isLoading} to="/scheduling/schedule-jobs" hint={`Time-sensitive medicine or task${partialDay}`} />
+          <Kpi label="Service user away today" value={jobs.filter((j) => j.serviceUserAbsent).length} art="pause-button" loading={todayJobs.isLoading} to="/scheduling/schedule-jobs" hint={`Visits affected by an absence${partialDay}`} />
+          <Planned label="Rota utilisation" art="bar-chart" needs="Scheduled hours compared with carers' contracted hours this week." />
+        </Group>
+      ) : null}
+
+      {canEcm || canSchedule ? (
+        <Group title="Last 7 days" description="Delivery and cancellations over the last 7 complete days">
+          {canEcm ? (
+            <>
+              <Kpi label="Visits completed" value={weekCompletion === null ? null : `${weekCompletion}%`} progress={weekCompletion} art="check-mark-button" tone={rateTone(weekCompletion, 95, 85)} loading={week.isLoading} to="/ecm/graph" hint={`${n0(w?.completed).toLocaleString('en-GB')} of ${n0(w?.total).toLocaleString('en-GB')} visits checked out`} />
+              <Kpi label="Completed on time" value={w?.completedOnTimePct === null || w?.completedOnTimePct === undefined ? null : `${w.completedOnTimePct}%`} progress={w?.completedOnTimePct} art="stopwatch" tone={rateTone(w?.completedOnTimePct ?? null, 90, 75)} loading={week.isLoading} to="/ecm/graph" hint={`${n0(w?.completedLate)} completed late`} />
+              <Kpi label="Missed or never checked in" value={weekMissed} art="cross-mark" tone={attn(weekMissed, 'bad')} loading={week.isLoading} to="/ecm/graph" hint={`${n0(w?.confirmedMissed)} confirmed · ${n0(w?.potentialMissed)} no check-in recorded`} />
+            </>
+          ) : null}
+          <Kpi label="Visits cancelled" value={c?.last7} art="wastebasket" loading={OL} to="/scheduling/jobs" hint={topReasons || 'No cancellations'} />
+          <Kpi label="Cancelled by us" value={c?.providerCaused} art="no-entry" tone={attn(c?.providerCaused, 'bad')} loading={OL} to="/scheduling/jobs" hint="Could not staff or rota error: care not delivered" />
+          <Kpi label="Cancelled without a welfare check" value={c?.withoutWelfareCheck} art="heart-hands" tone={attn(c?.withoutWelfareCheck, 'bad')} loading={OL} to="/scheduling/jobs" hint={`${n0(c?.timeCriticalNotEscalated)} time-critical visits not escalated`} />
+        </Group>
+      ) : null}
+
+      {canSchedule ? (
+        <Group title="Continuity of care" description="Last 28 days · from carers allocated to visits">
+          <Kpi label="Different carers per service user" value={avgCarers === null ? null : avgCarers.toLocaleString('en-GB')} art="busts-in-silhouette" tone={avgCarers === null ? 'neutral' : avgCarers <= 3 ? 'good' : avgCarers <= 5 ? 'warn' : 'bad'} loading={OL} hint={`Average across ${n0(o?.continuity.serviceUsers)} service users · fewer is better`} />
+          <Kpi label={`Seeing more than ${o?.continuity.manyCarersThreshold ?? 5} carers`} value={o?.continuity.serviceUsersWithManyCarers} art="handshake" tone={attn(o?.continuity.serviceUsersWithManyCarers, 'warn')} loading={OL} to="/service-users/all" hint="Service users with poor continuity" />
+          <Planned label="Visits by regular carers" art="green-heart" needs="Each service user's preferred carers recorded, compared with who actually visited." />
         </Group>
       ) : null}
 
@@ -366,10 +438,9 @@ function CareOperationsInsights() {
       ) : null}
 
       <Group title="Efficiency" description="Planned KPIs for running a tighter rota">
-        <Planned label="Average travel between visits" art="motorway" needs="Travel time from route planning or check-out → next check-in gaps." />
+        <Planned label="Average travel between visits" art="motorway" needs="Travel time from route planning, or the gap between check-out and the next check-in." />
         <Planned label="Mileage per visit" art="round-pushpin" needs="Mileage claims linked to visits." />
-        <Planned label="Overrun minutes this week" art="hourglass-done" needs="Sum of actual minus planned time on approved overruns." />
-        <Planned label="Cancellations this week" art="wastebasket" needs="Call-offs and cancellations counted by reason." />
+        <Planned label="Overrun minutes this week" art="hourglass-done" needs="Actual minus planned time on approved overruns from visit reconciliation." />
       </Group>
     </>
   )
