@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  acknowledgePolicyVersion,
   approvePolicy,
   archivePolicy,
   createPolicy,
@@ -17,6 +18,10 @@ import {
   fetchPolicyVersion,
   fetchPolicyVersions,
   fetchApplicablePolicies,
+  fetchMyPolicyAcknowledgements,
+  fetchPolicyAcknowledgementSummary,
+  fetchPolicyDocumentAcknowledgements,
+  markPolicyVersionViewed,
   publishPolicy,
   removePolicyVersionDocument,
   requestPolicyChanges,
@@ -261,5 +266,52 @@ export function useDeletePolicyTag() {
   return useMutation({
     mutationFn: (id: string) => deletePolicyTag(id),
     onSuccess: () => invalidatePolicies(qc),
+  })
+}
+
+/* ─── Read and acknowledge ─────────────────────────────────────────────── */
+
+export type {
+  MyPolicyAcknowledgements,
+  PolicyAcknowledgementStatus,
+  PolicyAcknowledgementSummary,
+  PolicyDocumentAcknowledgements,
+} from '@/features/policies/types/policy.types'
+
+/** Policies the signed-in user must read and acknowledge. */
+export function useMyPolicyAcknowledgements(enabled = true) {
+  return useQuery({ queryKey: policyKeys.myAcknowledgements(), queryFn: fetchMyPolicyAcknowledgements, enabled })
+}
+
+/** Organisation-wide read-and-sign compliance. */
+export function usePolicyAcknowledgementSummary(enabled = true) {
+  return useQuery({ queryKey: policyKeys.acknowledgementSummary(), queryFn: fetchPolicyAcknowledgementSummary, enabled })
+}
+
+/** Who must read one policy's current version, and who has. */
+export function usePolicyDocumentAcknowledgements(documentId: string, enabled = true) {
+  return useQuery({
+    queryKey: policyKeys.documentAcknowledgements(documentId),
+    queryFn: () => fetchPolicyDocumentAcknowledgements(documentId),
+    enabled: enabled && Boolean(documentId),
+  })
+}
+
+export function useMarkPolicyViewed() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (versionId: string) => markPolicyVersionViewed(versionId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: policyKeys.acknowledgements() }),
+  })
+}
+
+export function useAcknowledgePolicy() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (versionId: string) => acknowledgePolicyVersion(versionId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: policyKeys.acknowledgements() })
+      void qc.invalidateQueries({ queryKey: ['home-signals'] })
+    },
   })
 }

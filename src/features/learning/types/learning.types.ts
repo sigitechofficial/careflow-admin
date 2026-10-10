@@ -130,6 +130,8 @@ export type LearningDashboardSummary = {
   dueNext30?: number
   certificatesExpiring30?: number
   certificatesExpired?: number
+  /** Legacy 'policy' courses: read-and-sign now lives in the Policy Library. */
+  policyTypeCourses?: number
 }
 
 export type LearningCategory = {
