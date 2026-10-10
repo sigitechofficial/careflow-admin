@@ -14,6 +14,10 @@ export const TEXT_SIZE_SCALE: Record<TextSize, number> = {
   largest: 1.375,
 }
 
+/** Out of the box text is a little larger and heavier, for easier reading. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'large'
+export const DEFAULT_TEXT_WEIGHT: TextWeight = 'medium'
+
 /** Puts the reading preferences on <html> so CSS can scale text and weight everywhere. */
 export function applyTextPreferences(size: TextSize, weight: TextWeight) {
   const root = document.documentElement
@@ -52,8 +56,8 @@ export const useUIStore = create<UIState>()(
       sidebarMobileOpen: false,
       pagePanelPinned: false,
       selectedLocationId: null,
-      textSize: 'standard',
-      textWeight: 'standard',
+      textSize: DEFAULT_TEXT_SIZE,
+      textWeight: DEFAULT_TEXT_WEIGHT,
 
       setTheme: (theme) => {
         set({ theme })
@@ -78,10 +82,21 @@ export const useUIStore = create<UIState>()(
       setSelectedLocationId: (locationId) => set({ selectedLocationId: locationId }),
       setTextSize: (textSize) => set({ textSize }),
       setTextWeight: (textWeight) => set({ textWeight }),
-      resetTextPreferences: () => set({ textSize: 'standard', textWeight: 'standard' }),
+      resetTextPreferences: () => set({ textSize: DEFAULT_TEXT_SIZE, textWeight: DEFAULT_TEXT_WEIGHT }),
     }),
     {
       name: 'care-admin-ui',
+      // v1: Large + Heavier became the default text. Earlier saved state only ever held the
+      // old 'standard' default (the setting was not released), so move everyone to the new one.
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<UIState>
+        if (version < 1) {
+          state.textSize = DEFAULT_TEXT_SIZE
+          state.textWeight = DEFAULT_TEXT_WEIGHT
+        }
+        return state as UIState
+      },
       partialize: (state) => ({
         theme: state.theme,
         sidebarCollapsed: state.sidebarCollapsed,

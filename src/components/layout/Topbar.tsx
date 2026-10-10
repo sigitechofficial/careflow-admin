@@ -1,7 +1,7 @@
 import { Menu, Sun, Moon, Monitor, Type, RotateCcw } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { cn } from '@/shared/lib/utils'
-import { useUIStore, type TextSize, type TextWeight } from '@/store/ui.store'
+import { useUIStore, DEFAULT_TEXT_SIZE, DEFAULT_TEXT_WEIGHT, type TextSize, type TextWeight } from '@/store/ui.store'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { UserAvatar } from '@/shared/ui/avatar'
@@ -169,14 +169,14 @@ export function Topbar({ pageTitle, className, variant = 'admin' }: TopbarProps)
 
 const TEXT_SIZE_OPTIONS: Array<{ value: TextSize; label: string; sample: string }> = [
   { value: 'standard', label: 'Standard', sample: 'text-[12px]' },
-  { value: 'large', label: 'Large', sample: 'text-[14px]' },
+  { value: 'large', label: 'Large (default)', sample: 'text-[14px]' },
   { value: 'larger', label: 'Larger', sample: 'text-[16px]' },
   { value: 'largest', label: 'Largest', sample: 'text-[19px]' },
 ]
 
 const TEXT_WEIGHT_OPTIONS: Array<{ value: TextWeight; label: string; sample: string }> = [
   { value: 'standard', label: 'Standard', sample: 'font-normal' },
-  { value: 'medium', label: 'Heavier', sample: 'font-medium' },
+  { value: 'medium', label: 'Heavier (default)', sample: 'font-medium' },
   { value: 'bold', label: 'Bold', sample: 'font-semibold' },
 ]
 
@@ -190,7 +190,7 @@ function TextComfortMenu() {
   const setTextSize = useUIStore(s => s.setTextSize)
   const setTextWeight = useUIStore(s => s.setTextWeight)
   const reset = useUIStore(s => s.resetTextPreferences)
-  const changed = textSize !== 'standard' || textWeight !== 'standard'
+  const changed = textSize !== DEFAULT_TEXT_SIZE || textWeight !== DEFAULT_TEXT_WEIGHT
 
   return (
     <DropdownMenu>
@@ -252,7 +252,7 @@ function TextComfortMenu() {
           onSelect={() => reset()}
           className="gap-2 text-muted-foreground"
         >
-          <RotateCcw className="h-4 w-4" /> Reset to standard
+          <RotateCcw className="h-4 w-4" /> Reset to default
         </DropdownMenuItem>
         <p className="px-2 pb-1.5 pt-1 text-[11px] leading-snug text-muted-foreground">
           Saved in this browser. Your browser zoom still works too.
