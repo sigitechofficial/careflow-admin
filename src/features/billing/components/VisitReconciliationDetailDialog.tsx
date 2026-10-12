@@ -554,6 +554,28 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </div>
               ) : null}
 
+              {detail.approval?.evidenceChangedReason ? (
+                <p
+                  className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-200"
+                  data-testid="visit-recon-evidence-changed"
+                >
+                  {detail.approval.evidenceChangedReason}
+                </p>
+              ) : null}
+              {detail.approval?.source ? (
+                <p className="text-xs text-muted-foreground" data-testid="visit-recon-approval-source">
+                  {detail.approval.source === 'AUTO_VERIFIED'
+                    ? 'Approved automatically: the visit had no exceptions.'
+                    : detail.approval.source === 'MANAGER_OVERRIDE'
+                      ? 'Approved by a person, overriding an exception.'
+                      : 'Approved by a person.'}
+                  {detail.approval.approvedAt
+                    ? ` ${formatDate(detail.approval.approvedAt)}.`
+                    : ''}{' '}
+                  New attendance evidence sends the visit back for review.
+                </p>
+              ) : null}
+
               {detail.approvalNotes?.trim() ? (
                 <ContentCard className="p-4" data-testid="visit-recon-approval-notes">
                   <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">

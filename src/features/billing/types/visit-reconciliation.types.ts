@@ -229,6 +229,14 @@ export type VisitReconciliationDetail = VisitReconciliationRow & {
   calculationPreview: VisitReconciliationCalculationPreview
   /** Pay is in a locked visit pay run or a closed UK run: changed only through a pay correction. */
   paySettled?: boolean
+  /** Who or what approved, and whether the evidence has changed since (R-18). */
+  approval?: {
+    source: 'AUTO_VERIFIED' | 'MANAGER_APPROVED' | 'MANAGER_OVERRIDE' | null
+    approvedAt: string | null
+    approvedByPerson: boolean
+    evidenceChangedReason: string | null
+    evidenceChangedAt: string | null
+  }
 }
 
 /** A pay calculation that could not be completed and still needs attention (R-17). */
