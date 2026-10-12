@@ -762,6 +762,10 @@ export type ServiceUserMedicationRow = {
   isDecongestantMedication: boolean
   timeCritical?: boolean
   timeToleranceMinutes?: number
+  /** PRN only, optional limits. */
+  prnMinGapHours?: number | null
+  prnMaxDosesIn24Hours?: number | null
+  prnMaxDosePerTime?: string | null
   route?: ServiceUserMedicationLookupNested
   frequency?: ServiceUserMedicationLookupNested
   medicationType?: ServiceUserMedicationLookupNested
@@ -1016,6 +1020,10 @@ export type CreateServiceUserMedicationPayload = {
   isDecongestantMedication?: boolean
   timeCritical?: boolean
   timeToleranceMinutes?: number
+  /** PRN only, optional limits. Null clears a limit. */
+  prnMinGapHours?: number | null
+  prnMaxDosesIn24Hours?: number | null
+  prnMaxDosePerTime?: string | null
   medicationPackId?: string
   status?: 'ACTIVE' | 'ENDED' | 'PAUSED' | 'CANCELLED'
   /** One schedule row per administration time (e.g. 3× daily → 3 rows). */

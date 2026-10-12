@@ -1,3 +1,5 @@
+import { SyncedLateBadge } from '@/shared/ui/synced-late-badge'
+import { isSyncedLate } from '@/shared/lib/synced-late'
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -61,6 +63,7 @@ import {
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import {
   isAbsentCoCarerAllocation,
+  isClockOutMissingAllocation,
   jobLeadCarer,
 } from '@/features/scheduling/utils/schedule-job-lead-carer.util'
 import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
@@ -250,6 +253,36 @@ function VisitWorkspaceSosAlerts({
   )
 }
 
+/**
+ * "Synced late" badge for a carer's clock-in, from the carer-app check-in saved on the
+ * job (`checkedInAt` = time on the phone, `serverReceivedAt` = when the server got it).
+ * Without `employeeId` the visit's single check-in is used.
+ */
+function clockInSyncedLateBadge(job: TimelineJob, employeeId?: string | null) {
+  const meta = (job as TimelineJob & { metadata?: Record<string, unknown> | null }).metadata
+  const employeeApp =
+    meta && typeof meta.employeeApp === 'object' && meta.employeeApp
+      ? (meta.employeeApp as Record<string, unknown>)
+      : null
+  if (!employeeApp) return null
+  const checkIns =
+    typeof employeeApp.checkIns === 'object' && employeeApp.checkIns
+      ? (employeeApp.checkIns as Record<string, unknown>)
+      : {}
+  const raw = (employeeId ? checkIns[employeeId] : null) ?? (employeeId ? null : employeeApp.checkIn)
+  if (!raw || typeof raw !== 'object') return null
+  const checkIn = raw as { checkedInAt?: unknown; serverReceivedAt?: unknown }
+  const occurredAt = typeof checkIn.checkedInAt === 'string' ? checkIn.checkedInAt : null
+  const receivedAt = typeof checkIn.serverReceivedAt === 'string' ? checkIn.serverReceivedAt : null
+  if (!isSyncedLate(occurredAt, receivedAt)) return null
+  return (
+    <SyncedLateBadge
+      receivedLabel={receivedAt ? `received ${formatOrganisationIsoTime(receivedAt)}` : null}
+      className="ml-1.5"
+    />
+  )
+}
+
 function allocationDisplayName(
   allocation: TimelineJob['allocations'][number],
 ): string {
@@ -293,6 +326,7 @@ function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
             : null
           // Shared visit closed and this carer never clocked in: pay held for review.
           const absent = isAbsentCoCarerAllocation(job, allocation)
+          const clockOutMissing = isClockOutMissingAllocation(job, allocation)
           const plannedStart = allocation.resolvedStartDateTime ?? allocation.scheduledStartDateTime
           const plannedEnd = allocation.resolvedEndDateTime ?? allocation.scheduledEndDateTime
           const presence = allocation.presence
@@ -328,7 +362,10 @@ function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
               <p className="mt-1 text-sm text-muted-foreground">
                 Clocked in:{' '}
                 {clockedIn ? (
-                  <span className="font-medium tabular-nums text-foreground">{clockedIn}</span>
+                  <>
+                    <span className="font-medium tabular-nums text-foreground">{clockedIn}</span>
+                    {clockInSyncedLateBadge(job, allocation.employeeId)}
+                  </>
                 ) : (
                   <span className="font-medium text-amber-600 dark:text-amber-500">Not yet</span>
                 )}
@@ -344,6 +381,17 @@ function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
                         (auto – lead clock-out)
                       </span>
                     ) : null}
+                  </>
+                ) : clockOutMissing ? (
+                  <>
+                    <span className="text-muted-foreground"> · Clocked out: </span>
+                    <span
+                      className="font-medium text-amber-600 dark:text-amber-500"
+                      title="The visit was closed while this carer was still clocked in, and they have not clocked out."
+                      data-testid="visit-workspace-clock-out-missing"
+                    >
+                      Clock-out missing
+                    </span>
                   </>
                 ) : null}
               </p>
@@ -591,7 +639,10 @@ export function ScheduleVisitWorkspaceContent({
                   <LogIn className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                   <span className="text-muted-foreground">Clocked in:</span>
                   {clockInLabel ? (
-                    <span className="font-medium tabular-nums text-foreground">{clockInLabel}</span>
+                    <>
+                      <span className="font-medium tabular-nums text-foreground">{clockInLabel}</span>
+                      {clockInSyncedLateBadge(liveJob)}
+                    </>
                   ) : (
                     <span className="font-medium text-amber-600 dark:text-amber-500">
                       Carer not clocked in yet

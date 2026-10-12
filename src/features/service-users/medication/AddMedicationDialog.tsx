@@ -31,6 +31,13 @@ import {
 import { Input } from '@/shared/ui/input'
 import { MedicationFieldLabelWithTooltip } from '@/features/service-users/medication/MedicationFieldLabelWithTooltip'
 import {
+  EMPTY_PRN_LIMITS,
+  PrnLimitFields,
+  prnLimitsPayload,
+  validatePrnLimits,
+  type PrnLimitValues,
+} from '@/features/service-users/medication/PrnLimitFields'
+import {
   CONTROLLED_MEDICATION_TOOLTIP,
   DECONGESTANT_MEDICATION_TOOLTIP,
   DOSE_TOOLTIP,
@@ -139,6 +146,7 @@ export function AddMedicationDialog({
 
   const [recordType, setRecordType] = React.useState<'MEDICATION' | 'BLISTER_PACK'>('MEDICATION')
   const [isPrnMedication, setIsPrnMedication] = React.useState(false)
+  const [prnLimits, setPrnLimits] = React.useState<PrnLimitValues>(EMPTY_PRN_LIMITS)
   const [basicSearch, setBasicSearch] = React.useState(false)
   const [medicationName, setMedicationName] = React.useState('')
   const [dose, setDose] = React.useState('')
@@ -186,6 +194,7 @@ export function AddMedicationDialog({
   function resetForm() {
     setRecordType('MEDICATION')
     setIsPrnMedication(false)
+    setPrnLimits(EMPTY_PRN_LIMITS)
     setBasicSearch(false)
     setMedicationName('')
     setDose('')
@@ -346,6 +355,10 @@ export function AddMedicationDialog({
     if (!startDate.trim()) return 'Start date on system is required.'
     if (!optionalId(routeId)) return 'Route administration is required.'
     if (!optionalId(medicationTypeId)) return 'Medication type is required.'
+    if (isPrnMedication) {
+      const prnError = validatePrnLimits(prnLimits)
+      if (prnError) return prnError
+    }
     if (!isPrnMedication && buildSchedules().length === 0) {
       return 'Add at least one administration time under "at times".'
     }
@@ -406,6 +419,7 @@ export function AddMedicationDialog({
       isDecongestantMedication,
       timeCritical,
       timeToleranceMinutes,
+      ...(isPrnMedication ? prnLimitsPayload(prnLimits) : {}),
       schedules,
     }
   }
@@ -996,6 +1010,9 @@ export function AddMedicationDialog({
                 <MedicationFieldLabelWithTooltip label="Dose" tooltip={DOSE_TOOLTIP} />
                 <Input value={dose} onChange={e => setDose(e.target.value)} disabled={disabled} />
               </div>
+            )}
+            {isPrnMedication && (
+              <PrnLimitFields values={prnLimits} onChange={setPrnLimits} disabled={disabled} />
             )}
 
             {!isPrnMedication && (

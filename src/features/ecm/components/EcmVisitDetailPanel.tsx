@@ -1,3 +1,4 @@
+import { SyncedLateBadge } from '@/shared/ui/synced-late-badge'
 import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
@@ -477,6 +478,21 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
 
   const d = detailQuery.data
   const e = d.ecm
+  /** A clock-in/out the server received late (offline), for one carer or the visit. */
+  const lateSyncEvent = (eventType: 'CHECK_IN' | 'CHECK_OUT', employeeId?: string) =>
+    d.attendanceEvents.find(
+      ev =>
+        ev.eventType === eventType &&
+        ev.syncedLate &&
+        (employeeId == null || ev.employeeId === employeeId),
+    )
+  const syncedLateBadge = (ev: { receivedAt?: string | null } | undefined, className?: string) =>
+    ev ? (
+      <SyncedLateBadge
+        receivedLabel={ev.receivedAt ? `received ${formatTimeOnly(ev.receivedAt)}` : null}
+        className={className}
+      />
+    ) : null
   const hasCheckIn = Boolean(e.actual.checkInAt)
   const situation = situationSummary({
     missedClassification: e.missedClassification,
@@ -706,9 +722,11 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
                   <span className="tabular-nums text-muted-foreground">
                     · In {c.checkInAt ? formatTimeOnly(c.checkInAt) : '—'}
                   </span>
+                  {syncedLateBadge(lateSyncEvent('CHECK_IN', c.employeeId))}
                   <span className="tabular-nums text-muted-foreground">
                     · Out {c.checkOutAt ? formatTimeOnly(c.checkOutAt) : '—'}
                   </span>
+                  {syncedLateBadge(lateSyncEvent('CHECK_OUT', c.employeeId))}
                   {c.lateArrivalMinutes != null ? (
                     <span className="rounded border border-orange-500/30 bg-orange-500/10 px-1.5 text-xs font-medium text-orange-800 dark:text-orange-200">
                       Late +{c.lateArrivalMinutes} min
@@ -813,6 +831,7 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
             >
               {formatWhen(e.actual.checkInAt)}
             </p>
+            {syncedLateBadge(lateSyncEvent('CHECK_IN'), 'mt-1')}
           </div>
           <div className="rounded-md bg-muted/30 px-3 py-2.5">
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -827,6 +846,7 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
             >
               {formatWhen(e.actual.checkOutAt)}
             </p>
+            {syncedLateBadge(lateSyncEvent('CHECK_OUT'), 'mt-1')}
           </div>
         </div>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
@@ -925,6 +945,7 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
                     ) : null}
                     <span className="text-muted-foreground">{ev.methodLabel ?? ev.verificationMethod}</span>
                     <span className="tabular-nums">{formatWhen(ev.occurredAt)}</span>
+                    {syncedLateBadge(ev.syncedLate ? ev : undefined)}
                   </div>
                   {(ev.outsideGeofence || ev.isMockLocation) && (
                     <p className="mt-1 text-sm text-orange-700 dark:text-orange-300">

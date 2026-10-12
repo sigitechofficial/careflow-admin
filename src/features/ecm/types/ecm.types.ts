@@ -191,6 +191,10 @@ export type EcmAttendanceEvent = {
   methodLabel?: string
   occurredAt: string
   deviceCapturedAt: string | null
+  /** When the server received the event. */
+  receivedAt?: string | null
+  /** The server received it well after it happened on the phone (offline clock-in/out). */
+  syncedLate?: boolean
   latitude: number | null
   longitude: number | null
   accuracyMeters: number | null

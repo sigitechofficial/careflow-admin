@@ -98,3 +98,15 @@ export function isAbsentCoCarerAllocation(
   if (!multi || allocation.actualStartDateTime) return false
   return carers.some((a) => a.id !== allocation.id && Boolean(a.actualStartDateTime))
 }
+
+/**
+ * Visit closed while this carer was still clocked in and they never clocked out
+ * themselves (the lead's clock-out does not end a support carer's session).
+ */
+export function isClockOutMissingAllocation(
+  job: Pick<TimelineJob, 'status'>,
+  allocation: { actualStartDateTime?: string | null; actualEndDateTime?: string | null },
+): boolean {
+  if (!CARER_ATTENDANCE_CLOSED_STATUSES.has(job.status)) return false
+  return Boolean(allocation.actualStartDateTime) && !allocation.actualEndDateTime
+}
