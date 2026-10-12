@@ -65,6 +65,8 @@ export const billingKeys = {
     [...billingKeys.all, 'visit-reconciliations-summary', locationId ?? 'all'] as const,
   visitReconciliationExceptionQueue: (limit?: number) =>
     [...billingKeys.all, 'visit-reconciliation-exception-queue', limit ?? 10] as const,
+  payEvaluationFailures: (locationId?: string | null) =>
+    [...billingKeys.all, 'pay-evaluation-failures', locationId ?? 'all'] as const,
   payrollRuns: (filters?: { locationId?: string }) =>
     [...billingKeys.all, 'payroll-runs', filters ?? {}] as const,
   payrollRun: (id: string) => [...billingKeys.all, 'payroll-run', id] as const,
