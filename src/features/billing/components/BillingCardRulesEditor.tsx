@@ -116,6 +116,12 @@ function DecimalAmountInput({
 }
 
 /** Pay only: how an hourly rule's number is used (absolute £/hr, or on top of the card's weekday base rate). */
+/**
+ * Value of the "Custom…" entry in the "When this rate applies" list. It must not be empty: the
+ * list is required, and an empty value made the browser refuse to save a card with a custom period.
+ */
+const CUSTOM_PERIOD_VALUE = 'CUSTOM'
+
 const PAY_RATE_METHOD_OPTIONS: { value: PayEnhancementMethod; label: string; amountLabel: string }[] = [
   { value: 'ABSOLUTE_HOURLY', label: '£ per hour (actual hourly rate)', amountLabel: '£ per hour' },
   { value: 'ADDITIONAL_PER_HOUR', label: 'Base rate + £ per hour premium', amountLabel: '+ £ per hour' },
@@ -1376,10 +1382,10 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             </span>
             <select
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={matched?.code ?? ''}
+              value={matched?.code ?? CUSTOM_PERIOD_VALUE}
               onChange={e => {
-                const code = e.target.value as PayTimePeriodCode
-                if (code) {
+                const code = e.target.value as PayTimePeriodCode | typeof CUSTOM_PERIOD_VALUE
+                if (code !== CUSTOM_PERIOD_VALUE) {
                   if (applyPeriodToRule(index, code)) {
                     setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
                   }
@@ -1401,7 +1407,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               disabled={disabled}
               required
             >
-              <option value="">Custom…</option>
+              <option value={CUSTOM_PERIOD_VALUE}>Custom…</option>
               {PAY_TIME_PERIOD_GROUPS.map(group => (
                 <optgroup key={group.id} label={group.label}>
                   {PAY_TIME_PERIOD_LOOKUP.filter(p => p.group === group.id).map(p => {
