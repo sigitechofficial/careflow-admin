@@ -30,6 +30,12 @@ import {
 import { useSetVisitPayableAmount } from '@/features/billing/hooks/useVisitReconciliations'
 import type { EmployeeEarningVisitRow } from '@/features/billing/api/payroll-runs.api'
 import {
+  earningCorrectionNote,
+  earningStageLabel,
+  earningTone,
+  earningToneBadgeClass,
+} from '@/features/employees/lib/earning-stage'
+import {
   summariseNiCategoryRate,
   summariseTaxCodeRates,
 } from '@/features/payroll/data/uk-payroll-lookups'
@@ -80,31 +86,11 @@ function formatVisitDate(
   return formatDate(day)
 }
 
-function paymentStateLabel(state: EmployeeEarningVisitRow['paymentState']): string {
-  if (state === 'BANK_PAID') return 'Bank paid'
-  if (state === 'IN_UK_PAYROLL') return 'In UK payroll'
-  if (state === 'PAID') return 'In visit-pay run'
-  if (state === 'REMAINING') return 'Ready for payroll'
-  if (state === 'REJECTED') return 'Rejected'
-  return 'Pending'
-}
-
-function paymentStateBadgeClass(state: EmployeeEarningVisitRow['paymentState']): string {
-  if (state === 'BANK_PAID') return 'bg-success/10 text-success border-success/20'
-  if (state === 'IN_UK_PAYROLL')
-    return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300'
-  if (state === 'PAID') return 'bg-success/10 text-success border-success/20'
-  if (state === 'REMAINING') return 'bg-warning/10 text-warning border-warning/20'
-  if (state === 'REJECTED') return 'bg-destructive/10 text-destructive border-destructive/20'
-  return 'bg-muted text-muted-foreground border-border'
-}
-
-function PaymentStateIcon({ state }: { state: EmployeeEarningVisitRow['paymentState'] }) {
-  if (state === 'BANK_PAID') return <Banknote className="h-3 w-3" aria-hidden />
-  if (state === 'IN_UK_PAYROLL') return <CheckCircle2 className="h-3 w-3" aria-hidden />
-  if (state === 'PAID') return <CheckCircle2 className="h-3 w-3" aria-hidden />
-  if (state === 'REMAINING') return <Clock className="h-3 w-3" aria-hidden />
-  if (state === 'REJECTED') return <AlertCircle className="h-3 w-3" aria-hidden />
+function PaymentStateIcon({ row }: { row: EmployeeEarningVisitRow }) {
+  const tone = earningTone(row)
+  if (tone === 'recorded') return <Banknote className="h-3 w-3" aria-hidden />
+  if (tone === 'processed' || tone === 'earned') return <CheckCircle2 className="h-3 w-3" aria-hidden />
+  if (tone === 'waiting') return <Clock className="h-3 w-3" aria-hidden />
   return <AlertCircle className="h-3 w-3" aria-hidden />
 }
 
@@ -339,7 +325,7 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
     <div className="space-y-6" data-testid="employee-edit-salary-panel">
       <ContentSectionHeader
         title="Salary"
-        description={`Visit-pay net for this ${isWeekly ? 'week' : 'month'} = completed visit pay − fines − penalties (not bank pay). Bank paid uses UK net after PAYE/NI — see Earnings or Billing → Employee payouts. Periods and visit clocks use the organisation operational timezone.`}
+        description={`Visit-pay net for this ${isWeekly ? 'week' : 'month'} = completed visit pay − fines − penalties (not bank pay). A payment is recorded against UK net after PAYE/NI — see Earnings or Billing → Employee payouts. Periods and visit clocks use the organisation operational timezone.`}
         icon={<Wallet className="h-5 w-5" aria-hidden />}
         iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
         action={
@@ -773,12 +759,18 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                               variant="outline"
                               className={cn(
                                 'inline-flex items-center gap-1 font-medium',
-                                paymentStateBadgeClass(row.paymentState),
+                                earningToneBadgeClass(row),
                               )}
+                              data-testid={`employee-salary-stage-${row.id}`}
                             >
-                              <PaymentStateIcon state={row.paymentState} />
-                              {paymentStateLabel(row.paymentState)}
+                              <PaymentStateIcon row={row} />
+                              {earningStageLabel(row)}
                             </Badge>
+                            {earningCorrectionNote(row) ? (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {earningCorrectionNote(row)}
+                              </p>
+                            ) : null}
                           </td>
                           <td className="px-3 py-2.5 text-xs text-muted-foreground">
                             {inSalary ? 'Yes' : 'No'}

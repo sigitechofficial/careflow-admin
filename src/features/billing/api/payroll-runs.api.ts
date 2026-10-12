@@ -215,6 +215,23 @@ export type EmployeeEarningVisitRow = {
     | 'REJECTED'
     | 'BANK_PAID'
     | 'IN_UK_PAYROLL'
+  /** Where the pay has reached; the server's wording is in `earningStageLabel`. */
+  earningStage?:
+    | 'RECORDED'
+    | 'RECONCILED'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'IN_DRAFT_PAY_RUN'
+    | 'IN_LOCKED_PAY_RUN'
+    | 'IN_OPEN_UK_RUN'
+    | 'IN_CLOSED_UK_RUN'
+    | 'PAYMENT_PREPARED'
+    | 'PAYMENT_APPROVED'
+    | 'PAYMENT_RECORDED'
+  earningStageLabel?: string
+  earningPhase?: 'NOT_PAYABLE' | 'EARNED' | 'PAYROLL_PROCESSED' | 'PAYMENT_PREPARED' | 'PAYMENT_RECORDED'
+  correctionState?: 'NONE' | 'PENDING_APPROVAL' | 'ADJUSTED'
+  correctionAdjustmentValue?: number
   paid: boolean
   countsTowardSalary?: boolean
   payrollRunId: string | null
