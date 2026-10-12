@@ -35,6 +35,7 @@ import {
   earningTone,
   earningToneBadgeClass,
 } from '@/features/employees/lib/earning-stage'
+import { VisitPayCorrectionsDialog } from '@/features/billing/components/VisitPayCorrectionsCard'
 import {
   summariseNiCategoryRate,
   summariseTaxCodeRates,
@@ -201,6 +202,7 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
 
   const [amountDialogOpen, setAmountDialogOpen] = React.useState(false)
   const [editingVisit, setEditingVisit] = React.useState<EmployeeEarningVisitRow | null>(null)
+  const [correctionVisit, setCorrectionVisit] = React.useState<EmployeeEarningVisitRow | null>(null)
   const [visitAmount, setVisitAmount] = React.useState('')
   const [visitAmountNotes, setVisitAmountNotes] = React.useState('')
   const [visitAmountError, setVisitAmountError] = React.useState<string | null>(null)
@@ -771,6 +773,16 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                                 {earningCorrectionNote(row)}
                               </p>
                             ) : null}
+                            {row.paySettled ? (
+                              <button
+                                type="button"
+                                className="mt-1 block text-xs font-medium text-primary underline-offset-2 hover:underline"
+                                onClick={() => setCorrectionVisit(row)}
+                                data-testid={`employee-pay-corrections-${row.id}`}
+                              >
+                                Pay corrections
+                              </button>
+                            ) : null}
                           </td>
                           <td className="px-3 py-2.5 text-xs text-muted-foreground">
                             {inSalary ? 'Yes' : 'No'}
@@ -804,6 +816,14 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
           </ContentCard>
         </>
       ) : null}
+
+      <VisitPayCorrectionsDialog
+        visitReconciliationId={correctionVisit?.id ?? null}
+        visitRef={correctionVisit?.visitRef}
+        onOpenChange={open => {
+          if (!open) setCorrectionVisit(null)
+        }}
+      />
 
       <Dialog
         open={amountDialogOpen}

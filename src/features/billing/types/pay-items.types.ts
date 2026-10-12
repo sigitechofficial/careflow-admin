@@ -117,3 +117,67 @@ export const PAY_ITEM_STATUS_LABELS: Record<PayItemStatus, string> = {
 export function payItemTypeLabel(code: string): string {
   return PAY_ITEM_TYPE_OPTIONS.find(o => o.value === code)?.label ?? code
 }
+
+/** Where one pay correction or reversal has got to (decided by the server). */
+export type PayCorrectionDisplayStatus =
+  | 'PENDING_APPROVAL'
+  | 'APPROVED_FOR_PAYROLL'
+  | 'INCLUDED_IN_PAYROLL'
+  | 'SETTLED'
+  | 'REJECTED'
+  | 'CANCELLED'
+  | 'REVERSED'
+
+export const PAY_CORRECTION_STATUS_LABELS: Record<PayCorrectionDisplayStatus, string> = {
+  PENDING_APPROVAL: 'Pending approval',
+  APPROVED_FOR_PAYROLL: 'Approved for payroll',
+  INCLUDED_IN_PAYROLL: 'Included in payroll',
+  SETTLED: 'Settled',
+  REJECTED: 'Rejected',
+  CANCELLED: 'Cancelled',
+  REVERSED: 'Reversed',
+}
+
+export type VisitPayCorrectionItem = {
+  id: string
+  amount: string | number
+  reason: string
+  notes?: string | null
+  sourceType: 'VISIT_CORRECTION' | 'REVERSAL' | string
+  status: PayItemStatus | string
+  displayStatus: PayCorrectionDisplayStatus
+  originalAmount?: string | number | null
+  correctedAmount?: string | number | null
+  createdAt: string
+  createdById?: string | null
+  createdByName?: string | null
+  approvedByName?: string | null
+  rejectedByName?: string | null
+  rejectionReason?: string | null
+  payrollRunLabel?: string | null
+  reversesPayItemId?: string | null
+  reversalItemId?: string | null
+  canReverse: boolean
+}
+
+/** Original settled pay of one visit, its corrections and reversals, and the resulting total. */
+export type VisitPayCorrectionHistory = {
+  visit: {
+    id: string
+    visitRef: string
+    employeeId: string | null
+    paySettled: boolean
+    settledBy: 'VISIT_PAY_RUN' | 'UK_PAYROLL_RUN' | null
+  }
+  originalAmount: string
+  netAmount: string
+  differenceAmount: string
+  canRecordCorrection: boolean
+  items: VisitPayCorrectionItem[]
+}
+
+export type RecordVisitPayCorrectionInput = {
+  visitReconciliationId: string
+  correctedAmount: number
+  reason: string
+}

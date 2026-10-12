@@ -5,6 +5,8 @@ import type {
   PayItemSuggestion,
   PayItemUnit,
   PayItemWageType,
+  RecordVisitPayCorrectionInput,
+  VisitPayCorrectionHistory,
 } from '@/features/billing/types/pay-items.types'
 
 export async function fetchPayItems(params?: { status?: string; employeeId?: string; wageTypeCode?: string }): Promise<PayItem[]> {
@@ -46,4 +48,26 @@ export async function rejectPayItem(id: string, reason: string): Promise<{ messa
 
 export async function cancelPayItem(id: string): Promise<{ message: string }> {
   return apiJson<{ message: string }>(`/billing/pay-items/${id}/cancel`, { method: 'POST' })
+}
+
+export async function fetchVisitPayCorrections(visitReconciliationId: string): Promise<VisitPayCorrectionHistory> {
+  const res = await apiJson<ApiEnvelope<VisitPayCorrectionHistory>>(
+    `/billing/pay-items/visit-corrections/${visitReconciliationId}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function recordVisitPayCorrection(body: RecordVisitPayCorrectionInput): Promise<{ message: string }> {
+  return apiJson<{ message: string }>('/billing/pay-items/visit-corrections', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function reversePayItem(id: string, reason: string): Promise<{ message: string }> {
+  return apiJson<{ message: string }>(`/billing/pay-items/${id}/reverse`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
 }

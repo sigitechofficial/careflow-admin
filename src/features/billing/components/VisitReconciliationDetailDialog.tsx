@@ -33,6 +33,7 @@ import { useOrganisationDisplayFormat } from '@/shared/context/organisation-disp
 import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
+import { VisitPayCorrectionsCard } from '@/features/billing/components/VisitPayCorrectionsCard'
 
 type Props = {
   open: boolean
@@ -739,6 +740,8 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   ) : null}
                 </ContentCard>
               ) : null}
+
+              <VisitPayCorrectionsCard visitReconciliationId={row.id} />
 
               <ContentCard className="p-4 space-y-3">
                 <div>

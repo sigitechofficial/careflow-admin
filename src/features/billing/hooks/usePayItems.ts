@@ -5,7 +5,10 @@ import {
   createPayItem,
   fetchPayItemSuggestion,
   fetchPayItems,
+  fetchVisitPayCorrections,
+  recordVisitPayCorrection,
   rejectPayItem,
+  reversePayItem,
 } from '@/features/billing/api/pay-items.api'
 import { billingKeys } from '@/features/billing/keys'
 import type { PayItemUnit, PayItemWageType } from '@/features/billing/types/pay-items.types'
@@ -30,7 +33,33 @@ export function usePayItemSuggestion(
 
 function useInvalidatePayItems() {
   const qc = useQueryClient()
-  return () => void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'pay-items'] })
+  return () => {
+    void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'pay-items'] })
+    // A correction shows on the carer's earnings rows.
+    void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'employee-earnings'] })
+  }
+}
+
+/** Original settled pay, corrections and reversals of one visit. */
+export function useVisitPayCorrections(visitReconciliationId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.visitPayCorrections(visitReconciliationId ?? ''),
+    queryFn: () => fetchVisitPayCorrections(visitReconciliationId as string),
+    enabled: enabled && !!visitReconciliationId,
+  })
+}
+
+export function useRecordVisitPayCorrection() {
+  const invalidate = useInvalidatePayItems()
+  return useMutation({ mutationFn: recordVisitPayCorrection, onSuccess: invalidate })
+}
+
+export function useReversePayItem() {
+  const invalidate = useInvalidatePayItems()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => reversePayItem(id, reason),
+    onSuccess: invalidate,
+  })
 }
 
 export function useCreatePayItem() {

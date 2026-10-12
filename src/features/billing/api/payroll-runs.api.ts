@@ -232,6 +232,8 @@ export type EmployeeEarningVisitRow = {
   earningPhase?: 'NOT_PAYABLE' | 'EARNED' | 'PAYROLL_PROCESSED' | 'PAYMENT_PREPARED' | 'PAYMENT_RECORDED'
   correctionState?: 'NONE' | 'PENDING_APPROVAL' | 'ADJUSTED'
   correctionAdjustmentValue?: number
+  /** In a locked visit pay run or a closed UK run: changed only through a pay correction. */
+  paySettled?: boolean
   paid: boolean
   countsTowardSalary?: boolean
   payrollRunId: string | null

@@ -25,6 +25,7 @@ import {
   earningTone,
   earningToneBadgeClass,
 } from '@/features/employees/lib/earning-stage'
+import { VisitPayCorrectionsDialog } from '@/features/billing/components/VisitPayCorrectionsCard'
 import {
   rangeForPreset,
   type EarningsPeriodPreset,
@@ -149,6 +150,7 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
   const [customFrom, setCustomFrom] = React.useState('')
   const [customTo, setCustomTo] = React.useState('')
   const [resetOpen, setResetOpen] = React.useState(false)
+  const [correctionVisit, setCorrectionVisit] = React.useState<EmployeeEarningVisitRow | null>(null)
 
   const filters = React.useMemo(() => {
     if (preset === 'custom') {
@@ -505,6 +507,16 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                               {earningCorrectionNote(row)}
                             </p>
                           ) : null}
+                          {row.paySettled ? (
+                            <button
+                              type="button"
+                              className="mt-1 block text-xs font-medium text-primary underline-offset-2 hover:underline"
+                              onClick={() => setCorrectionVisit(row)}
+                              data-testid={`employee-pay-corrections-${row.id}`}
+                            >
+                              Pay corrections
+                            </button>
+                          ) : null}
                         </td>
                         <td className="px-3 py-2.5 text-muted-foreground">
                           {row.ukPayrollRunLabel ?? row.payrollPeriod ?? '—'}
@@ -518,6 +530,14 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
           </ContentCard>
         </>
       ) : null}
+
+      <VisitPayCorrectionsDialog
+        visitReconciliationId={correctionVisit?.id ?? null}
+        visitRef={correctionVisit?.visitRef}
+        onOpenChange={open => {
+          if (!open) setCorrectionVisit(null)
+        }}
+      />
     </div>
   )
 }
