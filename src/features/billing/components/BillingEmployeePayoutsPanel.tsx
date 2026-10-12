@@ -72,6 +72,7 @@ type ScopeMode = 'period' | 'all'
 export function BillingEmployeePayoutsPanel() {
   const canRead = useAuthStore(s => s.can('billing.employee_payouts.read'))
   const canManage = useAuthStore(s => s.can('billing.employee_payouts.manage'))
+  const canResetTestData = useAuthStore(s => s.can('billing.financial_reset'))
   const { locationId } = useGlobalLocationScope()
 
   const { data: generalSettings } = useGeneralSettings(canRead)
@@ -246,11 +247,13 @@ export function BillingEmployeePayoutsPanel() {
                 </Button>
                 <AlertDialog open={purgeOpen} onOpenChange={setPurgeOpen}>
                   <AlertDialogTrigger asChild>
+                    {/* Test reset: only for users who hold the reset permission (off in production). */}
                     <Button
                       type="button"
                       size="sm"
                       variant="destructive"
                       disabled={deleteAll.isPending}
+                      className={canResetTestData ? undefined : 'hidden'}
                       data-testid="billing-payouts-delete-all"
                     >
                       {deleteAll.isPending ? (
@@ -368,8 +371,8 @@ export function BillingEmployeePayoutsPanel() {
             </div>
           ) : eligibleRuns.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No eligible UK payroll runs. Calculate tax &amp; NI on a UK run first, then return
-              here.
+              No eligible UK payroll runs. Close a UK run first (tax &amp; NI calculated, then
+              closed), then return here.
             </p>
           ) : (
             <div className="flex flex-wrap items-end gap-3">
