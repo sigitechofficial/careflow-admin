@@ -107,8 +107,18 @@ export async function createPayrollRun(body: {
   return res.data
 }
 
-export async function calculatePayrollRun(id: string): Promise<void> {
-  await apiJson(`/billing/payroll-runs/${id}/calculate`, { method: 'POST' })
+/** Returns how many approved visits were left out because another pay run already holds them. */
+export async function calculatePayrollRun(id: string): Promise<{ heldByOtherRuns: number }> {
+  const res = await apiJson<ApiEnvelope<{ heldByOtherRuns?: number }>>(
+    `/billing/payroll-runs/${id}/calculate`,
+    { method: 'POST' },
+  )
+  return { heldByOtherRuns: res.data?.heldByOtherRuns ?? 0 }
+}
+
+/** Remove a run that has not been locked; its visits become available to other runs. */
+export async function discardPayrollRun(id: string): Promise<void> {
+  await apiJson(`/billing/payroll-runs/${id}`, { method: 'DELETE' })
 }
 
 export async function approvePayrollRun(id: string): Promise<void> {

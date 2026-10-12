@@ -39,7 +39,20 @@ export type EmployeePayoutBatchDetail = EmployeePayoutBatchRow & {
   approvedAt: string | null
   paidById: string | null
   paidAt: string | null
+  /** Settlement evidence recorded when the batch was marked paid. */
+  paymentReference?: string | null
+  settledOn?: string | null
+  settlementEvidence?: string | null
   lines: EmployeePayoutLineRow[]
+}
+
+export type SettleEmployeePayoutBatchInput = {
+  id: string
+  /** Bank or payment provider reference for the batch. */
+  paymentReference: string
+  /** Date the money left the account (YYYY-MM-DD). */
+  settledOn: string
+  settlementEvidence?: string
 }
 
 export type PayoutEligibleUkRun = {
@@ -112,12 +125,13 @@ export async function approveEmployeePayoutBatch(
   return res.data
 }
 
-export async function markEmployeePayoutBatchPaid(
-  id: string,
-): Promise<EmployeePayoutBatchDetail> {
+export async function markEmployeePayoutBatchPaid({
+  id,
+  ...evidence
+}: SettleEmployeePayoutBatchInput): Promise<EmployeePayoutBatchDetail> {
   const res = await apiJson<ApiEnvelope<EmployeePayoutBatchDetail>>(
     `/billing/employee-payouts/${id}/mark-paid`,
-    { method: 'POST' },
+    { method: 'POST', body: JSON.stringify(evidence) },
   )
   return res.data
 }

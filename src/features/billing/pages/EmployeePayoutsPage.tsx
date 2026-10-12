@@ -6,7 +6,7 @@ export default function EmployeePayoutsPage() {
   return (
     <BillingSectionLayout
       title="Employee payouts"
-      description="Bank payout of UK Payroll net (after W1/M1 PAYE/NI). Create from a statutory-calculated or closed UK run, approve, then mark paid. Auto-runs on the 4th when a matching UK run exists."
+      description="Bank payout of UK Payroll net pay. Create a batch from a closed UK run; a different user approves it; then record the bank payment once the money has left the account. On the 4th a draft batch is proposed for last month's closed runs. Nothing is approved or marked paid automatically."
       testId="billing-employee-payouts-page"
       icon={
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">

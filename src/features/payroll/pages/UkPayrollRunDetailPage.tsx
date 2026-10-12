@@ -66,6 +66,9 @@ function formatGbp(amount: number) {
 export default function UkPayrollRunDetailPage() {
   const { runId } = useParams({ strict: false }) as { runId: string }
   const canManage = useAuthStore((s) => s.can('payroll.runs.manage'))
+  // Closing posts year-to-date figures and reopening reverses them: separate powers from running payroll.
+  const canClose = useAuthStore((s) => s.can('payroll.runs.close'))
+  const canReopen = useAuthStore((s) => s.can('payroll.runs.reopen'))
   const currentUserId = useAuthStore((s) => s.user?.id ?? null)
   const canManagePayouts = useAuthStore((s) => s.can('billing.employee_payouts.manage'))
   const canReadPayouts = useAuthStore((s) => s.can('billing.employee_payouts.read'))
@@ -322,7 +325,12 @@ export default function UkPayrollRunDetailPage() {
                   <Button
                     size="sm"
                     className="gap-1.5"
-                    disabled={reactivateMut.isPending}
+                    disabled={reactivateMut.isPending || (data?.status === 'CLOSED' && !canReopen)}
+                    title={
+                      data?.status === 'CLOSED' && !canReopen
+                        ? 'Reopening a closed run needs the "Approve pay and record payments" responsibility'
+                        : undefined
+                    }
                     onClick={() => reactivateMut.mutate(runId)}
                   >
                     <RotateCcw className="h-3.5 w-3.5" aria-hidden />
@@ -370,7 +378,12 @@ export default function UkPayrollRunDetailPage() {
                       size="sm"
                       variant="outline"
                       className="gap-1.5"
-                      disabled={closeMut.isPending || data.employeeCount < 1}
+                      disabled={closeMut.isPending || data.employeeCount < 1 || !canClose}
+                      title={
+                        canClose
+                          ? undefined
+                          : 'Closing a run needs the "Approve pay and record payments" responsibility, held by a different user from the one who created the run'
+                      }
                       onClick={() => closeMut.mutate(undefined)}
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />

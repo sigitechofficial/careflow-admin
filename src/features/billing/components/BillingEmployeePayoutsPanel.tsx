@@ -358,8 +358,7 @@ export function BillingEmployeePayoutsPanel() {
             <p className="text-sm font-medium text-foreground">Create payout from UK run</p>
             <p className="text-xs text-muted-foreground">
               Pays <span className="font-medium text-foreground">UK net pay</span> (after W1/M1
-              PAYE/NI). Runs must be statutory-calculated or closed. Purge any legacy visit-pay-net
-              payouts before relying on Bank paid.
+              PAYE/NI). The UK run must be closed, so the net pay is final.
             </p>
           </div>
           {eligibleRunsQuery.isLoading ? (
@@ -439,8 +438,8 @@ export function BillingEmployeePayoutsPanel() {
               {scope === 'all' ? 'Payout history (all periods)' : `Payouts for ${periodLabel}`}
             </p>
             <p className="text-xs text-muted-foreground">
-              Open a batch to approve, mark paid, or cancel. Changing the {periodNoun} reloads this
-              list.
+              Open a batch to approve it, record the bank payment, or cancel it. Changing the{' '}
+              {periodNoun} reloads this list.
             </p>
           </div>
           <Select

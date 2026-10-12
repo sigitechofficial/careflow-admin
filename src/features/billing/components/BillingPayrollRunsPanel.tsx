@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { Eye, Loader2, Plus, Download, Lock, Calculator } from 'lucide-react'
+import { Eye, Loader2, Plus, Download, Lock, Calculator, Trash2 } from 'lucide-react'
+import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
 import { PayrollRunStatusBadge } from '@/features/billing/components/BillingStatusBadge'
@@ -9,6 +10,7 @@ import {
   useApprovePayrollRun,
   useCalculatePayrollRun,
   useCreatePayrollRun,
+  useDiscardPayrollRun,
   useDownloadPayrollRunCsv,
   useExportPayrollRun,
   useLockPayrollRun,
@@ -18,9 +20,16 @@ import { useAuthStore } from '@/features/auth/store'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type { PayrollRunRow } from '@/features/billing/api/payroll-runs.api'
 
+/** A run in one of these states can still be recalculated or discarded. */
+const UNLOCKED_STATUSES = ['DRAFT', 'EXCEPTION_FOUND', 'READY_FOR_REVIEW', 'APPROVED']
+const APPROVE_HINT =
+  'Approving and locking pay needs the "Approve pay and record payments" responsibility'
+
 export function BillingPayrollRunsPanel() {
-  const canRead = useAuthStore(s => s.can('billing.payroll_runs.read' as never))
-  const canManage = useAuthStore(s => s.can('billing.payroll_runs.manage' as never))
+  const canRead = useAuthStore(s => s.can('billing.payroll_runs.read'))
+  const canManage = useAuthStore(s => s.can('billing.payroll_runs.manage'))
+  // Approving and locking are a separate power from preparing a run.
+  const canApprove = useAuthStore(s => s.can('billing.payroll_runs.approve'))
   const { locationId } = useGlobalLocationScope()
   const [createOpen, setCreateOpen] = React.useState(false)
   const [detailRow, setDetailRow] = React.useState<PayrollRunRow | null>(null)
@@ -30,6 +39,7 @@ export function BillingPayrollRunsPanel() {
   const calculateMutation = useCalculatePayrollRun()
   const approveMutation = useApprovePayrollRun()
   const lockMutation = useLockPayrollRun()
+  const discardMutation = useDiscardPayrollRun()
   const exportMutation = useExportPayrollRun()
   const downloadMutation = useDownloadPayrollRunCsv()
 
@@ -39,13 +49,45 @@ export function BillingPayrollRunsPanel() {
     calculateMutation.isPending ||
     approveMutation.isPending ||
     lockMutation.isPending ||
+    discardMutation.isPending ||
     exportMutation.isPending ||
     downloadMutation.isPending
+
+  /** Calculate and say so when another run already holds some of the approved visits. */
+  const calculate = async (id: string) => {
+    try {
+      const { heldByOtherRuns } = await calculateMutation.mutateAsync(id)
+      if (heldByOtherRuns > 0) {
+        toastWarning(
+          `${heldByOtherRuns} approved visit${heldByOtherRuns === 1 ? ' is' : 's are'} already in another pay run`,
+          'They were left out of this run. Discard or recalculate the other run to release them.',
+        )
+      }
+    } catch (e) {
+      toastApiError(e, 'Could not calculate the payroll run')
+    }
+  }
+
+  const runAction = async (action: () => Promise<unknown>, done: string, failed: string) => {
+    try {
+      await action()
+      toastSuccess(done)
+    } catch (e) {
+      toastApiError(e, failed)
+    }
+  }
+
+  const discard = (row: PayrollRunRow) => {
+    if (!window.confirm(`Discard the payroll run for ${row.period}? Its visits become available to other runs.`)) {
+      return
+    }
+    void runAction(() => discardMutation.mutateAsync(row.id), 'Payroll run discarded', 'Could not discard the payroll run')
+  }
 
   const handleCreate = async (values: { periodStart: string; periodEnd: string }) => {
     const created = await createMutation.mutateAsync(values)
     setCreateOpen(false)
-    await calculateMutation.mutateAsync(created.id)
+    await calculate(created.id)
   }
 
   if (!canRead) {
@@ -123,23 +165,35 @@ export function BillingPayrollRunsPanel() {
                   {canManage ? (
                     <td className="px-3 py-2.5">
                       <div className="flex flex-wrap gap-1">
-                        {(row.status === 'DRAFT' || row.status === 'EXCEPTION_FOUND') && (
+                        {UNLOCKED_STATUSES.includes(row.status) && (
                           <Button
                             variant="outline"
                             size="sm"
                             disabled={isMutating}
                             leftIcon={<Calculator className="h-3.5 w-3.5" />}
-                            onClick={() => void calculateMutation.mutateAsync(row.id)}
+                            onClick={() => void calculate(row.id)}
+                            title={
+                              row.status === 'APPROVED'
+                                ? 'Recalculating withdraws the approval'
+                                : undefined
+                            }
                           >
-                            Calculate
+                            {row.status === 'DRAFT' ? 'Calculate' : 'Recalculate'}
                           </Button>
                         )}
                         {(row.status === 'READY_FOR_REVIEW' || row.status === 'EXCEPTION_FOUND') && (
                           <Button
                             variant="outline"
                             size="sm"
-                            disabled={isMutating}
-                            onClick={() => void approveMutation.mutateAsync(row.id)}
+                            disabled={isMutating || !canApprove}
+                            title={canApprove ? 'Must be a different user from the one who created the run' : APPROVE_HINT}
+                            onClick={() =>
+                              void runAction(
+                                () => approveMutation.mutateAsync(row.id),
+                                'Payroll run approved',
+                                'Could not approve the payroll run',
+                              )
+                            }
                           >
                             Approve
                           </Button>
@@ -148,11 +202,29 @@ export function BillingPayrollRunsPanel() {
                           <Button
                             variant="outline"
                             size="sm"
-                            disabled={isMutating}
+                            disabled={isMutating || !canApprove}
+                            title={canApprove ? 'Locking makes this run permanent history' : APPROVE_HINT}
                             leftIcon={<Lock className="h-3.5 w-3.5" />}
-                            onClick={() => void lockMutation.mutateAsync(row.id)}
+                            onClick={() =>
+                              void runAction(
+                                () => lockMutation.mutateAsync(row.id),
+                                'Payroll run locked',
+                                'Could not lock the payroll run',
+                              )
+                            }
                           >
                             Lock
+                          </Button>
+                        )}
+                        {UNLOCKED_STATUSES.includes(row.status) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={isMutating}
+                            leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                            onClick={() => discard(row)}
+                          >
+                            Discard
                           </Button>
                         )}
                         {row.status === 'LOCKED' && (
