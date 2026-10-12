@@ -3,6 +3,16 @@ export const billingKeys = {
   payCards: (filters?: { search?: string; status?: string; locationId?: string }) =>
     [...billingKeys.all, 'pay-cards', filters ?? {}] as const,
   payCard: (id: string) => [...billingKeys.all, 'pay-card', id] as const,
+  payCardVersions: (id: string) => [...billingKeys.all, 'pay-card-versions', id] as const,
+  wageTypes: () => [...billingKeys.all, 'wage-types'] as const,
+  payItems: (params?: { status?: string; employeeId?: string; wageTypeCode?: string }) =>
+    [...billingKeys.all, 'pay-items', params ?? {}] as const,
+  payItemSuggestion: (params: { employeeId: string; wageTypeCode: string; unit: string; date: string }) =>
+    [...billingKeys.all, 'pay-items', 'suggestion', params] as const,
+  bankHolidays: (params?: { region?: string; year?: string }) =>
+    [...billingKeys.all, 'bank-holidays', params ?? {}] as const,
+  employeePayCardHistory: (employeeId: string) =>
+    [...billingKeys.all, 'employee-pay-card-history', employeeId] as const,
   payCardAssignmentPreview: (id: string) =>
     [...billingKeys.all, 'pay-card-assignment-preview', id] as const,
   payCardResolve: (employeeId: string, funderId?: string) =>

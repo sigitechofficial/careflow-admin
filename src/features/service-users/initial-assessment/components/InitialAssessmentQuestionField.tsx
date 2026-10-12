@@ -68,6 +68,9 @@ type Props = {
   fundingTypeCatalog?: QuestionOption[]
   ethnicityCatalog?: QuestionOption[]
   languageCatalog?: QuestionOption[]
+  genderCatalog?: QuestionOption[]
+  sexCatalog?: QuestionOption[]
+  sexualOrientationCatalog?: QuestionOption[]
   /** True while service-user ethnicity/language/funding lookup catalogues are loading. */
   lookupCatalogLoading?: boolean
   onChange: (patch: InitialAssessmentAnswerInput) => void
@@ -106,6 +109,9 @@ export function InitialAssessmentQuestionField({
   fundingTypeCatalog,
   ethnicityCatalog,
   languageCatalog,
+  genderCatalog,
+  sexCatalog,
+  sexualOrientationCatalog,
   lookupCatalogLoading = false,
   onChange,
 }: Props) {
@@ -116,6 +122,9 @@ export function InitialAssessmentQuestionField({
     fundingTypeCatalog,
     ethnicityCatalog,
     languageCatalog,
+    genderCatalog,
+    sexCatalog,
+    sexualOrientationCatalog,
   }
   const options = resolveQuestionOptions(question, optionCatalogs)
   const hasError = Boolean(errorMessage)

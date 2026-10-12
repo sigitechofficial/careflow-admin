@@ -8,6 +8,9 @@ export type QuestionOptionCatalogs = {
   fundingTypeCatalog?: QuestionOption[]
   ethnicityCatalog?: QuestionOption[]
   languageCatalog?: QuestionOption[]
+  genderCatalog?: QuestionOption[]
+  sexCatalog?: QuestionOption[]
+  sexualOrientationCatalog?: QuestionOption[]
 }
 
 const LEGACY_OPTION_LABELS: Record<string, string> = {
@@ -50,6 +53,27 @@ export function usesServiceUserLanguageLookup(question: InitialAssessmentQuestio
   }
   if (meta.optionsLookup === 'service_user_languages') return true
   return meta.fieldKey === 'languagesSpoken'
+}
+
+export function usesServiceUserGenderLookup(question: InitialAssessmentQuestion): boolean {
+  const meta = question.metadata
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+    return question.questionText.trim() === 'Gender'
+  }
+  if (meta.optionsLookup === 'service_user_genders') return true
+  return meta.prefillKey === 'gender' || meta.fieldKey === 'gender'
+}
+
+export function usesServiceUserSexLookup(question: InitialAssessmentQuestion): boolean {
+  const meta = question.metadata
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+  return meta.optionsLookup === 'service_user_sexes' || meta.fieldKey === 'sex'
+}
+
+export function usesServiceUserSexualOrientationLookup(question: InitialAssessmentQuestion): boolean {
+  const meta = question.metadata
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+  return meta.optionsLookup === 'service_user_sexual_orientations' || meta.fieldKey === 'sexualOrientation'
 }
 
 /** Large service-user / body-map lookup lists — use shared searchable Combobox. */
@@ -106,6 +130,21 @@ export function resolveQuestionOptions(
   }
   if (usesServiceUserLanguageLookup(question)) {
     return catalogs.languageCatalog ?? []
+  }
+  if (usesServiceUserGenderLookup(question)) {
+    const fromDb = catalogs.genderCatalog ?? []
+    if (fromDb.length > 0) return fromDb
+    return parseQuestionOptions(question.options)
+  }
+  if (usesServiceUserSexLookup(question)) {
+    const fromDb = catalogs.sexCatalog ?? []
+    if (fromDb.length > 0) return fromDb
+    return parseQuestionOptions(question.options)
+  }
+  if (usesServiceUserSexualOrientationLookup(question)) {
+    const fromDb = catalogs.sexualOrientationCatalog ?? []
+    if (fromDb.length > 0) return fromDb
+    return parseQuestionOptions(question.options)
   }
   return parseQuestionOptions(question.options)
 }

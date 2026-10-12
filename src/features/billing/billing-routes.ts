@@ -7,6 +7,8 @@ export const BILLING_SETUP_TAB_IDS: BillingTabId[] = [
   'charge-cards',
   'funding-contracts',
   'invoice-templates',
+  'wage-types',
+  'bank-holidays',
 ]
 
 /** Ops tabs promoted to dedicated full-page routes. */

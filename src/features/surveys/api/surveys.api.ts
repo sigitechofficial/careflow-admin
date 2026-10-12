@@ -10,12 +10,15 @@ import type {
   SurveyListFilters,
   SurveyListItem,
   SurveyQuestion,
+  RecordSurveyResponseInput,
   SurveyRecipientItem,
+  SurveyRecordCandidate,
   SurveyResponseItem,
   SurveyResponsesPayload,
   SurveyResults,
   SubmitSurveyResponseInput,
   UpdateQuestionInput,
+  UpdateRecordedSurveyResponseInput,
   UpdateSurveyInput,
 } from '@/features/surveys/types'
 
@@ -177,6 +180,44 @@ export async function fetchSurveyRecipients(
     { method: 'GET', ...init },
   )
   return res.data ?? []
+}
+
+/** People a response can be recorded for (survey target), with their recipient status. */
+export async function fetchSurveyRecordCandidates(
+  surveyId: string,
+  search: string,
+  init?: RequestInit,
+): Promise<SurveyRecordCandidate[]> {
+  const res = await apiJson<ApiEnvelope<SurveyRecordCandidate[]>>(
+    `/surveys/${surveyId}/record-candidates${buildQuery({ search: search.trim() || undefined })}`,
+    { method: 'GET', ...init },
+  )
+  return res.data ?? []
+}
+
+/** Office staff record a response collected by telephone, paper or in person. */
+export async function recordSurveyResponse(
+  surveyId: string,
+  input: RecordSurveyResponseInput,
+): Promise<{ id: string; submittedAt: string }> {
+  const res = await apiJson<ApiEnvelope<{ id: string; submittedAt: string }>>(
+    `/surveys/${surveyId}/responses/record`,
+    { method: 'POST', body: JSON.stringify(input) },
+  )
+  return res.data
+}
+
+/** Correct a staff-recorded response (reason required). */
+export async function updateRecordedSurveyResponse(
+  surveyId: string,
+  responseId: string,
+  input: UpdateRecordedSurveyResponseInput,
+): Promise<{ id: string }> {
+  const res = await apiJson<ApiEnvelope<{ id: string }>>(
+    `/surveys/${surveyId}/responses/${responseId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+  )
+  return res.data
 }
 
 export async function fetchPublicSurvey(

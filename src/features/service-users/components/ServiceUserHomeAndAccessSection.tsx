@@ -135,16 +135,14 @@ export function ServiceUserHomeAndAccessSection({ serviceUserId, detail, onSaved
         <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">Service location</h2>
         <div className="space-y-1.5">
           <span className="text-sm text-muted-foreground">
-            Zone, branch &amp; area<span className="text-destructive">*</span>
+            Branch &amp; area<span className="text-destructive">*</span>
           </span>
           <ServiceUserZoneBranchSelect
             value={form.locationId}
             areaId={form.serviceUserAreaId}
-            mainPostcode={form.postcode}
             onChange={({ locationId, serviceUserAreaId }) =>
               setForm((prev) => ({ ...prev, locationId, serviceUserAreaId }))
             }
-            onApplyMainPostcode={(postcode) => setForm((prev) => ({ ...prev, postcode }))}
             required
           />
         </div>
@@ -166,7 +164,7 @@ export function ServiceUserHomeAndAccessSection({ serviceUserId, detail, onSaved
         {addressOpen && (
           <div className="border-t border-border px-4 pb-4 pt-4 sm:px-6 sm:pb-6">
             <AddressPlacesField
-              postcodeLabel="Secondary postcode"
+              postcodeLabel="Postcode"
               value={{
                 addressLine1: form.addressLine1,
                 addressLine2: form.addressLine2,

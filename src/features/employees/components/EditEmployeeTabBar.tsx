@@ -11,6 +11,7 @@ import {
   FileText,
   GraduationCap,
   LayoutGrid,
+  Package,
   ShieldCheck,
   Star,
   UserCircle,
@@ -36,6 +37,7 @@ export type EditEmployeeTabId =
   | 'learning'
   | 'suspensions'
   | 'incidents'
+  | 'allocation'
 
 export const EDIT_EMPLOYEE_TABS: {
   id: EditEmployeeTabId
@@ -59,6 +61,7 @@ export const EDIT_EMPLOYEE_TABS: {
   { id: 'learning', label: 'Learning', Icon: GraduationCap, iconClassName: 'text-blue-600 dark:text-blue-400' },
   { id: 'suspensions', label: 'Suspensions', Icon: UserX, iconClassName: 'text-red-600 dark:text-red-400' },
   { id: 'incidents', label: 'Incidents', Icon: AlertTriangle, iconClassName: 'text-amber-600 dark:text-amber-400' },
+  { id: 'allocation', label: 'Allocation', Icon: Package, iconClassName: 'text-amber-700 dark:text-amber-400' },
 ]
 
 const EDIT_EMPLOYEE_TAB_IDS = new Set(EDIT_EMPLOYEE_TABS.map(t => t.id))

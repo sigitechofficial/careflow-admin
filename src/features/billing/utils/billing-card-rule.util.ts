@@ -21,7 +21,20 @@ const NON_VISIT_RATE_TYPES = new Set<BillingRateType>([
   'UPLIFT',
   'DEDUCTION',
   'PER_VISIT_FEE',
+  'OVERTIME',
+  'ON_CALL',
+  'TRAINING',
+  'LIVE_IN_DAILY',
+  'LIVE_IN_WEEKLY',
 ])
+
+const ADDITIONAL_PAY_LABELS: Partial<Record<BillingRateType, string>> = {
+  OVERTIME: 'Overtime',
+  ON_CALL: 'On-call (£/period)',
+  TRAINING: 'Training (£/hr)',
+  LIVE_IN_DAILY: 'Live-in (£/day)',
+  LIVE_IN_WEEKLY: 'Live-in (£/week)',
+}
 
 export function isNightDutyChargeRule(
   rule: Pick<ChargeCardRule, 'chargeMethod'> | Pick<PayCardRule, 'rateType'>,
@@ -34,6 +47,34 @@ export function isNightDutyChargeRule(
 
 export function isNightDutyPayRule(rule: Pick<PayCardRule, 'rateType'>): boolean {
   return rule.rateType === 'SLEEP_IN' || rule.rateType === 'WAKING_NIGHT'
+}
+
+/** Same checks the pay card form runs before saving rates; returns the first problem or null. */
+export function validatePayCardRules(rules: PayCardRule[]): string | null {
+  if (rules.length === 0) return 'Add at least one pay rate rule.'
+  for (const rule of rules) {
+    const isSupplement =
+      rule.rateType === 'MILEAGE'
+      || rule.rateType === 'TRAVEL_TIME'
+      || rule.rateType === 'WAITING_TIME'
+      || isNightDutyPayRule(rule)
+      || Boolean(ADDITIONAL_PAY_LABELS[rule.rateType])
+    if (rule.rateType === 'OVERTIME' && !(rule.minimumMinutes && rule.minimumMinutes > 0)) {
+      return 'Overtime needs a weekly threshold in hours.'
+    }
+    if (!(Number(rule.amount) > 0)) return 'Every rate rule needs an amount greater than zero.'
+    // Guard against a £/hr figure left in place after switching a rule to multiplier / % uplift.
+    if (rule.enhancementMethod === 'MULTIPLIER' && Number(rule.amount) > 10) {
+      return `Multiplier ×${Number(rule.amount)} looks too high for "${rule.label || rule.dayType}". Enter e.g. 1.5 for time and a half.`
+    }
+    if (rule.enhancementMethod === 'PERCENTAGE_UPLIFT' && Number(rule.amount) > 300) {
+      return `Uplift ${Number(rule.amount)}% looks too high for "${rule.label || rule.dayType}".`
+    }
+    if (!isSupplement && (!rule.startTime?.trim() || !rule.endTime?.trim())) {
+      return 'Every visit rate rule needs From and Until times.'
+    }
+  }
+  return null
 }
 
 export function isDurationBandRule(minimumMinutes?: number | null): boolean {
@@ -140,6 +181,7 @@ export function getRuleRateTypeLabel(
 ): string {
   if (rule.chargeMethod === 'SLEEP_IN' || rule.rateType === 'SLEEP_IN') return 'Sleeping night (£/night)'
   if (rule.chargeMethod === 'WAKING_NIGHT' || rule.rateType === 'WAKING_NIGHT') return 'Waking night (£/hr)'
+  if (ADDITIONAL_PAY_LABELS[rule.rateType]) return ADDITIONAL_PAY_LABELS[rule.rateType]!
   if (isMileageRule(rule)) return 'Mileage (£/mile)'
   if (isTravelTimeRule(rule)) return 'Travel time (£/hr)'
   if (isWaitingTimeRule(rule)) return 'Waiting time (£/hr)'

@@ -16,6 +16,7 @@ import { ServiceUserPersonalDetailsForm } from '@/features/service-users/compone
 import { ServiceUserPhotosTab } from '@/features/service-users/components/ServiceUserPhotosTab'
 import { ServiceUserPortalAccessSection } from '@/features/service-users/components/ServiceUserPortalAccessSection'
 import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
+import { ServiceUserReferralsTab } from '@/features/service-users/referrals/components/ServiceUserReferralsTab'
 import type { ServiceUserProfileTabId } from '@/features/service-users/service-user-profile-tabs'
 
 type Props = {
@@ -107,6 +108,13 @@ export function ServiceUserProfileSectionContent({
         <ServiceUserInitialAssessmentEnterpriseTab
           serviceUserId={serviceUserId}
           displayName={(detail.preferredName?.trim() || detail.firstName || 'Client').trim()}
+        />
+      )}
+
+      {tab === 'referrals' && (
+        <ServiceUserReferralsTab
+          serviceUserId={serviceUserId}
+          displayName={(detail.preferredName?.trim() || [detail.firstName, detail.lastName].filter(Boolean).join(' ')).trim()}
         />
       )}
 

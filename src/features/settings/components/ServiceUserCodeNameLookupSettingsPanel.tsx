@@ -5,12 +5,24 @@ import type { ServiceUserFundingTypeRow } from '@/features/settings/api/lookups-
 import {
   useCreateServiceUserEthnicity,
   useCreateServiceUserLanguage,
+  useCreateServiceUserGender,
+  useCreateServiceUserSex,
+  useCreateServiceUserSexualOrientation,
   useDeleteServiceUserEthnicity,
   useDeleteServiceUserLanguage,
+  useDeleteServiceUserGender,
+  useDeleteServiceUserSex,
+  useDeleteServiceUserSexualOrientation,
   useServiceUserEthnicities,
   useServiceUserLanguages,
+  useServiceUserGenders,
+  useServiceUserSexes,
+  useServiceUserSexualOrientations,
   useUpdateServiceUserEthnicity,
   useUpdateServiceUserLanguage,
+  useUpdateServiceUserGender,
+  useUpdateServiceUserSex,
+  useUpdateServiceUserSexualOrientation,
 } from '@/features/settings/hooks/useLookupsAdmin'
 import { EthnicitiesSourceInfo } from '@/features/settings/components/EthnicitiesSourceInfo'
 import { SettingsTablePagination } from '@/features/settings/components/SettingsTablePagination'
@@ -27,7 +39,7 @@ function slugCode(name: string): string {
     .replace(/^_|_$/g, '')
 }
 
-type Variant = 'ethnicities' | 'languages'
+type Variant = 'ethnicities' | 'languages' | 'genders' | 'sexes' | 'sexualOrientations'
 
 const COPY: Record<
   Variant,
@@ -50,6 +62,30 @@ const COPY: Record<
     deleteError: 'Could not delete language.',
     empty: 'No languages yet.',
   },
+  genders: {
+    title: 'Genders',
+    description: 'Gender options for service user personal details (Add / Edit service user).',
+    addError: 'Could not add gender.',
+    saveError: 'Could not save changes.',
+    deleteError: 'Could not delete gender.',
+    empty: 'No genders yet.',
+  },
+  sexes: {
+    title: 'Sex',
+    description: 'Sex options for service user personal details, recorded separately from gender identity.',
+    addError: 'Could not add sex option.',
+    saveError: 'Could not save changes.',
+    deleteError: 'Could not delete sex option.',
+    empty: 'No sex options yet.',
+  },
+  sexualOrientations: {
+    title: 'Sexual orientation',
+    description: 'Sexual orientation options for service user personal details. Optional — collect only with consent.',
+    addError: 'Could not add sexual orientation.',
+    saveError: 'Could not save changes.',
+    deleteError: 'Could not delete sexual orientation.',
+    empty: 'No sexual orientations yet.',
+  },
 }
 
 function useVariantHooks(variant: Variant) {
@@ -61,6 +97,18 @@ function useVariantHooks(variant: Variant) {
   const updateLanguage = useUpdateServiceUserLanguage()
   const deleteEthnicity = useDeleteServiceUserEthnicity()
   const deleteLanguage = useDeleteServiceUserLanguage()
+  const genders = useServiceUserGenders()
+  const createGender = useCreateServiceUserGender()
+  const updateGender = useUpdateServiceUserGender()
+  const deleteGender = useDeleteServiceUserGender()
+  const sexes = useServiceUserSexes()
+  const createSex = useCreateServiceUserSex()
+  const updateSex = useUpdateServiceUserSex()
+  const deleteSex = useDeleteServiceUserSex()
+  const sexualOrientations = useServiceUserSexualOrientations()
+  const createSexualOrientation = useCreateServiceUserSexualOrientation()
+  const updateSexualOrientation = useUpdateServiceUserSexualOrientation()
+  const deleteSexualOrientation = useDeleteServiceUserSexualOrientation()
 
   if (variant === 'ethnicities') {
     return {
@@ -68,6 +116,30 @@ function useVariantHooks(variant: Variant) {
       createMutation: createEthnicity,
       updateMutation: updateEthnicity,
       deleteMutation: deleteEthnicity,
+    }
+  }
+  if (variant === 'sexualOrientations') {
+    return {
+      listQuery: sexualOrientations,
+      createMutation: createSexualOrientation,
+      updateMutation: updateSexualOrientation,
+      deleteMutation: deleteSexualOrientation,
+    }
+  }
+  if (variant === 'sexes') {
+    return {
+      listQuery: sexes,
+      createMutation: createSex,
+      updateMutation: updateSex,
+      deleteMutation: deleteSex,
+    }
+  }
+  if (variant === 'genders') {
+    return {
+      listQuery: genders,
+      createMutation: createGender,
+      updateMutation: updateGender,
+      deleteMutation: deleteGender,
     }
   }
   return {

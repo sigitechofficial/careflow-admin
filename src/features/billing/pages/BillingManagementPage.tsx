@@ -3,7 +3,9 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Banknote,
   BookOpen,
+  CalendarDays,
   CreditCard,
+  Layers,
   FileText,
   LayoutDashboard,
   PoundSterling,
@@ -20,6 +22,8 @@ import { ChargeCardsPanel } from '@/features/billing/components/ChargeCardsPanel
 import { PayCardsPanel } from '@/features/billing/components/PayCardsPanel'
 import { BillingFundingContractsPanel } from '@/features/billing/components/BillingFundingContractsPanel'
 import { BillingInvoiceTemplatesPanel } from '@/features/billing/components/BillingInvoiceTemplatesPanel'
+import { WageTypesPanel } from '@/features/billing/components/WageTypesPanel'
+import { BankHolidaysPanel } from '@/features/billing/components/BankHolidaysPanel'
 
 export type { BillingTabId }
 
@@ -35,6 +39,8 @@ const BILLING_TABS: {
   { id: 'charge-cards', label: 'Charge cards', group: 'Setup', Icon: CreditCard, color: 'text-violet-500' },
   { id: 'funding-contracts', label: 'Funding contracts', group: 'Setup', Icon: ScrollText, color: 'text-amber-500' },
   { id: 'invoice-templates', label: 'Invoice templates', group: 'Setup', Icon: FileText, color: 'text-rose-500' },
+  { id: 'wage-types', label: 'Wage types', group: 'Setup', Icon: Layers, color: 'text-teal-500' },
+  { id: 'bank-holidays', label: 'Bank holidays', group: 'Setup', Icon: CalendarDays, color: 'text-orange-500' },
 ]
 
 function BillingTabPanel({ tab }: { tab: BillingTabId }) {
@@ -49,6 +55,10 @@ function BillingTabPanel({ tab }: { tab: BillingTabId }) {
       return <BillingFundingContractsPanel />
     case 'invoice-templates':
       return <BillingInvoiceTemplatesPanel />
+    case 'wage-types':
+      return <WageTypesPanel />
+    case 'bank-holidays':
+      return <BankHolidaysPanel />
     default:
       return <BillingDashboardPanel />
   }

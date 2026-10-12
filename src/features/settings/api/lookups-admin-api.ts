@@ -740,6 +740,114 @@ export async function deleteServiceUserLanguage(id: string): Promise<void> {
   })
 }
 
+export async function fetchServiceUserGendersList(): Promise<ServiceUserFundingTypeRow[]> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow[]>>(
+    '/lookups/service-user-genders',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createServiceUserGender(body: {
+  name: string
+  code: string
+}): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    '/lookups/service-user-genders',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateServiceUserGender(
+  id: string,
+  body: { name?: string; code?: string },
+): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    `/lookups/service-user-genders/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserGender(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/service-user-genders/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function fetchServiceUserSexesList(): Promise<ServiceUserFundingTypeRow[]> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow[]>>(
+    '/lookups/service-user-sexes',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createServiceUserSex(body: {
+  name: string
+  code: string
+}): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    '/lookups/service-user-sexes',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateServiceUserSex(
+  id: string,
+  body: { name?: string; code?: string },
+): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    `/lookups/service-user-sexes/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserSex(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/service-user-sexes/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function fetchServiceUserSexualOrientationsList(): Promise<ServiceUserFundingTypeRow[]> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow[]>>(
+    '/lookups/service-user-sexual-orientations',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createServiceUserSexualOrientation(body: {
+  name: string
+  code: string
+}): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    '/lookups/service-user-sexual-orientations',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateServiceUserSexualOrientation(
+  id: string,
+  body: { name?: string; code?: string },
+): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    `/lookups/service-user-sexual-orientations/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserSexualOrientation(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/service-user-sexual-orientations/${id}`, {
+    method: 'DELETE',
+  })
+}
+
 export async function fetchBodyMapRecordTypesList(): Promise<BodyMapRecordTypeRow[]> {
   const res = await apiJson<ApiEnvelope<BodyMapRecordTypeRow[]>>('/lookups/body-map-record-types', {
     method: 'GET',

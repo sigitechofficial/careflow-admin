@@ -706,6 +706,10 @@ export default function ServiceUsersPage() {
               onHoldOnly: id === 'deleted' ? onHoldOnly : false,
             })
           }}
+          carePlanFilter={advancedFilters.carePlanListStatus ?? ''}
+          onCarePlanFilterChange={(next) =>
+            patchUrlState({ advanced: { ...advancedFilters, carePlanListStatus: next } })
+          }
           riskFilter={riskFilter}
           onRiskFilterChange={(next) => patchUrlState({ riskFilter: next })}
           unassignedOnly={unassignedOnly}

@@ -22,6 +22,7 @@ describe('service-user-profile-tabs', () => {
       'dom',
       'nfc',
       'assessment',
+      'referrals',
       'funding',
       'charge-card',
       'visits',

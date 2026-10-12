@@ -56,6 +56,8 @@ const lookups: ServiceUserLookupsBundle = {
   statuses: [],
   titles: [],
   genders: [],
+  sexes: [],
+  sexualOrientations: [],
   maritalStatuses: [],
   careTypes: [],
   fundingTypes: [],

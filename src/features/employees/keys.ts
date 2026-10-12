@@ -53,6 +53,15 @@ export const employeeKeys = {
   /** Holidays / leave for one employee. */
   holidays: (id: string) => [...employeeKeys.detail(id), 'holidays'] as const,
 
+  /** Items issued to one employee (laptop, PPE, uniform…). */
+  allocations: (id: string) => [...employeeKeys.detail(id), 'allocations'] as const,
+
+  /** Allocations across employees (Employee → Allocations). */
+  allocationsRegistry: (params: object) => [...employeeKeys.all(), 'allocations-registry', params] as const,
+
+  /** Allocation item catalogue (Settings → Allocation items). */
+  allocationItems: () => [...employeeKeys.all(), 'allocation-items'] as const,
+
   /** Organisation-wide non-core activity registry. */
   nonCoreRegistry: () => [...employeeKeys.all(), 'non-core-registry'] as const,
 
