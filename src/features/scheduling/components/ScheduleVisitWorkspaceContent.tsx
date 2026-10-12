@@ -63,6 +63,7 @@ import {
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import {
   isAbsentCoCarerAllocation,
+  isClockOutMissingAllocation,
   jobLeadCarer,
 } from '@/features/scheduling/utils/schedule-job-lead-carer.util'
 import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
@@ -325,6 +326,7 @@ function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
             : null
           // Shared visit closed and this carer never clocked in: pay held for review.
           const absent = isAbsentCoCarerAllocation(job, allocation)
+          const clockOutMissing = isClockOutMissingAllocation(job, allocation)
           const plannedStart = allocation.resolvedStartDateTime ?? allocation.scheduledStartDateTime
           const plannedEnd = allocation.resolvedEndDateTime ?? allocation.scheduledEndDateTime
           const presence = allocation.presence
@@ -379,6 +381,17 @@ function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
                         (auto – lead clock-out)
                       </span>
                     ) : null}
+                  </>
+                ) : clockOutMissing ? (
+                  <>
+                    <span className="text-muted-foreground"> · Clocked out: </span>
+                    <span
+                      className="font-medium text-amber-600 dark:text-amber-500"
+                      title="The visit was closed while this carer was still clocked in, and they have not clocked out."
+                      data-testid="visit-workspace-clock-out-missing"
+                    >
+                      Clock-out missing
+                    </span>
                   </>
                 ) : null}
               </p>
