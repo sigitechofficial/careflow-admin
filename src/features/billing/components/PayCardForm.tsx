@@ -19,6 +19,7 @@ import { ContentCard } from '@/shared/ui/content-section'
 import { BillingCardRulesEditor } from '@/features/billing/components/BillingCardRulesEditor'
 import { PayCardWageTypeSummary } from '@/features/billing/components/PayCardWageTypeSummary'
 import { PayCardPayPreview } from '@/features/billing/components/PayCardPayPreview'
+import { PayCardConflictCheckNotice } from '@/features/billing/components/PayCardConflictNotice'
 import { BANK_HOLIDAY_REGION_OPTIONS, type BankHolidayRegion } from '@/features/billing/types/wage-types.types'
 import { useCreatePayCard, useUpdatePayCard } from '@/features/billing/hooks/usePayCards'
 import {
@@ -148,6 +149,8 @@ const STACKING_POLICY_CHOICES: { value: PayStackingPolicy; title: string; descri
   },
 ]
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
 /** Full-page create / edit form for a carer pay card. Remount (via `key`) to load a different card. */
 export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
   const isEdit = !!card
@@ -173,6 +176,30 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
   const currentVersion = card?.version ?? 1
 
   const patch = (next: Partial<PayCardInput>) => setForm(prev => ({ ...prev, ...next }))
+
+  // PC-32: the card as entered is checked against the other active cards before it is saved.
+  const conflictCheckInput = React.useMemo(
+    () =>
+      DATE_ONLY.test(form.effectiveFrom ?? '') && form.status !== 'ARCHIVED'
+        ? {
+            ...(card?.id ? { id: card.id } : {}),
+            assignmentLevel: form.assignmentLevel,
+            assignmentTargetId: form.assignmentTargetId || null,
+            assignmentTargetKey: form.assignmentTargetKey || null,
+            effectiveFrom: form.effectiveFrom,
+            effectiveTo: DATE_ONLY.test(form.effectiveTo ?? '') ? form.effectiveTo : null,
+          }
+        : null,
+    [
+      card?.id,
+      form.assignmentLevel,
+      form.assignmentTargetId,
+      form.assignmentTargetKey,
+      form.effectiveFrom,
+      form.effectiveTo,
+      form.status,
+    ],
+  )
 
   const onAssignmentLevelChange = (assignmentLevel: PayCardInput['assignmentLevel']) => {
     patch({
@@ -503,6 +530,7 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
             />
           </label>
         </div>
+        <PayCardConflictCheckNotice input={conflictCheckInput} />
       </ContentCard>
 
       <ContentCard className="space-y-4" id="pay-card-rules-policy" data-testid="pay-card-rules-policy">

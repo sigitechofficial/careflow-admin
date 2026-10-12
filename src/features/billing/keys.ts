@@ -17,6 +17,10 @@ export const billingKeys = {
     [...billingKeys.all, 'employee-pay-card-history', employeeId] as const,
   payCardAssignmentPreview: (id: string) =>
     [...billingKeys.all, 'pay-card-assignment-preview', id] as const,
+  payCardConflicts: (locationId?: string | null) =>
+    [...billingKeys.all, 'pay-card-conflicts', locationId ?? 'all'] as const,
+  payCardConflictCheck: (input: unknown, locationId?: string | null) =>
+    [...billingKeys.all, 'pay-card-conflict-check', locationId ?? 'all', input] as const,
   payCardResolve: (employeeId: string, funderId?: string) =>
     [...billingKeys.all, 'pay-card-resolve', employeeId, funderId ?? ''] as const,
   employeeFunderPayAssignments: (employeeId: string) =>

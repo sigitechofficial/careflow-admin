@@ -266,11 +266,65 @@ export type PayCardAssignmentPreview = {
   assignedCount: number
 }
 
+/** A card named in a pay card conflict (PC-32). */
+export type PayCardConflictCard = {
+  id: string
+  code: string
+  name: string
+  version: number
+  assignmentLevel: PayCardAssignmentLevel
+  assignmentLabel: string | null
+  effectiveFrom: string
+  effectiveTo: string | null
+}
+
+/** Two or more cards apply to a carer and nothing ranks them: no card is chosen. */
+export type PayCardConflict = {
+  kind: 'MATCHED_LEVEL' | 'OWN_CARD' | 'FUNDER_OVERRIDE'
+  level: PayCardAssignmentLevel | null
+  day: string
+  cards: PayCardConflictCard[]
+}
+
 export type PayCardResolveResult = {
-  source: 'EMPLOYEE_FUNDER' | 'EXPLICIT' | 'MATCHED' | 'NONE'
+  /** CONFLICT: the carer's card cannot be decided; `conflict` and `message` say why. */
+  source: 'EMPLOYEE_FUNDER' | 'EXPLICIT' | 'MATCHED' | 'NONE' | 'CONFLICT'
   payCard: PayCard | null
   matchedLevel: PayCardAssignmentLevel | null
   funderId?: string | null
+  conflict?: PayCardConflict | null
+  message?: string | null
+}
+
+/** `GET /billing/pay-cards/conflicts`: carers whose pay card cannot be decided today. */
+export type PayCardConflictList = {
+  day: string
+  carerCount: number
+  groups: Array<
+    PayCardConflict & {
+      message: string
+      carerCount: number
+      carers: Array<{ employeeId: string; name: string }>
+    }
+  >
+}
+
+export type PayCardConflictCheckInput = {
+  id?: string
+  assignmentLevel?: PayCardAssignmentLevel
+  assignmentTargetId?: string | null
+  assignmentTargetKey?: string | null
+  effectiveFrom: string
+  effectiveTo?: string | null
+}
+
+/** `POST /billing/pay-cards/conflict-check`: the card as entered against the other active cards. */
+export type PayCardConflictCheck = {
+  day: string | null
+  overlapping: Array<PayCardConflictCard & { overlapFrom: string }>
+  affectedCarerCount: number
+  affectedCarers: Array<{ employeeId: string; name: string; cards: string[] }>
+  message: string | null
 }
 
 /** One row of a carer's dated pay card history (`GET /billing/pay-cards/employee-history/:employeeId`). */

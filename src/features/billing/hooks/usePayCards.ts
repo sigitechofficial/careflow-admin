@@ -11,6 +11,8 @@ import {
   fetchPayCardAssignmentPreview,
   assignPayCardToMatching,
   resolveEmployeePayCard,
+  checkPayCardConflicts,
+  fetchPayCardConflicts,
   unassignPayCardEmployee,
   fetchEmployeeFunderPayAssignments,
   upsertEmployeeFunderPayAssignment,
@@ -21,6 +23,7 @@ import { employeeKeys } from '@/features/employees/keys'
 import type {
   ChangeEmployeePayCardInput,
   EmployeeFunderPayAssignmentInput,
+  PayCardConflictCheckInput,
   PayCardInput,
 } from '@/features/billing/types/billing-cards.types'
 
@@ -141,6 +144,27 @@ export function useResolveEmployeePayCard(
     queryKey: billingKeys.payCardResolve(employeeId ?? '', funderId ?? undefined),
     queryFn: () => resolveEmployeePayCard(employeeId!, { funderId }),
     enabled: enabled && !!employeeId,
+  })
+}
+
+/** Carers whose pay card cannot be decided today (PC-32). */
+export function usePayCardConflicts(locationId?: string | null, enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.payCardConflicts(locationId),
+    queryFn: () => fetchPayCardConflicts(locationId),
+    enabled,
+  })
+}
+
+/** The card as entered in the form, checked against the other active cards (PC-32). */
+export function usePayCardConflictCheck(
+  input: PayCardConflictCheckInput | null,
+  locationId?: string | null,
+) {
+  return useQuery({
+    queryKey: billingKeys.payCardConflictCheck(input, locationId),
+    queryFn: () => checkPayCardConflicts(input!, locationId),
+    enabled: !!input,
   })
 }
 
