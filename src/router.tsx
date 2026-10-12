@@ -30,6 +30,7 @@ import { useNotificationSocket } from '@/features/notifications/hooks/useNotific
 import { UrgentOfficeAlertHost } from '@/features/ecm/components/UrgentOfficeAlertHost'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/features/auth/store'
+import { withOrganisationPayScope } from '@/features/auth/pay-scope'
 import { rootAuthBeforeLoad } from '@/features/auth/guard'
 import type { Permission } from '@/features/auth/types'
 
@@ -1863,14 +1864,14 @@ const billingPayItemsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/pay-items',
   beforeLoad: requirePermission('billing.payroll_runs.read'),
-  component: PayItemsPage,
+  component: withOrganisationPayScope(PayItemsPage),
 })
 
 const billingPayItemNewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/pay-items/new',
   beforeLoad: requirePermission('billing.payroll_runs.manage'),
-  component: PayItemCreatePage,
+  component: withOrganisationPayScope(PayItemCreatePage),
 })
 
 const employeePayCardChangeRoute = createRoute({
@@ -1902,7 +1903,7 @@ const billingPayrollRunsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/payroll-runs',
   beforeLoad: requirePermission('billing.payroll_runs.read'),
-  component: PayrollRunsPage,
+  component: withOrganisationPayScope(PayrollRunsPage),
 })
 
 const billingSalaryRoute = createRoute({
@@ -1920,7 +1921,7 @@ const billingEmployeePayoutsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/employee-payouts',
   beforeLoad: requirePermission('billing.employee_payouts.read'),
-  component: EmployeePayoutsPage,
+  component: withOrganisationPayScope(EmployeePayoutsPage),
 })
 
 const billingServiceUserInvoicesRoute = createRoute({
@@ -2011,28 +2012,28 @@ const payrollTaxYearsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/tax-years',
   beforeLoad: requirePermission('payroll.settings.read'),
-  component: PayrollTaxYearsPage,
+  component: withOrganisationPayScope(PayrollTaxYearsPage),
 })
 
 const payrollTaxesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/taxes',
   beforeLoad: requirePermission('payroll.settings.read'),
-  component: PayrollTaxesPage,
+  component: withOrganisationPayScope(PayrollTaxesPage),
 })
 
 const payrollEmployerRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/employer',
   beforeLoad: requirePermission('payroll.settings.read'),
-  component: PayrollEmployerSettingsPage,
+  component: withOrganisationPayScope(PayrollEmployerSettingsPage),
 })
 
 const payrollSchedulesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/schedules',
   beforeLoad: requireAnyPermission('payroll.settings.read', 'payroll.periods.read'),
-  component: PayrollSchedulesPage,
+  component: withOrganisationPayScope(PayrollSchedulesPage),
 })
 
 const setupChecklistRoute = createRoute({
@@ -2081,14 +2082,14 @@ const payrollRunsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/runs',
   beforeLoad: requirePermission('payroll.runs.read'),
-  component: UkPayrollRunsPage,
+  component: withOrganisationPayScope(UkPayrollRunsPage),
 })
 
 const payrollRunDetailRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/runs/$runId',
   beforeLoad: requirePermission('payroll.runs.read'),
-  component: UkPayrollRunDetailPage,
+  component: withOrganisationPayScope(UkPayrollRunDetailPage),
 })
 
 const payrollPayslipsRoute = createRoute({

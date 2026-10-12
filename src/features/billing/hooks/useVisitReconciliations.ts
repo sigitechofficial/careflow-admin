@@ -55,10 +55,11 @@ export function useVisitReconciliationsSummary(locationId?: string | null) {
   })
 }
 
-export function useVisitReconciliationExceptionQueue(limit = 10) {
+/** `locationId`: a branch-limited user must name one of their branches. */
+export function useVisitReconciliationExceptionQueue(limit = 10, locationId?: string | null) {
   return useQuery({
-    queryKey: billingKeys.visitReconciliationExceptionQueue(limit),
-    queryFn: () => fetchVisitReconciliationExceptionQueue(limit),
+    queryKey: billingKeys.visitReconciliationExceptionQueue(limit, locationId),
+    queryFn: () => fetchVisitReconciliationExceptionQueue(limit, locationId ?? undefined),
   })
 }
 

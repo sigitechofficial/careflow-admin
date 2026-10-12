@@ -66,6 +66,7 @@ import { Input } from '@/shared/ui/input'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { Permission, RoleId } from '@/features/auth/types'
 import { useAuthStore } from '@/features/auth/store'
+import { hasOrganisationPayScope } from '@/features/auth/pay-scope'
 import { CompanyBrandMark } from '@/components/company/CompanyBrandMark'
 import { portalNavItems } from '@/features/service-user-portal/portal-nav'
 import type { LayoutVariant, NavItem, SubNavItem } from '@/components/layout/sidebar-types'
@@ -580,6 +581,7 @@ const navItems: NavItem[] = [
         icon: <Wallet className="h-4 w-4" />,
         href: '/payroll/runs',
         permission: 'payroll.runs.read',
+        organisationPayScope: true,
         navTestId: 'nav-payroll-runs',
       },
       {
@@ -594,6 +596,7 @@ const navItems: NavItem[] = [
         icon: <Receipt className="h-4 w-4" />,
         href: '/payroll/taxes',
         permission: 'payroll.settings.read',
+        organisationPayScope: true,
         navTestId: 'nav-payroll-taxes',
       },
       {
@@ -601,6 +604,7 @@ const navItems: NavItem[] = [
         icon: <Building2 className="h-4 w-4" />,
         href: '/payroll/employer',
         permission: 'payroll.settings.read',
+        organisationPayScope: true,
         navTestId: 'nav-payroll-employer',
       },
       {
@@ -615,6 +619,7 @@ const navItems: NavItem[] = [
         icon: <CalendarClock className="h-4 w-4" />,
         href: '/payroll/schedules',
         anyPermission: ['payroll.settings.read', 'payroll.periods.read'],
+        organisationPayScope: true,
         navTestId: 'nav-payroll-schedules',
       },
       {
@@ -622,6 +627,7 @@ const navItems: NavItem[] = [
         icon: <CalendarDays className="h-4 w-4" />,
         href: '/payroll/tax-years',
         permission: 'payroll.settings.read',
+        organisationPayScope: true,
         navTestId: 'nav-payroll-tax-years',
       },
     ],
@@ -675,6 +681,7 @@ const navItems: NavItem[] = [
         icon: <Wallet className="h-4 w-4" />,
         href: '/billing/pay-items',
         permission: 'billing.payroll_runs.read',
+        organisationPayScope: true,
         navTestId: 'nav-billing-pay-items',
       },
       {
@@ -689,6 +696,7 @@ const navItems: NavItem[] = [
         icon: <Banknote className="h-4 w-4" />,
         href: '/billing/employee-payouts',
         permission: 'billing.employee_payouts.read',
+        organisationPayScope: true,
         navTestId: 'nav-billing-employee-payouts',
       },
       {
@@ -814,13 +822,15 @@ const navItems: NavItem[] = [
   },
 ]
 
-function navChildAllowed(
+export function navChildAllowed(
   child: SubNavItem,
   can: (p: Permission) => boolean,
   role?: RoleId,
+  organisationPayScope = true,
 ): boolean {
   if (child.ready === false) return false
   if (role && child.hideForRoles?.includes(role)) return false
+  if (child.organisationPayScope && !organisationPayScope) return false
   if (child.anyPermission?.length) return child.anyPermission.some((p) => can(p))
   if (child.permission) return can(child.permission)
   // No permission key → hide (prevents tabs for modules the user cannot access).
@@ -831,6 +841,7 @@ function filterNavByPermission(
   items: NavItem[],
   can: (p: Permission) => boolean,
   role?: RoleId,
+  organisationPayScope = true,
 ): NavItem[] {
   return items
     .map((item) => {
@@ -839,7 +850,9 @@ function filterNavByPermission(
         // Top-level leaves (Home): always keep. Stub leaves without children already handled.
         return item
       }
-      const children = item.children.filter((ch) => navChildAllowed(ch, can, role))
+      const children = item.children.filter((ch) =>
+        navChildAllowed(ch, can, role, organisationPayScope),
+      )
       if (!children.length) return null
       return { ...item, children }
     })
@@ -1057,8 +1070,8 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
     if (isPortal) return navSource
     // Temporary inspector list is already curated; skip strict ACL filter.
     if (user?.role === 'temporary_inspector') return navSource
-    return filterNavByPermission(navSource, can, user?.role)
-  }, [can, isPortal, navSource, user?.role])
+    return filterNavByPermission(navSource, can, user?.role, hasOrganisationPayScope(user))
+  }, [can, isPortal, navSource, user])
   const [menuQuery, setMenuQuery] = React.useState('')
   const isMenuSearching = !sidebarCollapsed && menuQuery.trim().length > 0
   const visibleNavItems = React.useMemo(() => {

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
+import { useHasOrganisationPayScope } from '@/features/auth/pay-scope'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useEmployeeSalaries } from '@/features/billing/hooks/usePayrollRuns'
 import { useEmployeePayoutBatches } from '@/features/billing/hooks/useEmployeePayouts'
@@ -52,7 +53,10 @@ export function BillingSalaryOverviewPanel() {
       s.can('employees.update'),
   )
   const canOpenEmployee = useAuthStore(s => s.can('employees.update') || s.can('employees.read'))
-  const canReadPayouts = useAuthStore(s => s.can('billing.employee_payouts.read'))
+  // Payout batches cover every branch: not offered to a user limited to their own branches.
+  const hasOrganisationPayScope = useHasOrganisationPayScope()
+  const canReadPayouts =
+    useAuthStore(s => s.can('billing.employee_payouts.read')) && hasOrganisationPayScope
   const canManagePayouts = useAuthStore(s => s.can('billing.employee_payouts.manage'))
   const { locationId } = useGlobalLocationScope()
 

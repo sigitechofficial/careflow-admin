@@ -63,8 +63,8 @@ export const billingKeys = {
   visitReconciliation: (id: string) => [...billingKeys.all, 'visit-reconciliation', id] as const,
   visitReconciliationsSummary: (locationId?: string | null) =>
     [...billingKeys.all, 'visit-reconciliations-summary', locationId ?? 'all'] as const,
-  visitReconciliationExceptionQueue: (limit?: number) =>
-    [...billingKeys.all, 'visit-reconciliation-exception-queue', limit ?? 10] as const,
+  visitReconciliationExceptionQueue: (limit?: number, locationId?: string | null) =>
+    [...billingKeys.all, 'visit-reconciliation-exception-queue', limit ?? 10, locationId ?? 'all'] as const,
   payEvaluationFailures: (locationId?: string | null) =>
     [...billingKeys.all, 'pay-evaluation-failures', locationId ?? 'all'] as const,
   payrollRuns: (filters?: { locationId?: string }) =>

@@ -76,9 +76,11 @@ export async function fetchVisitReconciliationsSummary(
 
 export async function fetchVisitReconciliationExceptionQueue(
   limit = 10,
+  locationId?: string,
 ): Promise<ExceptionQueueRow[]> {
+  const branch = locationId ? `&locationId=${encodeURIComponent(locationId)}` : ''
   const res = await apiJson<ApiEnvelope<ExceptionQueueRow[]>>(
-    `/billing/visit-reconciliations/exception-queue?limit=${limit}`,
+    `/billing/visit-reconciliations/exception-queue?limit=${limit}${branch}`,
     { method: 'GET' },
   )
   return res.data
