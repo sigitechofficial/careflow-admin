@@ -632,12 +632,12 @@ export function useCloseUkPayrollRun(id: string) {
 export function useCancelUkPayrollRun(id: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => cancelUkPayrollRun(id),
+    mutationFn: (reason?: string) => cancelUkPayrollRun(id, reason),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', id] })
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'payslips'] })
-      toastSuccess('Run cancelled')
+      toastSuccess('Run cancelled', 'Its earnings can now be collected by a replacement run.')
     },
     onError: (error) => toastApiError(error),
   })

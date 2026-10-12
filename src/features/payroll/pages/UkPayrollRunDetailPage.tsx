@@ -394,7 +394,14 @@ export default function UkPayrollRunDetailPage() {
                       variant="destructive"
                       className="gap-1.5"
                       disabled={cancelMut.isPending}
-                      onClick={() => cancelMut.mutate(undefined)}
+                      title="The run is kept as a record. Its earnings become available to a replacement run."
+                      onClick={() => {
+                        const reason = window.prompt(
+                          'Cancel this UK payroll run?\n\nThe run is kept as a record and nothing is posted. Its earnings can then be collected by a replacement run.\n\nReason for cancelling:',
+                        )
+                        if (reason === null) return
+                        cancelMut.mutate(reason)
+                      }}
                     >
                       <XCircle className="h-3.5 w-3.5" aria-hidden />
                       Cancel

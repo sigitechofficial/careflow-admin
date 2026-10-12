@@ -612,9 +612,10 @@ export async function closeUkPayrollRun(id: string) {
   return res.data
 }
 
-export async function cancelUkPayrollRun(id: string) {
+export async function cancelUkPayrollRun(id: string, reason?: string) {
   const res = await apiJson<ApiEnvelope<UkPayrollRun>>(`/payroll/runs/${id}/cancel`, {
     method: 'POST',
+    body: JSON.stringify({ reason: reason?.trim() || undefined }),
   })
   return res.data
 }
