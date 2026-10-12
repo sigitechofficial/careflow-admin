@@ -4,6 +4,7 @@ import { cn } from '@/shared/lib/utils'
 import { useMedicationEventDetail } from '@/features/service-users/hooks/useMedicationEvents'
 import { MarEventStatusBadge } from '@/features/service-users/medication/MarEventStatusBadge'
 import { RecordReviewPanel } from '@/features/service-users/medication/RecordReviewPanel'
+import { PrnOverLimitBadge } from '@/features/service-users/medication/PrnOverLimitBadge'
 import { statusCodeHeaderClass } from '@/features/service-users/medication/mar-record-utils'
 import {
   carerAdministeredName,
@@ -28,6 +29,16 @@ const WITNESS_RELATION_LABELS: Record<string, string> = {
   CO_CARER: 'Co-carer',
   RELATIVE: 'Relative',
   OTHER: 'Other',
+}
+
+const WITNESS_ABSENT_REASON_LABELS: Record<string, string> = {
+  SINGLE_CARER_VISIT: 'Single-carer visit',
+  NO_ONE_ELSE_PRESENT: 'No one else present',
+  OTHER: 'Other',
+}
+
+function witnessAbsentReasonDisplay(code: string): string {
+  return WITNESS_ABSENT_REASON_LABELS[code.toUpperCase()] ?? code
 }
 
 function witnessRelationDisplay(
@@ -296,6 +307,16 @@ export function RecordDetailDrawer({
                 )}
               </div>
 
+              {ev.prnOverLimit && (
+                <div className="drawer-section">
+                  <div className="drawer-label">PRN limit</div>
+                  <PrnOverLimitBadge />
+                  {ev.prnOverLimitDetail && (
+                    <p className="mt-1 text-sm text-foreground">{ev.prnOverLimitDetail}.</p>
+                  )}
+                </div>
+              )}
+
               {(ev.reason ||
                 ev.notGivenReason ||
                 ev.notes ||
@@ -320,14 +341,31 @@ export function RecordDetailDrawer({
                   <DetailRow label="Present" value={ev.witnessPresent ? 'Yes' : 'No'} />
                   {ev.witnessPresent ? (
                     <>
-                      <DetailRow label="Name" value={ev.witnessName ?? '—'} />
+                      <DetailRow
+                        label="Name"
+                        value={
+                          ev.witnessName
+                            ? `${ev.witnessName}${ev.witnessEmployeeId ? ' (staff on this visit)' : ''}`
+                            : '—'
+                        }
+                      />
                       <DetailRow
                         label="Relation"
                         value={witnessRelationDisplay(ev.witnessRelationCode, ev.witnessRelationDetail)}
                       />
                       {ev.witnessNotes ? <DetailRow label="Notes" value={ev.witnessNotes} full /> : null}
                     </>
-                  ) : null}
+                  ) : (
+                    <>
+                      {ev.witnessAbsentReasonCode ? (
+                        <DetailRow
+                          label="Reason"
+                          value={witnessAbsentReasonDisplay(ev.witnessAbsentReasonCode)}
+                        />
+                      ) : null}
+                      {ev.witnessNotes ? <DetailRow label="Notes" value={ev.witnessNotes} full /> : null}
+                    </>
+                  )}
                 </div>
               )}
 

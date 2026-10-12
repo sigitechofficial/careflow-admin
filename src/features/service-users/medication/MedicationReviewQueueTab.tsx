@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { useMedicationEventsList } from '@/features/service-users/hooks/useMedicationEvents'
+import { PrnOverLimitBadge } from '@/features/service-users/medication/PrnOverLimitBadge'
 import { useReviewMedicationEvent } from '@/features/service-users/hooks/useMedicationMarChart'
 import { MarEventStatusBadge } from '@/features/service-users/medication/MarEventStatusBadge'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -44,8 +45,8 @@ export function MedicationReviewQueueTab({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Exception administrations (refused, missed, unavailable, etc.) that may need manager
-        review.
+        Exception administrations (refused, missed, unavailable, etc.) and PRN doses given over
+        their limits that may need manager review.
       </p>
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
         <div className="border-b border-border bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-950 dark:bg-amber-950 dark:text-amber-100">
@@ -67,6 +68,12 @@ export function MedicationReviewQueueTab({
                   {(ev.reason || ev.notGivenReason?.name) && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       {ev.notGivenReason?.name ?? ev.reason}
+                    </p>
+                  )}
+                  {ev.prnOverLimit && (
+                    <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <PrnOverLimitBadge />
+                      {ev.prnOverLimitDetail}
                     </p>
                   )}
                 </div>

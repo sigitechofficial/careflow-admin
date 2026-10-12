@@ -38,6 +38,8 @@ export type MarChartCell = {
   color: string | null
   textColor: string | null
   requiresReview: boolean
+  /** PRN dose given inside the minimum gap or over the 24-hour maximum. */
+  prnOverLimit?: boolean
 }
 
 export type MarChartMedicationRow = {
@@ -326,9 +328,16 @@ export type MedicationEventDetail = {
   witnessRelationCode?: string | null
   witnessRelationDetail?: string | null
   witnessNotes?: string | null
+  /** Set when the witness is a co-carer picked from the visit's carers. */
+  witnessEmployeeId?: string | null
+  /** Why no witness was present: SINGLE_CARER_VISIT | NO_ONE_ELSE_PRESENT | OTHER. */
+  witnessAbsentReasonCode?: string | null
   isPrn?: boolean
   prnReason: string | null
   prnOutcome: string | null
+  /** PRN dose given inside the minimum gap or over the 24-hour maximum. */
+  prnOverLimit?: boolean
+  prnOverLimitDetail?: string | null
   correctionReason?: string | null
   correctionNotes?: string | null
   medicationNameSnapshot?: string | null

@@ -1,3 +1,4 @@
+import { PrnOverLimitBadge } from '@/features/service-users/medication/PrnOverLimitBadge'
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { ClipboardCheck, Clock, Loader2, Package, Pill } from 'lucide-react'
@@ -333,7 +334,10 @@ function VisitStandaloneRow({
         <MarStatusChip cell={cell} />
       </button>
       <div className="min-w-0 flex-1">
-        <p className="font-medium">{row.medicationName}</p>
+        <p className="flex flex-wrap items-center gap-1.5 font-medium">
+          {row.medicationName}
+          {cell.prnOverLimit ? <PrnOverLimitBadge /> : null}
+        </p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {[row.strength, row.dose, row.dueTime].filter(Boolean).join(' · ')}
         </p>
