@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { PayableBreakdown } from '@/features/billing/components/PayableBreakdown'
 import { Link, useParams } from '@tanstack/react-router'
 import {
   ArrowLeft,
@@ -893,6 +894,11 @@ export default function UkPayrollRunDetailPage() {
                       </td>
                       <td className="bg-emerald-50/40 py-3 pr-3 text-right font-semibold tabular-nums text-emerald-900 dark:bg-emerald-950/15 dark:text-emerald-100">
                         {formatGbp(e.netPay)}
+                        <PayableBreakdown
+                          netPay={e.netPay}
+                          reimbursement={e.reimbursementPayable ?? 0}
+                          notVerified={e.expenseNotVerified ?? 0}
+                        />
                       </td>
                       <td className="py-3 pr-3 text-right tabular-nums text-muted-foreground">
                         {e.ytd ? formatGbp(e.ytd.incomeTaxYtd) : '—'}

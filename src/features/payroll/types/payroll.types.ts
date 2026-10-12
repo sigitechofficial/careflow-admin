@@ -292,6 +292,11 @@ export type UkPayrollRunDetail = UkPayrollRun & {
     nmwTopUp: number
     otherPay: number
     expenseTotal: number
+    /** Mileage and expenses paid with this run's net pay; not wages (TR-13). */
+    reimbursementPayable?: number
+    /** Part of the expenses whose tax treatment has not been verified. */
+    expenseNotVerified?: number
+    totalPayable?: number
     deductionTotal: number
     totalGross: number
     inputLineCount: number

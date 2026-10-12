@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { PayableBreakdown } from '@/features/billing/components/PayableBreakdown'
 import { Loader2 } from 'lucide-react'
 import {
   Dialog,
@@ -279,7 +280,13 @@ export function EmployeePayoutBatchDetailDialog({
                             {line.employeeNumber ? `#${line.employeeNumber}` : '—'}
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums">{line.amount}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {line.amount}
+                          <PayableBreakdown
+                            netPay={line.netPayValue ?? line.amountValue}
+                            reimbursement={line.reimbursementValue ?? 0}
+                          />
+                        </td>
                         <td className="px-3 py-2 text-right">
                           <Badge variant="outline">{line.status}</Badge>
                         </td>

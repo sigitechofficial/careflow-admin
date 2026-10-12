@@ -33,6 +33,10 @@ export type EmployeePayoutLineRow = {
   ukPayrollRunEmployeeId?: string
   amount: string
   amountValue: number
+  /** Wages part of the amount (net pay). */
+  netPayValue?: number
+  /** Mileage and expenses part of the amount; not wages (TR-13). */
+  reimbursementValue?: number
   status: EmployeePayoutLineStatus
   notes: string | null
 }
