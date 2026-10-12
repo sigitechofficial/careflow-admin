@@ -12,6 +12,11 @@ export type EmployeePayoutBatchRow = {
   ukPayrollRunLabel: string | null
   ukPayrollRunStatus: string | null
   status: EmployeePayoutBatchStatus
+  /** PAID is a payment recorded by a person unless a bank confirmed it (no bank connection yet). */
+  paymentState?: string
+  paymentStateLabel?: string
+  settlementSource?: 'MANUAL_ENTRY' | 'BANK_CONFIRMED' | null
+  settlementConfirmed?: boolean
   currency: string
   totalAmount: string
   totalAmountValue: number

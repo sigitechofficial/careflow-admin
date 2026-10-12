@@ -179,7 +179,7 @@ export function BillingSalaryOverviewPanel() {
               Care visit earnings for the selected {periodNoun}, before UK PAYE / NI.
               <span className="font-medium text-foreground"> Remaining</span> is visit pay
               not yet in a visit-pay run or UK payroll run.
-              Bank paid / Outstanding track <span className="font-medium text-foreground">UK net</span>{' '}
+              Payment recorded / Outstanding track <span className="font-medium text-foreground">UK net</span>{' '}
               disbursed via Employee payouts (after W1/M1 tax &amp; NI) — not visit-pay net.
               Auto-payout on the <span className="font-medium text-foreground">4th</span> uses the
               previous month’s statutory UK run when one exists.
@@ -267,7 +267,7 @@ export function BillingSalaryOverviewPanel() {
             {
               title: 'Salary paid',
               value: String(paidEmployeeCount),
-              hint: 'Employees bank-paid',
+              hint: 'Employees with a payment recorded',
               icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
               tone: 'emerald',
             },
@@ -281,7 +281,7 @@ export function BillingSalaryOverviewPanel() {
             {
               title: 'Amount paid',
               value: money(totals.bankPaid),
-              hint: 'UK net disbursed (PAID)',
+              hint: 'UK net recorded as paid (not bank-confirmed)',
               icon: <Banknote className="h-4 w-4" aria-hidden />,
               tone: 'sky',
             },
@@ -465,7 +465,7 @@ export function BillingSalaryOverviewPanel() {
                     UK net
                   </th>
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
-                    Bank paid
+                    Payment recorded
                   </th>
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                     Outstanding

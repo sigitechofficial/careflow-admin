@@ -139,7 +139,8 @@ export function EmployeePayoutBatchDetailDialog({
                     {detail.periodKey ? ` · ${detail.periodKey}` : ''}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Amounts are UK net pay (after W1/M1 PAYE/NI). Bank paid = UK net disbursed.
+                    Amounts are UK net pay (after W1/M1 PAYE/NI). Payment recorded = UK net entered
+                    as paid by the office.
                   </p>
                   {detail.notes ? (
                     <p className="mt-1 text-sm text-muted-foreground">{detail.notes}</p>
@@ -167,13 +168,19 @@ export function EmployeePayoutBatchDetailDialog({
                       : 'Not approved'}
                     <br />
                     {detail.paidAt
-                      ? `Payment recorded ${formatInstant(detail.paidAt)}`
-                      : 'Bank payment not recorded'}
+                      ? `Payment recorded ${detail.settlementConfirmed ? '' : 'manually '}${formatInstant(detail.paidAt)}`
+                      : 'Payment not recorded'}
                     {detail.paymentReference ? (
                       <>
                         <br />
                         Ref {detail.paymentReference}
                         {detail.settledOn ? ` · paid ${formatDate(detail.settledOn)}` : ''}
+                      </>
+                    ) : null}
+                    {detail.paidAt && !detail.settlementConfirmed ? (
+                      <>
+                        <br />
+                        <span data-testid="payout-not-bank-confirmed">Not confirmed by a bank</span>
                       </>
                     ) : null}
                   </p>
@@ -194,7 +201,8 @@ export function EmployeePayoutBatchDetailDialog({
                   <p className="text-sm font-medium">Record the bank payment</p>
                   <p className="text-xs text-muted-foreground">
                     Enter this only after the money has left the account. The batch is then shown
-                    as paid.
+                    as “payment recorded manually”: the reference you type is your record, not
+                    confirmation from the bank.
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1">

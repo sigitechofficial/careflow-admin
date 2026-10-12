@@ -63,7 +63,7 @@ const STATUS_FILTERS: Array<{ value: 'ALL' | EmployeePayoutBatchStatus; label: s
   { value: 'ALL', label: 'All statuses' },
   { value: 'DRAFT', label: 'Draft' },
   { value: 'APPROVED', label: 'Approved' },
-  { value: 'PAID', label: 'Paid' },
+  { value: 'PAID', label: 'Payment recorded' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ]
 
@@ -269,7 +269,7 @@ export function BillingEmployeePayoutsPanel() {
                       <AlertDialogTitle>Delete payout batches?</AlertDialogTitle>
                       <AlertDialogDescription>
                         For testing only. This permanently deletes payout batches and lines, and
-                        resets Bank paid / Outstanding on Salary. Visit reconciliations and
+                        resets Payment recorded / Outstanding on Salary. Visit reconciliations and
                         visit-pay runs are not affected.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -411,9 +411,9 @@ export function BillingEmployeePayoutsPanel() {
           tone="violet"
         />
         <StatCard
-          label="Bank paid"
+          label="Payment recorded"
           value={money(totals.paid)}
-          hint="PAID batches"
+          hint="Recorded manually — not confirmed by a bank"
           icon={<Banknote className="h-5 w-5" aria-hidden />}
           tone="emerald"
           valueClassName="text-success"
@@ -542,6 +542,13 @@ export function BillingEmployeePayoutsPanel() {
                     </td>
                     <td className="px-3 py-2.5">
                       <BillingStatusBadge status={batch.status} />
+                      {batch.status === 'PAID' ? (
+                        <p className="mt-1 text-xs text-muted-foreground" data-testid="payout-payment-state">
+                          {batch.settlementConfirmed
+                            ? 'Settlement confirmed'
+                            : (batch.paymentStateLabel ?? 'Payment recorded manually')}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground">
                       {formatInstant(batch.createdAt)}
