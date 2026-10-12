@@ -377,7 +377,9 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
   }, [detail?.id, detail?.travelMiles, detail?.payableAmount, detail?.billableAmount])
 
   const canEditAmounts = Boolean(canManage && detail && detail.status !== 'LOCKED')
-  const canEditTravel = detail && detail.status !== 'LOCKED'
+  // Settled pay is not edited here; the pay corrections card below is the way to change it.
+  const paySettled = Boolean(detail?.paySettled)
+  const canEditTravel = detail && detail.status !== 'LOCKED' && !paySettled
   const pendingOverrun =
     detail &&
     (detail.overrunMinutes ?? 0) > 0 &&
@@ -777,7 +779,11 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Locked — mileage can no longer be edited.</p>
+                  <p className="text-xs text-muted-foreground">
+                    {paySettled
+                      ? 'Paid — mileage can no longer be edited here. Use a pay correction for a difference.'
+                      : 'Locked — mileage can no longer be edited.'}
+                  </p>
                 )}
               </ContentCard>
 
@@ -810,7 +816,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     onValueChange={setPayableInput}
                     onNotesChange={setPayableNotes}
                     onSave={() => void savePayableAmount()}
-                    disabled={!canEditAmounts}
+                    disabled={!canEditAmounts || paySettled}
                     saving={setPayableMutation.isPending}
                   />
                 ) : null}

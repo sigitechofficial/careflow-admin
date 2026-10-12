@@ -227,4 +227,6 @@ export type VisitReconciliationCalculationPreview = {
 
 export type VisitReconciliationDetail = VisitReconciliationRow & {
   calculationPreview: VisitReconciliationCalculationPreview
+  /** Pay is in a locked visit pay run or a closed UK run: changed only through a pay correction. */
+  paySettled?: boolean
 }
