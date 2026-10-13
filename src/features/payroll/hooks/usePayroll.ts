@@ -3,7 +3,10 @@ import {
   activatePayrollTaxYear,
   cancelUkPayrollRun,
   closeUkPayrollRun,
+  approveEmployeePayAgreement,
   createEmployeePayAgreement,
+  endEmployeePayAgreement,
+  fetchEmployeePayAgreements,
   createPayrollSchedule,
   createPayrollTaxCode,
   createPayrollTaxYear,
@@ -431,9 +434,49 @@ export function useCreateEmployeePayAgreement(employeeId: string) {
   return useMutation({
     mutationFn: (body: CreateEmployeePayAgreementInput) =>
       createEmployeePayAgreement(employeeId, body),
+    onSuccess: async (agreement) => {
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'employees'] })
+      await qc.invalidateQueries({ queryKey: payrollKeys.agreements(employeeId) })
+      toastSuccess(
+        agreement?.awaitingApproval
+          ? 'Pay agreement saved. It takes effect when a second person approves it.'
+          : 'Pay agreement created',
+      )
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useEmployeePayAgreements(employeeId: string | null) {
+  return useQuery({
+    queryKey: payrollKeys.agreements(employeeId ?? ''),
+    queryFn: () => fetchEmployeePayAgreements(employeeId as string),
+    enabled: !!employeeId,
+  })
+}
+
+export function useApproveEmployeePayAgreement(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (agreementId: string) => approveEmployeePayAgreement(agreementId),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'employees'] })
-      toastSuccess('Pay agreement created')
+      await qc.invalidateQueries({ queryKey: payrollKeys.agreements(employeeId) })
+      toastSuccess('Pay agreement approved. It applies from its start date.')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useEndEmployeePayAgreement(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { agreementId: string; effectiveTo: string }) =>
+      endEmployeePayAgreement(input.agreementId, input.effectiveTo),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'employees'] })
+      await qc.invalidateQueries({ queryKey: payrollKeys.agreements(employeeId) })
+      toastSuccess('Pay agreement ended')
     },
     onError: (error) => toastApiError(error),
   })

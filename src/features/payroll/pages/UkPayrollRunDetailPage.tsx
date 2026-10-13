@@ -873,6 +873,25 @@ export default function UkPayrollRunDetailPage() {
                               provisional
                             </Badge>
                           ) : null}
+                          {(e.coveredBySalary ?? 0) > 0 ? (
+                            <span
+                              className="text-xs text-muted-foreground"
+                              data-testid={`uk-run-covered-by-salary-${e.id}`}
+                              title="Visit work the salary already pays for. It is settled by this run and not paid again."
+                            >
+                              {formatGbp(e.coveredBySalary ?? 0)} of visit work paid by the salary
+                            </span>
+                          ) : null}
+                          {(e.heldForSalaryDecision ?? 0) > 0 ? (
+                            <Badge
+                              variant="secondary"
+                              className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                              data-testid={`uk-run-held-for-salary-${e.id}`}
+                              title="The pay agreement does not say what the salary pays for. These visit wages are not paid by this run and stay payable until an approved agreement records it."
+                            >
+                              {formatGbp(e.heldForSalaryDecision ?? 0)} held: salary cover not recorded
+                            </Badge>
+                          ) : null}
                           {e.taxCodeApplied ? (
                             <span className="text-xs text-muted-foreground">
                               {e.taxCodeApplied}

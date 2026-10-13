@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
+import { PayAgreementsPanel } from '@/features/payroll/components/PayAgreementsPanel'
 import { PayrollInfoHeading } from '@/features/payroll/components/PayrollInfoHeading'
 // Other deductions catalogue — hidden until Phase 4 engines calculate £ amounts.
 // import { UkPayrollDeductionsCatalogPanel } from '@/features/payroll/components/UkPayrollDeductionsCatalogPanel'
@@ -28,7 +29,6 @@ import {
   UK_TAX_CODE_OTHER,
 } from '@/features/payroll/data/uk-payroll-lookups'
 import {
-  useCreateEmployeePayAgreement,
   usePayrollEmployees,
   usePayrollSchedules,
   usePayrollStatutoryRates,
@@ -42,7 +42,6 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type {
-  EmployeePayAgreementBasis,
   EmployeePayrollProfileStatus,
   PayrollNiCategory,
   PayrollStarterDeclaration,
@@ -88,7 +87,6 @@ export default function PayrollEmployeesPage() {
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
   const selected = data.find((r) => r.employeeId === selectedId) ?? null
   const upsertMut = useUpsertEmployeePayrollProfile(selectedId ?? '')
-  const agreementMut = useCreateEmployeePayAgreement(selectedId ?? '')
 
   const TAX_CODE_OPTIONS = React.useMemo(
     () =>
@@ -117,10 +115,6 @@ export default function PayrollEmployeesPage() {
   const [deductionElections, setDeductionElections] = React.useState<string[]>([])
   const [pensionSchemeRef, setPensionSchemeRef] = React.useState('')
   const [scheduleId, setScheduleId] = React.useState('')
-  const [basis, setBasis] = React.useState<EmployeePayAgreementBasis>('HOURLY_CARE')
-  const [effectiveFrom, setEffectiveFrom] = React.useState(
-    new Date().toISOString().slice(0, 10),
-  )
 
   React.useEffect(() => {
     if (!selected) return
@@ -733,58 +727,18 @@ export default function PayrollEmployeesPage() {
               </label>
             </div>
 
-            <div className="rounded-lg border border-border p-3">
-              <h4 className="mb-2 inline-flex items-center gap-2 text-sm font-medium">
-                <FilePenLine className="h-4 w-4 text-muted-foreground" aria-hidden />
-                New pay agreement
-              </h4>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block space-y-1 text-sm">
-                  <span>Basis</span>
-                  <select
-                    className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                    value={basis}
-                    onChange={(e) => setBasis(e.target.value as EmployeePayAgreementBasis)}
-                  >
-                    <option value="HOURLY_CARE">Hourly care</option>
-                    <option value="SALARIED">Salaried</option>
-                    <option value="HYBRID">Hybrid</option>
-                  </select>
-                </label>
-                <label className="block space-y-1 text-sm">
-                  <span>Effective from</span>
-                  <Input
-                    type="date"
-                    value={effectiveFrom}
-                    onChange={(e) => setEffectiveFrom(e.target.value)}
-                  />
-                </label>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Creating an ACTIVE agreement supersedes any previous active agreement. Optional pay
-                card link uses the employee default pay card when present.
-              </p>
-            </div>
+            {selectedId ? (
+              <PayAgreementsPanel
+                employeeId={selectedId}
+                scheduleId={scheduleId || null}
+                defaultPayCardId={selected?.defaultPayCardId ?? null}
+              />
+            ) : null}
             </TooltipProvider>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedId(null)}>
               Close
-            </Button>
-            <Button
-              variant="outline"
-              disabled={!selectedId || agreementMut.isPending}
-              onClick={() =>
-                agreementMut.mutate({
-                  basis,
-                  effectiveFrom,
-                  scheduleId: scheduleId || null,
-                  payCardId: selected?.defaultPayCardId ?? null,
-                  status: 'ACTIVE',
-                })
-              }
-            >
-              Add agreement
             </Button>
             <Button
               disabled={

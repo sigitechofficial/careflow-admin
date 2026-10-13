@@ -351,6 +351,30 @@ export async function upsertEmployeePayrollProfile(
   return res.data
 }
 
+export async function fetchEmployeePayAgreements(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<EmployeePayAgreement[]>>(
+    `/payroll/employees/${employeeId}/pay-agreements`,
+  )
+  return res.data
+}
+
+/** A second person puts an agreement into effect (needed when it carries or replaces a salary). */
+export async function approveEmployeePayAgreement(agreementId: string) {
+  return apiJson<ApiEnvelope<EmployeePayAgreement> & { message?: string }>(
+    `/payroll/pay-agreements/${agreementId}/approve`,
+    { method: 'POST' },
+  )
+}
+
+/** Ends an agreement on its last day. The pay terms of an agreement in effect are not edited. */
+export async function endEmployeePayAgreement(agreementId: string, effectiveTo: string) {
+  const res = await apiJson<ApiEnvelope<EmployeePayAgreement>>(
+    `/payroll/pay-agreements/${agreementId}`,
+    { method: 'PATCH', body: JSON.stringify({ status: 'TERMINATED', effectiveTo }) },
+  )
+  return res.data
+}
+
 export async function createEmployeePayAgreement(
   employeeId: string,
   body: CreateEmployeePayAgreementInput,

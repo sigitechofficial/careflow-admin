@@ -24,6 +24,12 @@ export type PayrollNiCategory =
   | 'X'
 export type EmployeePayAgreementBasis = 'HOURLY_CARE' | 'SALARIED' | 'HYBRID'
 export type EmployeePayAgreementStatus = 'DRAFT' | 'ACTIVE' | 'SUPERSEDED' | 'TERMINATED'
+export type SalaryEntryPeriod = 'ANNUAL' | 'MONTHLY' | 'WEEKLY'
+export type SalaryProrationMethod =
+  | 'EQUAL_PERIODS_CALENDAR_DAYS'
+  | 'EQUAL_PERIODS_WORKING_DAYS'
+  | 'CALENDAR_DAYS_365_25'
+export type SalaryCoverage = 'ALL_VISIT_WORK' | 'CONTRACTED_HOURS' | 'NO_VISIT_WORK'
 export type UkPayrollRunStatus =
   | 'DRAFT'
   | 'EMPLOYEES_ENROLLED'
@@ -161,6 +167,20 @@ export type EmployeePayAgreement = {
   annualSalary: number | null
   contractedHours: number | null
   hourlyRateOverride: number | null
+  /** How the salary was entered; `annualSalary` is always the yearly figure. */
+  salaryEntryPeriod?: SalaryEntryPeriod | null
+  salaryEntryAmount?: number | null
+  /** How a part period is paid. Empty on an agreement made before methods existed. */
+  salaryProrationMethod?: SalaryProrationMethod | null
+  /** What work the salary already pays for. Empty = not decided: visit wages are held. */
+  salaryCoverage?: SalaryCoverage | null
+  createdById?: string | null
+  approvedById?: string | null
+  approvedAt?: string | null
+  createdByName?: string | null
+  approvedByName?: string | null
+  /** A draft that carries or replaces a salary: a second person approves it. */
+  awaitingApproval?: boolean
   currency: string
   notes: string | null
   createdAt: string
@@ -242,6 +262,9 @@ export type UkPayrollInputLine = {
   amount: number
   isExpense: boolean
   isProvisional: boolean
+  /** Value of the source earning this line does not pay, and why. */
+  unpaidAmount?: number | null
+  unpaidReason?: 'COVERED_BY_SALARY' | 'SALARY_COVERAGE_NOT_DECIDED' | null
   sourcePayrollRunId: string | null
   sourcePayrollRunLineId: string | null
   sourceVisitReconciliationId: string | null
@@ -297,6 +320,10 @@ export type UkPayrollRunDetail = UkPayrollRun & {
     /** Part of the expenses whose tax treatment has not been verified. */
     expenseNotVerified?: number
     totalPayable?: number
+    /** Earnings the salary already pays for: settled by this run, not paid again (WM-09). */
+    coveredBySalary?: number
+    /** Earnings held because the pay agreement does not say what the salary pays for. */
+    heldForSalaryDecision?: number
     deductionTotal: number
     totalGross: number
     inputLineCount: number

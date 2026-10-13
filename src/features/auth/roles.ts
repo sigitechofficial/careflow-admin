@@ -553,6 +553,7 @@ export const EXPLICIT_GRANT_PERMISSIONS: Permission[] = [
   'billing.financial_reset',
   'payroll.runs.close',
   'payroll.runs.reopen',
+  'payroll.pay_agreements.approve',
   'audit_logs.delete',
 ]
 

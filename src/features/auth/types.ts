@@ -290,6 +290,7 @@ export type Permission =
   | 'billing.financial_reset'
   | 'payroll.runs.close'
   | 'payroll.runs.reopen'
+  | 'payroll.pay_agreements.approve'
   | 'billing.invoice_runs.read'
   | 'billing.invoice_runs.manage'
   | 'billing.payments.read'

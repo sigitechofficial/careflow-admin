@@ -1,6 +1,9 @@
 import type {
   EmployeePayAgreementBasis,
   EmployeePayAgreementStatus,
+  SalaryCoverage,
+  SalaryEntryPeriod,
+  SalaryProrationMethod,
   EmployeePayrollProfileStatus,
   PayrollNiCategory,
   PayrollPayFrequency,
@@ -106,6 +109,10 @@ export type CreateEmployeePayAgreementInput = {
   annualSalary?: number | null
   contractedHours?: number | null
   hourlyRateOverride?: number | null
+  salaryEntryPeriod?: SalaryEntryPeriod | null
+  salaryEntryAmount?: number | null
+  salaryProrationMethod?: SalaryProrationMethod | null
+  salaryCoverage?: SalaryCoverage | null
   status?: EmployeePayAgreementStatus
   notes?: string | null
 }
