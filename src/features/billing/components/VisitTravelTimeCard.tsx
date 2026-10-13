@@ -56,7 +56,9 @@ export function VisitTravelTimeCard({ visitReconciliationId, visitDate }: { visi
       <p className="text-xs text-muted-foreground" data-testid="travel-basis">
         {data.basis === 'APPROVED_INTERVALS' && data.decided
           ? `Decided by approved intervals: ${data.decided.travelMinutes} min travel, ${data.decided.waitingMinutes} min waiting, ${data.decided.notPaidMinutes} min not paid.`
-          : data.basis === 'ESTIMATED_FROM_GAP' && data.estimate
+          : data.basis === 'RECORDED_ON_VISIT'
+            ? `Travel minutes entered on the visit: ${data.recordedOnVisitMinutes ?? 0} min, not classified. Record what the time was to replace them.`
+            : data.basis === 'ESTIMATED_FROM_GAP' && data.estimate
             ? `Estimate, not verified: ${data.estimate.gapMinutes} min since ${data.estimate.fromVisitRef} is read as ${data.estimate.travelMinutes} min travel and ${data.estimate.waitingMinutes} min waiting. Record what the time was to replace the estimate.`
             : 'No earlier visit that day, and nothing recorded.'}{' '}
         This is time only: mileage is entered and paid separately.

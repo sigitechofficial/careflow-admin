@@ -40,7 +40,9 @@ export type TravelInterval = {
 export type VisitTravelTime = {
   visit: { id: string; visitRef: string; employeeId: string | null; paySettled: boolean }
   /** What the pay run uses for this visit. */
-  basis: 'APPROVED_INTERVALS' | 'ESTIMATED_FROM_GAP' | 'NONE'
+  basis: 'APPROVED_INTERVALS' | 'RECORDED_ON_VISIT' | 'ESTIMATED_FROM_GAP' | 'NONE'
+  /** Travel minutes entered on the visit itself (used when no interval is approved). */
+  recordedOnVisitMinutes?: number
   decided: { travelMinutes: number; waitingMinutes: number; notPaidMinutes: number; summary: string } | null
   estimate: {
     fromVisitRef: string

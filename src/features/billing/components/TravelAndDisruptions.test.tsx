@@ -64,6 +64,12 @@ describe('travel time before a visit (TR-01 / TR-04 / TR-05 / TR-06)', () => {
     expect(basis).toHaveTextContent('This is time only: mileage is entered and paid separately')
   })
 
+  it('says when the pay run uses travel minutes entered on the visit itself', () => {
+    state.travel = travel({ basis: 'RECORDED_ON_VISIT', recordedOnVisitMinutes: 40 })
+    render(<VisitTravelTimeCard visitReconciliationId="v-2" visitDate="2026-11-03T10:40:00.000Z" />)
+    expect(screen.getByTestId('travel-basis')).toHaveTextContent('Travel minutes entered on the visit: 40 min, not classified')
+  })
+
   it('records an interval with its category, times, evidence and note', async () => {
     render(<VisitTravelTimeCard visitReconciliationId="v-2" visitDate="2026-11-03T10:40:00.000Z" />)
     const save = screen.getByRole('button', { name: 'Record interval' })
