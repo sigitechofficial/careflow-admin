@@ -37,6 +37,51 @@ export function nmwAssessmentStatus(a: UkNmwAssessment): { label: string; varian
   return a.compliant ? { label: 'Compliant', variant: 'success' } : { label: 'Not assessed', variant: 'secondary' }
 }
 
+const hoursText = (value: number | null | undefined) => (value == null ? '—' : `${value}h`)
+
+/**
+ * Where a salaried worker stands in the calculation year, as the run worked it out. Nothing is
+ * calculated here: these are the figures stored with the assessment.
+ */
+function AnnualPosition({ a, status, formatDate }: { a: UkNmwAssessment; status: string; formatDate: (value: string) => string }) {
+  const assessed = !!a.calcYearStart && !!a.calcYearEnd && a.annualBasicHours != null
+  const before = a.yearHoursBefore ?? 0
+  const facts: Array<[string, string]> = assessed
+    ? [
+        ['Contracted weekly hours', hoursText(a.contractedWeeklyHours)],
+        ['Annualisation method', `Weekly hours × ${a.weeksPerYear} weeks (approved)`],
+        ['Basic hours of the year', hoursText(a.annualBasicHours)],
+        ['Calculation year', `${formatDate(a.calcYearStart as string)} – ${formatDate(a.calcYearEnd as string)}`],
+        ['Hours counted before this period', hoursText(before)],
+        ['Hours counted to date', hoursText(Math.round((before + a.workedHours) * 100) / 100)],
+        ['Excess hours counted here', hoursText(a.excessHours ?? 0)],
+        ['Result', a.topUp > 0 ? `${status}: ${gbp(a.topUp)} added by this run` : status],
+      ]
+    : [
+        ['Contracted weekly hours', hoursText(a.contractedWeeklyHours)],
+        ['Annualisation method', a.issue === 'POLICY_REVIEW_REQUIRED' ? 'None approved' : '—'],
+        ['Result', status],
+      ]
+  return (
+    <div className="rounded-md border border-border bg-background p-3" data-testid="nmw-annual-position">
+      <p className="text-sm font-medium">Position in the calculation year</p>
+      {!assessed ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          The year was not assessed{a.issueMessage ? `: ${a.issueMessage}` : '.'}
+        </p>
+      ) : null}
+      <dl className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+        {facts.map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+            <dd className="text-sm">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  )
+}
+
 export type NmwComplianceSectionProps = {
   runId: string
   assessments: UkNmwAssessment[]
@@ -211,6 +256,7 @@ export function NmwComplianceSection({
                           <p className="text-sm">
                             <span className="font-medium">Calculation:</span> {a.note ?? '—'}
                           </p>
+                          {a.workType === 'SALARIED_HOURS' ? <AnnualPosition a={a} status={status.label} formatDate={formatDate} /> : null}
                           {a.issue === 'SHORTFALL' ? (
                             <p className="text-sm text-destructive" data-testid="nmw-shortfall-confirmed">
                               A shortfall is confirmed (the calculation puts it at up to {gbp(a.shortfall)}). It cannot be cleared by a

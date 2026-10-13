@@ -4,6 +4,10 @@ import {
   cancelUkPayrollRun,
   closeUkPayrollRun,
   reviewUkNmwAssessment,
+  fetchSalariedHoursMethods,
+  enterSalariedHoursMethod,
+  approveSalariedHoursMethod,
+  withdrawSalariedHoursMethod,
   approveEmployeePayAgreement,
   createEmployeePayAgreement,
   endEmployeePayAgreement,
@@ -657,6 +661,25 @@ export function useCalculateUkPayrollStatutory(id: string) {
     },
     onError: (error) => toastApiError(error),
   })
+}
+
+const salariedHoursMethodsKey = [...payrollKeys.all, 'salaried-hours-methods'] as const
+
+export function useSalariedHoursMethods() {
+  return useQuery({ queryKey: salariedHoursMethodsKey, queryFn: fetchSalariedHoursMethods })
+}
+
+export function useSalariedHoursMethodActions() {
+  const qc = useQueryClient()
+  const onSuccess = () => qc.invalidateQueries({ queryKey: salariedHoursMethodsKey })
+  return {
+    enter: useMutation({ mutationFn: enterSalariedHoursMethod, onSuccess }),
+    approve: useMutation({ mutationFn: approveSalariedHoursMethod, onSuccess }),
+    withdraw: useMutation({
+      mutationFn: ({ id, note }: { id: string; note: string }) => withdrawSalariedHoursMethod(id, note),
+      onSuccess,
+    }),
+  }
 }
 
 /** Records what a review of a minimum wage exception found. The run is read again afterwards. */

@@ -28,6 +28,7 @@ import type {
   UkPayrollRunDetail,
   UkPayrollPayslipListItem,
   CareFpsPayload,
+  SalariedHoursMethods,
 } from '@/features/payroll/types/payroll.types'
 import type { HmrcFraudClientContext } from '@/features/payroll/utils/hmrc-fraud-client-context.util'
 
@@ -627,6 +628,26 @@ export async function calculateUkPayrollStatutory(id: string) {
     },
   )
   return res.data
+}
+
+export async function fetchSalariedHoursMethods() {
+  const res = await apiJson<ApiEnvelope<SalariedHoursMethods>>('/payroll/salaried-hours-methods')
+  return res.data
+}
+
+export async function enterSalariedHoursMethod(body: { weeksPerYear: number; basis: string; effectiveFrom: string }) {
+  return apiJson<{ message: string }>('/payroll/salaried-hours-methods', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function approveSalariedHoursMethod(id: string) {
+  return apiJson<{ message: string }>(`/payroll/salaried-hours-methods/${id}/approve`, { method: 'POST' })
+}
+
+export async function withdrawSalariedHoursMethod(id: string, note: string) {
+  return apiJson<{ message: string }>(`/payroll/salaried-hours-methods/${id}/withdraw`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  })
 }
 
 export async function reviewUkNmwAssessment(

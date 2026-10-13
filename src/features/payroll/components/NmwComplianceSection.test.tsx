@@ -216,6 +216,80 @@ describe('minimum wage compliance on the UK payroll run (Sprint B4A, Task 2)', (
     expect(screen.getByTestId('nmw-blocking')).toHaveTextContent('1 minimum wage exception stops this run being closed')
   })
 
+  // Sprint B4C. Figures are those the run stored (synthetic: 35 hours a week x 52 weeks).
+  describe('position in the calculation year', () => {
+    const position = () => screen.getByTestId('nmw-annual-position')
+    const inYear = (over: Partial<UkNmwAssessment> = {}) =>
+      assessment({
+        contractedWeeklyHours: 35,
+        weeksPerYear: 52,
+        annualBasicHours: 1820,
+        calcYearStart: '2026-04-01',
+        calcYearEnd: '2027-03-31',
+        yearHoursBefore: 480,
+        excessHours: 0,
+        hours: 151.67,
+        workedHours: 240,
+        ...over,
+      })
+
+    it('within the basic hours: weekly hours, method, basic hours, year, hours to date and no excess', () => {
+      render(<NmwComplianceSection {...props({ assessments: [inYear()] })} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+      const text = position()
+      expect(text).toHaveTextContent('Contracted weekly hours35h')
+      expect(text).toHaveTextContent('Annualisation methodWeekly hours × 52 weeks (approved)')
+      expect(text).toHaveTextContent('Basic hours of the year1820h')
+      expect(text).toHaveTextContent('Calculation year2026-04-01 – 2027-03-31')
+      expect(text).toHaveTextContent('Hours counted before this period480h')
+      expect(text).toHaveTextContent('Hours counted to date720h')
+      expect(text).toHaveTextContent('Excess hours counted here0h')
+      expect(text).toHaveTextContent('ResultCompliant')
+    })
+
+    it('basic hours exceeded: the excess hours and the top-up the run added', () => {
+      const exceeded = inYear({ yearHoursBefore: 1680, excessHours: 100, hours: 249.6, topUp: 1172.42, compliant: false })
+      render(<NmwComplianceSection {...props({ assessments: [exceeded] })} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+      expect(position()).toHaveTextContent('Hours counted to date1920h')
+      expect(position()).toHaveTextContent('Excess hours counted here100h')
+      expect(position()).toHaveTextContent('ResultTopped up to the minimum wage: £1172.42 added by this run')
+    })
+
+    it('no approved method: policy review required stays, and no annual figure is shown', () => {
+      const unassessed = assessment({
+        contractedWeeklyHours: 35,
+        hours: 0,
+        compliant: null,
+        issue: 'POLICY_REVIEW_REQUIRED',
+        issueMessage: 'No approved method is in force for turning contracted weekly hours into the basic hours of a year.',
+        blocksClose: true,
+        canReview: true,
+        calcYearStart: null,
+        calcYearEnd: null,
+        weeksPerYear: null,
+        annualBasicHours: null,
+        yearHoursBefore: null,
+        excessHours: null,
+      })
+      render(<NmwComplianceSection {...props({ assessments: [unassessed] })} />)
+      expect(screen.getByTestId('nmw-blocking')).toHaveTextContent('No approved method is in force')
+      fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+      expect(position()).toHaveTextContent('The year was not assessed: No approved method is in force')
+      expect(position()).toHaveTextContent('Contracted weekly hours35h')
+      expect(position()).toHaveTextContent('Annualisation methodNone approved')
+      expect(position()).toHaveTextContent('ResultNot decided: needs review')
+      expect(position()).not.toHaveTextContent('Basic hours of the year')
+      expect(screen.getByTestId('nmw-review-form')).toBeInTheDocument() // the existing review is still how it is handled
+    })
+
+    it('is not shown for work that is not salaried hours work', () => {
+      render(<NmwComplianceSection {...props({ assessments: [assessment({ workType: 'TIME_WORK' })] })} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+      expect(screen.queryByTestId('nmw-annual-position')).toBeNull()
+    })
+  })
+
   it('says so when gross has not been calculated yet', () => {
     render(<NmwComplianceSection {...props({ assessments: [] })} />)
     expect(screen.getByTestId('nmw-compliance-section')).toHaveTextContent('No minimum wage assessments yet. Calculate gross to make them.')

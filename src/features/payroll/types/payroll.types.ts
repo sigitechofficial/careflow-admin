@@ -390,6 +390,45 @@ export type UkNmwAssessment = {
   reviewedByName: string | null
   reviewNote: string | null
   note: string | null
+  /** Contracted weekly hours of the agreement in force: the contract's own figure. */
+  contractedWeeklyHours?: number | null
+  /** Where the worker stands in the calculation year. Empty when the year was not assessed. */
+  calcYearStart?: string | null
+  calcYearEnd?: string | null
+  /** Weeks of the approved annualisation method used. */
+  weeksPerYear?: number | null
+  annualBasicHours?: number | null
+  /** Hours counted in the calculation year before this period. */
+  yearHoursBefore?: number | null
+  /** Hours beyond the basic hours of the year that this assessment counted. */
+  excessHours?: number | null
+}
+
+/** How the employer turns contracted weekly hours into basic hours for a year (salaried hours work). */
+export type SalariedHoursMethod = {
+  id: string
+  weeksPerYear: number
+  /** Where the method is written down and why it is right for these contracts. */
+  basis: string
+  effectiveFrom: string
+  status: 'DRAFT' | 'APPROVED' | 'WITHDRAWN'
+  /** A test fixture, never an employer's policy. */
+  isSynthetic: boolean
+  createdById: string | null
+  createdByName?: string | null
+  createdAt: string
+  approvedById: string | null
+  approvedByName?: string | null
+  approvedAt: string | null
+  withdrawnAt: string | null
+  withdrawnByName?: string | null
+  withdrawnNote: string | null
+}
+
+export type SalariedHoursMethods = {
+  /** The approved method that applies today, if any. */
+  inForce: SalariedHoursMethod | null
+  methods: SalariedHoursMethod[]
 }
 
 export type PayrollOverview = {
