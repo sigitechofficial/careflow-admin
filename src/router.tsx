@@ -141,6 +141,7 @@ import AuditExportPage from '@/features/billing/pages/AuditExportPage'
 import PayCardEditorPage from '@/features/billing/pages/PayCardEditorPage'
 import EmployeePayCardChangePage from '@/features/billing/pages/EmployeePayCardChangePage'
 import PayItemsPage from '@/features/billing/pages/PayItemsPage'
+import WageRecoveriesPage from '@/features/billing/pages/WageRecoveriesPage'
 import PayItemCreatePage from '@/features/billing/pages/PayItemCreatePage'
 import EcmLiveMonitoringPage from '@/features/ecm/pages/EcmLiveMonitoringPage'
 import EcmGraphPage from '@/features/ecm/pages/EcmGraphPage'
@@ -320,6 +321,7 @@ const pageTitles: Record<string, string> = {
   '/billing': 'Billing Management',
   '/billing/pay-cards/new': 'New pay card',
   '/billing/pay-items': 'Pay items',
+  '/billing/wage-recoveries': 'Wage recoveries',
   '/billing/pay-items/new': 'New pay item',
   '/employee/$employeeId/pay-card/change': 'Change pay card',
   '/billing/pay-cards/$payCardId/edit': 'Edit pay card',
@@ -1867,6 +1869,13 @@ const billingPayItemsRoute = createRoute({
   component: withOrganisationPayScope(PayItemsPage),
 })
 
+const billingWageRecoveriesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/wage-recoveries',
+  beforeLoad: requirePermission('billing.payroll_runs.read'),
+  component: withOrganisationPayScope(WageRecoveriesPage),
+})
+
 const billingPayItemNewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/pay-items/new',
@@ -2369,6 +2378,7 @@ const routeTree = rootRoute.addChildren([
     billingPayCardEditRoute,
     employeePayCardChangeRoute,
     billingPayItemsRoute,
+    billingWageRecoveriesRoute,
     billingPayItemNewRoute,
     billingVisitReconciliationRoute,
     billingPayrollRunsRoute,

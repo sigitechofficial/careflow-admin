@@ -685,6 +685,14 @@ const navItems: NavItem[] = [
         navTestId: 'nav-billing-pay-items',
       },
       {
+        label: 'Wage recoveries',
+        icon: <Wallet className="h-4 w-4" />,
+        href: '/billing/wage-recoveries',
+        permission: 'billing.payroll_runs.read',
+        organisationPayScope: true,
+        navTestId: 'nav-billing-wage-recoveries',
+      },
+      {
         label: 'Salary',
         icon: <CircleDollarSign className="h-4 w-4" />,
         href: '/billing/salary',
