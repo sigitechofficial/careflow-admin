@@ -13,6 +13,7 @@ import { Badge } from '@/shared/ui/badge'
 import { ContentCard } from '@/shared/ui/content-section'
 import { PayrollRunStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { usePayrollRun } from '@/features/billing/hooks/usePayrollRuns'
+import { PayrollRunAttentionList } from '@/features/billing/components/PayrollRunAttentionList'
 import type { PayrollRunLineDetail, PayrollRunRow } from '@/features/billing/api/payroll-runs.api'
 
 type Props = {
@@ -109,6 +110,8 @@ export function PayrollRunDetailDialog({ open, onOpenChange, row }: Props) {
                   <p className="text-lg font-semibold tabular-nums">{detail.nmwTopUp}</p>
                 </ContentCard>
               </div>
+
+              <PayrollRunAttentionList lines={detail.lines} />
 
               {detail.carerSummaries.length > 0 ? (
                 <div className="space-y-2">
