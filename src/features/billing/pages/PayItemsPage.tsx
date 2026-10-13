@@ -23,6 +23,7 @@ import {
   type PayItemUnit,
 } from '@/features/billing/types/pay-items.types'
 import { formatBillingDate } from '@/features/billing/types/billing-cards.types'
+import { DisruptedVisitsPanel } from '@/features/billing/components/DisruptedVisitsPanel'
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'PENDING_APPROVAL', label: 'Awaiting approval' },
@@ -107,6 +108,8 @@ export default function PayItemsPage() {
           ) : undefined
         }
       />
+
+      <DisruptedVisitsPanel />
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-wrap gap-1 rounded-lg border border-border p-1" role="tablist" aria-label="Status">

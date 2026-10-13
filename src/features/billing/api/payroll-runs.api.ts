@@ -35,6 +35,7 @@ export type PayrollRunLineDetail = {
     | 'BONUS'
     | 'LIVE_IN'
     | 'GUARANTEED_HOURS'
+    | 'CANCELLATION'
     | (string & {})
   visitRef: string | null
   employeeId: string | null

@@ -35,6 +35,7 @@ import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezo
 import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
 import { VisitPayCorrectionsCard } from '@/features/billing/components/VisitPayCorrectionsCard'
 import { VisitMileageCorrectionCard } from '@/features/billing/components/VisitMileageCorrectionCard'
+import { VisitTravelTimeCard } from '@/features/billing/components/VisitTravelTimeCard'
 
 type Props = {
   open: boolean
@@ -809,6 +810,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   </p>
                 )}
                 {paySettled ? <VisitMileageCorrectionCard visitReconciliationId={row.id} /> : null}
+                <VisitTravelTimeCard visitReconciliationId={row.id} visitDate={row.date} />
               </ContentCard>
 
               <div className={cn('space-y-2', carerNotPaid && 'opacity-70')}>

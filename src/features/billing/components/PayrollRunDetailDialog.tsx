@@ -50,6 +50,8 @@ function lineTypeLabel(lineType: PayrollRunLineDetail['lineType']): string {
       return 'Live-in'
     case 'GUARANTEED_HOURS':
       return 'Guaranteed hours top-up'
+    case 'CANCELLATION':
+      return 'Cancelled / disrupted visit'
     default:
       return 'Visit pay'
   }

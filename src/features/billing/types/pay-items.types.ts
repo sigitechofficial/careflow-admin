@@ -117,6 +117,7 @@ export const PAY_ITEM_STATUS_LABELS: Record<PayItemStatus, string> = {
 /** Pay items the system writes itself (not offered when entering an item by hand). */
 const SYSTEM_PAY_ITEM_LABELS: Record<string, string> = {
   MILEAGE_CORRECTION: 'Mileage correction',
+  DISRUPTION_PAY: 'Cancelled / disrupted visit',
 }
 
 export function payItemTypeLabel(code: string): string {
