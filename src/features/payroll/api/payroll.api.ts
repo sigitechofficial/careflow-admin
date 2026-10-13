@@ -629,6 +629,17 @@ export async function calculateUkPayrollStatutory(id: string) {
   return res.data
 }
 
+export async function reviewUkNmwAssessment(
+  runId: string,
+  assessmentId: string,
+  body: { note: string; outcome: 'EVIDENCE_SUPPORTS_COMPLIANCE' | 'SHORTFALL_CONFIRMED' },
+) {
+  return apiJson<{ message: string }>(`/payroll/runs/${runId}/nmw-assessments/${assessmentId}/review`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
 export async function closeUkPayrollRun(id: string) {
   const res = await apiJson<ApiEnvelope<UkPayrollRun>>(`/payroll/runs/${id}/close`, {
     method: 'POST',

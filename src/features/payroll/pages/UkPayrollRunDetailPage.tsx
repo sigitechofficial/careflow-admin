@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
+import { NmwComplianceSection } from '@/features/payroll/components/NmwComplianceSection'
 import { PayrollHmrcSubmissionStatusPanel } from '@/features/payroll/components/PayrollHmrcSubmissionStatusPanel'
 import {
   downloadUkPayrollRunEmployeePayslip,
@@ -819,6 +820,16 @@ export default function UkPayrollRunDetailPage() {
               ) : null}
             </div>
           ) : null}
+
+          <NmwComplianceSection
+            runId={runId}
+            assessments={data.nmwAssessments ?? []}
+            employees={data.employees}
+            runOpen={!!open}
+            canReview={canClose}
+            createdRun={data.createdById != null && data.createdById === currentUserId}
+            formatDate={formatDate}
+          />
 
           <div className="overflow-hidden rounded-xl border border-border">
             <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-3">

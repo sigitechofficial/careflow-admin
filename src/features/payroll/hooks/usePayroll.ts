@@ -3,6 +3,7 @@ import {
   activatePayrollTaxYear,
   cancelUkPayrollRun,
   closeUkPayrollRun,
+  reviewUkNmwAssessment,
   approveEmployeePayAgreement,
   createEmployeePayAgreement,
   endEmployeePayAgreement,
@@ -655,6 +656,19 @@ export function useCalculateUkPayrollStatutory(id: string) {
       toastSuccess('Tax & NI calculated (Week 1 / Month 1)')
     },
     onError: (error) => toastApiError(error),
+  })
+}
+
+/** Records what a review of a minimum wage exception found. The run is read again afterwards. */
+export function useReviewUkNmwAssessment(runId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      assessmentId: string
+      note: string
+      outcome: 'EVIDENCE_SUPPORTS_COMPLIANCE' | 'SHORTFALL_CONFIRMED'
+    }) => reviewUkNmwAssessment(runId, input.assessmentId, { note: input.note, outcome: input.outcome }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', runId] }),
   })
 }
 

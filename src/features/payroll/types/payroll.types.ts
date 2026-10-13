@@ -350,7 +350,46 @@ export type UkPayrollRunDetail = UkPayrollRun & {
     inputLines: UkPayrollInputLine[]
     ytd?: EmployeePayrollYtd | null
   }>
+  /** The user who created the run: they cannot review its minimum wage exceptions. */
+  createdById?: string | null
+  /** Minimum wage assessments this run made (salaried hours work). */
+  nmwAssessments?: UkNmwAssessment[]
   phaseNote?: string
+}
+
+export type NmwReviewOutcome = 'EVIDENCE_SUPPORTS_COMPLIANCE' | 'SHORTFALL_CONFIRMED'
+
+/** One employee's minimum wage position for the pay reference period of a UK payroll run. */
+export type UkNmwAssessment = {
+  id: string
+  employeeId: string
+  periodStart: string
+  periodEnd: string
+  workType: string
+  category: string
+  requiredHourly: number
+  /** Pay that counts towards the minimum wage. */
+  pay: number
+  /** Hours the pay is measured against (basic hours and hours paid on top). */
+  hours: number
+  workedHours: number
+  /** Top-up this run adds to reach the minimum wage. */
+  topUp: number
+  /** True, false, or null when the period cannot decide it. */
+  compliant: boolean | null
+  issue: string | null
+  issueMessage: string | null
+  /** Pay that may be missing (or, once confirmed, is missing). */
+  shortfall: number | null
+  /** Stops the run being closed. */
+  blocksClose: boolean
+  /** A review can be recorded: there is an open question of fact. */
+  canReview: boolean
+  reviewOutcome: NmwReviewOutcome | null
+  reviewedAt: string | null
+  reviewedByName: string | null
+  reviewNote: string | null
+  note: string | null
 }
 
 export type PayrollOverview = {
