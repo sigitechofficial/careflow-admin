@@ -114,6 +114,7 @@ export default function PayrollEmployeesPage() {
   >('')
   const [deductionElections, setDeductionElections] = React.useState<string[]>([])
   const [pensionSchemeRef, setPensionSchemeRef] = React.useState('')
+  const [apprenticeshipStartDate, setApprenticeshipStartDate] = React.useState('')
   const [scheduleId, setScheduleId] = React.useState('')
 
   React.useEffect(() => {
@@ -140,6 +141,7 @@ export default function PayrollEmployeesPage() {
       }),
     )
     setPensionSchemeRef(selected.profile?.pensionSchemeRef ?? '')
+    setApprenticeshipStartDate(selected.profile?.apprenticeshipStartDate ?? '')
     setScheduleId(selected.profile?.scheduleId ?? '')
   }, [selected, knownTaxCodes])
 
@@ -724,6 +726,23 @@ export default function PayrollEmployeesPage() {
                     </option>
                   ))}
                 </select>
+                <span className="block text-xs text-muted-foreground">
+                  The periods of this schedule are also the pay reference periods minimum wage is checked over.
+                </span>
+              </label>
+              <label className="block space-y-1 text-sm sm:col-span-2">
+                <span>Apprenticeship start date (apprentices only)</span>
+                <Input
+                  type="date"
+                  value={apprenticeshipStartDate}
+                  onChange={(e) => setApprenticeshipStartDate(e.target.value)}
+                  aria-label="Apprenticeship start date"
+                  className="sm:max-w-xs"
+                />
+                <span className="block text-xs text-muted-foreground">
+                  The apprentice minimum wage rate applies under 19, or in the first year of the apprenticeship. With no
+                  date recorded, an apprentice of 19 or over is checked against the rate for their age.
+                </span>
               </label>
             </div>
 
@@ -760,6 +779,7 @@ export default function PayrollEmployeesPage() {
                   deductionElections,
                   ...syncedLoanFlags,
                   pensionSchemeRef: showPensionRef ? pensionSchemeRef.trim() || null : null,
+                  apprenticeshipStartDate: apprenticeshipStartDate || null,
                   scheduleId: scheduleId || null,
                 })
               }

@@ -148,6 +148,8 @@ export type EmployeePayrollProfile = {
   postgraduateLoan: boolean
   pensionOptedIn: boolean
   pensionSchemeRef: string | null
+  /** The day the apprenticeship began: decides the apprentice minimum wage rate at 19 or over. */
+  apprenticeshipStartDate?: string | null
   deductionElections: string[]
   bankSortCode: string | null
   bankAccountNumber: string | null

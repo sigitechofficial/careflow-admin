@@ -96,6 +96,7 @@ export type UpsertEmployeePayrollProfileInput = {
   pensionOptedIn?: boolean
   deductionElections?: string[]
   pensionSchemeRef?: string | null
+  apprenticeshipStartDate?: string | null
   bankSortCode?: string | null
   bankAccountNumber?: string | null
   bankAccountName?: string | null
