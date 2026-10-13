@@ -13,6 +13,8 @@ import {
 import type {
   EmployeePayAgreement,
   EmployeePayAgreementBasis,
+  GuaranteeLeaveTreatment,
+  GuaranteeQualifyingTime,
   SalaryCoverage,
   SalaryEntryPeriod,
   SalaryProrationMethod,
@@ -36,6 +38,14 @@ export const COVERAGE_LABELS: Record<SalaryCoverage, string> = {
   CONTRACTED_HOURS: 'Visit work up to the contracted weekly hours — hours beyond them are paid',
   NO_VISIT_WORK: 'Other duties only — visit work is paid as well',
 }
+export const GUARANTEE_QUALIFYING_LABELS: Record<GuaranteeQualifyingTime, string> = {
+  VISITS: 'Visit time',
+  VISITS_AND_TRAVEL: 'Visit time, and paid travel and waiting time',
+}
+export const GUARANTEE_LEAVE_LABELS: Record<GuaranteeLeaveTreatment, string> = {
+  COUNT_PAID_LEAVE_HOURS: 'Paid leave hours count towards the guarantee',
+  REDUCE_FOR_ABSENCE_DAYS: 'Each day of absence reduces the guarantee',
+}
 const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-2 text-sm'
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -49,6 +59,11 @@ function describe(a: EmployeePayAgreement): string {
     parts.push(`${gbp(a.annualSalary)} a year${entered}`)
   }
   if (a.contractedHours) parts.push(`${a.contractedHours} contracted hours a week`)
+  if (a.guaranteedWeeklyHours) {
+    parts.push(
+      `${a.guaranteedWeeklyHours} guaranteed hours a week (${a.guaranteeTopUp === 'PAY_SHORTFALL' ? 'shortfall paid' : 'recorded only'})`,
+    )
+  }
   return parts.join(' · ')
 }
 
@@ -80,14 +95,22 @@ export function PayAgreementsPanel({
   const [contractedHours, setContractedHours] = React.useState('')
   const [proration, setProration] = React.useState<SalaryProrationMethod | ''>('')
   const [coverage, setCoverage] = React.useState<SalaryCoverage | ''>('')
+  const [guaranteedHours, setGuaranteedHours] = React.useState('')
+  const [payShortfall, setPayShortfall] = React.useState(false)
+  const [qualifying, setQualifying] = React.useState<GuaranteeQualifyingTime | ''>('')
+  const [leaveTreatment, setLeaveTreatment] = React.useState<GuaranteeLeaveTreatment | ''>('')
   const [endDates, setEndDates] = React.useState<Record<string, string>>({})
 
   const agreements = query.data ?? []
   const salaried = basis !== 'HOURLY_CARE'
   const amount = Number(entryAmount)
   const hours = Number(contractedHours)
-  const salaryInEffect = agreements.some(a => a.status !== 'DRAFT' && (a.annualSalary ?? 0) > 0)
-  const needsApproval = salaried || salaryInEffect
+  const guaranteed = Number(guaranteedHours)
+  const paidGuarantee = !salaried && payShortfall
+  const salaryInEffect = agreements.some(
+    a => a.status !== 'DRAFT' && ((a.annualSalary ?? 0) > 0 || a.guaranteeTopUp === 'PAY_SHORTFALL'),
+  )
+  const needsApproval = salaried || paidGuarantee || salaryInEffect
   const valid =
     !!effectiveFrom &&
     (!salaried ||
@@ -95,7 +118,8 @@ export function PayAgreementsPanel({
         amount > 0 &&
         proration !== '' &&
         coverage !== '' &&
-        (coverage !== 'CONTRACTED_HOURS' || hours > 0)))
+        (coverage !== 'CONTRACTED_HOURS' || hours > 0))) &&
+    (!paidGuarantee || (guaranteed > 0 && qualifying !== ''))
 
   const onAdd = () => {
     create.mutate(
@@ -113,12 +137,25 @@ export function PayAgreementsPanel({
               salaryProrationMethod: proration as SalaryProrationMethod,
               salaryCoverage: coverage as SalaryCoverage,
             }
-          : {}),
+          : guaranteedHours.trim() !== '' && guaranteed > 0
+            ? {
+                guaranteedWeeklyHours: guaranteed,
+                ...(payShortfall
+                  ? {
+                      guaranteeTopUp: 'PAY_SHORTFALL' as const,
+                      guaranteeQualifyingTime: qualifying as GuaranteeQualifyingTime,
+                      guaranteeLeaveTreatment: leaveTreatment === '' ? null : leaveTreatment,
+                    }
+                  : {}),
+              }
+            : {}),
       },
       {
         onSuccess: () => {
           setEntryAmount('')
           setContractedHours('')
+          setGuaranteedHours('')
+          setPayShortfall(false)
         },
       },
     )
@@ -149,6 +186,16 @@ export function PayAgreementsPanel({
                 <p className="text-muted-foreground">
                   Part period: {a.salaryProrationMethod ? PRORATION_LABELS[a.salaryProrationMethod] : PRORATION_LABELS.CALENDAR_DAYS_365_25}
                   {' · '}Salary pays for: {a.salaryCoverage ? COVERAGE_LABELS[a.salaryCoverage] : 'not recorded'}
+                </p>
+              ) : null}
+              {a.guaranteeTopUp === 'PAY_SHORTFALL' ? (
+                <p className="text-muted-foreground">
+                  Counts towards the guarantee:{' '}
+                  {a.guaranteeQualifyingTime ? GUARANTEE_QUALIFYING_LABELS[a.guaranteeQualifyingTime] : 'not recorded'}
+                  {' · '}
+                  {a.guaranteeLeaveTreatment
+                    ? GUARANTEE_LEAVE_LABELS[a.guaranteeLeaveTreatment]
+                    : 'A week with recorded absence is held for a person to decide'}
                 </p>
               ) : null}
               {a.annualSalary && !a.salaryCoverage && a.status !== 'DRAFT' ? (
@@ -284,7 +331,66 @@ export function PayAgreementsPanel({
                   </select>
                 </label>
               </>
-            ) : null}
+            ) : (
+              <>
+                <label className="block space-y-1 text-sm">
+                  <span>Guaranteed weekly hours (optional)</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.25"
+                    value={guaranteedHours}
+                    onChange={e => setGuaranteedHours(e.target.value)}
+                    aria-label="Guaranteed weekly hours"
+                  />
+                </label>
+                <label className="flex items-center gap-2 self-end pb-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={payShortfall}
+                    onChange={e => setPayShortfall(e.target.checked)}
+                    aria-label="Pay the shortfall as a top-up"
+                  />
+                  <span>Hours short of the guarantee are paid as a top-up</span>
+                </label>
+                {payShortfall ? (
+                  <>
+                    <label className="block space-y-1 text-sm">
+                      <span>Counts towards the guarantee</span>
+                      <select
+                        className={selectClass}
+                        value={qualifying}
+                        onChange={e => setQualifying(e.target.value as GuaranteeQualifyingTime | '')}
+                        aria-label="What counts towards the guarantee"
+                      >
+                        <option value="">Choose…</option>
+                        {(Object.keys(GUARANTEE_QUALIFYING_LABELS) as GuaranteeQualifyingTime[]).map(key => (
+                          <option key={key} value={key}>
+                            {GUARANTEE_QUALIFYING_LABELS[key]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block space-y-1 text-sm">
+                      <span>A week with absence</span>
+                      <select
+                        className={selectClass}
+                        value={leaveTreatment}
+                        onChange={e => setLeaveTreatment(e.target.value as GuaranteeLeaveTreatment | '')}
+                        aria-label="How absence affects the guarantee"
+                      >
+                        <option value="">Held for a person to decide</option>
+                        {(Object.keys(GUARANTEE_LEAVE_LABELS) as GuaranteeLeaveTreatment[]).map(key => (
+                          <option key={key} value={key}>
+                            {GUARANTEE_LEAVE_LABELS[key]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                ) : null}
+              </>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
             {salaried

@@ -1,6 +1,8 @@
 import type {
   EmployeePayAgreementBasis,
   EmployeePayAgreementStatus,
+  GuaranteeLeaveTreatment,
+  GuaranteeQualifyingTime,
   SalaryCoverage,
   SalaryEntryPeriod,
   SalaryProrationMethod,
@@ -113,6 +115,10 @@ export type CreateEmployeePayAgreementInput = {
   salaryEntryAmount?: number | null
   salaryProrationMethod?: SalaryProrationMethod | null
   salaryCoverage?: SalaryCoverage | null
+  guaranteedWeeklyHours?: number | null
+  guaranteeTopUp?: 'PAY_SHORTFALL' | null
+  guaranteeQualifyingTime?: GuaranteeQualifyingTime | null
+  guaranteeLeaveTreatment?: GuaranteeLeaveTreatment | null
   status?: EmployeePayAgreementStatus
   notes?: string | null
 }

@@ -127,6 +127,48 @@ describe('pay agreements of an employee (WM-02 / WM-03)', () => {
     expect(screen.getByRole('button', { name: 'Save for approval' })).toBeInTheDocument()
   })
 
+  it('guaranteed hours: recorded only by default; a paid shortfall needs what counts towards it and a second person', () => {
+    renderPanel()
+    fireEvent.change(screen.getByLabelText('Guaranteed weekly hours'), { target: { value: '14' } })
+    // Recorded only: an ordinary hourly agreement.
+    fireEvent.click(screen.getByRole('button', { name: 'Add agreement' }))
+    expect(state.create.mock.calls[0][0]).toMatchObject({ basis: 'HOURLY_CARE', guaranteedWeeklyHours: 14 })
+    expect(state.create.mock.calls[0][0]).not.toHaveProperty('guaranteeTopUp')
+
+    fireEvent.click(screen.getByLabelText('Pay the shortfall as a top-up'))
+    const save = screen.getByRole('button', { name: 'Save for approval' })
+    expect(save).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('What counts towards the guarantee'), { target: { value: 'VISITS' } })
+    expect(save).toBeEnabled()
+    fireEvent.click(save)
+    expect(state.create.mock.calls[1][0]).toMatchObject({
+      guaranteedWeeklyHours: 14,
+      guaranteeTopUp: 'PAY_SHORTFALL',
+      guaranteeQualifyingTime: 'VISITS',
+      guaranteeLeaveTreatment: null,
+    })
+  })
+
+  it('shows a guarantee in the history with what counts towards it', () => {
+    state.agreements = [
+      agreement({
+        basis: 'HOURLY_CARE',
+        annualSalary: null,
+        contractedHours: null,
+        salaryEntryPeriod: null,
+        salaryEntryAmount: null,
+        guaranteedWeeklyHours: 14,
+        guaranteeTopUp: 'PAY_SHORTFALL',
+        guaranteeQualifyingTime: 'VISITS',
+        guaranteeLeaveTreatment: null,
+      }),
+    ]
+    renderPanel()
+    const item = screen.getByTestId('pay-agreement-item')
+    expect(item).toHaveTextContent('Hourly care · 14 guaranteed hours a week (shortfall paid)')
+    expect(item).toHaveTextContent('Counts towards the guarantee: Visit time · A week with recorded absence is held for a person to decide')
+  })
+
   it('warns when a salary in effect does not say what it pays for', () => {
     state.agreements = [agreement({ salaryCoverage: null, salaryProrationMethod: null })]
     renderPanel()

@@ -48,6 +48,8 @@ function lineTypeLabel(lineType: PayrollRunLineDetail['lineType']): string {
       return 'Bonus'
     case 'LIVE_IN':
       return 'Live-in'
+    case 'GUARANTEED_HOURS':
+      return 'Guaranteed hours top-up'
     default:
       return 'Visit pay'
   }

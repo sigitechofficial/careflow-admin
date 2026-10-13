@@ -30,6 +30,8 @@ export type SalaryProrationMethod =
   | 'EQUAL_PERIODS_WORKING_DAYS'
   | 'CALENDAR_DAYS_365_25'
 export type SalaryCoverage = 'ALL_VISIT_WORK' | 'CONTRACTED_HOURS' | 'NO_VISIT_WORK'
+export type GuaranteeQualifyingTime = 'VISITS' | 'VISITS_AND_TRAVEL'
+export type GuaranteeLeaveTreatment = 'COUNT_PAID_LEAVE_HOURS' | 'REDUCE_FOR_ABSENCE_DAYS'
 export type UkPayrollRunStatus =
   | 'DRAFT'
   | 'EMPLOYEES_ENROLLED'
@@ -174,6 +176,11 @@ export type EmployeePayAgreement = {
   salaryProrationMethod?: SalaryProrationMethod | null
   /** What work the salary already pays for. Empty = not decided: visit wages are held. */
   salaryCoverage?: SalaryCoverage | null
+  /** Guaranteed hours a week (WM-07). A top-up is paid only when `guaranteeTopUp` says so. */
+  guaranteedWeeklyHours?: number | null
+  guaranteeTopUp?: 'PAY_SHORTFALL' | null
+  guaranteeQualifyingTime?: GuaranteeQualifyingTime | null
+  guaranteeLeaveTreatment?: GuaranteeLeaveTreatment | null
   createdById?: string | null
   approvedById?: string | null
   approvedAt?: string | null
