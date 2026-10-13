@@ -115,7 +115,13 @@ export function PayrollRunDetailDialog({ open, onOpenChange, row }: Props) {
                 </ContentCard>
               </div>
 
-              <PayrollRunAttentionList lines={detail.lines} />
+              <PayrollRunAttentionList
+                lines={detail.lines}
+                nmwExceptions={detail.nmwExceptions}
+                carerNames={Object.fromEntries(
+                  detail.lines.filter(l => l.employeeId).map(l => [l.employeeId as string, l.carerName]),
+                )}
+              />
 
               {detail.carerSummaries.length > 0 ? (
                 <div className="space-y-2">

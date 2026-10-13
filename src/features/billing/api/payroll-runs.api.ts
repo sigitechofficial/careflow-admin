@@ -60,10 +60,22 @@ export type PayrollRunCarerSummary = {
   grossPay: string
 }
 
+/** A minimum wage assessment of the run that needs a person (Sprint B3). */
+export type PayrollRunNmwException = {
+  employeeId: string
+  periodStart: string
+  periodEnd: string
+  periodSource: string
+  issue: string
+  message: string | null
+  compliant: boolean | null
+}
+
 export type PayrollRunDetail = PayrollRunRow & {
   notes: string | null
   carerSummaries: PayrollRunCarerSummary[]
   lines: PayrollRunLineDetail[]
+  nmwExceptions?: PayrollRunNmwException[]
 }
 
 export async function fetchPayrollRuns(params?: {

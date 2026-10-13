@@ -52,3 +52,35 @@ describe('earnings a pay run could not work out (R-22)', () => {
     expect(container).toBeEmptyDOMElement()
   })
 })
+
+describe('minimum wage assessments that need attention (Sprint B3)', () => {
+  const exception = {
+    employeeId: 'e-1',
+    periodStart: '2026-11-02',
+    periodEnd: '2026-11-08',
+    periodSource: 'PAY_RUN_PERIOD',
+    issue: 'NO_PAYROLL_SCHEDULE',
+    message: 'No UK payroll schedule period covers this work, so the pay reference period is not known.',
+    compliant: false,
+  }
+
+  it('shows a worker with no payroll schedule, with the period used and what to put right', () => {
+    render(<PayrollRunAttentionList lines={[line({})]} nmwExceptions={[exception]} carerNames={{ 'e-1': 'Ann Carer' }} />)
+    expect(screen.queryByTestId('payroll-run-attention')).not.toBeInTheDocument()
+    const item = screen.getByTestId('payroll-run-nmw-exception-item')
+    expect(item).toHaveTextContent('Ann Carer · 2026-11-02 to 2026-11-08')
+    expect(item).toHaveTextContent('the pay reference period is not known')
+    expect(screen.getByTestId('payroll-run-nmw-exceptions')).toHaveTextContent('Minimum wage: 1 assessment needs attention')
+  })
+
+  it('is shown beside held earnings, and nothing is shown when there is neither', () => {
+    const both = render(
+      <PayrollRunAttentionList lines={[line({ exceptionMessage: 'Held for a reason' })]} nmwExceptions={[exception]} />,
+    )
+    expect(screen.getByTestId('payroll-run-attention')).toBeInTheDocument()
+    expect(screen.getByTestId('payroll-run-nmw-exceptions')).toBeInTheDocument()
+    both.unmount()
+    const { container } = render(<PayrollRunAttentionList lines={[line({})]} nmwExceptions={[]} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+})
