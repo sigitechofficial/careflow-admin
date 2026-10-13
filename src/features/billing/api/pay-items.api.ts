@@ -7,6 +7,7 @@ import type {
   PayItemWageType,
   RecordVisitPayCorrectionInput,
   VisitPayCorrectionHistory,
+  VisitMileageCorrectionHistory,
 } from '@/features/billing/types/pay-items.types'
 
 export async function fetchPayItems(params?: { status?: string; employeeId?: string; wageTypeCode?: string }): Promise<PayItem[]> {
@@ -60,6 +61,28 @@ export async function fetchVisitPayCorrections(visitReconciliationId: string): P
 
 export async function recordVisitPayCorrection(body: RecordVisitPayCorrectionInput): Promise<{ message: string }> {
   return apiJson<{ message: string }>('/billing/pay-items/visit-corrections', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function fetchVisitMileageCorrections(
+  visitReconciliationId: string,
+): Promise<VisitMileageCorrectionHistory> {
+  const res = await apiJson<ApiEnvelope<VisitMileageCorrectionHistory>>(
+    `/billing/pay-items/mileage-corrections/${visitReconciliationId}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+/** The miles the journey should have had in total; the difference is reimbursed or recovered as mileage. */
+export async function recordMileageCorrection(body: {
+  visitReconciliationId: string
+  correctedMiles: number
+  reason: string
+}): Promise<{ message: string }> {
+  return apiJson<{ message: string }>('/billing/pay-items/mileage-corrections', {
     method: 'POST',
     body: JSON.stringify(body),
   })

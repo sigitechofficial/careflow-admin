@@ -5,7 +5,9 @@ import {
   createPayItem,
   fetchPayItemSuggestion,
   fetchPayItems,
+  fetchVisitMileageCorrections,
   fetchVisitPayCorrections,
+  recordMileageCorrection,
   recordVisitPayCorrection,
   rejectPayItem,
   reversePayItem,
@@ -52,6 +54,19 @@ export function useVisitPayCorrections(visitReconciliationId: string | undefined
 export function useRecordVisitPayCorrection() {
   const invalidate = useInvalidatePayItems()
   return useMutation({ mutationFn: recordVisitPayCorrection, onSuccess: invalidate })
+}
+
+export function useVisitMileageCorrections(visitReconciliationId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.visitMileageCorrections(visitReconciliationId ?? ''),
+    queryFn: () => fetchVisitMileageCorrections(visitReconciliationId as string),
+    enabled: enabled && !!visitReconciliationId,
+  })
+}
+
+export function useRecordMileageCorrection() {
+  const invalidate = useInvalidatePayItems()
+  return useMutation({ mutationFn: recordMileageCorrection, onSuccess: invalidate })
 }
 
 export function useReversePayItem() {

@@ -9,6 +9,8 @@ export const billingKeys = {
     [...billingKeys.all, 'pay-items', params ?? {}] as const,
   payItemSuggestion: (params: { employeeId: string; wageTypeCode: string; unit: string; date: string }) =>
     [...billingKeys.all, 'pay-items', 'suggestion', params] as const,
+  visitMileageCorrections: (visitReconciliationId: string) =>
+    [...billingKeys.all, 'pay-items', 'mileage-corrections', visitReconciliationId] as const,
   visitPayCorrections: (visitReconciliationId: string) =>
     [...billingKeys.all, 'pay-items', 'visit-corrections', visitReconciliationId] as const,
   bankHolidays: (params?: { region?: string; year?: string }) =>

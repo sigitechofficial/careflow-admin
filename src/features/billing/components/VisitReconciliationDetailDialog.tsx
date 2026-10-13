@@ -34,6 +34,7 @@ import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
 import { VisitPayCorrectionsCard } from '@/features/billing/components/VisitPayCorrectionsCard'
+import { VisitMileageCorrectionCard } from '@/features/billing/components/VisitMileageCorrectionCard'
 
 type Props = {
   open: boolean
@@ -803,10 +804,11 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 ) : (
                   <p className="text-xs text-muted-foreground">
                     {paySettled
-                      ? 'Paid — mileage can no longer be edited here. Use a pay correction for a difference.'
+                      ? 'Paid — mileage can no longer be edited here. Record a mileage correction below for a difference.'
                       : 'Locked — mileage can no longer be edited.'}
                   </p>
                 )}
+                {paySettled ? <VisitMileageCorrectionCard visitReconciliationId={row.id} /> : null}
               </ContentCard>
 
               <div className={cn('space-y-2', carerNotPaid && 'opacity-70')}>
