@@ -97,6 +97,9 @@ export type UpsertEmployeePayrollProfileInput = {
   deductionElections?: string[]
   pensionSchemeRef?: string | null
   apprenticeshipStartDate?: string | null
+  isDirector?: boolean | null
+  directorAppointedOn?: string | null
+  directorNicMethod?: 'AN' | null
   bankSortCode?: string | null
   bankAccountNumber?: string | null
   bankAccountName?: string | null

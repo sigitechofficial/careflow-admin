@@ -150,6 +150,11 @@ export type EmployeePayrollProfile = {
   pensionSchemeRef: string | null
   /** The day the apprenticeship began: decides the apprentice minimum wage rate at 19 or over. */
   apprenticeshipStartDate?: string | null
+  /** Gate C7/C8: company director for NI as confirmed; null = not yet classified (tax and NI not calculated). */
+  isDirector?: boolean | null
+  directorAppointedOn?: string | null
+  /** Directors' NIC method: AN (standard annual earnings period) is the only one supported. */
+  directorNicMethod?: 'AN' | null
   deductionElections: string[]
   bankSortCode: string | null
   bankAccountNumber: string | null
