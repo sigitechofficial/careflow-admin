@@ -172,3 +172,10 @@ export type RecordLoanNoticeInput = {
   effectivePayday: string
   notes?: string
 }
+
+/** Gate C15: body of POST /payroll/employees/:id/loan-notices/:noticeId/correction. */
+export type CorrectLoanNoticeInput = {
+  reason: string
+  evidenceReference: string
+  replacement?: RecordLoanNoticeInput
+}

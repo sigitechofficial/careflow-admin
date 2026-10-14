@@ -56,6 +56,7 @@ import {
   upsertEmployeePayrollProfile,
   fetchLoanNotices,
   recordLoanNotice,
+  correctLoanNotice,
 } from '@/features/payroll/api/payroll.api'
 import { payrollKeys } from '@/features/payroll/keys'
 import type {
@@ -70,6 +71,7 @@ import type {
   UpdatePayrollTaxCodeInput,
   UpsertEmployeePayrollProfileInput,
   RecordLoanNoticeInput,
+  CorrectLoanNoticeInput,
 } from '@/features/payroll/types/payroll-api.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { collectHmrcFraudClientContext } from '@/features/payroll/utils/hmrc-fraud-client-context.util'
@@ -453,6 +455,20 @@ export function useRecordLoanNotice(employeeId: string) {
     onSuccess: async (res) => {
       await qc.invalidateQueries({ queryKey: payrollKeys.loanNotices(employeeId) })
       toastSuccess(res?.duplicate ? 'This notice was already recorded' : 'Notice recorded')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+/** Gate C15: correct a loan notice recorded in error. */
+export function useCorrectLoanNotice(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ noticeId, body }: { noticeId: string; body: CorrectLoanNoticeInput }) =>
+      correctLoanNotice(employeeId, noticeId, body),
+    onSuccess: async (res) => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.loanNotices(employeeId) })
+      toastSuccess(res?.duplicate ? 'This correction was already recorded' : res?.message ?? 'Notice corrected')
     },
     onError: (error) => toastApiError(error),
   })

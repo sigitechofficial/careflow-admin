@@ -5,13 +5,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ApiError } from '@/shared/api/api-client'
 import type { EmployeeLoanNotice } from '@/features/payroll/types/payroll.types'
 
-const state = vi.hoisted(() => ({ notices: [] as unknown[], record: vi.fn(), fetch: vi.fn() }))
+const state = vi.hoisted(() => ({ notices: [] as unknown[], record: vi.fn(), fetch: vi.fn(), correct: vi.fn() }))
 
 vi.mock('@/shared/lib/toast', () => ({ toastApiError: vi.fn(), toastSuccess: vi.fn() }))
 vi.mock('@/features/payroll/api/payroll.api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/payroll/api/payroll.api')>()),
   fetchLoanNotices: state.fetch,
   recordLoanNotice: state.record,
+  correctLoanNotice: state.correct,
 }))
 
 import { LoanNoticesSection } from './LoanNoticesSection'
@@ -50,6 +51,7 @@ describe('student and postgraduate loan notices on the payroll profile (Gate C14
     state.notices = []
     state.fetch.mockReset().mockImplementation(async () => state.notices)
     state.record.mockReset()
+    state.correct.mockReset()
   })
 
   it('SL1 needs the plan, the dates and the confirmation; once saved the history is reloaded', async () => {
@@ -108,5 +110,35 @@ describe('student and postgraduate loan notices on the payroll profile (Gate C14
     expect(screen.queryByTestId('loan-notice-form')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Record notice' })).toBeNull()
     expect(screen.getByTestId('loan-notices')).toHaveTextContent('cannot be edited or deleted here')
+  })
+
+  it('Gate C15: a manager marks an entry as recorded in error with a reason and evidence and sees it in the history; a reader cannot', async () => {
+    state.notices = [notice()]
+    state.correct.mockImplementation(async () => {
+      state.notices = [notice({ status: 'VOIDED', voidReason: 'Keyed for the wrong employee', voidEvidenceRef: 'HMRC SL1 SL1-A', voidedAt: '2026-05-20T09:00:00.000Z' })]
+      return { message: 'Notice marked as recorded in error', duplicate: false }
+    })
+    const view = show()
+    fireEvent.click(await screen.findByRole('button', { name: 'Recorded in error' }))
+    const panel = screen.getByTestId('loan-notice-correction')
+    expect(panel).toHaveTextContent('does not stop or change a genuine HMRC instruction')
+    expect(screen.getByRole('button', { name: 'Save correction' })).toBeDisabled()
+    set('Reason for the correction', 'Keyed for the wrong employee')
+    set('Evidence reference', 'HMRC SL1 SL1-A')
+    fireEvent.click(screen.getByLabelText('I confirm this corrects Careflow’s record only'.replace('’', "'")))
+    fireEvent.click(screen.getByRole('button', { name: 'Save correction' }))
+    await waitFor(() =>
+      expect(state.correct).toHaveBeenCalledWith('e-1', 'n-1', { reason: 'Keyed for the wrong employee', evidenceReference: 'HMRC SL1 SL1-A' }),
+    )
+    const history = await screen.findByTestId('loan-notice-history')
+    await waitFor(() => expect(history).toHaveTextContent('Voided (recorded in error)'))
+    expect(history).toHaveTextContent('Keyed for the wrong employee · evidence HMRC SL1 SL1-A')
+    view.unmount()
+
+    state.notices = [notice()]
+    show({ canEdit: false })
+    await screen.findByTestId('loan-notice-history')
+    expect(screen.queryByRole('button', { name: 'Recorded in error' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Correct entry' })).toBeNull()
   })
 })

@@ -1,5 +1,6 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  CorrectLoanNoticeInput,
   RecordLoanNoticeInput,
   CreatePayrollScheduleInput,
   CreatePayrollTaxCodeInput,
@@ -363,6 +364,14 @@ export async function fetchLoanNotices(employeeId: string) {
 export async function recordLoanNotice(employeeId: string, body: RecordLoanNoticeInput) {
   return apiJson<ApiEnvelope<EmployeeLoanNotice> & { duplicate?: boolean }>(
     `/payroll/employees/${employeeId}/loan-notices`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+}
+
+/** Gate C15: correct a notice recorded in error in Careflow (voids it; optional replacement). */
+export async function correctLoanNotice(employeeId: string, noticeId: string, body: CorrectLoanNoticeInput) {
+  return apiJson<{ message: string; duplicate?: boolean }>(
+    `/payroll/employees/${employeeId}/loan-notices/${noticeId}/correction`,
     { method: 'POST', body: JSON.stringify(body) },
   )
 }

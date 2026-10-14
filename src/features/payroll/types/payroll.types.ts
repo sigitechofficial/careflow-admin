@@ -702,4 +702,11 @@ export type EmployeeLoanNotice = {
   notes: string | null
   createdById: string
   createdAt: string
+  /** Gate C15: ACTIVE, VOIDED (recorded in error) or CORRECTED (voided and replaced). */
+  status?: 'ACTIVE' | 'VOIDED' | 'CORRECTED'
+  voidedAt?: string | null
+  voidReason?: string | null
+  voidEvidenceRef?: string | null
+  replacedById?: string | null
+  replacesId?: string | null
 }
