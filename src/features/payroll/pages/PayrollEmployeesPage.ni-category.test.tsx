@@ -15,6 +15,7 @@ vi.mock('@/features/payroll/components/PayrollSectionLayout', () => ({
   PayrollSectionLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 vi.mock('@/features/payroll/components/PayAgreementsPanel', () => ({ PayAgreementsPanel: () => null }))
+vi.mock('@/features/payroll/components/LoanNoticesSection', () => ({ LoanNoticesSection: () => null }))
 vi.mock('@/features/payroll/components/DirectorStatusSection', () => ({
   DirectorStatusSection: () => null,
   directorStatusLabel: () => 'Not yet classified',

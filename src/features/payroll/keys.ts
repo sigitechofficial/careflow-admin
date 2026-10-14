@@ -13,6 +13,7 @@ export const payrollKeys = {
   employees: (locationId?: string | null) =>
     [...payrollKeys.all, 'employees', locationId ?? 'all'] as const,
   profile: (employeeId: string) => [...payrollKeys.all, 'profile', employeeId] as const,
+  loanNotices: (employeeId: string) => [...payrollKeys.all, 'loan-notices', employeeId] as const,
   agreements: (employeeId: string) => [...payrollKeys.all, 'agreements', employeeId] as const,
   runs: (locationId?: string | null) =>
     [...payrollKeys.all, 'runs', locationId ?? 'all'] as const,

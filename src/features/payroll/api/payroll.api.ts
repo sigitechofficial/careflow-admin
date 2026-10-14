@@ -1,5 +1,6 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  RecordLoanNoticeInput,
   CreatePayrollScheduleInput,
   CreatePayrollTaxCodeInput,
   CreatePayrollTaxYearInput,
@@ -29,6 +30,7 @@ import type {
   UkPayrollPayslipListItem,
   CareFpsPayload,
   SalariedHoursMethods,
+  EmployeeLoanNotice,
 } from '@/features/payroll/types/payroll.types'
 import type { HmrcFraudClientContext } from '@/features/payroll/utils/hmrc-fraud-client-context.util'
 
@@ -350,6 +352,19 @@ export async function upsertEmployeePayrollProfile(
     },
   )
   return res.data
+}
+
+/** Gate C14: HMRC loan notices (C13 endpoints). */
+export async function fetchLoanNotices(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<EmployeeLoanNotice[]>>(`/payroll/employees/${employeeId}/loan-notices`)
+  return res.data ?? []
+}
+
+export async function recordLoanNotice(employeeId: string, body: RecordLoanNoticeInput) {
+  return apiJson<ApiEnvelope<EmployeeLoanNotice> & { duplicate?: boolean }>(
+    `/payroll/employees/${employeeId}/loan-notices`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
 }
 
 export async function fetchEmployeePayAgreements(employeeId: string) {

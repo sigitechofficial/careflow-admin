@@ -686,3 +686,20 @@ export type PayrollHmrcSubmission = {
   /** T21 — append-only lifecycle events (detail endpoints). */
   auditEvents?: PayrollHmrcSubmissionAuditEvent[]
 }
+
+/** Gate C13/C14: an HMRC student / postgraduate loan start or stop notice as recorded. */
+export type LoanNoticeType = 'SL1' | 'SL2' | 'PGL1' | 'PGL2'
+
+export type EmployeeLoanNotice = {
+  id: string
+  employeeId: string
+  noticeType: LoanNoticeType
+  studentLoanPlan: '1' | '2' | '4' | '5' | null
+  hmrcReference: string | null
+  noticeDate: string
+  receivedOn: string
+  effectivePayday: string
+  notes: string | null
+  createdById: string
+  createdAt: string
+}

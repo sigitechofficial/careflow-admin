@@ -161,3 +161,14 @@ export type PreviewEpsQuery = {
   spbpRecovered?: number
   nicCompensationOnStatutory?: number
 }
+
+/** Gate C14: body of POST /payroll/employees/:id/loan-notices (C13 RecordLoanNoticeDto). */
+export type RecordLoanNoticeInput = {
+  noticeType: 'SL1' | 'SL2' | 'PGL1' | 'PGL2'
+  studentLoanPlan?: '1' | '2' | '4' | '5'
+  hmrcReference?: string
+  noticeDate: string
+  receivedOn: string
+  effectivePayday: string
+  notes?: string
+}

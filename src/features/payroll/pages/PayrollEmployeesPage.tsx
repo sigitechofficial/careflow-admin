@@ -13,6 +13,7 @@ import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSecti
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
 import { PayAgreementsPanel } from '@/features/payroll/components/PayAgreementsPanel'
 import { DirectorStatusSection, directorStatusLabel } from '@/features/payroll/components/DirectorStatusSection'
+import { LoanNoticesSection } from '@/features/payroll/components/LoanNoticesSection'
 import { PayrollInfoHeading } from '@/features/payroll/components/PayrollInfoHeading'
 // Other deductions catalogue — hidden until Phase 4 engines calculate £ amounts.
 // import { UkPayrollDeductionsCatalogPanel } from '@/features/payroll/components/UkPayrollDeductionsCatalogPanel'
@@ -758,6 +759,10 @@ export default function PayrollEmployeesPage() {
 
             {selectedId ? (
               <DirectorStatusSection employeeId={selectedId} profile={selected?.profile} canEdit={canManage} />
+            ) : null}
+
+            {selectedId ? (
+              <LoanNoticesSection employeeId={selectedId} profile={selected?.profile} canEdit={canManage} />
             ) : null}
 
             {selectedId ? (

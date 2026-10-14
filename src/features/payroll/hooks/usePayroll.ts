@@ -54,6 +54,8 @@ import {
   updatePayrollStatutoryRates,
   updatePayrollTaxCode,
   upsertEmployeePayrollProfile,
+  fetchLoanNotices,
+  recordLoanNotice,
 } from '@/features/payroll/api/payroll.api'
 import { payrollKeys } from '@/features/payroll/keys'
 import type {
@@ -67,6 +69,7 @@ import type {
   UpdatePayrollStatutoryRatesInput,
   UpdatePayrollTaxCodeInput,
   UpsertEmployeePayrollProfileInput,
+  RecordLoanNoticeInput,
 } from '@/features/payroll/types/payroll-api.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { collectHmrcFraudClientContext } from '@/features/payroll/utils/hmrc-fraud-client-context.util'
@@ -429,6 +432,27 @@ export function useUpsertEmployeePayrollProfile(employeeId: string) {
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'employees'] })
       await qc.invalidateQueries({ queryKey: payrollKeys.profile(employeeId) })
       toastSuccess('Payroll profile saved')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+/** Gate C14: HMRC loan notices of one employee. */
+export function useLoanNotices(employeeId: string) {
+  return useQuery({
+    queryKey: payrollKeys.loanNotices(employeeId),
+    queryFn: () => fetchLoanNotices(employeeId),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useRecordLoanNotice(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: RecordLoanNoticeInput) => recordLoanNotice(employeeId, body),
+    onSuccess: async (res) => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.loanNotices(employeeId) })
+      toastSuccess(res?.duplicate ? 'This notice was already recorded' : 'Notice recorded')
     },
     onError: (error) => toastApiError(error),
   })
