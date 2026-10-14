@@ -44,9 +44,14 @@ const NI_OPTIONS = buildNiCategoryComboboxOptions()
  */
 export function PayrollProfileTaxForm({ row, canManage }: { row: EmployeePayrollSetupRow; canManage: boolean }) {
   const upsertMut = useUpsertEmployeePayrollProfile(row.employeeId)
-  const { data: schedules = [] } = usePayrollSchedules()
-  const { data: taxCodes = [] } = usePayrollTaxCodes()
-  const { data: statutoryRates = [] } = usePayrollStatutoryRates()
+  // Stable lists while loading or on error: a new [] on every render would re-run the effect below
+  // (it depends on knownTaxCodes) and loop ("Maximum update depth exceeded").
+  const { data: schedulesData } = usePayrollSchedules()
+  const { data: taxCodesData } = usePayrollTaxCodes()
+  const { data: statutoryRatesData } = usePayrollStatutoryRates()
+  const schedules = React.useMemo(() => schedulesData ?? [], [schedulesData])
+  const taxCodes = React.useMemo(() => taxCodesData ?? [], [taxCodesData])
+  const statutoryRates = React.useMemo(() => statutoryRatesData ?? [], [statutoryRatesData])
   const displayRates = React.useMemo(() => {
     const current =
       statutoryRates.find((r) => r.taxYear?.isCurrent) ?? statutoryRates[0] ?? null

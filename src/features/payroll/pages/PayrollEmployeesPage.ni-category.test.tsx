@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { EmployeePayrollProfile, EmployeePayrollSetupRow } from '@/features/payroll/types/payroll.types'
 
 // Stable lists, as react-query returns them (a new [] on every render would re-run the form's effect).
-const state = vi.hoisted(() => ({ rows: [] as unknown[], mutate: vi.fn(), none: [] as unknown[] }))
+const state = vi.hoisted(() => ({ rows: [] as unknown[], mutate: vi.fn(), none: [] as unknown[], loading: false }))
 
 vi.mock('@/features/auth/store', () => ({
   useAuthStore: (selector: (s: unknown) => unknown) => selector({ can: () => true, user: { id: 'u-1' } }),
@@ -27,9 +27,9 @@ vi.mock('@/features/payroll/components/DirectorStatusSection', () => ({
 }))
 vi.mock('@/features/payroll/hooks/usePayroll', () => ({
   usePayrollEmployees: () => ({ data: state.rows, isLoading: false }),
-  usePayrollSchedules: () => ({ data: state.none }),
-  usePayrollTaxCodes: () => ({ data: state.none }),
-  usePayrollStatutoryRates: () => ({ data: state.none }),
+  usePayrollSchedules: () => ({ data: state.loading ? undefined : state.none }),
+  usePayrollTaxCodes: () => ({ data: state.loading ? undefined : state.none }),
+  usePayrollStatutoryRates: () => ({ data: state.loading ? undefined : state.none }),
   useUpsertEmployeePayrollProfile: () => ({ mutate: state.mutate, isPending: false }),
 }))
 
@@ -83,6 +83,13 @@ const saveProfile = () => fireEvent.click(screen.getByRole('button', { name: 'Sa
 describe('NI category on the payroll profile form: never assumed to be A (Gate C9)', () => {
   beforeEach(() => {
     state.mutate.mockReset()
+    state.loading = false
+  })
+
+  it('does not loop while the tax codes, schedules and rates are still loading (no data yet)', () => {
+    state.loading = true
+    openProfile(profile({ niCategory: 'A' }))
+    expect(niField()).toHaveTextContent(/^A/)
   })
 
   it('a missing NI category shows "Not set", not A, with a clear message', () => {
