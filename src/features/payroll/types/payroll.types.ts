@@ -314,6 +314,18 @@ export type UkPayrollPayslipListItem = {
   incomeTax: number
   employeeNi: number
   netPay: number
+  /**
+   * Gate C20: stored on the closed run. An applied marker of null means the run was calculated
+   * before that figure was recorded (historical detail unavailable, not a zero).
+   */
+  studentLoanPlanApplied?: '1' | '2' | '4' | '5' | 'NONE' | null
+  studentLoanDeduction?: number
+  postgraduateLoanApplied?: boolean | null
+  postgraduateLoanDeduction?: number
+  pensionApplied?: boolean | null
+  pensionEmployeeNet?: number
+  /** Employer-paid: not an employee deduction. */
+  pensionEmployer?: number
   taxCodeApplied: string | null
   niCategoryApplied: string | null
   /** Bank disbursement via Employee payouts (separate from scheduled pay date). */
