@@ -1,3 +1,4 @@
+import type { PayTimeEdit } from '@/features/billing/utils/pay-time-outcome.util'
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
   ApproveScope,
@@ -105,8 +106,8 @@ export async function updateVisitReconciliation(
     travelMiles?: number | null
     travelMinutes?: number | null
   },
-): Promise<VisitReconciliationDetail> {
-  const res = await apiJson<ApiEnvelope<VisitReconciliationDetail>>(
+): Promise<VisitReconciliationDetail & { payTimeEdit?: PayTimeEdit }> {
+  const res = await apiJson<ApiEnvelope<VisitReconciliationDetail & { payTimeEdit?: PayTimeEdit }>>(
     `/billing/visit-reconciliations/${id}`,
     {
       method: 'PATCH',

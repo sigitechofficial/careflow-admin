@@ -27,7 +27,8 @@ import {
 } from '@/features/billing/hooks/useVisitReconciliations'
 import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
 import type { VisitReconciliationRateBreakdown } from '@/features/billing/types/visit-reconciliation.types'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastSuccess, toastWithVariant } from '@/shared/lib/toast'
+import { payTimeEditNotice } from '@/features/billing/utils/pay-time-outcome.util'
 import { useAuthStore } from '@/features/auth/store'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
@@ -397,14 +398,17 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
   const saveTravel = async () => {
     if (!detail || !canEditTravel) return
     try {
-      await updateMutation.mutateAsync({
+      const saved = await updateMutation.mutateAsync({
         id: detail.id,
         body: {
           travelMiles: travelMiles.trim() === '' ? null : Number(travelMiles),
           // Travel time UI is hidden for now — keep existing value unchanged.
         },
       })
-      toastSuccess('Mileage saved. Payroll will use this with the pay card mileage rate.')
+      // A response that reports a payable-time edit is shown as it is, never as a plain success.
+      const notice = payTimeEditNotice(saved.payTimeEdit)
+      if (notice) toastWithVariant(notice.variant, notice.title, notice.description)
+      else toastSuccess('Mileage saved. Payroll will use this with the pay card mileage rate.')
     } catch (err) {
       toastApiError(err, 'Could not save mileage.')
     }
