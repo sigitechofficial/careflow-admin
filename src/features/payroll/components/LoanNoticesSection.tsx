@@ -211,11 +211,11 @@ export function LoanNoticesSection({
 
   return (
     <section className="space-y-3 rounded-md border border-border p-3" data-testid="loan-notices">
-      <h3 className="text-sm font-medium">Student &amp; Postgraduate Loan Notices</h3>
+      <h3 className="text-sm font-medium">HMRC loan letters (SL1, SL2, PGL1, PGL2)</h3>
       {legacy.length ? (
         <p className="text-xs text-amber-700 dark:text-amber-300" data-testid="loan-notices-legacy">
-          This profile&apos;s loan settings ({legacy.join(', ')}) are not verified HMRC notices: check where they came from
-          (starter checklist, P45 or HMRC). Until a notice is in force, payroll deducts using these settings.
+          The plans set for this carer ({legacy.join(', ')}) are not verified HMRC notices: payroll uses them until an HMRC
+          letter is recorded here.
         </p>
       ) : null}
 
@@ -330,22 +330,25 @@ export function LoanNoticesSection({
       ) : null}
 
       {canEdit ? (
-        <div className="space-y-2" data-testid="loan-notice-form">
-          <NoticeFields draft={draft} onChange={setDraft} />
-          {missing.length ? <p className="text-xs text-muted-foreground">Still needed: {missing.join(', ')}.</p> : null}
-          {error ? (
-            <p className="text-xs text-destructive" role="alert">
-              {error}
+        <details className="rounded-md border border-border p-2">
+          <summary className="cursor-pointer text-sm font-medium">Record an HMRC letter</summary>
+          <div className="mt-2 space-y-2" data-testid="loan-notice-form">
+            <NoticeFields draft={draft} onChange={setDraft} />
+            {missing.length ? <p className="text-xs text-muted-foreground">Still needed: {missing.join(', ')}.</p> : null}
+            {error ? (
+              <p className="text-xs text-destructive" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              Recording a notice does not recalculate any pay and does not report anything to HMRC. It applies to tax and NI
+              calculated for paydays from the effective payday; closed runs are not changed.
             </p>
-          ) : null}
-          <p className="text-xs text-muted-foreground">
-            Recording a notice does not recalculate any pay and does not report anything to HMRC. It applies to tax and NI
-            calculated for paydays from the effective payday; closed runs are not changed.
-          </p>
-          <Button size="sm" variant="outline" disabled={record.isPending || missing.length > 0} onClick={() => void onSubmit()}>
-            Record notice
-          </Button>
-        </div>
+            <Button size="sm" variant="outline" disabled={record.isPending || missing.length > 0} onClick={() => void onSubmit()}>
+              Record notice
+            </Button>
+          </div>
+        </details>
       ) : null}
     </section>
   )
