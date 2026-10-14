@@ -121,7 +121,7 @@ function RecoveryPolicyCard({ canApprove }: { canApprove: boolean }) {
                 <span className="text-xs font-medium text-foreground/90">
                   Where the approved policy and its legal authority are recorded
                 </span>
-                <input className={inputClass} value={reference} onChange={e => setReference(e.target.value)} />
+                <input className={inputClass} value={reference} onChange={e => setReference(e.target.value)} placeholder="At least 10 characters, e.g. Recovery policy v1, approved by the directors 2026-09-01" />
               </label>
               <Button size="sm" disabled={reference.trim().length < 10 || recordPolicy.isPending} onClick={() => void onRecord()}>
                 Record policy
@@ -169,7 +169,12 @@ function RecoveryDetail({
 
   const ownProposal = r.proposedById != null && r.proposedById === currentUserId
   const authorityLabel = RECOVERY_AUTHORITY_TYPES.find(a => a.value === authorityType)?.label
-  const canSaveApproval = !!authorityLabel && authorityReference.trim().length >= 10 && reason.trim().length >= 5
+  const approvalMissing = [
+    !authorityLabel ? 'choose the authority' : null,
+    authorityReference.trim().length < 10 ? 'a reference of at least 10 characters (e.g. "Clause 9.2, contract 2026-01-05")' : null,
+    reason.trim().length < 5 ? 'a reason of at least 5 characters' : null,
+  ].filter(Boolean)
+  const canSaveApproval = approvalMissing.length === 0
   const busy = approve.isPending || reject.isPending
 
   const onApprove = async () => {
@@ -302,13 +307,18 @@ function RecoveryDetail({
                   </label>
                   <label className="space-y-1 text-sm">
                     <span className="text-xs font-medium text-foreground/90">Reference (clause, document, date)</span>
-                    <input className={inputClass} value={authorityReference} onChange={e => setAuthorityReference(e.target.value)} />
+                    <input className={inputClass} value={authorityReference} onChange={e => setAuthorityReference(e.target.value)} placeholder="e.g. Clause 9.2, contract 2026-01-05" />
                   </label>
                 </div>
                 <label className="block space-y-1 text-sm">
                   <span className="text-xs font-medium text-foreground/90">Reason for authorising</span>
                   <input className={inputClass} value={reason} onChange={e => setReason(e.target.value)} />
                 </label>
+                {approvalMissing.length && (authorityType || authorityReference || reason) ? (
+                  <p className="text-xs text-muted-foreground" data-testid="recovery-authorise-missing">
+                    Still needed: {approvalMissing.join(', ')}.
+                  </p>
+                ) : null}
                 <Button size="sm" disabled={!canSaveApproval || busy} onClick={() => void onApprove()}>
                   Authorise recovery
                 </Button>
@@ -321,7 +331,7 @@ function RecoveryDetail({
                 <div className="mt-2 space-y-2">
                 <label className="block space-y-1 text-sm">
                   <span className="text-xs font-medium text-foreground/90">Reason for not recovering</span>
-                  <input className={inputClass} value={rejectNote} onChange={e => setRejectNote(e.target.value)} />
+                  <input className={inputClass} value={rejectNote} onChange={e => setRejectNote(e.target.value)} placeholder="At least 5 characters, e.g. Our own error; not recovered" />
                 </label>
                 <Button size="sm" variant="outline" disabled={rejectNote.trim().length < 5 || busy} onClick={() => void onReject()}>
                   Reject and write off

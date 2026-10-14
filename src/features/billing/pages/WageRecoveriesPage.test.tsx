@@ -128,6 +128,7 @@ describe('wage recoveries screen (Sprint B4A, Task 1)', () => {
     type('Authority for the deduction', 'CONTRACT_TERM')
     type('Reference (clause, document, date)', 'cl 9')
     expect(save).toBeDisabled() // too short to be a reference
+    expect(screen.getByTestId('recovery-authorise-missing')).toHaveTextContent('a reference of at least 10 characters')
     type('Reference (clause, document, date)', 'Clause 9.2, contract of 2026-01-05')
     expect(save).toBeEnabled()
     fireEvent.click(save)
