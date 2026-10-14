@@ -1337,6 +1337,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   const renderDayTimePremiumCard = (rule: PayCardRule, index: number) => {
     const matched = forceCustomPeriod[index] ? undefined : matchPayTimePeriod(rule)
     const isCustom = !matched
+    // Pay cards: a named period shows its days and times as one line; From / Until open on request.
+    const compact = mode === 'pay' && !isCustom
     const fieldLabelClass = 'text-xs font-medium text-foreground/90'
     const isPeriodTaken = (code: PayTimePeriodCode) => {
       if (matched?.code === code) return false
@@ -1515,6 +1517,20 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             </label>
           ) : null}
 
+          {compact ? (
+            <p className="text-xs text-muted-foreground sm:col-span-2" data-testid="pay-rule-period-summary">
+              {formatPayCardRuleDayType(rule.dayType)} · {formatPayCardRuleTimeBand(rule) ?? 'any time'} ·{' '}
+              <button
+                type="button"
+                className="font-medium text-primary hover:underline"
+                onClick={() => setForceCustomPeriod(prev => ({ ...prev, [index]: true }))}
+                disabled={disabled}
+              >
+                Change days or times
+              </button>
+            </p>
+          ) : null}
+          {compact ? null : (
           <label className="space-y-1 text-sm">
             <span className={fieldLabelClass}>
               From <span className="text-destructive" aria-hidden>*</span>
@@ -1536,6 +1552,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               required
             />
           </label>
+          )}
+          {compact ? null : (
           <label className="space-y-1 text-sm">
             <span className={fieldLabelClass}>
               Until <span className="text-destructive" aria-hidden>*</span>
@@ -1556,6 +1574,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               required
             />
           </label>
+          )}
         </div>
       </div>
     )

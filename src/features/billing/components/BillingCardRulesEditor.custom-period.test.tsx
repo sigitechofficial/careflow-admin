@@ -88,4 +88,22 @@ describe('pay card rules: custom period (PC-02)', () => {
     expect((periodSelects()[0] as HTMLSelectElement).selectedOptions[0].textContent).toBe('Custom…')
     expect((periodSelects()[0] as HTMLSelectElement).checkValidity()).toBe(true)
   })
+
+  it('a named period shows its days and times as one line; "Change days or times" opens From / Until without changing the rate', () => {
+    const named = PAY_TIME_PERIOD_LOOKUP[0]
+    const onRules = vi.fn()
+    render(<Harness initial={[customBand]} onRules={onRules} />)
+    fireEvent.change(periodSelects()[0], { target: { value: named.code } })
+    const afterNamed = onRules.mock.calls.at(-1)![0] as PayCardRule[]
+
+    const summary = screen.getByTestId('pay-rule-period-summary')
+    expect(summary).toHaveTextContent(`${afterNamed[0].startTime}–${afterNamed[0].endTime}`)
+    expect(screen.queryByDisplayValue(afterNamed[0].startTime!)).toBeNull() // no From / Until inputs
+
+    const calls = onRules.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: 'Change days or times' }))
+    expect(onRules.mock.calls.length).toBe(calls) // nothing changed by opening the times
+    expect(screen.getByDisplayValue(afterNamed[0].startTime!)).toBeInTheDocument()
+    expect(screen.queryByTestId('pay-rule-period-summary')).toBeNull()
+  })
 })
