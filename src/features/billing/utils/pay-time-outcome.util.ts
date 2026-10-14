@@ -14,7 +14,14 @@ export type PayTimeEdit = {
 export type AttendancePayResult = {
   reconciliationId: string
   visitRef: string
-  outcome: 'REPRICED' | 'PAY_UNCHANGED' | 'MANUAL_AMOUNT_KEPT' | 'CORRECTION_RECORDED' | 'NO_CORRECTION' | 'REVIEW_NEEDED'
+  outcome:
+    | 'REPRICED'
+    | 'PAY_UNCHANGED'
+    | 'PAY_NOT_RECALCULATED'
+    | 'MANUAL_AMOUNT_KEPT'
+    | 'CORRECTION_RECORDED'
+    | 'NO_CORRECTION'
+    | 'REVIEW_NEEDED'
   message: string
   payableBefore: string | null
   payableAfter: string | null
@@ -54,6 +61,10 @@ export function attendancePayNotice(response: unknown): PayNotice {
   if (!results.length) return { variant: 'success', title: 'Manual attendance recorded' }
   const lines = results.map(r => (results.length > 1 ? `${r.visitRef}: ${r.message}` : r.message)).join(' ')
   const outcomes = new Set(results.map(r => r.outcome))
+  // The times are on record but pay is not: never shown as a success.
+  if (outcomes.has('PAY_NOT_RECALCULATED')) {
+    return { variant: 'destructive', title: 'Attendance recorded; carer pay not recalculated', description: lines }
+  }
   if ([...outcomes].every(o => o === 'REPRICED')) {
     return { variant: 'success', title: 'Attendance recorded; carer pay recalculated', description: lines }
   }

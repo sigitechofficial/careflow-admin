@@ -90,6 +90,15 @@ describe('what an office-verified attendance time is reported as (Sprint B4E)', 
     expect(mixed.description).toBe('VIS-1: Times updated and carer pay recalculated. VIS-2: Record a pay correction by hand.')
   })
 
+  it('times recorded but pay not recalculated: an error notice, never a success (Sprint B4F)', () => {
+    const message = 'Times recorded, but carer pay could not be recalculated: Something went wrong. The visit is held for review; retry it from Pay calculation failures (reference 1a2b3c4d).'
+    expect(attendancePayNotice(envelope([result('PAY_NOT_RECALCULATED', message)]))).toEqual({
+      variant: 'destructive',
+      title: 'Attendance recorded; carer pay not recalculated',
+      description: message,
+    })
+  })
+
   it('a visit that is not completed yet has no pay results: the time is simply recorded', () => {
     expect(attendancePayNotice(envelope([]))).toEqual({ variant: 'success', title: 'Manual attendance recorded' })
   })
