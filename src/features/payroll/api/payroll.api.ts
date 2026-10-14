@@ -1,5 +1,7 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  PensionAeEventInput,
+  ProposeDeductionAdjustmentInput,
   CorrectLoanNoticeInput,
   RecordLoanNoticeInput,
   CreatePayrollScheduleInput,
@@ -32,6 +34,9 @@ import type {
   CareFpsPayload,
   SalariedHoursMethods,
   EmployeeLoanNotice,
+  EmployeePensionAe,
+  PayrollDeductionAdjustment,
+  PensionContributions,
 } from '@/features/payroll/types/payroll.types'
 import type { HmrcFraudClientContext } from '@/features/payroll/utils/hmrc-fraud-client-context.util'
 
@@ -374,6 +379,34 @@ export async function correctLoanNotice(employeeId: string, noticeId: string, bo
     `/payroll/employees/${employeeId}/loan-notices/${noticeId}/correction`,
     { method: 'POST', body: JSON.stringify(body) },
   )
+}
+
+/** Loan / pension completion: corrections of closed runs (maker/checker). */
+export async function fetchDeductionAdjustments(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<PayrollDeductionAdjustment[]>>(`/payroll/adjustments?employeeId=${encodeURIComponent(employeeId)}`)
+  return res.data ?? []
+}
+
+export async function proposeDeductionAdjustment(body: ProposeDeductionAdjustmentInput) {
+  return apiJson<{ message: string; duplicate?: boolean }>('/payroll/adjustments', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function reviewDeductionAdjustment(id: string, body: { decision: 'APPROVE' | 'REJECT'; note?: string }) {
+  return apiJson<{ message: string }>(`/payroll/adjustments/${id}/review`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function fetchEmployeePensionAe(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<EmployeePensionAe | null>>(`/payroll/employees/${employeeId}/pension-ae`)
+  return res.data ?? null
+}
+
+export async function recordPensionAeEvent(employeeId: string, body: PensionAeEventInput) {
+  return apiJson<{ message: string }>(`/payroll/employees/${employeeId}/pension-ae/events`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function fetchPensionContributions(runId: string) {
+  const res = await apiJson<ApiEnvelope<PensionContributions>>(`/payroll/runs/${runId}/pension-contributions`)
+  return res.data
 }
 
 export async function fetchEmployeePayAgreements(employeeId: string) {

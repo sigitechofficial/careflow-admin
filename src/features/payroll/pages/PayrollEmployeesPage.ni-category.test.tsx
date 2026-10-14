@@ -17,6 +17,9 @@ vi.mock('@/features/payroll/components/PayrollSectionLayout', () => ({
 vi.mock('@/features/payroll/components/PayAgreementsPanel', () => ({ PayAgreementsPanel: () => null }))
 vi.mock('@/features/payroll/components/LoanNoticesSection', () => ({ LoanNoticesSection: () => null }))
 vi.mock('@/features/payroll/components/WorkplacePensionSection', () => ({ WorkplacePensionSection: () => null }))
+vi.mock('@/features/payroll/components/LoanDeclarationSection', () => ({ LoanDeclarationSection: () => null }))
+vi.mock('@/features/payroll/components/PensionAutoEnrolmentSection', () => ({ PensionAutoEnrolmentSection: () => null }))
+vi.mock('@/features/payroll/components/PayrollCorrectionsSection', () => ({ PayrollCorrectionsSection: () => null }))
 vi.mock('@/features/payroll/components/DirectorStatusSection', () => ({
   DirectorStatusSection: () => null,
   directorStatusLabel: () => 'Not yet classified',

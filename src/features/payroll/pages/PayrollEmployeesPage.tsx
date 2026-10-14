@@ -15,6 +15,9 @@ import { PayAgreementsPanel } from '@/features/payroll/components/PayAgreementsP
 import { DirectorStatusSection, directorStatusLabel } from '@/features/payroll/components/DirectorStatusSection'
 import { LoanNoticesSection } from '@/features/payroll/components/LoanNoticesSection'
 import { WorkplacePensionSection } from '@/features/payroll/components/WorkplacePensionSection'
+import { LoanDeclarationSection } from '@/features/payroll/components/LoanDeclarationSection'
+import { PensionAutoEnrolmentSection } from '@/features/payroll/components/PensionAutoEnrolmentSection'
+import { PayrollCorrectionsSection } from '@/features/payroll/components/PayrollCorrectionsSection'
 import { PayrollInfoHeading } from '@/features/payroll/components/PayrollInfoHeading'
 // Other deductions catalogue — hidden until Phase 4 engines calculate £ amounts.
 // import { UkPayrollDeductionsCatalogPanel } from '@/features/payroll/components/UkPayrollDeductionsCatalogPanel'
@@ -763,12 +766,22 @@ export default function PayrollEmployeesPage() {
             ) : null}
 
             {selectedId ? (
+              <LoanDeclarationSection employeeId={selectedId} profile={selected?.profile} canEdit={canManage} />
+            ) : null}
+
+            {selectedId ? (
               <LoanNoticesSection employeeId={selectedId} profile={selected?.profile} canEdit={canManage} />
             ) : null}
 
             {selectedId ? (
               <WorkplacePensionSection employeeId={selectedId} profile={selected?.profile} canEdit={canManage} />
             ) : null}
+
+            {selectedId ? (
+              <PensionAutoEnrolmentSection employeeId={selectedId} profile={selected?.profile} canEdit={canManage} />
+            ) : null}
+
+            {selectedId ? <PayrollCorrectionsSection employeeId={selectedId} canPropose={canManage} /> : null}
 
             {selectedId ? (
               <PayAgreementsPanel

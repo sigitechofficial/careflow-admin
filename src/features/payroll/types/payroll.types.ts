@@ -156,13 +156,20 @@ export type EmployeePayrollProfile = {
   /** Directors' NIC method: AN (standard annual earnings period) is the only one supported. */
   directorNicMethod?: 'AN' | null
   /** Gate C16/C17: workplace pension (relief at source); null status = not yet recorded. */
-  pensionStatus?: 'ENROLLED' | 'NOT_ENROLLED' | null
+  pensionStatus?: 'ENROLLED' | 'NOT_ENROLLED' | 'OPTED_OUT' | 'CEASED' | null
   pensionEnrolledFrom?: string | null
   pensionContributionBasis?: 'QUALIFYING_EARNINGS' | null
   pensionTaxRelief?: 'RAS' | 'NET_PAY' | null
   pensionEmployeeRatePercent?: number | null
   pensionEmployerRatePercent?: number | null
   pensionPolicyRef?: string | null
+  /** Student loan declaration (starter checklist / P45); null status = not yet verified. */
+  loanDeclarationStatus?: 'LOAN_DECLARED' | 'NO_LOAN_CONFIRMED' | null
+  loanDeclarationSource?: 'STARTER_CHECKLIST' | 'P45' | 'OTHER_RECORD' | null
+  loanDeclarationDate?: string | null
+  /** Automatic enrolment evidence. */
+  pensionUkWorker?: boolean | null
+  statePensionAgeDate?: string | null
   deductionElections: string[]
   bankSortCode: string | null
   bankAccountNumber: string | null
@@ -729,4 +736,77 @@ export type EmployeeLoanNotice = {
   voidEvidenceRef?: string | null
   replacedById?: string | null
   replacesId?: string | null
+}
+
+/** Correction of a loan / pension amount in a closed run (maker/checker). */
+export type PayrollDeductionAdjustment = {
+  id: string
+  employeeId: string
+  taxYearId: string
+  kind: 'STUDENT_LOAN' | 'POSTGRADUATE_LOAN' | 'PENSION_EMPLOYEE' | 'PENSION_EMPLOYER'
+  sourceRunId: string
+  originalAmount: number
+  correctedAmount: number
+  amount: number
+  reason: string
+  evidenceRef: string
+  origin: string
+  status: 'PROPOSED' | 'APPROVED' | 'REJECTED'
+  proposedById: string
+  proposedAt: string
+  reviewedById: string | null
+  reviewedAt: string | null
+  reviewNote: string | null
+  appliedRunId: string | null
+  appliedAt: string | null
+}
+
+/** Automatic enrolment duty record of one worker. */
+export type EmployeePensionAe = {
+  employeeId: string
+  lastAssessedOn: string | null
+  lastCategory: string | null
+  lastExplanation: string | null
+  automaticEnrolmentDate: string | null
+  enrolmentDeadline: string | null
+  enrolmentNoticeSentOn: string | null
+  postponementFrom: string | null
+  postponementEndsOn: string | null
+  postponementNoticeSentOn: string | null
+  optInRequestedOn: string | null
+  joiningRequestedOn: string | null
+  optOutReceivedOn: string | null
+  optOutEvidenceRef: string | null
+  ceasedOn: string | null
+  reEnrolmentDueOn: string | null
+}
+
+export type PensionContributionLine = {
+  employeeId: string
+  name: string
+  payrollNumber: string | null
+  schemeRef: string | null
+  periodStart: string | null
+  periodEnd: string | null
+  paymentDate: string | null
+  pensionablePay: number
+  qualifyingEarnings: number
+  employeeGross: number
+  employeeNet: number
+  providerTaxRelief: number
+  employer: number
+  employeeAdjustment: number
+  employerAdjustment: number
+  status: string
+  issues: string[]
+}
+
+export type PensionContributions = {
+  runId: string
+  runLabel: string
+  status: string
+  lines: PensionContributionLine[]
+  totals: Record<string, number>
+  reconciled: boolean
+  csv: string
 }

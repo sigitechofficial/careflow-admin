@@ -14,6 +14,9 @@ export const payrollKeys = {
     [...payrollKeys.all, 'employees', locationId ?? 'all'] as const,
   profile: (employeeId: string) => [...payrollKeys.all, 'profile', employeeId] as const,
   loanNotices: (employeeId: string) => [...payrollKeys.all, 'loan-notices', employeeId] as const,
+  adjustments: (employeeId: string) => [...payrollKeys.all, 'adjustments', employeeId] as const,
+  pensionAe: (employeeId: string) => [...payrollKeys.all, 'pension-ae', employeeId] as const,
+  pensionContributions: (runId: string) => [...payrollKeys.all, 'pension-contributions', runId] as const,
   agreements: (employeeId: string) => [...payrollKeys.all, 'agreements', employeeId] as const,
   runs: (locationId?: string | null) =>
     [...payrollKeys.all, 'runs', locationId ?? 'all'] as const,

@@ -25,6 +25,7 @@ import {
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
 import { NmwComplianceSection } from '@/features/payroll/components/NmwComplianceSection'
+import { PensionContributionsPanel } from '@/features/payroll/components/PensionContributionsPanel'
 import { PayrollHmrcSubmissionStatusPanel } from '@/features/payroll/components/PayrollHmrcSubmissionStatusPanel'
 import {
   downloadUkPayrollRunEmployeePayslip,
@@ -975,6 +976,7 @@ export default function UkPayrollRunDetailPage() {
           </div>
         </div>
       )}
+      {data ? <PensionContributionsPanel runId={runId} /> : null}
     </PayrollSectionLayout>
   )
 }

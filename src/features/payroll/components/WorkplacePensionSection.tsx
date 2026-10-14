@@ -22,6 +22,8 @@ type Choice = '' | 'ENROLLED' | 'NOT_ENROLLED'
 export function pensionStatusLabel(profile: Partial<PensionFields> | null | undefined): string {
   if (profile?.pensionStatus === 'ENROLLED') return 'Enrolled'
   if (profile?.pensionStatus === 'NOT_ENROLLED') return 'Not enrolled (employer-recorded)'
+  if (profile?.pensionStatus === 'OPTED_OUT') return 'Opted out (valid opt-out recorded)'
+  if (profile?.pensionStatus === 'CEASED') return 'Ceased active membership'
   return 'Not yet recorded'
 }
 

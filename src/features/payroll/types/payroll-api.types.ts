@@ -107,6 +107,11 @@ export type UpsertEmployeePayrollProfileInput = {
   pensionEmployeeRatePercent?: number | null
   pensionEmployerRatePercent?: number | null
   pensionPolicyRef?: string | null
+  loanDeclarationStatus?: 'LOAN_DECLARED' | 'NO_LOAN_CONFIRMED' | null
+  loanDeclarationSource?: 'STARTER_CHECKLIST' | 'P45' | 'OTHER_RECORD' | null
+  loanDeclarationDate?: string | null
+  pensionUkWorker?: boolean | null
+  statePensionAgeDate?: string | null
   bankSortCode?: string | null
   bankAccountNumber?: string | null
   bankAccountName?: string | null
@@ -185,4 +190,22 @@ export type CorrectLoanNoticeInput = {
   reason: string
   evidenceReference: string
   replacement?: RecordLoanNoticeInput
+}
+
+export type ProposeDeductionAdjustmentInput = {
+  employeeId: string
+  kind: 'STUDENT_LOAN' | 'POSTGRADUATE_LOAN' | 'PENSION_EMPLOYEE' | 'PENSION_EMPLOYER'
+  sourceRunId: string
+  correctedAmount: number
+  reason: string
+  evidenceRef: string
+}
+
+export type PensionAeEventInput = {
+  type: 'POSTPONEMENT' | 'ENROLMENT_NOTICE_SENT' | 'OPT_IN_REQUEST' | 'JOINING_REQUEST' | 'OPT_OUT' | 'CEASE_MEMBERSHIP' | 'RE_ENROLMENT_DUE'
+  date: string
+  endDate?: string
+  noticeSentOn?: string
+  evidenceRef?: string
+  note?: string
 }

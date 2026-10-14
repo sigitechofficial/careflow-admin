@@ -57,6 +57,12 @@ import {
   fetchLoanNotices,
   recordLoanNotice,
   correctLoanNotice,
+  fetchDeductionAdjustments,
+  proposeDeductionAdjustment,
+  reviewDeductionAdjustment,
+  fetchEmployeePensionAe,
+  recordPensionAeEvent,
+  fetchPensionContributions,
 } from '@/features/payroll/api/payroll.api'
 import { payrollKeys } from '@/features/payroll/keys'
 import type {
@@ -72,6 +78,8 @@ import type {
   UpsertEmployeePayrollProfileInput,
   RecordLoanNoticeInput,
   CorrectLoanNoticeInput,
+  PensionAeEventInput,
+  ProposeDeductionAdjustmentInput,
 } from '@/features/payroll/types/payroll-api.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { collectHmrcFraudClientContext } from '@/features/payroll/utils/hmrc-fraud-client-context.util'
@@ -471,6 +479,69 @@ export function useCorrectLoanNotice(employeeId: string) {
       toastSuccess(res?.duplicate ? 'This correction was already recorded' : res?.message ?? 'Notice corrected')
     },
     onError: (error) => toastApiError(error),
+  })
+}
+
+/** Loan / pension completion: corrections of closed runs. */
+export function useDeductionAdjustments(employeeId: string) {
+  return useQuery({
+    queryKey: payrollKeys.adjustments(employeeId),
+    queryFn: () => fetchDeductionAdjustments(employeeId),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useDeductionAdjustmentActions(employeeId: string) {
+  const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: payrollKeys.adjustments(employeeId) })
+  return {
+    propose: useMutation({
+      mutationFn: (body: ProposeDeductionAdjustmentInput) => proposeDeductionAdjustment(body),
+      onSuccess: async (res) => {
+        await refresh()
+        toastSuccess(res?.message ?? 'Correction proposed')
+      },
+      onError: (error) => toastApiError(error),
+    }),
+    review: useMutation({
+      mutationFn: ({ id, decision, note }: { id: string; decision: 'APPROVE' | 'REJECT'; note?: string }) =>
+        reviewDeductionAdjustment(id, { decision, note }),
+      onSuccess: async (res) => {
+        await refresh()
+        toastSuccess(res?.message ?? 'Correction reviewed')
+      },
+      onError: (error) => toastApiError(error),
+    }),
+  }
+}
+
+export function useEmployeePensionAe(employeeId: string) {
+  return useQuery({
+    queryKey: payrollKeys.pensionAe(employeeId),
+    queryFn: () => fetchEmployeePensionAe(employeeId),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useRecordPensionAeEvent(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: PensionAeEventInput) => recordPensionAeEvent(employeeId, body),
+    onSuccess: async (res) => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.pensionAe(employeeId) })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'employees'] })
+      await qc.invalidateQueries({ queryKey: payrollKeys.adjustments(employeeId) })
+      toastSuccess(res?.message ?? 'Recorded')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function usePensionContributions(runId: string, enabled = true) {
+  return useQuery({
+    queryKey: payrollKeys.pensionContributions(runId),
+    queryFn: () => fetchPensionContributions(runId),
+    enabled: Boolean(runId) && enabled,
   })
 }
 
