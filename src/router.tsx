@@ -153,6 +153,7 @@ import PayrollTaxesPage from '@/features/payroll/pages/PayrollTaxesPage'
 import PayrollEmployerSettingsPage from '@/features/payroll/pages/PayrollEmployerSettingsPage'
 import PayrollSchedulesPage from '@/features/payroll/pages/PayrollSchedulesPage'
 import PayrollEmployeesPage from '@/features/payroll/pages/PayrollEmployeesPage'
+import PayrollEmployeeDetailPage from '@/features/payroll/pages/PayrollEmployeeDetailPage'
 import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesPage'
 import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
 import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
@@ -344,6 +345,7 @@ const pageTitles: Record<string, string> = {
   '/payroll/employer': 'Employer PAYE',
   '/payroll/schedules': 'Schedules & periods',
   '/payroll/employees': 'Employee payroll setup',
+  '/payroll/employees/$employeeId': 'Employee payroll',
   '/office-salaries': 'Office salaries',
   '/checklist': 'Checklist',
   '/my-tasks': 'My tasks',
@@ -2087,6 +2089,13 @@ const payrollEmployeesRoute = createRoute({
   component: PayrollEmployeesPage,
 })
 
+const payrollEmployeeDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll/employees/$employeeId',
+  beforeLoad: requirePermission('payroll.employees.read'),
+  component: PayrollEmployeeDetailPage,
+})
+
 const payrollRunsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/runs',
@@ -2399,6 +2408,7 @@ const routeTree = rootRoute.addChildren([
     payrollEmployerRoute,
     payrollSchedulesRoute,
     payrollEmployeesRoute,
+    payrollEmployeeDetailRoute,
     officeSalariesRoute,
     setupChecklistRoute,
     myTasksRoute,

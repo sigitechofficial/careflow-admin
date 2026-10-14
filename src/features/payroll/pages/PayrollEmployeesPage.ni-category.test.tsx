@@ -33,7 +33,7 @@ vi.mock('@/features/payroll/hooks/usePayroll', () => ({
   useUpsertEmployeePayrollProfile: () => ({ mutate: state.mutate, isPending: false }),
 }))
 
-import PayrollEmployeesPage from './PayrollEmployeesPage'
+import { PayrollProfileTaxForm } from '@/features/payroll/components/PayrollProfileTaxForm'
 
 const profile = (over: Partial<EmployeePayrollProfile> = {}): EmployeePayrollProfile => ({
   id: 'p-1',
@@ -74,8 +74,8 @@ const openProfile = (p: EmployeePayrollProfile) => {
     activeAgreement: null,
   }
   state.rows = [row]
-  render(<PayrollEmployeesPage />)
-  fireEvent.click(screen.getByRole('button', { name: /Edit/ }))
+  // The form now lives on the employee payroll page (Tax & NI tab); it is rendered directly here.
+  render(<PayrollProfileTaxForm row={row} canManage />)
 }
 const niField = () => screen.getByRole('combobox', { name: 'Employee National Insurance category' })
 const saveProfile = () => fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
