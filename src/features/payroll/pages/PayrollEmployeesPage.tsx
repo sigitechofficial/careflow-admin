@@ -14,6 +14,7 @@ import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusB
 import { PayAgreementsPanel } from '@/features/payroll/components/PayAgreementsPanel'
 import { DirectorStatusSection, directorStatusLabel } from '@/features/payroll/components/DirectorStatusSection'
 import { LoanNoticesSection } from '@/features/payroll/components/LoanNoticesSection'
+import { WorkplacePensionSection } from '@/features/payroll/components/WorkplacePensionSection'
 import { PayrollInfoHeading } from '@/features/payroll/components/PayrollInfoHeading'
 // Other deductions catalogue — hidden until Phase 4 engines calculate £ amounts.
 // import { UkPayrollDeductionsCatalogPanel } from '@/features/payroll/components/UkPayrollDeductionsCatalogPanel'
@@ -766,6 +767,10 @@ export default function PayrollEmployeesPage() {
             ) : null}
 
             {selectedId ? (
+              <WorkplacePensionSection employeeId={selectedId} profile={selected?.profile} canEdit={canManage} />
+            ) : null}
+
+            {selectedId ? (
               <PayAgreementsPanel
                 employeeId={selectedId}
                 scheduleId={scheduleId || null}
@@ -798,7 +803,8 @@ export default function PayrollEmployeesPage() {
                   hoursNormallyWorked: hoursNormallyWorked || null,
                   deductionElections,
                   ...syncedLoanFlags,
-                  pensionSchemeRef: showPensionRef ? pensionSchemeRef.trim() || null : null,
+                  // Gate C17: left out when hidden, so the Workplace Pension scheme reference is not erased.
+                  pensionSchemeRef: showPensionRef ? pensionSchemeRef.trim() || null : undefined,
                   apprenticeshipStartDate: apprenticeshipStartDate || null,
                   scheduleId: scheduleId || null,
                 })

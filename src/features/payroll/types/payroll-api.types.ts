@@ -100,6 +100,13 @@ export type UpsertEmployeePayrollProfileInput = {
   isDirector?: boolean | null
   directorAppointedOn?: string | null
   directorNicMethod?: 'AN' | null
+  pensionStatus?: 'ENROLLED' | 'NOT_ENROLLED' | null
+  pensionEnrolledFrom?: string | null
+  pensionContributionBasis?: 'QUALIFYING_EARNINGS' | null
+  pensionTaxRelief?: 'RAS' | null
+  pensionEmployeeRatePercent?: number | null
+  pensionEmployerRatePercent?: number | null
+  pensionPolicyRef?: string | null
   bankSortCode?: string | null
   bankAccountNumber?: string | null
   bankAccountName?: string | null

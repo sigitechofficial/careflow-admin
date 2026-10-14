@@ -155,6 +155,14 @@ export type EmployeePayrollProfile = {
   directorAppointedOn?: string | null
   /** Directors' NIC method: AN (standard annual earnings period) is the only one supported. */
   directorNicMethod?: 'AN' | null
+  /** Gate C16/C17: workplace pension (relief at source); null status = not yet recorded. */
+  pensionStatus?: 'ENROLLED' | 'NOT_ENROLLED' | null
+  pensionEnrolledFrom?: string | null
+  pensionContributionBasis?: 'QUALIFYING_EARNINGS' | null
+  pensionTaxRelief?: 'RAS' | 'NET_PAY' | null
+  pensionEmployeeRatePercent?: number | null
+  pensionEmployerRatePercent?: number | null
+  pensionPolicyRef?: string | null
   deductionElections: string[]
   bankSortCode: string | null
   bankAccountNumber: string | null
