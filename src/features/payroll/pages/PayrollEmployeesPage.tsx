@@ -106,7 +106,8 @@ export default function PayrollEmployeesPage() {
   const [taxCodeSelect, setTaxCodeSelect] = React.useState('1257L')
   const [customTaxCode, setCustomTaxCode] = React.useState('')
   const [taxCodeWeek1Month1, setTaxCodeWeek1Month1] = React.useState(false)
-  const [niCategory, setNiCategory] = React.useState<PayrollNiCategory>('A')
+  // Gate C9: no category is assumed. '' = not set; it is never saved as A without a choice.
+  const [niCategory, setNiCategory] = React.useState<PayrollNiCategory | ''>('')
   const [status, setStatus] = React.useState<EmployeePayrollProfileStatus>('DRAFT')
   const [starter, setStarter] = React.useState<PayrollStarterDeclaration>('UNKNOWN')
   const [p45Received, setP45Received] = React.useState(false)
@@ -125,7 +126,7 @@ export default function PayrollEmployeesPage() {
     setTaxCodeSelect(selectValue)
     setCustomTaxCode(selectValue === UK_TAX_CODE_OTHER ? stored.trim().toUpperCase() : '')
     setTaxCodeWeek1Month1(selected.profile?.taxCodeWeek1Month1 ?? false)
-    setNiCategory(selected.profile?.niCategory ?? 'A')
+    setNiCategory(selected.profile?.niCategory ?? '')
     setStatus(selected.profile?.status ?? 'DRAFT')
     setStarter(selected.profile?.starterDeclaration ?? 'UNKNOWN')
     setP45Received(Boolean(selected.profile?.p45Received))
@@ -151,7 +152,7 @@ export default function PayrollEmployeesPage() {
       ? customTaxCode.trim().toUpperCase()
       : taxCodeSelect
   const taxRateSummary = summariseTaxCodeRates(resolvedTaxCode || '1257L', displayRates)
-  const niRateSummary = summariseNiCategoryRate(niCategory, displayRates)
+  const niRateSummary = niCategory ? summariseNiCategoryRate(niCategory, displayRates) : 'Not set'
 
   const liveRtiIssues = React.useMemo(() => {
     const hrIssues = (selected?.rtiIdentity?.issues ?? []).filter(
@@ -497,12 +498,18 @@ export default function PayrollEmployeesPage() {
                       if (!v) return
                       setNiCategory(v as PayrollNiCategory)
                     }}
-                    placeholder="Search NI categories…"
+                    placeholder="Not set"
                     searchPlaceholder="Search A, under 21, apprentice…"
                     emptyText="No NI category found."
                     allowDeselect={false}
                     aria-label="Employee National Insurance category"
                   />
+                  {!niCategory ? (
+                    <p className="text-xs text-destructive" role="alert" data-testid="ni-category-missing">
+                      NI category not set. Choose the employee&apos;s category letter: tax and NI are not calculated
+                      without it, and saving other fields leaves it not set.
+                    </p>
+                  ) : null}
                   <p className="text-xs text-muted-foreground">
                     Controls how employee NI is calculated. Category A is standard for most carers.
                   </p>
@@ -778,7 +785,8 @@ export default function PayrollEmployeesPage() {
                 upsertMut.mutate({
                   taxCode: resolvedTaxCode || null,
                   taxCodeWeek1Month1,
-                  niCategory,
+                  // Not set: left out, so saving other fields neither creates nor changes a category.
+                  niCategory: niCategory || undefined,
                   status: status === 'READY' && !canSetReady ? 'DRAFT' : status,
                   starterDeclaration: starter,
                   p45Received,
