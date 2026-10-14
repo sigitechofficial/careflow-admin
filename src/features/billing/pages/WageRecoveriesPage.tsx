@@ -82,28 +82,31 @@ function RecoveryPolicyCard({ canApprove }: { canApprove: boolean }) {
       {policy.inForce ? (
         <>
           <p className="text-sm">
-            <span className="font-medium">Recovery policy on record:</span> {policy.reference}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Recorded {formatBillingDate(policy.recordedAt)}
-            {policy.recordedByName ? ` by ${policy.recordedByName}` : ''}. An authorised recovery is deducted, once, by the next
-            calculation of the open pay run that covers it.
+            <span className="font-medium text-emerald-700 dark:text-emerald-300">✓ Recovery policy on record:</span> {policy.reference}
+            <span className="text-xs text-muted-foreground">
+              {' '}
+              · recorded {formatBillingDate(policy.recordedAt)}
+              {policy.recordedByName ? ` by ${policy.recordedByName}` : ''}
+            </span>
           </p>
           {canApprove ? (
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="min-w-[260px] flex-1 space-y-1 text-sm">
-                <span className="text-xs font-medium text-foreground/90">Reason for withdrawing the policy</span>
-                <input className={inputClass} value={withdrawNote} onChange={e => setWithdrawNote(e.target.value)} />
-              </label>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={withdrawNote.trim().length < 5 || withdrawPolicy.isPending}
-                onClick={() => void onWithdraw()}
-              >
-                Withdraw policy
-              </Button>
-            </div>
+            <details>
+              <summary className="cursor-pointer text-xs text-muted-foreground">Withdraw the policy</summary>
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                <label className="min-w-[260px] flex-1 space-y-1 text-sm">
+                  <span className="text-xs font-medium text-foreground/90">Reason for withdrawing the policy</span>
+                  <input className={inputClass} value={withdrawNote} onChange={e => setWithdrawNote(e.target.value)} />
+                </label>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={withdrawNote.trim().length < 5 || withdrawPolicy.isPending}
+                  onClick={() => void onWithdraw()}
+                >
+                  Withdraw policy
+                </Button>
+              </div>
+            </details>
           ) : null}
         </>
       ) : (
@@ -193,12 +196,16 @@ function RecoveryDetail({
   }
 
   return (
-    <ContentCard className="space-y-4" data-testid="recovery-detail">
+    <div className="space-y-4 rounded-lg border border-border bg-muted/10 p-4" data-testid="recovery-detail">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-base font-semibold">
             {r.employeeName} — {WAGE_RECOVERY_KIND_LABELS[r.kind] ?? r.kind}
           </h3>
+          <p className="text-sm text-foreground" data-testid="recovery-amounts">
+            Paid <span className="font-medium">{money(r.paidAmount)}</span>, due <span className="font-medium">{money(r.dueAmount)}</span>{' '}
+            → recover <span className="font-semibold">{money(r.amount)}</span>
+          </p>
           <p className="text-sm text-muted-foreground">{r.reason}</p>
         </div>
         <Button size="sm" variant="ghost" onClick={onClose}>
@@ -206,23 +213,33 @@ function RecoveryDetail({
         </Button>
       </div>
 
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Original payment">{r.originalReference ?? '—'}</Field>
-        <Field label="Originally paid">{money(r.paidAmount)}</Field>
-        <Field label="Now due">{money(r.dueAmount)}</Field>
-        <Field label="Recovery proposed">{money(r.amount)}</Field>
-        <Field label="Status">{WAGE_RECOVERY_STATUS_LABELS[r.status] ?? r.status}</Field>
-        <Field label="Proposed">
-          {formatBillingDate(r.proposedAt)}
-          {r.proposedByName ? ` by ${r.proposedByName}` : ''}
-          {r.proposedInRun ? ` (${r.proposedInRun})` : ''}
-        </Field>
-        <Field label={r.status === 'REJECTED' ? 'Rejected by' : 'Authorised by'}>
-          {r.decidedByName ? `${r.decidedByName}, ${formatBillingDate(r.decidedAt)}` : '—'}
-        </Field>
-        <Field label="Authority recorded">{r.authorityBasis ?? '—'}</Field>
-        <Field label="Deducted in">{r.appliedInRun ? `${r.appliedInRun}, ${formatBillingDate(r.appliedAt)}` : 'Not deducted'}</Field>
-      </dl>
+      <details>
+        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Details and history</summary>
+        <dl className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="Original payment">{r.originalReference ?? '—'}</Field>
+          <Field label="Proposed">
+            {formatBillingDate(r.proposedAt)}
+            {r.proposedByName ? ` by ${r.proposedByName}` : ''}
+            {r.proposedInRun ? ` (${r.proposedInRun})` : ''}
+          </Field>
+          <Field label={r.status === 'REJECTED' ? 'Rejected by' : 'Authorised by'}>
+            {r.decidedByName ? `${r.decidedByName}, ${formatBillingDate(r.decidedAt)}` : '—'}
+          </Field>
+          <Field label="Authority recorded">{r.authorityBasis ?? '—'}</Field>
+          <Field label="Deducted in">{r.appliedInRun ? `${r.appliedInRun}, ${formatBillingDate(r.appliedAt)}` : 'Not deducted'}</Field>
+        </dl>
+        <h4 className="mt-3 text-sm font-medium">History</h4>
+        <ol className="mt-1 space-y-1 text-sm" data-testid="recovery-history">
+          {r.history.map((h, i) => (
+            <li key={`${h.event}-${i}`}>
+              <span className="tabular-nums text-muted-foreground">{formatBillingDate(h.at)}</span>{' '}
+              <span className="font-medium">{h.event.replace('_', ' ').toLowerCase()}</span>
+              {h.by ? ` by ${h.by}` : ''}
+              {h.detail ? ` — ${h.detail}` : ''}
+            </li>
+          ))}
+        </ol>
+      </details>
 
       {proposedAgain(r) ? (
         <p className="text-sm text-amber-700 dark:text-amber-300" data-testid="recovery-proposed-again">
@@ -240,20 +257,6 @@ function RecoveryDetail({
           with a pay correction.
         </p>
       ) : null}
-
-      <div>
-        <h4 className="text-sm font-medium">History</h4>
-        <ol className="mt-1 space-y-1 text-sm" data-testid="recovery-history">
-          {r.history.map((h, i) => (
-            <li key={`${h.event}-${i}`}>
-              <span className="tabular-nums text-muted-foreground">{formatBillingDate(h.at)}</span>{' '}
-              <span className="font-medium">{h.event.replace('_', ' ').toLowerCase()}</span>
-              {h.by ? ` by ${h.by}` : ''}
-              {h.detail ? ` — ${h.detail}` : ''}
-            </li>
-          ))}
-        </ol>
-      </div>
 
       {error ? (
         <p className="text-sm text-destructive" role="alert">
@@ -278,8 +281,8 @@ function RecoveryDetail({
               <div className="space-y-2 rounded-md border border-border p-3" data-testid="recovery-authorise-form">
                 <h4 className="text-sm font-medium">Authorise recovery of {money(r.amount)}</h4>
                 <p className="text-xs text-muted-foreground">
-                  The amount comes from the pay calculation and cannot be changed here. Choosing an authority records what you
-                  relied on; it is not proof that the deduction is lawful.
+                  Say what allows the deduction and why. The amount comes from the pay calculation and cannot be changed here.
+                  Choosing an authority records what you relied on; it is not proof that the deduction is lawful.
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <label className="space-y-1 text-sm">
@@ -313,20 +316,22 @@ function RecoveryDetail({
             )
           ) : null}
           {r.status === 'PROPOSED' || r.status === 'APPROVED' ? (
-            <div className="space-y-2 rounded-md border border-border p-3" data-testid="recovery-reject-form">
-              <h4 className="text-sm font-medium">Reject and write off</h4>
-              <label className="block space-y-1 text-sm">
-                <span className="text-xs font-medium text-foreground/90">Reason for not recovering</span>
-                <input className={inputClass} value={rejectNote} onChange={e => setRejectNote(e.target.value)} />
-              </label>
-              <Button size="sm" variant="outline" disabled={rejectNote.trim().length < 5 || busy} onClick={() => void onReject()}>
-                Reject and write off
-              </Button>
-            </div>
+            <details className="rounded-md border border-border p-3" data-testid="recovery-reject-form">
+              <summary className="cursor-pointer text-sm font-medium">Don&apos;t recover (reject and write off)</summary>
+                <div className="mt-2 space-y-2">
+                <label className="block space-y-1 text-sm">
+                  <span className="text-xs font-medium text-foreground/90">Reason for not recovering</span>
+                  <input className={inputClass} value={rejectNote} onChange={e => setRejectNote(e.target.value)} />
+                </label>
+                <Button size="sm" variant="outline" disabled={rejectNote.trim().length < 5 || busy} onClick={() => void onReject()}>
+                  Reject and write off
+                </Button>
+                </div>
+            </details>
           ) : null}
         </>
       )}
-    </ContentCard>
+    </div>
   )
 }
 
@@ -345,8 +350,26 @@ export default function WageRecoveriesPage() {
         icon={<Undo2 className="h-5 w-5" />}
         iconClassName="bg-teal-500/10 text-teal-700 dark:text-teal-300"
         title="Wage recoveries"
-        description="Overpayments found by pay calculations. Nothing is deducted from an employee's wages until a recovery is authorised by a different user, with the reason and the authority for the deduction. Amounts come from the calculation and cannot be edited here."
+        description="Money a carer was paid by mistake. Nothing is taken from wages until a different person authorises it."
       />
+
+      <ol className="grid gap-2 text-sm sm:grid-cols-3" data-testid="recovery-steps">
+        {[
+          ['1', 'Found by payroll', 'A pay calculation finds an overpayment and proposes how much to recover.'],
+          ['2', 'Someone else decides', 'A different user authorises it (with the reason and what allows the deduction) or writes it off.'],
+          ['3', 'Deducted once', 'The next pay run takes it off wages, once. Nothing is deducted without a recovery policy on record.'],
+        ].map(([n, title, text]) => (
+          <li key={n} className="flex gap-2 rounded-lg border border-border p-3">
+            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-xs font-semibold text-teal-700 dark:text-teal-300">
+              {n}
+            </span>
+            <span>
+              <span className="block font-medium text-foreground">{title}</span>
+              <span className="block text-xs text-muted-foreground">{text}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
 
       <RecoveryPolicyCard canApprove={canApprove} />
 
@@ -370,71 +393,85 @@ export default function WageRecoveriesPage() {
       {listQuery.error ? <p className="text-sm text-destructive">{errorText(listQuery.error, 'Could not load wage recoveries.')}</p> : null}
 
       <ContentCard className="overflow-x-auto p-0">
-        <table className="w-full min-w-[1200px] text-sm" data-testid="wage-recoveries-table">
+        <table className="w-full min-w-[620px] text-sm" data-testid="wage-recoveries-table">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Employee</th>
-              <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Original payment</th>
-              <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Type</th>
-              <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Originally paid</th>
-              <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Recovery proposed</th>
-              <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Reason</th>
+              <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Carer</th>
+              <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">To recover</th>
+              <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Why</th>
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Status</th>
-              <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Proposed</th>
-              <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Decision</th>
-              <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Deducted in</th>
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground" />
             </tr>
           </thead>
           <tbody>
             {listQuery.isLoading ? (
               <tr>
-                <td colSpan={11} className="px-3 py-10 text-center text-muted-foreground">Loading wage recoveries…</td>
+                <td colSpan={5} className="px-3 py-10 text-center text-muted-foreground">Loading wage recoveries…</td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-3 py-10 text-center text-muted-foreground">No wage recoveries.</td>
+                <td colSpan={5} className="px-3 py-10 text-center text-muted-foreground">
+                  {status === 'PROPOSED' ? 'Nothing waiting for a decision.' : 'No wage recoveries.'}
+                </td>
               </tr>
             ) : (
               rows.map(r => (
-                <tr key={r.id} className="border-b border-border align-top last:border-0" data-testid="wage-recovery-row">
-                  <td className="px-3 py-2.5 font-medium">{r.employeeName}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{r.originalReference ?? '—'}</td>
-                  <td className="px-3 py-2.5">{WAGE_RECOVERY_KIND_LABELS[r.kind] ?? r.kind}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{money(r.paidAmount)}</td>
-                  <td className="px-3 py-2.5 text-right font-medium tabular-nums">{money(r.amount)}</td>
-                  <td className="px-3 py-2.5">{r.reason}</td>
-                  <td className="px-3 py-2.5">
-                    <Badge variant={STATUS_BADGE[r.status] ?? 'secondary'}>{WAGE_RECOVERY_STATUS_LABELS[r.status] ?? r.status}</Badge>
-                    {proposedAgain(r) ? <p className="mt-1 text-xs text-muted-foreground">Amount changed: needs a fresh decision</p> : null}
-                    {r.status === 'APPROVED' && !policyInForce ? (
-                      <p className="mt-1 text-xs text-muted-foreground">Not deducted: no recovery policy on record</p>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <p className="whitespace-nowrap">{formatBillingDate(r.proposedAt)}</p>
-                    <p className="text-xs text-muted-foreground">{r.proposedByName ?? '—'}</p>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <p>{r.decidedByName ?? '—'}</p>
-                    {r.authorityBasis ? <p className="text-xs text-muted-foreground">{r.authorityBasis}</p> : null}
-                  </td>
-                  <td className="px-3 py-2.5">{r.appliedInRun ?? '—'}</td>
-                  <td className="px-3 py-2.5">
-                    <Button size="sm" variant="outline" className="h-8" onClick={() => setOpenId(r.id)}>
-                      Open
-                    </Button>
-                  </td>
-                </tr>
+                <React.Fragment key={r.id}>
+                  <tr className="border-b border-border align-top last:border-0" data-testid="wage-recovery-row">
+                    <td className="px-3 py-2.5">
+                      <p className="font-medium">{r.employeeName}</p>
+                      <p className="text-xs text-muted-foreground">{WAGE_RECOVERY_KIND_LABELS[r.kind] ?? r.kind}</p>
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <p className="font-semibold tabular-nums">{money(r.amount)}</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">of {money(r.paidAmount)} paid</p>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <p>{r.reason}</p>
+                      {r.originalReference ? <p className="text-xs text-muted-foreground">Original: {r.originalReference}</p> : null}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <Badge variant={STATUS_BADGE[r.status] ?? 'secondary'}>{WAGE_RECOVERY_STATUS_LABELS[r.status] ?? r.status}</Badge>
+                      {proposedAgain(r) ? <p className="mt-1 text-xs text-muted-foreground">Amount changed: needs a fresh decision</p> : null}
+                      {r.status === 'APPROVED' && !policyInForce ? (
+                        <p className="mt-1 text-xs text-muted-foreground">Not deducted: no recovery policy on record</p>
+                      ) : null}
+                      <p className="mt-1 whitespace-nowrap text-xs text-muted-foreground">
+                        Found {formatBillingDate(r.proposedAt)}
+                        {r.proposedByName ? ` · ${r.proposedByName}` : ''}
+                      </p>
+                      {r.decidedByName ? (
+                        <p className="text-xs text-muted-foreground">
+                          {r.status === 'REJECTED' ? 'Rejected by' : 'Authorised by'} {r.decidedByName}
+                        </p>
+                      ) : null}
+                      {r.appliedInRun ? <p className="text-xs text-muted-foreground">Deducted in {r.appliedInRun}</p> : null}
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <Button
+                        size="sm"
+                        variant={r.status === 'PROPOSED' && canApprove ? 'default' : 'outline'}
+                        className="h-8"
+                        onClick={() => setOpenId(openId === r.id ? null : r.id)}
+                        aria-expanded={openId === r.id}
+                      >
+                        {openId === r.id ? 'Hide' : r.status === 'PROPOSED' && canApprove ? 'Review' : 'Open'}
+                      </Button>
+                    </td>
+                  </tr>
+                  {openId === r.id ? (
+                    <tr className="border-b border-border">
+                      <td colSpan={5} className="px-3 pb-4">
+                        <RecoveryDetail id={r.id} canApprove={canApprove} policyInForce={policyInForce} onClose={() => setOpenId(null)} />
+                      </td>
+                    </tr>
+                  ) : null}
+                </React.Fragment>
               ))
             )}
           </tbody>
         </table>
       </ContentCard>
-
-      {openId ? (
-        <RecoveryDetail key={openId} id={openId} canApprove={canApprove} policyInForce={policyInForce} onClose={() => setOpenId(null)} />
-      ) : null}
     </div>
   )
 }

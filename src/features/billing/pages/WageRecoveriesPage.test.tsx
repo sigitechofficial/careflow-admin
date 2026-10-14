@@ -70,7 +70,7 @@ const detail = (over: Partial<WageRecoveryDetail> = {}): WageRecoveryDetail => (
   ...over,
 })
 const type = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
-const open = () => fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+const open = () => fireEvent.click(screen.getByRole('button', { name: /^(Review|Open)$/ }))
 
 describe('wage recoveries screen (Sprint B4A, Task 1)', () => {
   beforeEach(() => {
@@ -99,6 +99,18 @@ describe('wage recoveries screen (Sprint B4A, Task 1)', () => {
     expect(state.listStatus).toBe('APPLIED')
     fireEvent.click(screen.getByRole('tab', { name: 'All' }))
     expect(state.listStatus).toBeUndefined()
+  })
+
+  it('simple layout: the steps, a pending recovery offers Review, and it opens under its own row with the amounts in one line', () => {
+    render(<WageRecoveriesPage />)
+    expect(screen.getByTestId('recovery-steps')).toHaveTextContent('Someone else decides')
+    const review = screen.getByRole('button', { name: 'Review' })
+    fireEvent.click(review)
+    const detailRow = screen.getByTestId('wage-recovery-row').nextElementSibling as HTMLElement
+    expect(within(detailRow).getByTestId('recovery-amounts')).toHaveTextContent('Paid £2000.00, due £1800.00 → recover £200.00')
+    expect(screen.getByRole('button', { name: 'Hide' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }))
+    expect(screen.queryByTestId('recovery-detail')).toBeNull()
   })
 
   it('authorising needs an authority, its reference and a reason; the amount cannot be edited', async () => {
