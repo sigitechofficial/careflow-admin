@@ -34,6 +34,9 @@ import type {
   CareFpsPayload,
   SalariedHoursMethods,
   EmployeeLoanNotice,
+  LeaveEntryRow,
+  LeavePosition,
+  LeaveTermsRow,
   EmployeePensionAe,
   PayrollDeductionAdjustment,
   PensionContributions,
@@ -407,6 +410,38 @@ export async function recordPensionAeEvent(employeeId: string, body: PensionAeEv
 export async function fetchPensionContributions(runId: string) {
   const res = await apiJson<ApiEnvelope<PensionContributions>>(`/payroll/runs/${runId}/pension-contributions`)
   return res.data
+}
+
+/** Payroll leave (holiday): position, terms (maker/checker) and entries. */
+export async function fetchLeavePosition(employeeId: string, query: { asOf?: string; leavingDate?: string } = {}) {
+  const params = new URLSearchParams()
+  if (query.asOf) params.set('asOf', query.asOf)
+  if (query.leavingDate) params.set('leavingDate', query.leavingDate)
+  const qs = params.toString()
+  const res = await apiJson<ApiEnvelope<LeavePosition>>(`/payroll/employees/${employeeId}/leave${qs ? `?${qs}` : ''}`)
+  return res.data
+}
+
+export async function fetchLeaveTerms(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<LeaveTermsRow[]>>(`/payroll/employees/${employeeId}/leave-terms`)
+  return res.data ?? []
+}
+
+export async function createLeaveTerms(employeeId: string, body: Record<string, unknown>) {
+  return apiJson<{ message: string }>(`/payroll/employees/${employeeId}/leave-terms`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function approveLeaveTerms(termsId: string) {
+  return apiJson<{ message: string }>(`/payroll/leave-terms/${termsId}/approve`, { method: 'POST', body: JSON.stringify({}) })
+}
+
+export async function fetchLeaveEntries(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<LeaveEntryRow[]>>(`/payroll/employees/${employeeId}/leave-entries`)
+  return res.data ?? []
+}
+
+export async function recordLeaveEntry(employeeId: string, body: Record<string, unknown>) {
+  return apiJson<{ message: string }>(`/payroll/employees/${employeeId}/leave-entries`, { method: 'POST', body: JSON.stringify(body) })
 }
 
 export async function fetchEmployeePayAgreements(employeeId: string) {

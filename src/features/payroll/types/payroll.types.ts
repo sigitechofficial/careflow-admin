@@ -810,3 +810,57 @@ export type PensionContributions = {
   reconciled: boolean
   csv: string
 }
+
+/** Payroll leave (holiday) terms, entries and position (leave API). */
+export type LeaveTermsRow = {
+  id: string
+  workerCategory: 'REGULAR_HOURS' | 'IRREGULAR_HOURS' | 'PART_YEAR'
+  leaveYearStartMonth: number
+  leaveYearStartDay: number
+  weeklyHours: number | null
+  contractualExtraHours: number | null
+  payMethod: 'NORMAL_REMUNERATION_52_WEEKS' | 'ROLLED_UP_12_07'
+  carryOverMaxHours: number | null
+  effectiveFrom: string
+  effectiveTo: string | null
+  status: 'DRAFT' | 'ACTIVE' | 'SUPERSEDED'
+  note: string | null
+  createdById: string | null
+  approvedById: string | null
+  approvedAt: string | null
+}
+
+export type LeaveEntryRow = {
+  id: string
+  entryType: 'TAKEN' | 'ADJUSTMENT' | 'CARRY_OVER' | 'LEAVER_PAYMENT'
+  entitlementType: 'STATUTORY' | 'CONTRACTUAL'
+  hours: number
+  date: string
+  note: string | null
+  createdById: string | null
+  createdAt: string
+}
+
+type LeaveBalancePart = {
+  entitlement: number
+  taken: number
+  adjustments: number
+  carriedOver: number
+  paidOnLeaving: number
+  balance: number
+  fullYearEntitlement: number
+  basis?: string
+}
+
+export type LeavePosition = {
+  employeeId: string
+  asOf: string
+  terms: (Omit<LeaveTermsRow, 'effectiveTo' | 'status' | 'note' | 'createdById' | 'approvedById' | 'approvedAt'>) | null
+  note?: string
+  leaveYear?: { start: string; end: string }
+  statutory?: LeaveBalancePart
+  contractual?: LeaveBalancePart
+  holidayPay?: { method: string; averageHourlyPay: number | null; note: string }
+  carryOverAllowed?: number
+  leaver?: { leavingDate: string; untakenHours: number; paymentInLieu: number | null; takenMoreThanEarned: boolean } | null
+}

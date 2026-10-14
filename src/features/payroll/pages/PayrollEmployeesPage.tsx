@@ -18,6 +18,7 @@ import { WorkplacePensionSection } from '@/features/payroll/components/Workplace
 import { LoanDeclarationSection } from '@/features/payroll/components/LoanDeclarationSection'
 import { PensionAutoEnrolmentSection } from '@/features/payroll/components/PensionAutoEnrolmentSection'
 import { PayrollCorrectionsSection } from '@/features/payroll/components/PayrollCorrectionsSection'
+import { LeaveHolidaySection } from '@/features/payroll/components/LeaveHolidaySection'
 import { PayrollInfoHeading } from '@/features/payroll/components/PayrollInfoHeading'
 // Other deductions catalogue — hidden until Phase 4 engines calculate £ amounts.
 // import { UkPayrollDeductionsCatalogPanel } from '@/features/payroll/components/UkPayrollDeductionsCatalogPanel'
@@ -782,6 +783,15 @@ export default function PayrollEmployeesPage() {
             ) : null}
 
             {selectedId ? <PayrollCorrectionsSection employeeId={selectedId} canPropose={canManage} /> : null}
+
+            {selectedId ? (
+              <LeaveHolidaySection
+                employeeId={selectedId}
+                canEdit={canManage}
+                employmentEndDate={selected?.employmentEndDate ?? null}
+                annualSalary={selected?.activeAgreement?.annualSalary ?? null}
+              />
+            ) : null}
 
             {selectedId ? (
               <PayAgreementsPanel

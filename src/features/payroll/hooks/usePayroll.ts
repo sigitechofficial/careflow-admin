@@ -63,6 +63,12 @@ import {
   fetchEmployeePensionAe,
   recordPensionAeEvent,
   fetchPensionContributions,
+  fetchLeavePosition,
+  fetchLeaveTerms,
+  createLeaveTerms,
+  approveLeaveTerms,
+  fetchLeaveEntries,
+  recordLeaveEntry,
 } from '@/features/payroll/api/payroll.api'
 import { payrollKeys } from '@/features/payroll/keys'
 import type {
@@ -543,6 +549,57 @@ export function usePensionContributions(runId: string, enabled = true) {
     queryFn: () => fetchPensionContributions(runId),
     enabled: Boolean(runId) && enabled,
   })
+}
+
+/** Payroll leave (holiday) of one employee. */
+export function useLeavePosition(employeeId: string, query: { asOf?: string; leavingDate?: string } = {}) {
+  return useQuery({
+    queryKey: [...payrollKeys.leave(employeeId), 'position', query.asOf ?? '', query.leavingDate ?? ''],
+    queryFn: () => fetchLeavePosition(employeeId, query),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useLeaveTerms(employeeId: string) {
+  return useQuery({
+    queryKey: [...payrollKeys.leave(employeeId), 'terms'],
+    queryFn: () => fetchLeaveTerms(employeeId),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useLeaveEntries(employeeId: string) {
+  return useQuery({
+    queryKey: [...payrollKeys.leave(employeeId), 'entries'],
+    queryFn: () => fetchLeaveEntries(employeeId),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useLeaveActions(employeeId: string) {
+  const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: payrollKeys.leave(employeeId) })
+  const done = async (res: { message?: string } | undefined, fallback: string) => {
+    await refresh()
+    toastSuccess(res?.message ?? fallback)
+  }
+  return {
+    createTerms: useMutation({
+      mutationFn: (body: Record<string, unknown>) => createLeaveTerms(employeeId, body),
+      onSuccess: (res) => done(res, 'Leave terms saved'),
+      onError: (error) => toastApiError(error),
+    }),
+    approveTerms: useMutation({
+      mutationFn: (termsId: string) => approveLeaveTerms(termsId),
+      onSuccess: (res) => done(res, 'Leave terms approved'),
+      onError: (error) => toastApiError(error),
+    }),
+    recordEntry: useMutation({
+      mutationFn: (body: Record<string, unknown>) => recordLeaveEntry(employeeId, body),
+      onSuccess: (res) => done(res, 'Leave recorded'),
+      onError: (error) => toastApiError(error),
+    }),
+  }
 }
 
 export function useCreateEmployeePayAgreement(employeeId: string) {
