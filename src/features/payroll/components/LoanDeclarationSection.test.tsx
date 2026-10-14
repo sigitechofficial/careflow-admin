@@ -30,6 +30,12 @@ describe('student loan on the payroll profile: one simple step', () => {
     fillWhere()
     expect(screen.getByText('Still needed: the plan.')).toBeInTheDocument()
     expect(saveButton()).toBeDisabled()
+    // Each plan has an info tag; clicking it does not tick the plan.
+    for (const plan of ['Plan 1', 'Plan 2', 'Plan 4 (Scotland)', 'Plan 5', 'Postgraduate loan']) {
+      expect(screen.getByRole('button', { name: `About ${plan}` })).toBeInTheDocument()
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'About Plan 1' }))
+    expect(screen.getByLabelText('Plan 1')).not.toBeChecked()
     fireEvent.click(screen.getByLabelText('Plan 2'))
     fireEvent.click(saveButton())
     expect(state.mutateAsync).toHaveBeenCalledWith({

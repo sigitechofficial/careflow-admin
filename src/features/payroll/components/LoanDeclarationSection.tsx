@@ -1,10 +1,12 @@
 import * as React from 'react'
 
 import { electionsFromLegacyFlags, syncLoanFlagsFromElections } from '@/features/payroll/data/uk-payroll-2026-27.catalog'
+import { PayrollFieldLabel } from '@/features/payroll/components/PayrollFieldLabel'
 import { useUpsertEmployeePayrollProfile } from '@/features/payroll/hooks/usePayroll'
 import type { EmployeePayrollProfile } from '@/features/payroll/types/payroll.types'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 
 type Fields = Pick<
   EmployeePayrollProfile,
@@ -20,12 +22,33 @@ type Fields = Pick<
   | 'deductionElections'
 >
 
+// Who each plan is for, and its 2026-27 repayment threshold (GOV.UK; matches the payroll thresholds).
 const PLANS = [
-  { code: 'SL_PLAN_1', label: 'Plan 1' },
-  { code: 'SL_PLAN_2', label: 'Plan 2' },
-  { code: 'SL_PLAN_4', label: 'Plan 4 (Scotland)' },
-  { code: 'SL_PLAN_5', label: 'Plan 5' },
-  { code: 'POSTGRAD_LOAN', label: 'Postgraduate loan' },
+  {
+    code: 'SL_PLAN_1',
+    label: 'Plan 1',
+    info: 'Course in England or Wales started before 1 September 2012, or a Northern Ireland student loan. 9% of pay above £26,900 a year (£2,241.66 a month).',
+  },
+  {
+    code: 'SL_PLAN_2',
+    label: 'Plan 2',
+    info: 'Course in England or Wales started on or after 1 September 2012 (in England, before 1 August 2023). 9% of pay above £29,385 a year (£2,448.75 a month).',
+  },
+  {
+    code: 'SL_PLAN_4',
+    label: 'Plan 4 (Scotland)',
+    info: 'Scottish student loan (SAAS). 9% of pay above £33,795 a year (£2,816.25 a month).',
+  },
+  {
+    code: 'SL_PLAN_5',
+    label: 'Plan 5',
+    info: 'Course in England started on or after 1 August 2023. 9% of pay above £25,000 a year (£2,083.33 a month).',
+  },
+  {
+    code: 'POSTGRAD_LOAN',
+    label: 'Postgraduate loan',
+    info: "Master's or doctoral loan (England or Wales). Can be on top of a student loan plan. 6% of pay above £21,000 a year (£1,750 a month).",
+  },
 ] as const
 const LOAN_CODES: ReadonlySet<string> = new Set(PLANS.map((p) => p.code))
 const SOURCE_LABELS = { STARTER_CHECKLIST: 'Starter checklist', P45: 'P45', OTHER_RECORD: 'Other record' } as const
@@ -145,17 +168,24 @@ export function LoanDeclarationSection({
           </fieldset>
 
           {status === 'LOAN_DECLARED' ? (
-            <fieldset className="space-y-1">
-              <legend className="text-sm">Which plan? (written on the P45 or starter checklist)</legend>
-              <div className="flex flex-wrap gap-4 text-sm">
-                {PLANS.map((p) => (
-                  <label key={p.code} className="flex items-center gap-2">
-                    <input type="checkbox" checked={plans.includes(p.code)} onChange={(e) => togglePlan(p.code, e.target.checked)} />
-                    {p.label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <TooltipProvider delayDuration={200}>
+              <fieldset className="space-y-1">
+                <legend className="text-sm">Which plan? (written on the P45 or starter checklist)</legend>
+                <div className="flex flex-wrap gap-4 text-sm">
+                  {PLANS.map((p) => (
+                    <label key={p.code} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={plans.includes(p.code)}
+                        onChange={(e) => togglePlan(p.code, e.target.checked)}
+                        aria-label={p.label}
+                      />
+                      <PayrollFieldLabel label={p.label} info={p.info} className="font-normal" />
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </TooltipProvider>
           ) : null}
           {status === 'NO_LOAN_CONFIRMED' && savedPlans.length ? (
             <p className="text-xs text-amber-700 dark:text-amber-300">Saving “No loan” removes the plan(s) set for this carer.</p>
