@@ -12,7 +12,6 @@ import {
 } from 'lucide-react'
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
-import { directorStatusLabel } from '@/features/payroll/components/DirectorStatusSection'
 import { PayrollInfoHeading } from '@/features/payroll/components/PayrollInfoHeading'
 // Other deductions catalogue — hidden until Phase 4 engines calculate £ amounts.
 // import { UkPayrollDeductionsCatalogPanel } from '@/features/payroll/components/UkPayrollDeductionsCatalogPanel'
@@ -202,7 +201,6 @@ export default function PayrollEmployeesPage() {
                     <th className="py-2.5 pr-3 font-medium">Tax rate</th>
                     <th className="py-2.5 pr-3 font-medium">NI number</th>
                     <th className="py-2.5 pr-3 font-medium">NI category</th>
-                    <th className="py-2.5 pr-3 font-medium">Director</th>
                     <th className="py-2.5 pr-3 font-medium">Agreement</th>
                     <th className="py-2.5 pr-4 text-right font-medium">Actions</th>
                   </tr>
@@ -248,7 +246,6 @@ export default function PayrollEmployeesPage() {
                         {row.nationalInsuranceNo ?? '—'}
                       </td>
                       <td className="py-3 pr-3">{row.profile?.niCategory ?? '—'}</td>
-                      <td className="py-3 pr-3 text-xs text-muted-foreground">{directorStatusLabel(row.profile)}</td>
                       <td className="py-3 pr-3">
                         {row.activeAgreement ? (
                           <PayrollStatusBadge status={row.activeAgreement.status} />
@@ -273,7 +270,7 @@ export default function PayrollEmployeesPage() {
                   })}
                   {filteredEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan={10}className="px-4 py-10 text-center text-muted-foreground">
+                      <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                         <Users className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" aria-hidden />
                         {data.length === 0
                           ? 'No employees found.'

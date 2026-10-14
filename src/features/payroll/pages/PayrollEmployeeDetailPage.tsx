@@ -5,7 +5,6 @@ import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSecti
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
 import { PayrollProfileTaxForm } from '@/features/payroll/components/PayrollProfileTaxForm'
 import { PayAgreementsPanel } from '@/features/payroll/components/PayAgreementsPanel'
-import { DirectorStatusSection, directorStatusLabel } from '@/features/payroll/components/DirectorStatusSection'
 import { LoanDeclarationSection } from '@/features/payroll/components/LoanDeclarationSection'
 import { LoanNoticesSection } from '@/features/payroll/components/LoanNoticesSection'
 import { WorkplacePensionSection, pensionStatusLabel } from '@/features/payroll/components/WorkplacePensionSection'
@@ -20,7 +19,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 const TABS = [
   { id: 'tax', label: 'Tax & NI' },
   { id: 'pay', label: 'Pay agreement' },
-  { id: 'director', label: 'Director' },
   { id: 'loans', label: 'Student loans' },
   { id: 'pension', label: 'Pension' },
   { id: 'leave', label: 'Leave / Holiday' },
@@ -36,7 +34,7 @@ const tabFromUrl = (): TabId => {
 
 /**
  * One employee's payroll set-up on its own page, in tabs (it used to be one long dialog): tax and
- * NI, pay agreement, director, student loans, pension, leave / holiday and corrections. Each tab
+ * NI, pay agreement, student loans, pension, leave / holiday and corrections. Each tab
  * keeps its own save; nothing about the calculations changed.
  */
 export default function PayrollEmployeeDetailPage() {
@@ -61,7 +59,7 @@ export default function PayrollEmployeeDetailPage() {
   return (
     <PayrollSectionLayout
       title={row ? `Payroll — ${row.displayName}` : 'Employee payroll'}
-      description="Tax and NI, pay agreement, director, student loans, pension, leave and corrections for one employee. Each tab saves on its own."
+      description="Tax and NI, pay agreement, student loans, pension, leave and corrections for one employee. Each tab saves on its own."
       testId="payroll-employee-detail-page"
     >
       <div className="space-y-4">
@@ -93,7 +91,6 @@ export default function PayrollEmployeeDetailPage() {
                 {row.profile ? <PayrollStatusBadge status={row.profile.status} /> : <span className="text-muted-foreground">Profile not set</span>}
                 <span className="rounded-full border border-border px-2 py-0.5">Tax code {row.profile?.taxCode ?? '—'}</span>
                 <span className="rounded-full border border-border px-2 py-0.5">NI {row.profile?.niCategory ?? 'not set'}</span>
-                <span className="rounded-full border border-border px-2 py-0.5">{directorStatusLabel(row.profile)}</span>
                 <span className="rounded-full border border-border px-2 py-0.5">Pension: {pensionStatusLabel(row.profile)}</span>
               </div>
             </div>
@@ -116,9 +113,6 @@ export default function PayrollEmployeeDetailPage() {
                   scheduleId={row.profile?.scheduleId ?? null}
                   defaultPayCardId={row.defaultPayCardId ?? null}
                 />
-              </TabsContent>
-              <TabsContent value="director" className="mt-4">
-                <DirectorStatusSection employeeId={row.employeeId} profile={row.profile} canEdit={canManage} />
               </TabsContent>
               <TabsContent value="loans" className="mt-4 space-y-4">
                 <LoanDeclarationSection employeeId={row.employeeId} profile={row.profile} canEdit={canManage} />
