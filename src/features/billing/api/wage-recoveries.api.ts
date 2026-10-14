@@ -15,6 +15,7 @@ export const WAGE_RECOVERY_KIND_LABELS: Record<string, string> = {
   GUARANTEED_HOURS: 'Guaranteed-hours top-up overpaid',
   NMW_TOP_UP: 'Minimum wage top-up overpaid',
   OVERTIME: 'Overtime overpaid',
+  LEAVE_IN_ADVANCE: 'Leave taken in advance (recovered on leaving)',
 }
 
 /** What the authoriser relied on. Recording it is not proof that the deduction is lawful. */
