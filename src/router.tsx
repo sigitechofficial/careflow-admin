@@ -214,6 +214,7 @@ import ServiceUserHoursPage from '@/features/service-users/pages/ServiceUserHour
 import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
 import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
 import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
+import ParentalLeavePage from '@/features/parental-leave/pages/ParentalLeavePage'
 import SpecialVisitsPage from '@/features/special-visits/pages/SpecialVisitsPage'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
 import {
@@ -300,6 +301,7 @@ const pageTitles: Record<string, string> = {
   '/employee/staff-list': 'Employee',
   '/employee/hours': 'Employee hours',
   '/employee/absences': 'Absence tracker',
+  '/parental-leave': 'Parental leave',
   '/special-visits': 'Special visits',
   '/employee/compliance': 'Compliance board',
   '/employee/review-status': 'Employee',
@@ -1410,6 +1412,13 @@ const employeeAbsencesRoute = createRoute({
   component: EmployeeAbsencesPage,
 })
 
+const parentalLeaveRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/parental-leave',
+  beforeLoad: requireAnyPermission('employees.read', 'employees.reports.read'),
+  component: ParentalLeavePage,
+})
+
 const specialVisitsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/special-visits',
@@ -2455,6 +2464,7 @@ const routeTree = rootRoute.addChildren([
     employeeStaffListRoute,
     employeeHoursRoute,
     employeeAbsencesRoute,
+    parentalLeaveRoute,
     specialVisitsRoute,
     employeeComplianceRoute,
     employeeReviewStatusRoute,
