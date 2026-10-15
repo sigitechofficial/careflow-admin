@@ -330,6 +330,14 @@ const navItems: NavItem[] = [
         ],
       },
       {
+        section: 'Rota',
+        label: 'Special visits',
+        icon: <CalendarClock className="h-4 w-4" />,
+        href: '/special-visits',
+        anyPermission: ['employees.read', 'employees.reports.read'],
+        navTestId: 'nav-special-visits',
+      },
+      {
         section: 'Visits',
         label: 'Live monitoring',
         icon: <Activity className="h-4 w-4" />,
