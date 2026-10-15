@@ -55,6 +55,57 @@ export function normalizeVisitPlanSlotCode(code: string): string {
   return LEGACY_SLOT_TO_ROUND[upper] ?? upper
 }
 
+/**
+ * A time slot can hold several visits. The first one uses the time slot's own code (`MORNING`);
+ * each further visit is its own row with code `MORNING__2`, `MORNING__3`, … and stays linked to
+ * the time slot through `medicationRoundCode`.
+ */
+const ADDITIONAL_VISIT_CODE_RE = /^(.+)__(\d+)$/
+
+export function isAdditionalVisitSlotCode(code: string): boolean {
+  return ADDITIONAL_VISIT_CODE_RE.test(code.trim().toUpperCase())
+}
+
+/** The time slot (round) code a plan row belongs to. */
+export function visitPlanSlotRoundCode(slot: Pick<VisitPlanSlot, 'slotCode' | 'medicationRoundCode'>): string {
+  const fromRound = slot.medicationRoundCode?.trim()
+  if (fromRound) return normalizeVisitPlanSlotCode(fromRound)
+  const code = normalizeVisitPlanSlotCode(slot.slotCode)
+  return ADDITIONAL_VISIT_CODE_RE.exec(code)?.[1] ?? code
+}
+
+/** Next free row code for another visit in a time slot. */
+export function nextAdditionalVisitSlotCode(roundCode: string, slots: Pick<VisitPlanSlot, 'slotCode'>[]): string {
+  const taken = new Set(slots.map((s) => normalizeVisitPlanSlotCode(s.slotCode)))
+  for (let n = 2; ; n += 1) {
+    const code = `${roundCode}__${n}`
+    if (!taken.has(code)) return code
+  }
+}
+
+/** A blank, switched-on visit for a time slot, starting from that slot's window. */
+export function newVisitPlanSlotForRound(
+  round: MedicationRoundLookup | MedicationRoundRow,
+  slotCode: string,
+  opts?: { defaultRequiredCarers?: number },
+): VisitPlanSlot {
+  const start = hm(round.windowStart, hm(round.time, '08:00'))
+  const end = hm(round.windowEnd, hm(round.time, '09:00'))
+  return {
+    ...SLOT_OPTION_DEFAULTS,
+    slotCode,
+    label: round.name,
+    medicationRoundCode: round.code,
+    daysOfWeek: [1, 2, 3, 4, 5, 6, 0],
+    plannedStartTime: start,
+    plannedEndTime: end,
+    requiredCarers: opts?.defaultRequiredCarers ?? 1,
+    isEnabled: true,
+    notes: '',
+    sortOrder: round.sortOrder ?? 0,
+  }
+}
+
 function hm(value: string | null | undefined, fallback: string): string {
   return normalizeDueTimeHm(value) ?? fallback
 }
@@ -83,7 +134,7 @@ export function visitPlanSlotsFromMedicationRounds(
     (existing ?? []).map(slot => [normalizeVisitPlanSlotCode(slot.slotCode), slot]),
   )
 
-  return sorted.map((round, index) => {
+  const baseRows = sorted.map((round, index) => {
     const slotCode = round.code
     const prev = byCode.get(slotCode)
     const start = hm(round.windowStart, hm(round.time, '08:00'))
@@ -130,6 +181,28 @@ export function visitPlanSlotsFromMedicationRounds(
       exceptions: prev?.exceptions ?? SLOT_OPTION_DEFAULTS.exceptions,
     }
   })
+
+  // Further visits saved for a time slot keep their own row, right after that slot's first row.
+  const roundByCode = new Map(sorted.map((round) => [round.code, round]))
+  const additional = (existing ?? [])
+    .filter((slot) => isAdditionalVisitSlotCode(slot.slotCode) && roundByCode.has(visitPlanSlotRoundCode(slot)))
+    .map((slot) => {
+      const round = roundByCode.get(visitPlanSlotRoundCode(slot))!
+      return {
+        ...SLOT_OPTION_DEFAULTS,
+        ...slot,
+        slotCode: normalizeVisitPlanSlotCode(slot.slotCode),
+        label: round.name,
+        medicationRoundCode: round.code,
+        sortOrder: round.sortOrder ?? 0,
+      }
+    })
+    .sort((a, b) => a.slotCode.localeCompare(b.slotCode, undefined, { numeric: true }))
+
+  return baseRows.flatMap((row) => [
+    row,
+    ...additional.filter((slot) => visitPlanSlotRoundCode(slot) === row.slotCode),
+  ])
 }
 
 export function defaultEditableVisitPlanSlots(rounds: RoundInput[]): VisitPlanSlot[] {

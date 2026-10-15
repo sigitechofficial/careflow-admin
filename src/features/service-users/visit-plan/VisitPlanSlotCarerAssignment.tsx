@@ -81,6 +81,8 @@ export function VisitPlanSlotCarerAssignment({
   const selected = new Set(assignedIds)
   const maxCarers = slot.requiredCarers || 1
   const hasCarerByDay = slotHasCarerByDayAssignments(slot)
+  /** Rows for particular weekdays (set under "Different carers on different days"). */
+  const hasDaySpecificCarers = (slot.carerAssignments ?? []).some((row) => row.dayOfWeek != null)
   const nameLookupIds = React.useMemo(() => {
     const ids = new Set(assignedIds)
     for (const row of slot.carerAssignments ?? []) {
@@ -328,7 +330,7 @@ export function VisitPlanSlotCarerAssignment({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className={cn(contentTitleClass, 'inline-flex items-center gap-1.5')}>
               <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
-              {hasCarerByDay ? 'Assigned carers by day' : 'Currently assigned'}
+              {hasDaySpecificCarers ? 'Assigned carers by day' : 'Currently assigned'}
             </h3>
             {!disabled && assignedIds.length > 0 ? (
               <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearAssigned}>
@@ -395,6 +397,7 @@ export function VisitPlanSlotCarerAssignment({
                             isAssigned
                             justAssigned={justAssigned}
                             hideTimeMismatch
+                            compact
                           />
                         ) : (
                           <p className="inline-flex flex-wrap items-center gap-2 text-sm font-medium">
@@ -427,11 +430,11 @@ export function VisitPlanSlotCarerAssignment({
               </ul>
             )}
             <p className={cn('mt-3 leading-relaxed', contentHelperClass)}>
-              {hasCarerByDay
+              {hasDaySpecificCarers
                 ? 'Day-specific rules from advanced settings. Availability reflects working pattern and existing rota bookings.'
                 : showRoles
                   ? `First assigned carer is Lead; the next are ${maxCarers >= 3 ? 'Support 1, Support 2' : 'Secondary'}. Use “Make lead” to change. Assigned for ${slotDayLabels || 'selected days'}.`
-                  : `Assigned for ${slotDayLabels || 'selected days'}. Save the visit plan, then regenerate rota to apply.`}
+                  : `Assigned for ${slotDayLabels || 'selected days'}. Save the visit plan to apply.`}
             </p>
           </div>
         </section>
@@ -477,7 +480,8 @@ export function VisitPlanSlotCarerAssignment({
           </p>
         ) : null}
 
-        <ul className="max-h-[min(42vh,22rem)] space-y-2 overflow-y-auto pr-1">
+        {/* Inside a dialog the dialog body scrolls; a second scroll box here hid most carers. */}
+        <ul className={cn('space-y-2', !embedded && 'max-h-[min(42vh,22rem)] overflow-y-auto pr-1')}>
           {searchFilteredCandidates.length === 0 && visibleCandidates.length > 0 && carerSearch.trim() ? (
             <li className="px-2 py-6 text-center text-sm text-muted-foreground">No carers match your search.</li>
           ) : null}
@@ -530,7 +534,7 @@ export function VisitPlanSlotCarerAssignment({
                       <RadioGroupItem
                         value={c.employeeId}
                         disabled={disabled || blocked || rotaConflict || complianceBlocked}
-                        className="mt-1.5 shrink-0"
+                        className="mt-1.5 shrink-0 border-foreground/50"
                         aria-label={`Assign ${c.displayName}`}
                         onClick={(event) => event.stopPropagation()}
                       />
@@ -541,6 +545,7 @@ export function VisitPlanSlotCarerAssignment({
                         isAssigned={isSelected}
                         justAssigned={justAssigned}
                         hideTimeMismatch
+                        compact
                       />
                     </div>
                   </li>
@@ -585,7 +590,7 @@ export function VisitPlanSlotCarerAssignment({
                       checked={checked}
                       disabled={disabled || blocked || rotaConflict || complianceBlocked || atLimit}
                       onCheckedChange={() => toggle(c.employeeId, blocked, rotaConflict, complianceBlocked)}
-                      className="mt-1.5 shrink-0"
+                      className="mt-1.5 shrink-0 border-foreground/50"
                       aria-label={`Assign ${c.displayName}`}
                       onClick={(event) => event.stopPropagation()}
                     />
@@ -596,6 +601,7 @@ export function VisitPlanSlotCarerAssignment({
                       isAssigned={checked}
                       justAssigned={justAssigned}
                       hideTimeMismatch
+                      compact
                     />
                   </div>
                 </li>
@@ -617,11 +623,11 @@ export function VisitPlanSlotCarerAssignment({
             />
             <span className="font-medium text-foreground">{selected.size}</span> of {maxCarers} carer
             {maxCarers === 1 ? '' : 's'} selected
-            {selected.size < maxCarers ? ` · ${maxCarers - selected.size} more needed` : ' · ready for this slot'}
-            . Changes apply when you save the visit plan and regenerate rota.
+            {selected.size < maxCarers ? ` · ${maxCarers - selected.size} more needed` : ' · ready for this visit'}
+            . Changes apply when you save the visit plan.
           </p>
         ) : (
-          <p>No carers selected yet for this call slot.</p>
+          <p>No carers selected yet for this visit.</p>
         )}
       </footer>
     </div>

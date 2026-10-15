@@ -212,6 +212,7 @@ export type OrganisationGeneralSettings = {
   domDownloadAllServiceUsers: boolean
   domFutureVisitsDays: number
   domAutoExtendRotaEnabled: boolean
+  domCancellationHospitalExemption: boolean
   domRotaHorizonDays: number
   domRotaHorizonMode: RotaHorizonMode
   domAutoExtendRotaRunHour: number

@@ -63,4 +63,14 @@ describe('visit-plan-night-duty.util', () => {
       defaultOvernightTimePatch({ plannedStartTime: '21:00', plannedEndTime: '08:00' }),
     ).toEqual({})
   })
+
+  it('keeps a new overnight visit as a normal visit until another night type is chosen', () => {
+    const night = { slotKind: 'STANDARD' as const, plannedStartTime: '20:00', plannedEndTime: '07:00' }
+    expect(resolveVisitPlanNightDuty({ ...night, nightDuty: 'NONE' })).toBe('NONE')
+    expect(resolveVisitPlanNightDuty({ ...night, nightDuty: 'WAKING_NIGHT' })).toBe('WAKING_NIGHT')
+    expect(resolveVisitPlanNightDuty({ ...night, nightDuty: 'SLEEPING_NIGHT' })).toBe('SLEEPING_NIGHT')
+    expect(
+      resolveVisitPlanNightDuty({ ...night, plannedEndTime: '21:00', nightDuty: 'WAKING_NIGHT' }),
+    ).toBe('NONE')
+  })
 })
