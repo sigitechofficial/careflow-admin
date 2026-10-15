@@ -15,6 +15,7 @@ import {
   Package,
   Receipt,
   Shield,
+  ShieldAlert,
   UserCircle,
   Users,
 } from 'lucide-react'
@@ -28,6 +29,7 @@ export const SERVICE_USER_PROFILE_TAB_IDS = [
   'inventory',
   'allergies',
   'absences',
+  'incidents',
   'calendar',
   'privacy',
   'dom',
@@ -55,6 +57,12 @@ export const SERVICE_USER_PROFILE_TABS: {
   { id: 'inventory', label: 'Personal Inventory', Icon: Package, iconClassName: 'text-amber-600 dark:text-amber-400' },
   { id: 'allergies', label: 'Allergies', Icon: AlertTriangle, iconClassName: 'text-orange-600 dark:text-orange-400' },
   { id: 'absences', label: 'Record Absences', Icon: CalendarOff, iconClassName: 'text-red-600 dark:text-red-400' },
+  {
+    id: 'incidents',
+    label: 'Incidents & Complaints',
+    Icon: ShieldAlert,
+    iconClassName: 'text-rose-700 dark:text-rose-400',
+  },
   { id: 'calendar', label: 'Calendar', Icon: Calendar, iconClassName: 'text-teal-600 dark:text-teal-400' },
   { id: 'privacy', label: 'Privacy', Icon: Shield, iconClassName: 'text-slate-600 dark:text-slate-300' },
   { id: 'dom', label: 'DOM Care', Icon: Home, iconClassName: 'text-emerald-600 dark:text-emerald-400' },

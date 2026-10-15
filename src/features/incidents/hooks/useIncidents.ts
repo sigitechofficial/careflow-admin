@@ -77,10 +77,11 @@ export function useIncidentCategories() {
   })
 }
 
-export function useIncidents(filters: IncidentListFilters) {
+export function useIncidents(filters: IncidentListFilters, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: incidentKeys.list(filters),
     queryFn: ({ signal }) => fetchIncidents(filters, { signal }),
+    enabled: options?.enabled ?? true,
   })
 }
 
