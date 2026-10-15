@@ -1244,9 +1244,8 @@ function ModulePanelHeader({
 }
 
 function ModuleSidebar() {
-  const { sidebarMobileOpen, setSidebarMobileOpen } = useUIStore()
-  const [pagePanelPinned, setPagePanelPinned] = React.useState(true)
-  const togglePagePanelPinned = React.useCallback(() => setPagePanelPinned((v) => !v), [])
+  const { sidebarMobileOpen, setSidebarMobileOpen, pagePanelPinned, togglePagePanelPinned } =
+    useUIStore()
   const navigate = useNavigate()
   const location = useRouterState({ select: (s) => s.location })
   const { pathname, search } = location
