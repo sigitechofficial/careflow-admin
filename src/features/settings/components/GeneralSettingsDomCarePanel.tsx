@@ -31,9 +31,7 @@ import {
 } from '@/shared/ui/select'
 import {
   DEFAULT_DOM_JOB_CANCELLATION_RULES,
-  defaultDomLateVisitZoneAlerts,
-  domCareZoneKey,
-  scheduleAreaDisplayLabel,
+  mergeDomLateVisitZoneAlerts,
 } from '@/features/settings/dom-care/dom-care-settings-defaults'
 import {
   GeneralSettingsCard,
@@ -136,7 +134,7 @@ const DEFAULTS: DomCareDraft = {
   domLateVisitAlertNotification: true,
   domTextAlertsSentThisMonth: 0,
   domTextAlertsSentLastMonth: 0,
-  domLateVisitZoneAlerts: defaultDomLateVisitZoneAlerts(),
+  domLateVisitZoneAlerts: [],
 }
 
 function employeeLabel(row: EmployeeListRow): string {
@@ -144,30 +142,6 @@ function employeeLabel(row: EmployeeListRow): string {
     row.fullName?.trim() ||
     [row.firstName, row.lastName].filter(Boolean).join(' ').trim()
   return name || 'Unnamed employee'
-}
-
-function mergeZoneAlerts(
-  saved: DomLateVisitZoneAlert[],
-  scheduleAreas: ScheduleAreaRow[],
-): DomLateVisitZoneAlert[] {
-  const byKey = new Map<string, DomLateVisitZoneAlert>()
-  for (const zone of saved) byKey.set(zone.zoneKey, { ...zone })
-  for (const area of scheduleAreas) {
-    const label = scheduleAreaDisplayLabel(area)
-    const zoneKey = domCareZoneKey(label)
-    const existing = byKey.get(zoneKey)
-    byKey.set(zoneKey, {
-      zoneKey,
-      label,
-      scheduleAreaId: area.id,
-      emailEmployeeIds: existing?.emailEmployeeIds ?? [],
-      notificationEmployeeIds: existing?.notificationEmployeeIds ?? [],
-    })
-  }
-  for (const zone of defaultDomLateVisitZoneAlerts()) {
-    if (!byKey.has(zone.zoneKey)) byKey.set(zone.zoneKey, zone)
-  }
-  return [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label))
 }
 
 function toDraft(s: OrganisationGeneralSettings, scheduleAreas: ScheduleAreaRow[]): DomCareDraft {
@@ -204,7 +178,7 @@ function toDraft(s: OrganisationGeneralSettings, scheduleAreas: ScheduleAreaRow[
     domLateVisitAlertNotification: s.domLateVisitAlertNotification,
     domTextAlertsSentThisMonth: s.domTextAlertsSentThisMonth,
     domTextAlertsSentLastMonth: s.domTextAlertsSentLastMonth,
-    domLateVisitZoneAlerts: mergeZoneAlerts(s.domLateVisitZoneAlerts, scheduleAreas),
+    domLateVisitZoneAlerts: mergeDomLateVisitZoneAlerts(s.domLateVisitZoneAlerts, scheduleAreas),
   }
 }
 
@@ -301,13 +275,13 @@ export function GeneralSettingsDomCarePanel() {
     if (!settingsQuery.data || areasQuery.data === undefined) return
     setDraft((d) => ({
       ...d,
-      domLateVisitZoneAlerts: mergeZoneAlerts(settingsQuery.data!.domLateVisitZoneAlerts, areasQuery.data),
+      domLateVisitZoneAlerts: mergeDomLateVisitZoneAlerts(settingsQuery.data!.domLateVisitZoneAlerts, areasQuery.data),
     }))
     setSaved((s) =>
       s
         ? {
             ...s,
-            domLateVisitZoneAlerts: mergeZoneAlerts(
+            domLateVisitZoneAlerts: mergeDomLateVisitZoneAlerts(
               settingsQuery.data!.domLateVisitZoneAlerts,
               areasQuery.data,
             ),

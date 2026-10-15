@@ -10,10 +10,23 @@ import {
   type GoogleAutocompletePrediction,
 } from '@/shared/lib/google-maps'
 
+export type GoogleBranchAddressMeta = {
+  city?: string
+  country?: string
+  postcode?: string
+  addressLine1?: string
+  addressLine2?: string
+  county?: string
+  /** From Google geometry; null when the place has none. */
+  lat?: number | null
+  lng?: number | null
+}
+
 type Props = {
   id?: string
   value: string
-  onChange: (address: string, meta?: { city?: string; country?: string; postcode?: string }) => void
+  /** `meta` is only passed when a Google suggestion was picked (typing passes none). */
+  onChange: (address: string, meta?: GoogleBranchAddressMeta) => void
   /** ISO country code(s) to bias Places (e.g. 'gb'). */
   countryRestriction?: string | string[]
   disabled?: boolean
@@ -208,6 +221,11 @@ export function GoogleBranchAddressField({
             city: parsed.city || undefined,
             country: parsed.country || undefined,
             postcode: parsed.postcode || undefined,
+            addressLine1: parsed.addressLine1 || undefined,
+            addressLine2: parsed.addressLine2 || undefined,
+            county: parsed.county || undefined,
+            lat: parsed.lat,
+            lng: parsed.lng,
           })
         },
       )

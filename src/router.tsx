@@ -28,7 +28,7 @@ import {
 import { useCompanyStore } from '@/store/company.store'
 import { useNotificationSocket } from '@/features/notifications/hooks/useNotificationSocket'
 import { UrgentOfficeAlertHost } from '@/features/ecm/components/UrgentOfficeAlertHost'
-import { useUIStore } from '@/store/ui.store'
+import { useUIStore, applyTextPreferences } from '@/store/ui.store'
 import { useAuthStore } from '@/features/auth/store'
 import { rootAuthBeforeLoad } from '@/features/auth/guard'
 import type { Permission } from '@/features/auth/types'
@@ -108,9 +108,18 @@ import PortalSurveysPage from '@/features/service-user-portal/pages/PortalSurvey
 import { portalPageTitles } from '@/features/service-user-portal/portal-nav'
 import AccountPage from '@/features/account/pages/AccountPage'
 import HomePage from '@/features/home/pages/HomePage'
+import ModuleHomePage from '@/features/home/pages/ModuleHomePage'
+import MedicationExceptionsPage from '@/features/emar/pages/MedicationExceptionsPage'
+import MedicationStockPage from '@/features/emar/pages/MedicationStockPage'
+import { MedicationAdministeredPage, MedicationLatePage } from '@/features/emar/pages/MedicationDoseLogPage'
+import { moduleLabelForSlug } from '@/components/layout/nav-modules'
 import InProgressPage from '@/features/home/pages/InProgressPage'
 import ComponentShowcase from '@/features/home/pages/ComponentShowcase'
 import SecurityAdminPage from '@/features/admin/pages/SecurityAdminPage'
+import AzurePricingPage from '@/features/azure-pricing/pages/AzurePricingPage'
+import { isAzurePricingTabId, type AzurePricingTabId } from '@/features/azure-pricing/types'
+import SystemJobsPage from '@/features/system-jobs/pages/SystemJobsPage'
+import { validateSystemJobsSearch } from '@/features/system-jobs/types'
 import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
 import IncidentsListPage from '@/features/incidents/pages/IncidentsListPage'
@@ -177,6 +186,8 @@ import PolicyDetailPage from '@/features/policies/pages/PolicyDetailPage'
 import PolicyEditPage from '@/features/policies/pages/PolicyEditPage'
 import PolicyCategoriesPage from '@/features/policies/pages/PolicyCategoriesPage'
 import PolicyTagsPage from '@/features/policies/pages/PolicyTagsPage'
+import MyPoliciesToReadPage from '@/features/policies/pages/MyPoliciesToReadPage'
+import PolicyAcknowledgementsPage from '@/features/policies/pages/PolicyAcknowledgementsPage'
 import { validatePolicyLibrarySearch } from '@/features/policies/policy-routes'
 import {
   BILLING_SECTION_PATHS,
@@ -308,6 +319,8 @@ const pageTitles: Record<string, string> = {
   '/account': 'My account',
   '/admin/security': 'Security administration',
   '/admin/audit': 'Audit log',
+  '/azure-pricing': 'Azure Pricing',
+  '/system-jobs': 'System jobs',
   '/in-progress': 'Page in progress',
   '/showcase': 'UI showcase',
   '/settings': 'Settings',
@@ -367,6 +380,12 @@ const pageTitles: Record<string, string> = {
   '/policies/$policyId/edit': 'Edit policy',
   '/policies/categories': 'Policy categories',
   '/policies/tags': 'Policy tags',
+  '/policies/to-read': 'My policies to read',
+  '/policies/acknowledgements': 'Read and sign tracking',
+  '/medication/exceptions': 'Missed & refused doses',
+  '/medication/late': 'Late doses',
+  '/medication/administered': 'Administration log',
+  '/medication/stock': 'Stock movements',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -418,6 +437,12 @@ const BILLING_TAB_IDS: BillingTabId[] = [
 
 function RootDocument() {
   const { theme } = useUIStore()
+  const textSize = useUIStore((s) => s.textSize)
+  const textWeight = useUIStore((s) => s.textWeight)
+
+  useEffect(() => {
+    applyTextPreferences(textSize, textWeight)
+  }, [textSize, textWeight])
 
   useEffect(() => {
     const root = document.documentElement
@@ -451,6 +476,7 @@ function AppRootShell() {
 
   const pageTitle =
     pageTitles[pathname] ??
+    (pathname.startsWith('/apps/') ? moduleLabelForSlug(pathname.split('/')[2] ?? '') : undefined) ??
     (/^\/employee\/[^/]+\/edit$/.test(pathname)
       ? 'Edit Employee'
       : /^\/service-users\/[^/]+\/profile$/.test(pathname)
@@ -738,6 +764,50 @@ const indexRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/',
   component: HomePage,
+})
+
+/** Module landing page opened from the sidebar rail (tiles for every page in the module). */
+const moduleHomeRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/apps/$module',
+  component: ModuleHomePage,
+})
+
+/* Medication (eMAR) module: organisation-wide views; each service user's MAR stays on their profile. */
+const medicationIndexRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication',
+  beforeLoad: () => {
+    throw redirect({ to: '/apps/$module', params: { module: 'medication' } })
+  },
+})
+
+const medicationExceptionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/exceptions',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationExceptionsPage,
+})
+
+const medicationLateRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/late',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationLatePage,
+})
+
+const medicationAdministeredRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/administered',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationAdministeredPage,
+})
+
+const medicationStockRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/medication/stock',
+  beforeLoad: requirePermission('service_users.read'),
+  component: MedicationStockPage,
 })
 
 const serviceUsersRoute = createRoute({
@@ -1645,6 +1715,24 @@ const adminSecurityRoute = createRoute({
   component: SecurityAdminPage,
 })
 
+const azurePricingRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/azure-pricing',
+  validateSearch: (raw: Record<string, unknown>): { tab?: AzurePricingTabId } => ({
+    tab: isAzurePricingTabId(raw.tab) ? raw.tab : undefined,
+  }),
+  beforeLoad: requirePermission('platform_costs.read'),
+  component: AzurePricingPage,
+})
+
+const systemJobsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/system-jobs',
+  validateSearch: validateSystemJobsSearch,
+  beforeLoad: requirePermission('system_jobs.read'),
+  component: SystemJobsPage,
+})
+
 const adminAuditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/admin/audit',
@@ -2226,6 +2314,20 @@ const policyTagsRoute = createRoute({
   component: PolicyTagsPage,
 })
 
+const myPoliciesToReadRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/to-read',
+  beforeLoad: requirePermission('policies.read'),
+  component: MyPoliciesToReadPage,
+})
+
+const policyAcknowledgementsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/acknowledgements',
+  beforeLoad: requirePermission('policies.read'),
+  component: PolicyAcknowledgementsPage,
+})
+
 const policyDetailRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/policies/$policyId',
@@ -2291,6 +2393,12 @@ const routeTree = rootRoute.addChildren([
     portalPhotosRoute,
   ]),
   appShellRoute.addChildren([
+    moduleHomeRoute,
+    medicationIndexRoute,
+    medicationExceptionsRoute,
+    medicationLateRoute,
+    medicationAdministeredRoute,
+    medicationStockRoute,
     indexRoute,
     serviceUsersRoute,
     serviceUsersAllRoute,
@@ -2367,6 +2475,8 @@ const routeTree = rootRoute.addChildren([
     accountRoute,
     adminSecurityRoute,
     adminAuditRoute,
+    azurePricingRoute,
+    systemJobsRoute,
     adminServiceUserPortalRoute,
     inProgressRoute,
     showcaseRoute,
@@ -2426,6 +2536,8 @@ const routeTree = rootRoute.addChildren([
     policyNewRoute,
     policyCategoriesRoute,
     policyTagsRoute,
+    myPoliciesToReadRoute,
+    policyAcknowledgementsRoute,
     policyDetailRoute,
     policyEditRoute,
   ]),

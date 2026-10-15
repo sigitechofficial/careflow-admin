@@ -8,7 +8,10 @@ import type {
   PolicyCategory,
   PolicyCategoryInput,
   PolicyCategoryListParams,
+  MyPolicyAcknowledgements,
+  PolicyAcknowledgementSummary,
   PolicyDocument,
+  PolicyDocumentAcknowledgements,
   PolicyListParams,
   PolicyTag,
   PolicyTagListParams,
@@ -237,4 +240,32 @@ export async function updatePolicyTag(id: string, body: { name: string }): Promi
 
 export async function deletePolicyTag(id: string): Promise<void> {
   await apiJson(`/policy-tags/${id}`, { method: 'DELETE' })
+}
+
+/* ─── Read and acknowledge ─────────────────────────────────────────────── */
+
+export async function fetchMyPolicyAcknowledgements(): Promise<MyPolicyAcknowledgements> {
+  const res = await apiJson<ApiEnvelope<MyPolicyAcknowledgements>>('/policy-acknowledgements/mine', { method: 'GET' })
+  return res.data
+}
+
+export async function fetchPolicyAcknowledgementSummary(): Promise<PolicyAcknowledgementSummary> {
+  const res = await apiJson<ApiEnvelope<PolicyAcknowledgementSummary>>('/policy-acknowledgements/summary', { method: 'GET' })
+  return res.data
+}
+
+export async function fetchPolicyDocumentAcknowledgements(documentId: string): Promise<PolicyDocumentAcknowledgements> {
+  const res = await apiJson<ApiEnvelope<PolicyDocumentAcknowledgements>>(
+    `/policy-acknowledgements/documents/${documentId}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function markPolicyVersionViewed(versionId: string): Promise<void> {
+  await apiJson(`/policy-acknowledgements/versions/${versionId}/view`, { method: 'POST', body: JSON.stringify({}) })
+}
+
+export async function acknowledgePolicyVersion(versionId: string): Promise<void> {
+  await apiJson(`/policy-acknowledgements/versions/${versionId}/acknowledge`, { method: 'POST', body: JSON.stringify({}) })
 }

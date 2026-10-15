@@ -9,6 +9,7 @@ import {
   fetchLocationManagementTree,
   fetchServiceUserLocations,
   updateEmployeeLocation,
+  updateLocationBranch,
   updateLocationZone,
   updateServiceUserArea,
   updateServiceUserLocation,
@@ -83,6 +84,20 @@ export function useCreateLocationBranch() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: Parameters<typeof createLocationBranch>[0]) => createLocationBranch(body),
+    onSuccess: () => invalidateLocationManagement(qc),
+  })
+}
+
+export function useUpdateLocationBranch() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      branchId,
+      body,
+    }: {
+      branchId: string
+      body: Parameters<typeof updateLocationBranch>[1]
+    }) => updateLocationBranch(branchId, body),
     onSuccess: () => invalidateLocationManagement(qc),
   })
 }

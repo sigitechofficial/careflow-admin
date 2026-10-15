@@ -3,44 +3,23 @@ import { Link } from '@tanstack/react-router'
 import { useQueries } from '@tanstack/react-query'
 import {
   Search, X, ChevronLeft,
-  ChevronRight, ChevronsLeft, Dot,
-  Globe, Loader2,
-  Users, UserCheck, CalendarDays, CheckCircle2,
-  Bell, AlertTriangle, ShieldAlert, GraduationCap, Wrench,
+  ChevronRight, ChevronsLeft,
+  Loader2,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
-import { Card, CardHeader, CardTitle, CardContent, StatCard } from '@/shared/ui/card'
+import { Card, CardHeader, CardTitle, CardContent } from '@/shared/ui/card'
 import { useAuthStore } from '@/features/auth/store'
+import { HomeOverview } from '@/features/home/components/HomeOverview'
+import { illustrationSrc } from '@/components/layout/nav-illustrations'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import { useServiceUserLocations } from '@/features/settings/hooks/useLocationManagement'
 import { useHandoverReport } from '@/features/home/hooks/useHandoverReport'
 import type { HandoverReportSortBy } from '@/features/home/api/handover-report.api'
 import { operationalTodayIso, addDaysToOperationalIso } from '@/shared/lib/operational-day.util'
-import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
-import { useEmployeeChartSummary } from '@/features/employees/hooks/useEmployees'
-import { useScheduleList, useHousekeepingJobsNeedingAttention } from '@/features/scheduling/hooks/useScheduling'
 import { getJobsDayTimeline } from '@/features/scheduling/api/scheduling.api'
 import { schedulingKeys } from '@/features/scheduling/keys'
-import { useUnreadNotificationCount } from '@/features/notifications/hooks/useUnreadNotificationCount'
-import { useIncidentStats } from '@/features/incidents/hooks/useIncidents'
-import { useComplianceBoard } from '@/features/employees/hooks/useEmployeeCompliance'
-import { useLearningDashboard } from '@/features/learning/hooks/useLearning'
-
-const systemUpgrades = [
-  {
-    section: 'New Navigation',
-    items: [
-      'Streamlined menus to navigate the care system',
-      'Updated look and feel of the settings screen',
-    ],
-  },
-  {
-    section: 'PainChek Enhancements',
-    items: ['Send Service User location information to your PainChek product'],
-  },
-]
 
 type SortBy = HandoverReportSortBy
 
@@ -78,7 +57,6 @@ function formatDisplayDate(iso: string): string {
 
 /* ─── Home Page ───────────────────────────────────────────────────────────── */
 export default function HomePage() {
-  const canManagePortal = useAuthStore(s => s.can('service_users.portal.read'))
   const canReadSettings = useAuthStore(s => s.can('lookups.read'))
   const canReadHandover = useAuthStore(
     s => s.can('schedule.read') || s.can('scheduled_visits.read') || s.can('service_users.read'),
@@ -97,23 +75,6 @@ export default function HomePage() {
 
   const today = operationalTodayIso()
   const defaultFrom = addDaysToOperationalIso(today, -1)
-
-  const serviceUsersQuery = useServiceUsers({ page: 1, limit: 1 })
-  const employeeSummaryQuery = useEmployeeChartSummary()
-  const todayVisitsQuery = useScheduleList(today)
-
-  const totalServiceUsers = serviceUsersQuery.data?.meta?.total ?? 0
-  const totalCarers = employeeSummaryQuery.data?.staff?.active ?? 0
-  const todayJobs = todayVisitsQuery.data?.jobs ?? []
-  const todayVisitsCount = todayJobs.length
-  const todayCompletedCount = todayJobs.filter(j => j.status === 'COMPLETED').length
-
-  const unreadCount = useUnreadNotificationCount()
-  const canReadIncidents = useAuthStore(s => s.can('incidents.read'))
-  const incidentStats = useIncidentStats(undefined, canReadIncidents)
-  const complianceBoard = useComplianceBoard()
-  const learningDashboard = useLearningDashboard()
-  const housekeepingJobs = useHousekeepingJobsNeedingAttention(1)
 
   const weekDates = React.useMemo(() => {
     const parts = today.split('-').map(Number)
@@ -200,136 +161,15 @@ export default function HomePage() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Service Users"
-          value={totalServiceUsers}
-          hint="Active service users"
-          icon={<Users className="h-5 w-5" />}
-          tone="sky"
-          loading={serviceUsersQuery.isLoading}
-          to="/service-users/all"
-          data-testid="home-stat-service-users"
-        />
-        <StatCard
-          label="Total Carers"
-          value={totalCarers}
-          hint="Active employees"
-          icon={<UserCheck className="h-5 w-5" />}
-          tone="emerald"
-          loading={employeeSummaryQuery.isLoading}
-          to="/employee/all"
-          data-testid="home-stat-carers"
-        />
-        <StatCard
-          label="Today's Visits"
-          value={todayVisitsCount}
-          hint={`Scheduled for ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}
-          icon={<CalendarDays className="h-5 w-5" />}
-          tone="amber"
-          loading={todayVisitsQuery.isLoading}
-          to="/scheduling"
-          data-testid="home-stat-today-visits"
-        />
-        <StatCard
-          label="Completed Visits"
-          value={todayCompletedCount}
-          hint={todayVisitsCount > 0 ? `${Math.round((todayCompletedCount / todayVisitsCount) * 100)}% of today's visits` : 'No visits scheduled'}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          tone="violet"
-          loading={todayVisitsQuery.isLoading}
-          to="/scheduling"
-          data-testid="home-stat-completed-visits"
-        />
-      </div>
+      <HomeOverview />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle>My Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <ActionRow
-                icon={<Bell className="h-5 w-5 text-blue-400" />}
-                text={
-                  <>
-                    You have <strong>{unreadCount.data ?? 0}</strong> unread notification{(unreadCount.data ?? 0) !== 1 ? 's' : ''}.
-                  </>
-                }
-              />
-              {canReadIncidents ? (
-                <ActionRow
-                  icon={<AlertTriangle className="h-5 w-5 text-amber-500" />}
-                  text={
-                    <>
-                      <strong>{incidentStats.data?.open ?? 0}</strong> open incident{(incidentStats.data?.open ?? 0) !== 1 ? 's' : ''},{' '}
-                      <strong>{incidentStats.data?.overdueActions ?? 0}</strong> overdue action{(incidentStats.data?.overdueActions ?? 0) !== 1 ? 's' : ''}.{' '}
-                      <Link to="/incidents/dashboard" className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
-                        View incidents
-                      </Link>
-                    </>
-                  }
-                />
-              ) : null}
-              <ActionRow
-                icon={<ShieldAlert className="h-5 w-5 text-red-500" />}
-                text={
-                  <>
-                    <strong>{complianceBoard.data?.summary?.expiredCount ?? 0}</strong> expired document{(complianceBoard.data?.summary?.expiredCount ?? 0) !== 1 ? 's' : ''},{' '}
-                    <strong>{complianceBoard.data?.summary?.expiring7Count ?? 0}</strong> expiring within 7 days.{' '}
-                    <Link to="/employee/compliance" className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
-                      Compliance board
-                    </Link>
-                  </>
-                }
-              />
-              <ActionRow
-                icon={<GraduationCap className="h-5 w-5 text-violet-500" />}
-                text={
-                  <>
-                    <strong>{learningDashboard.data?.overdueAssignments ?? 0}</strong> overdue training assignment{(learningDashboard.data?.overdueAssignments ?? 0) !== 1 ? 's' : ''}.{' '}
-                    <Link to="/learning" className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
-                      Learning dashboard
-                    </Link>
-                  </>
-                }
-              />
-              <ActionRow
-                icon={<Wrench className="h-5 w-5 text-orange-500" />}
-                text={
-                  <>
-                    <strong>{housekeepingJobs.data?.meta?.total ?? 0}</strong> visit{(housekeepingJobs.data?.meta?.total ?? 0) !== 1 ? 's' : ''} needing attention.{' '}
-                    <Link to="/scheduling/jobs" className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
-                      Manage jobs
-                    </Link>
-                  </>
-                }
-              />
-              {canManagePortal ? (
-                <ActionRow
-                  icon={<Globe className="h-5 w-5 text-sky-500" />}
-                  text={
-                    <>
-                      Manage service user portal access.{' '}
-                      <Link
-                        to="/admin/service-user-portal"
-                        className="font-bold text-foreground hover:text-primary hover:underline transition-colors"
-                      >
-                        Open portal admin
-                      </Link>
-                    </>
-                  }
-                />
-              ) : null}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Handover Report</CardTitle>
+                  <CardTitle className="flex items-center gap-2"><img src={illustrationSrc('memo')} alt="" aria-hidden="true" draggable={false} className="h-6 w-6 shrink-0 select-none object-contain" />Handover Report</CardTitle>
                   <p className="mt-1 text-xs text-muted-foreground">{rangeLabel}</p>
                 </div>
                 <Button
@@ -505,7 +345,8 @@ export default function HomePage() {
         <div className="lg:col-span-1 space-y-4">
           <Card>
             <CardContent className="pt-5">
-              <h2 className="font-bold text-base mb-4">
+              <h2 className="font-bold text-base mb-4 flex items-center gap-2">
+                <img src={illustrationSrc('spiral-calendar')} alt="" aria-hidden="true" draggable={false} className="h-6 w-6 shrink-0 select-none object-contain" />
                 Weekly Visits Overview
               </h2>
               <p className="text-xs text-muted-foreground mb-3">
@@ -582,7 +423,7 @@ export default function HomePage() {
             <Card data-testid="home-service-users-by-zone">
               <CardContent className="pt-5 space-y-3">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-bold text-base">Service users by zone</h2>
+                  <h2 className="font-bold text-base flex items-center gap-2"><img src={illustrationSrc('world-map')} alt="" aria-hidden="true" draggable={false} className="h-6 w-6 shrink-0 select-none object-contain" />Service users by zone</h2>
                   <Link
                     to="/settings/location-management"
                     className="shrink-0 text-xs font-medium text-primary hover:underline"
@@ -623,15 +464,6 @@ export default function HomePage() {
         <span>Version Number - 5.9.2</span>
         <span>Licence expire on 31 Dec 50</span>
       </div>
-    </div>
-  )
-}
-
-function ActionRow({ icon, text }: { icon: React.ReactNode; text: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 py-1 text-sm">
-      <span className="shrink-0">{icon}</span>
-      <span>{text}</span>
     </div>
   )
 }

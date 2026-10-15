@@ -12,6 +12,7 @@ import {
   validatePolicyForReview,
 } from '@/features/policies/components/PolicyForm'
 import { PolicyVersionHistory } from '@/features/policies/components/PolicyVersionHistory'
+import { PolicyAcknowledgementTracker, PolicyReadAndSignBanner } from '@/features/policies/components/PolicyAcknowledgementPanels'
 import {
   useArchivePolicy,
   useApprovePolicy,
@@ -227,6 +228,8 @@ export default function PolicyDetailPage() {
           />
         </header>
 
+        {document.status === 'PUBLISHED' ? <PolicyReadAndSignBanner documentId={document.id} /> : null}
+
         <Section title="Summary" description="Key information about this policy.">
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Item label="Description" value={document.description || '—'} />
@@ -281,6 +284,12 @@ export default function PolicyDetailPage() {
             <p className="text-sm text-muted-foreground">This policy is not linked to any CareFlow area.</p>
           )}
         </Section>
+
+        {document.status === 'PUBLISHED' && (can('policies.publish') || can('policies.approve') || can('policies.update')) ? (
+          <Section title="Read and sign" description="Staff who must read the published version, and who has signed it.">
+            <PolicyAcknowledgementTracker documentId={document.id} />
+          </Section>
+        ) : null}
 
         <Section title="Content" description="Current version content.">
           <p className="text-sm text-muted-foreground" data-testid="policy-content-source-label">

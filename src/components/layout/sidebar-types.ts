@@ -12,6 +12,12 @@ export interface SubNavItem {
   hideForRoles?: RoleId[]
   ready?: boolean
   navTestId?: string
+  /** Optional sub-heading inside the parent group; shown above the first child of each run. */
+  section?: string
+  /** Not built yet (an Access Group feature we plan to add). Shown with a "Soon" badge; opens /in-progress. */
+  planned?: boolean
+  /** One line on what a planned page will do (shown on the work-in-progress page). */
+  description?: string
 }
 
 export interface NavItem {
@@ -22,6 +28,8 @@ export interface NavItem {
   badgeVariant?: 'default' | 'destructive' | 'warning' | 'success'
   children?: SubNavItem[]
   ready?: boolean
+  /** Top-level leaf only: hide the item unless the user holds this permission. */
+  permission?: Permission
 }
 
 export type LayoutVariant = 'admin' | 'portal'
