@@ -373,7 +373,10 @@ export type ScheduleJobsDayPeriodBand = {
   endHour: number
 }
 
-/** Full-day bands aligned with domiciliary care call rounds (Morning → Night). */
+/**
+ * Fallback full-day bands, used until the organisation's time slots (Settings) have loaded or
+ * when none have a window. The board normally builds its bands from the time slots.
+ */
 export const SCHEDULE_JOBS_DAY_PERIOD_BANDS: ScheduleJobsDayPeriodBand[] = [
   { id: 'morning', period: 'morning', label: 'Morning', startHour: 0, endHour: 12 },
   { id: 'midday', period: 'midday', label: 'Midday', startHour: 12, endHour: 14 },
@@ -382,11 +385,90 @@ export const SCHEDULE_JOBS_DAY_PERIOD_BANDS: ScheduleJobsDayPeriodBand[] = [
   { id: 'night-late', period: 'night', label: 'Night', startHour: 22, endHour: 24 },
 ]
 
-export function scheduleJobsPeriodBandForHour(hour: number): ScheduleJobsDayPeriodBand {
-  const band = SCHEDULE_JOBS_DAY_PERIOD_BANDS.find(
-    (entry) => hour >= entry.startHour && hour < entry.endHour,
-  )
-  return band ?? SCHEDULE_JOBS_DAY_PERIOD_BANDS[0]!
+/** Call-round period named in a slot code, label or visit name (e.g. "NIGHT", "Bedtime call"). */
+export function scheduleJobsPeriodFromText(text: string): ScheduleJobsDayPeriod | null {
+  const t = text.toLowerCase().replace(/_/g, ' ')
+  if (/\b(night|bed|sleep|nocturnal)\b/.test(t)) return 'night'
+  if (/\b(evening|tea|supper|dusk)\b/.test(t)) return 'evening'
+  if (/\b(afternoon|pm call)\b/.test(t)) return 'afternoon'
+  if (/\b(midday|lunch|noon)\b/.test(t)) return 'midday'
+  if (/\b(morning|breakfast|am call)\b/.test(t)) return 'morning'
+  return null
+}
+
+export type ScheduleJobsTimeSlotRow = {
+  code: string
+  name: string
+  windowStart: string | null
+  windowEnd: string | null
+  sortOrder: number
+  isActive?: boolean
+}
+
+function hmMinutes(value: string | null | undefined): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(value?.trim() ?? '')
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null
+}
+
+/**
+ * Board bands from the organisation's time slots (Settings › time slots). Each hour of the day
+ * belongs to the slot whose window covers its start (earlier slots in the slot order win);
+ * a slot that runs past midnight, like Night 20:00–07:00, shows as two bands. Bands follow
+ * whole hours, so a window that starts mid-hour is shown from the next hour. Hours no slot
+ * covers get a "No time slot" band. Returns null when no slot has a window.
+ */
+export function scheduleJobsDayPeriodBandsFromTimeSlots(
+  rows: ScheduleJobsTimeSlotRow[],
+): ScheduleJobsDayPeriodBand[] | null {
+  const slots = rows
+    .filter((r) => r.isActive !== false)
+    .map((r) => ({ row: r, start: hmMinutes(r.windowStart), end: hmMinutes(r.windowEnd) }))
+    .filter((s): s is { row: ScheduleJobsTimeSlotRow; start: number; end: number } => s.start != null && s.end != null)
+    .sort((a, b) => a.row.sortOrder - b.row.sortOrder || a.row.name.localeCompare(b.row.name))
+  if (!slots.length) return null
+  const covers = (s: (typeof slots)[number], minute: number) =>
+    s.end > s.start ? minute >= s.start && minute < s.end : minute >= s.start || minute < s.end
+  const ownerByHour = Array.from({ length: 24 }, (_, hour) => slots.find((s) => covers(s, hour * 60))?.row ?? null)
+
+  const bands: ScheduleJobsDayPeriodBand[] = []
+  for (let hour = 0; hour < 24; hour += 1) {
+    const owner = ownerByHour[hour]
+    const last = bands[bands.length - 1]
+    const lastOwner = last ? ownerByHour[last.startHour] : undefined
+    if (last && lastOwner === owner) {
+      last.endHour = hour + 1
+      continue
+    }
+    const fallback = SCHEDULE_JOBS_DAY_PERIOD_BANDS.find((b) => hour >= b.startHour && hour < b.endHour)!
+    bands.push({
+      id: `${owner ? owner.code.toLowerCase() : 'no-slot'}-${hour}`,
+      period: (owner && scheduleJobsPeriodFromText(`${owner.code} ${owner.name}`)) ?? fallback.period,
+      label: owner?.name ?? 'No time slot',
+      startHour: hour,
+      endHour: hour + 1,
+    })
+  }
+  return bands
+}
+
+let syncedDayPeriodBands: ScheduleJobsDayPeriodBand[] = SCHEDULE_JOBS_DAY_PERIOD_BANDS
+
+/** Bands the board currently uses (time slots once loaded, else the fallback). */
+export function getScheduleJobsDayPeriodBands(): ScheduleJobsDayPeriodBand[] {
+  return syncedDayPeriodBands
+}
+
+/** Remember the board bands for non-React helpers (e.g. a visit's period icon by start hour). */
+export function syncScheduleJobsDayPeriodBands(bands: ScheduleJobsDayPeriodBand[] | null): void {
+  syncedDayPeriodBands = bands?.length ? bands : SCHEDULE_JOBS_DAY_PERIOD_BANDS
+}
+
+export function scheduleJobsPeriodBandForHour(
+  hour: number,
+  bands: ScheduleJobsDayPeriodBand[] = syncedDayPeriodBands,
+): ScheduleJobsDayPeriodBand {
+  const band = bands.find((entry) => hour >= entry.startHour && hour < entry.endHour)
+  return band ?? bands[0]!
 }
 
 export function formatScheduleJobsPeriodRange(

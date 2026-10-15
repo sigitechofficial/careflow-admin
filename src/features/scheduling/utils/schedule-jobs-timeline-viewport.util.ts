@@ -2,7 +2,7 @@ import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
   jobEndMinutes,
   minutesFromDayStart,
-  SCHEDULE_JOBS_DAY_PERIOD_BANDS,
+  getScheduleJobsDayPeriodBands,
   SCHEDULE_JOBS_HOUR_WIDTH,
   SCHEDULE_JOBS_JOB_MIN_CLICK_WIDTH,
   SCHEDULE_JOBS_TIMELINE_GRID_WIDTH,
@@ -34,11 +34,16 @@ export type ScheduleJobsTimelineViewport = {
   bands: ScheduleJobsDayPeriodBand[]
 }
 
-export function findScheduleJobsPeriodBand(bandId: string): ScheduleJobsDayPeriodBand | undefined {
-  return SCHEDULE_JOBS_DAY_PERIOD_BANDS.find((band) => band.id === bandId)
+export function findScheduleJobsPeriodBand(
+  bandId: string,
+  bands: ScheduleJobsDayPeriodBand[] = getScheduleJobsDayPeriodBands(),
+): ScheduleJobsDayPeriodBand | undefined {
+  return bands.find((band) => band.id === bandId)
 }
 
-export function buildScheduleJobsFullDayViewport(): ScheduleJobsTimelineViewport {
+export function buildScheduleJobsFullDayViewport(
+  bands: ScheduleJobsDayPeriodBand[] = getScheduleJobsDayPeriodBands(),
+): ScheduleJobsTimelineViewport {
   return {
     mode: 'full-day',
     bandId: null,
@@ -51,15 +56,16 @@ export function buildScheduleJobsFullDayViewport(): ScheduleJobsTimelineViewport
     padRight: SCHEDULE_JOBS_TIMELINE_PAD_RIGHT,
     trackWidth: SCHEDULE_JOBS_TIMELINE_TRACK_WIDTH,
     hours: scheduleJobsHourLabels(),
-    bands: SCHEDULE_JOBS_DAY_PERIOD_BANDS,
+    bands,
   }
 }
 
 export function buildScheduleJobsFocusedPeriodViewport(
   bandId: string,
   timelineGridWidthPx?: number,
+  bands: ScheduleJobsDayPeriodBand[] = getScheduleJobsDayPeriodBands(),
 ): ScheduleJobsTimelineViewport | null {
-  const band = findScheduleJobsPeriodBand(bandId)
+  const band = findScheduleJobsPeriodBand(bandId, bands)
   if (!band) return null
 
   const startMinute = band.startHour * 60
@@ -92,14 +98,15 @@ export function buildScheduleJobsFocusedPeriodViewport(
 export function resolveScheduleJobsTimelineViewport(
   focusedPeriodBandId: string | null,
   focusedTimelineGridWidthPx?: number,
+  bands: ScheduleJobsDayPeriodBand[] = getScheduleJobsDayPeriodBands(),
 ): ScheduleJobsTimelineViewport {
   if (focusedPeriodBandId) {
     return (
-      buildScheduleJobsFocusedPeriodViewport(focusedPeriodBandId, focusedTimelineGridWidthPx) ??
-      buildScheduleJobsFullDayViewport()
+      buildScheduleJobsFocusedPeriodViewport(focusedPeriodBandId, focusedTimelineGridWidthPx, bands) ??
+      buildScheduleJobsFullDayViewport(bands)
     )
   }
-  return buildScheduleJobsFullDayViewport()
+  return buildScheduleJobsFullDayViewport(bands)
 }
 
 export function jobOverlapsViewport(
@@ -151,5 +158,5 @@ export function scheduleJobsPeriodBandForViewportHour(
   if (viewport.mode === 'focused-period' && viewport.band) {
     return viewport.band
   }
-  return scheduleJobsPeriodBandForHour(hour)
+  return scheduleJobsPeriodBandForHour(hour, viewport.bands)
 }
