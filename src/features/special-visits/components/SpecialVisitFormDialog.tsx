@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
+import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import {
   createSpecialVisit,
   specialVisitKeys,
@@ -8,6 +9,7 @@ import {
 } from '@/features/special-visits/api'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
 import {
   Dialog,
   DialogBody,
@@ -20,16 +22,15 @@ import {
 import { Label, Textarea } from '@/shared/ui/form-field'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
-/** Add N days to a 'YYYY-MM-DD' string and return 'YYYY-MM-DD'. */
-function addDays(day: string, days: number): string {
-  const d = new Date(`${day}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + days)
-  return d.toISOString().slice(0, 10)
+/** datetime-local value (treated as UTC) → ISO string. */
+function localInputToIso(value: string): string | null {
+  return value ? `${value}:00.000Z` : null
 }
 
 type Draft = {
-  visitDate: string
-  hours: string
+  serviceUserId: string
+  start: string
+  end: string
   title: string
   notes: string
 }
@@ -49,60 +50,104 @@ export function SpecialVisitFormDialog({
   /** Remaining contracted hours for the week (for the soft over-limit warning). */
   remainingHours: number | undefined
 }) {
-  const weekEnd = React.useMemo(() => addDays(weekStart, 6), [weekStart])
   const qc = useQueryClient()
 
-  const [draft, setDraft] = React.useState<Draft>({
-    visitDate: weekStart,
-    hours: '',
-    title: '',
-    notes: '',
-  })
+  const defaultDraft = React.useCallback(
+    (): Draft => ({
+      serviceUserId: '',
+      start: `${weekStart}T09:00`,
+      end: `${weekStart}T10:00`,
+      title: '',
+      notes: '',
+    }),
+    [weekStart],
+  )
+
+  const [draft, setDraft] = React.useState<Draft>(defaultDraft)
   const [error, setError] = React.useState<string | null>(null)
+  const [serviceUserSearch, setServiceUserSearch] = React.useState('')
+  const [selectedServiceUserName, setSelectedServiceUserName] = React.useState('')
 
   React.useEffect(() => {
     if (open) {
-      setDraft({ visitDate: weekStart, hours: '', title: '', notes: '' })
+      setDraft(defaultDraft())
       setError(null)
+      setServiceUserSearch('')
+      setSelectedServiceUserName('')
     }
-  }, [open, weekStart])
+  }, [open, defaultDraft])
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft(d => ({ ...d, [key]: value }))
 
+  const serviceUsersQuery = useServiceUsers(
+    { limit: 50, search: serviceUserSearch.trim() || undefined },
+    open,
+  )
+
+  const serviceUserOptions = React.useMemo<ComboboxOption[]>(() => {
+    const options = (serviceUsersQuery.data?.rows ?? []).map(su => ({
+      value: su.id,
+      label: [su.firstName, su.lastName].filter(Boolean).join(' ') || 'Unnamed',
+      description: su.serviceUserNumber ?? undefined,
+    }))
+    // Keep the chosen service user visible even when the server-side search excludes them.
+    if (draft.serviceUserId && !options.some(o => o.value === draft.serviceUserId)) {
+      options.unshift({
+        value: draft.serviceUserId,
+        label: selectedServiceUserName || 'Selected service user',
+        description: undefined,
+      })
+    }
+    return options
+  }, [serviceUsersQuery.data?.rows, draft.serviceUserId, selectedServiceUserName])
+
   const createMutation = useMutation({
     mutationFn: (body: CreateSpecialVisitBody) => createSpecialVisit(body),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: specialVisitKeys.all() })
+      void qc.invalidateQueries({ queryKey: specialVisitKeys.list(employeeId, weekStart) })
+      void qc.invalidateQueries({ queryKey: specialVisitKeys.summary(employeeId, weekStart) })
       toastSuccess('Special visit added')
       onClose()
     },
     onError: e => toastApiError(e, 'Could not add the special visit'),
   })
 
-  const hoursNum = Number(draft.hours)
-  const hoursValid = draft.hours.trim() !== '' && Number.isFinite(hoursNum) && hoursNum > 0
+  const startIso = localInputToIso(draft.start)
+  const endIso = localInputToIso(draft.end)
+  const durationHours =
+    startIso && endIso
+      ? (new Date(endIso).getTime() - new Date(startIso).getTime()) / 3_600_000
+      : null
   const exceedsRemaining =
-    hoursValid && remainingHours != null && hoursNum > remainingHours
+    durationHours != null &&
+    durationHours > 0 &&
+    remainingHours != null &&
+    durationHours > remainingHours
 
   const handleSave = () => {
     setError(null)
-    if (!draft.visitDate) {
-      setError('Pick a visit date.')
-      return
-    }
-    if (!hoursValid) {
-      setError('Enter a duration greater than 0 hours.')
+    if (!draft.serviceUserId) {
+      setError('Select a service user.')
       return
     }
     if (!draft.title.trim()) {
       setError('A title is required.')
       return
     }
+    if (!startIso || !endIso) {
+      setError('Start and end date/time are required.')
+      return
+    }
+    if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
+      setError('End date/time must be after start date/time.')
+      return
+    }
     createMutation.mutate({
       employeeId,
-      visitDate: draft.visitDate,
-      durationMinutes: Math.round(hoursNum * 60),
+      serviceUserId: draft.serviceUserId,
+      startDateTime: startIso,
+      endDateTime: endIso,
       title: draft.title.trim(),
       notes: draft.notes.trim() || undefined,
     })
@@ -114,34 +159,55 @@ export function SpecialVisitFormDialog({
         <DialogHeader>
           <DialogTitle>Add special visit</DialogTitle>
           <DialogDescription>
-            Record a flexible visit to fill the carer’s remaining contracted hours for the week of{' '}
-            {weekStart}.
+            Schedule a flexible visit for a service user to fill the carer’s remaining contracted
+            hours for the week of {weekStart}.
           </DialogDescription>
         </DialogHeader>
 
         <DialogBody>
           <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label required>Service user</Label>
+              <Combobox
+                options={serviceUserOptions}
+                value={draft.serviceUserId}
+                onChange={value => {
+                  set('serviceUserId', value)
+                  setSelectedServiceUserName(
+                    serviceUserOptions.find(o => o.value === value)?.label ?? '',
+                  )
+                }}
+                placeholder="Select service user…"
+                searchPlaceholder="Search service users…"
+                emptyText={
+                  serviceUsersQuery.isError
+                    ? 'Could not load service users.'
+                    : 'No service users found.'
+                }
+                loading={serviceUsersQuery.isLoading || serviceUsersQuery.isFetching}
+                onSearchChange={setServiceUserSearch}
+                allowDeselect={false}
+                aria-label="Service user"
+                data-testid="special-visit-service-user"
+              />
+            </div>
+
             <div className="flex flex-col gap-1.5">
-              <Label required>Date</Label>
+              <Label required>Start date/time</Label>
               <Input
-                type="date"
-                value={draft.visitDate}
-                min={weekStart}
-                max={weekEnd}
-                onChange={e => set('visitDate', e.target.value)}
-                data-testid="special-visit-date"
+                type="datetime-local"
+                value={draft.start}
+                onChange={e => set('start', e.target.value)}
+                data-testid="special-visit-start"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label required>Duration (hours)</Label>
+              <Label required>End date/time</Label>
               <Input
-                type="number"
-                step="0.25"
-                min={0}
-                value={draft.hours}
-                onChange={e => set('hours', e.target.value)}
-                placeholder="e.g. 1.5"
-                data-testid="special-visit-hours"
+                type="datetime-local"
+                value={draft.end}
+                onChange={e => set('end', e.target.value)}
+                data-testid="special-visit-end"
               />
               {exceedsRemaining ? (
                 <p className="text-xs text-warning">

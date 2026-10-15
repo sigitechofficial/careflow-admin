@@ -35,8 +35,20 @@ const DATE_FMT = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 })
 
-function formatVisitDate(day: string): string {
-  return DATE_FMT.format(new Date(`${day}T00:00:00Z`))
+const TIME_FMT = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZone: 'UTC',
+})
+
+/** e.g. "Mon 12 Oct, 09:00–10:00" (end omitted when not set). */
+function formatVisitTime(startIso: string, endIso: string | null): string {
+  const start = new Date(startIso)
+  const datePart = DATE_FMT.format(start)
+  const startTime = TIME_FMT.format(start)
+  if (!endIso) return `${datePart}, ${startTime}`
+  return `${datePart}, ${startTime}–${TIME_FMT.format(new Date(endIso))}`
 }
 
 export default function SpecialVisitsPage() {
@@ -110,7 +122,7 @@ export default function SpecialVisitsPage() {
       tone: 'sky',
     },
     {
-      title: 'Booked',
+      title: 'Booked visits',
       value: summary?.bookedHours,
       icon: <CalendarClock className="h-4 w-4" aria-hidden />,
       tone: 'violet',
@@ -265,14 +277,16 @@ export default function SpecialVisitsPage() {
                 <table className="w-full min-w-[640px] text-sm">
                   <thead className="bg-muted/95">
                     <tr className="border-b border-border">
-                      {['Date', 'Title', 'Duration (hours)', 'Notes', 'Actions'].map(label => (
-                        <th
-                          key={label}
-                          className="whitespace-nowrap px-3 py-2.5 text-left font-medium text-muted-foreground"
-                        >
-                          {label}
-                        </th>
-                      ))}
+                      {['Service user', 'Title', 'Time', 'Duration (hours)', 'Notes', 'Actions'].map(
+                        label => (
+                          <th
+                            key={label}
+                            className="whitespace-nowrap px-3 py-2.5 text-left font-medium text-muted-foreground"
+                          >
+                            {label}
+                          </th>
+                        ),
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -282,10 +296,13 @@ export default function SpecialVisitsPage() {
                         className="border-b border-border align-top last:border-0 hover:bg-muted/20"
                         data-testid={`special-visit-row-${row.id}`}
                       >
-                        <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">
-                          {formatVisitDate(row.visitDate)}
+                        <td className="px-3 py-2.5 font-medium text-foreground">
+                          {row.serviceUserName}
                         </td>
-                        <td className="px-3 py-2.5 font-medium text-foreground">{row.title}</td>
+                        <td className="px-3 py-2.5 text-foreground">{row.title}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">
+                          {formatVisitTime(row.startDateTime, row.endDateTime)}
+                        </td>
                         <td className="px-3 py-2.5 text-right tabular-nums">
                           {row.hours.toFixed(2)}
                         </td>

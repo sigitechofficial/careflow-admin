@@ -2,14 +2,16 @@ import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 
 export type SpecialVisitRow = {
   id: string
-  employeeId: string
-  /** 'YYYY-MM-DD' */
-  visitDate: string
-  durationMinutes: number
-  hours: number
+  serviceUserId: string
+  serviceUserName: string
   title: string
   notes: string | null
-  createdAt: string
+  /** ISO string */
+  startDateTime: string
+  /** ISO string */
+  endDateTime: string | null
+  durationMinutes: number
+  hours: number
 }
 
 export type SpecialVisitSummary = {
@@ -28,9 +30,11 @@ export type SpecialVisitsQuery = {
 
 export type CreateSpecialVisitBody = {
   employeeId: string
-  /** 'YYYY-MM-DD' */
-  visitDate: string
-  durationMinutes: number
+  serviceUserId: string
+  /** ISO string */
+  startDateTime: string
+  /** ISO string */
+  endDateTime: string
   title: string
   notes?: string
 }
@@ -67,8 +71,8 @@ export async function fetchSpecialVisitSummary({
   return res.data
 }
 
-export async function createSpecialVisit(body: CreateSpecialVisitBody): Promise<SpecialVisitRow> {
-  const res = await apiJson<ApiEnvelope<SpecialVisitRow>>('/special-visits', {
+export async function createSpecialVisit(body: CreateSpecialVisitBody): Promise<{ id: string }> {
+  const res = await apiJson<ApiEnvelope<{ id: string }>>('/special-visits', {
     method: 'POST',
     body: JSON.stringify(body),
   })
