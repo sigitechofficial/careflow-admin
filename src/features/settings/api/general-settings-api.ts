@@ -158,6 +158,8 @@ export type OrganisationGeneralSettings = {
   id: string
   reviewCarePlanAfterDays: number
   handoverReportLastHours: number
+  /** Incidents: Duty of Candour flagged overdue after this many days; null = off. */
+  incidentCandourOverdueDays: number | null
   archiveServiceUserAfterMonths: number
   timeDisplayFormat: TimeDisplayFormat
   dateDisplayFormat: DateDisplayFormat
@@ -210,6 +212,7 @@ export type OrganisationGeneralSettings = {
   domDownloadAllServiceUsers: boolean
   domFutureVisitsDays: number
   domAutoExtendRotaEnabled: boolean
+  domCancellationHospitalExemption: boolean
   domRotaHorizonDays: number
   domRotaHorizonMode: RotaHorizonMode
   domAutoExtendRotaRunHour: number

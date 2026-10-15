@@ -40,8 +40,18 @@ export function resolveVisitPlanNightDuty(
   return 'NONE'
 }
 
-export function formatVisitPlanNightDuty(nightDuty: VisitPlanNightDuty | null | undefined): string {
+/** Choices for a visit that runs past midnight; a new one starts as a normal visit. */
+export const VISIT_PLAN_NIGHT_TYPE_OPTIONS: { value: VisitPlanNightDuty; label: string; hint: string }[] = [
+  { value: 'NONE', label: 'Normal visit', hint: 'An ordinary visit that runs past midnight. Normal visit rates apply.' },
+  { value: 'WAKING_NIGHT', label: 'Waking night', hint: 'The carer stays awake. Paid and charged per hour at the waking night rate.' },
+  { value: 'SLEEPING_NIGHT', label: 'Sleeping night', hint: 'The carer may sleep. Paid and charged at the fixed sleep-in rate.' },
+]
+
+export function formatVisitPlanNightDuty(
+  nightDuty: VisitPlanNightDuty | null | undefined,
+  noneLabel = 'None',
+): string {
   if (nightDuty === 'SLEEPING_NIGHT') return 'Sleeping night'
   if (nightDuty === 'WAKING_NIGHT') return 'Waking night'
-  return 'None'
+  return noneLabel
 }

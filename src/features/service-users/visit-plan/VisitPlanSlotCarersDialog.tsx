@@ -81,7 +81,7 @@ export function VisitPlanSlotCarersDialog({
           <DialogTitle>{dialogTitle ?? defaultTitle}</DialogTitle>
           <DialogDescription>
             {dialogDescription ??
-              `Each call slot can have different carers. Assignments apply only to ${slot.label.toLowerCase()} visits (${slot.plannedStartTime}–${slot.plannedEndTime}).${
+              `Carers for the ${slot.label.toLowerCase()} visit at ${slot.plannedStartTime}–${slot.plannedEndTime} only. Other visits keep their own carers.${
                 slot.requiredCarers > 1
                   ? ` Need ${slot.requiredCarers}: ${formatRequiredCarersRoleHint(slot.requiredCarers)}. Cancel keeps the previous list; Confirm applies it.`
                   : ''
@@ -102,7 +102,13 @@ export function VisitPlanSlotCarersDialog({
           <Button type="button" variant="outline" onClick={closeWithoutSaving}>
             Cancel
           </Button>
-          <Button type="button" onClick={confirmSelection} disabled={disabled}>
+          {/* Darker green in dark mode so the white label stays readable. */}
+          <Button
+            type="button"
+            onClick={confirmSelection}
+            disabled={disabled}
+            className="dark:bg-emerald-700 dark:text-white dark:hover:bg-emerald-600"
+          >
             Confirm
           </Button>
         </DialogFooter>

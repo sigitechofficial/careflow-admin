@@ -627,7 +627,18 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                           −{row.amount}
                         </td>
                         <td className="px-3 py-2.5 text-muted-foreground">{row.notes || '—'}</td>
-                        {canManage ? (
+                        {canManage && row.incidentId ? (
+                          <td className="px-3 py-2.5 text-right">
+                            <Link
+                              to="/incidents/$incidentId"
+                              params={{ incidentId: row.incidentId }}
+                              className="text-xs text-primary hover:underline"
+                              title="Decided on the incident: change or remove it there (Outcome → Staff actions)"
+                            >
+                              {row.incidentReference ?? 'Incident'}
+                            </Link>
+                          </td>
+                        ) : canManage ? (
                           <td className="px-3 py-2.5 text-right">
                             <Button
                               type="button"

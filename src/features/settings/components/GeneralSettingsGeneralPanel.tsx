@@ -28,6 +28,7 @@ import { useAuthStore } from '@/features/auth/store'
 const DEFAULTS = {
   reviewCarePlanAfterDays: 180,
   handoverReportLastHours: 12,
+  incidentCandourOverdueDays: null as number | null,
   archiveServiceUserAfterMonths: 3,
   timeDisplayFormat: 'HH_MM' as TimeDisplayFormat,
   dateDisplayFormat: 'DD_MM_YYYY' as DateDisplayFormat,
@@ -81,6 +82,7 @@ function settingsToDraft(s: OrganisationGeneralSettings) {
   return {
     reviewCarePlanAfterDays: s.reviewCarePlanAfterDays,
     handoverReportLastHours: s.handoverReportLastHours,
+    incidentCandourOverdueDays: s.incidentCandourOverdueDays ?? null,
     archiveServiceUserAfterMonths: s.archiveServiceUserAfterMonths,
     timeDisplayFormat: s.timeDisplayFormat,
     dateDisplayFormat: s.dateDisplayFormat ?? 'DD_MM_YYYY',
@@ -165,6 +167,38 @@ export function GeneralSettingsGeneralPanel() {
             disabled={!canUpdate}
             onChange={n => setDraft(d => ({ ...d, archiveServiceUserAfterMonths: n }))}
           />
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Label htmlFor="candour-overdue-days" className="text-sm font-normal text-foreground">
+                Flag Duty of Candour overdue after
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="candour-overdue-days"
+                  type="number"
+                  min={1}
+                  max={90}
+                  placeholder="Off"
+                  className="h-9 w-20 text-center tabular-nums"
+                  value={draft.incidentCandourOverdueDays ?? ''}
+                  disabled={!canUpdate}
+                  onChange={e => {
+                    const raw = e.target.value.trim()
+                    const n = Number.parseInt(raw, 10)
+                    setDraft(d => ({
+                      ...d,
+                      incidentCandourOverdueDays: raw === '' ? null : Number.isNaN(n) ? d.incidentCandourOverdueDays : Math.min(90, Math.max(1, n)),
+                    }))
+                  }}
+                />
+                <span className="text-sm text-muted-foreground">Days</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Days from the incident report without telling the person in person. Leave empty to turn off — the law says
+              &ldquo;as soon as reasonably practicable&rdquo; and sets no number.
+            </p>
+          </div>
         </GeneralSettingsCard>
 
         <GeneralSettingsCard title="Time zone & formats">

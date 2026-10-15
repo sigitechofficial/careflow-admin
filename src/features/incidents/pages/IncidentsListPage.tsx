@@ -178,6 +178,28 @@ export default function IncidentsListPage() {
     return options
   }, [employeesQuery.data, selectedEmployeeQuery.data])
 
+  // "Reported by" — the carer who reported it (from the app, or recorded by the office for them).
+  const [repSearch, setRepSearch] = React.useState('')
+  const reportersQuery = useEmployees({ limit: 50, search: repSearch || undefined }, canPickEmployee)
+  const selectedReporterQuery = useEmployee(urlState.reporterEmployeeId, canPickEmployee)
+  const reporterOptions: ComboboxOption[] = React.useMemo(() => {
+    const options = (reportersQuery.data?.rows ?? []).map((r) => ({
+      value: r.id,
+      label: r.fullName || [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Unnamed',
+      description: r.jobTitle?.name ?? undefined,
+    }))
+    const selected = selectedReporterQuery.data
+    if (selected && !options.some((o) => o.value === selected.id)) {
+      const pd = selected.personalDetail
+      options.unshift({
+        value: selected.id,
+        label: [pd?.firstName, pd?.lastName].filter(Boolean).join(' ') || 'Unnamed',
+        description: undefined,
+      })
+    }
+    return options
+  }, [reportersQuery.data, selectedReporterQuery.data])
+
   const categoriesQuery = useIncidentCategories()
   const statsQuery = useIncidentStats(locationId)
   const filters: IncidentListFilters = {
@@ -192,8 +214,10 @@ export default function IncidentsListPage() {
     dateTo: urlState.dateTo || undefined,
     serviceUserId: urlState.serviceUserId || undefined,
     employeeId: urlState.employeeId || undefined,
+    reporterEmployeeId: urlState.reporterEmployeeId || undefined,
     closedFrom: urlState.closedFrom || undefined,
     hasOverdueActions: urlState.overdueOnly || undefined,
+    candour: urlState.candourOverdueOnly ? 'overdue' : undefined,
     locationId: locationId ?? undefined,
     page: urlState.page,
     limit: 25,
@@ -202,7 +226,8 @@ export default function IncidentsListPage() {
   const page = urlState.page
   const filtersActive = hasActiveIncidentsListFilters(urlState)
   const severityValue = urlState.severities.join(',')
-  const highOrCriticalActive = severityValue === HIGH_OR_CRITICAL.join(',')
+  // The chip counts open High/Critical incidents, so it filters on both (the count matches the rows).
+  const highOrCriticalActive = severityValue === HIGH_OR_CRITICAL.join(',') && urlState.openOnly
 
   const summaryChips = [
     {
@@ -214,10 +239,15 @@ export default function IncidentsListPage() {
     },
     {
       key: 'high',
-      label: 'High / Critical',
+      label: 'Open high / critical',
       count: statsQuery.data?.highOrCritical,
       active: highOrCriticalActive,
-      onClick: () => patchUrlState({ severities: highOrCriticalActive ? [] : HIGH_OR_CRITICAL }),
+      onClick: () =>
+        patchUrlState(
+          highOrCriticalActive
+            ? { severities: [], openOnly: false }
+            : { severities: HIGH_OR_CRITICAL, openOnly: true },
+        ),
     },
     {
       key: 'not-picked-up',
@@ -404,6 +434,21 @@ export default function IncidentsListPage() {
               />
             </div>
           )}
+          {canPickEmployee && (
+            <div className="w-[230px]">
+              <Combobox
+                options={reporterOptions}
+                value={urlState.reporterEmployeeId}
+                onChange={(id) => patchUrlState({ reporterEmployeeId: id })}
+                onSearchChange={setRepSearch}
+                loading={reportersQuery.isLoading}
+                placeholder="Reported by anyone"
+                searchPlaceholder="Search carers…"
+                aria-label="Reported by filter"
+                allowDeselect
+              />
+            </div>
+          )}
           {urlState.closedFrom && (
             <Badge variant="muted" size="sm" className="gap-1">
               Closed since {formatOrganisationDate(urlState.closedFrom)}
@@ -416,6 +461,14 @@ export default function IncidentsListPage() {
             <Badge variant="muted" size="sm" className="gap-1">
               With overdue corrective measures
               <button type="button" aria-label="Clear overdue filter" onClick={() => patchUrlState({ overdueOnly: false })}>
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {urlState.candourOverdueOnly && (
+            <Badge variant="muted" size="sm" className="gap-1">
+              Duty of Candour overdue
+              <button type="button" aria-label="Clear Duty of Candour filter" onClick={() => patchUrlState({ candourOverdueOnly: false })}>
                 <X className="h-3 w-3" />
               </button>
             </Badge>
@@ -486,7 +539,14 @@ export default function IncidentsListPage() {
                       <Badge variant={INCIDENT_SEVERITY_BADGE[inc.severity]} size="sm">{inc.severityLabel}</Badge>
                     </td>
                     <td className="px-3 py-2.5">
-                      <Badge variant={INCIDENT_STATUS_BADGE[inc.status]} size="sm">{inc.statusLabel}</Badge>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Badge variant={INCIDENT_STATUS_BADGE[inc.status]} size="sm">{inc.statusLabel}</Badge>
+                        {inc.candourOverdue && (
+                          <Badge variant="destructive" size="sm" title="Duty of Candour overdue">
+                            Candour overdue
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2.5">
                       {inc.scheduledJobId ? (

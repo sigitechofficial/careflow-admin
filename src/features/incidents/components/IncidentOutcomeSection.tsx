@@ -7,7 +7,10 @@ import { Badge } from '@/shared/ui/badge'
 import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
 import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { useUpsertIncidentOutcome } from '@/features/incidents/hooks/useIncidents'
-import { IncidentSuspensionDecisions } from '@/features/incidents/components/IncidentSuspensionCard'
+import {
+  IncidentStaffActionsSection,
+  isStaffMeasure,
+} from '@/features/incidents/components/IncidentStaffActionsSection'
 import { IncidentExternalBodiesSummary } from '@/features/incidents/components/IncidentExternalBodiesCard'
 import { ContributingFactorsReadView } from '@/features/incidents/components/ContributingFactorDetail'
 import {
@@ -84,7 +87,24 @@ function sharingRows(incident: IncidentDetail, saved: OutcomeSharingEntry[]): Ou
   const merged = rows.map((r) => byKey.get(r.key) ?? r)
   // Keep saved rows that no longer match a person (e.g. people changed later).
   for (const s of saved) if (!rows.some((r) => r.key === s.key)) merged.push(s)
-  return merged
+  return withCandourRows(merged, incident.candour?.outcomeRows ?? [])
+}
+
+/**
+ * Duty of Candour results letters are the outcome being shared: those rows come from the Review
+ * tab and can't be changed here. A row that no longer has a letter goes back to unanswered.
+ */
+function withCandourRows(rows: OutcomeSharingEntry[], candour: OutcomeSharingEntry[]): OutcomeSharingEntry[] {
+  const out = rows.map((r) => {
+    const linked = candour.find((c) => c.key === r.key)
+    if (linked) return linked
+    if (r.source === 'CANDOUR') {
+      return { ...r, shared: false, sharedOn: null, method: null, notSharedReason: null, note: null, source: null, attachmentId: null }
+    }
+    return r
+  })
+  for (const c of candour) if (!out.some((r) => r.key === c.key)) out.push(c)
+  return out
 }
 
 function rowTitle(r: OutcomeSharingEntry, incident: IncidentDetail): string {
@@ -100,6 +120,7 @@ function rowTitle(r: OutcomeSharingEntry, incident: IncidentDetail): string {
 
 /** What a row still needs (mirrors the API). */
 function rowMissing(r: OutcomeSharingEntry, today: string): string | null {
+  if (r.source === 'CANDOUR') return null
   if (r.shared) {
     if (!r.name.trim()) return 'name'
     if (!r.sharedOn) return 'date'
@@ -121,7 +142,8 @@ function sharingSummary(r: OutcomeSharingEntry): string {
 
 /** Corrective measures as the record of what changed (replaces the old "Changes made" boxes). */
 function MeasuresSummary({ incident }: { incident: IncidentDetail }) {
-  const actions = incident.actions ?? []
+  // Training and supervision are listed under Staff actions.
+  const actions = (incident.actions ?? []).filter((a) => !isStaffMeasure(a))
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -210,6 +232,11 @@ export function IncidentOutcomeSection({
   const [rows, setRows] = React.useState<OutcomeSharingEntry[]>(() =>
     sharingRows(incident, outcome?.outcomeSharing ?? []),
   )
+  // A results letter recorded (or changed) on the Review tab updates those rows here too.
+  const candourRowsKey = JSON.stringify(incident.candour?.outcomeRows ?? [])
+  React.useEffect(() => {
+    setRows((prev) => withCandourRows(prev, JSON.parse(candourRowsKey) as OutcomeSharingEntry[]))
+  }, [candourRowsKey])
   // "Learning shared with the team" form is commented out for now; keep the saved values as they are.
   const [learnedOn] = React.useState(outcome?.learningSharedOn ?? '')
   const [learnedHow] = React.useState(outcome?.learningSharedMethod ?? '')
@@ -276,11 +303,7 @@ export function IncidentOutcomeSection({
     if (!outcome?.finalOutcome && !isClosed) {
       return (
         <div className="space-y-3 text-sm">
-          <IncidentSuspensionDecisions
-            incidentId={incident.id}
-            suspensions={incident.carerSuspensions ?? []}
-            canEdit={false}
-          />
+          <IncidentStaffActionsSection incident={incident} canEdit={false} />
           <IncidentExternalBodiesSummary bodies={incident.externalBodies ?? []} />
           <p className="text-muted-foreground">No closure outcome recorded yet.</p>
         </div>
@@ -289,11 +312,7 @@ export function IncidentOutcomeSection({
     const savedRows = outcome?.outcomeSharing ?? []
     return (
       <div className="space-y-3 text-sm">
-        <IncidentSuspensionDecisions
-          incidentId={incident.id}
-          suspensions={incident.carerSuspensions ?? []}
-          canEdit={false}
-        />
+        <IncidentStaffActionsSection incident={incident} canEdit={false} />
         <IncidentExternalBodiesSummary bodies={incident.externalBodies ?? []} />
         {isClosed && (
           <Badge variant="success" size="sm">
@@ -350,11 +369,7 @@ export function IncidentOutcomeSection({
         </div>
       )}
 
-      <IncidentSuspensionDecisions
-        incidentId={incident.id}
-        suspensions={incident.carerSuspensions ?? []}
-        canEdit={canEditOutcome && !isClosed}
-      />
+      <IncidentStaffActionsSection incident={incident} canEdit={canEditOutcome && !isClosed} />
       <IncidentExternalBodiesSummary bodies={incident.externalBodies ?? []} />
 
       <FieldLabel label="Final outcome" required>
@@ -419,6 +434,24 @@ export function IncidentOutcomeSection({
         )}
         {rows.map((r) => {
           const rowError = triedSave ? rowMissing(r, today) : null
+          if (r.source === 'CANDOUR') {
+            const letter = (incident.candour?.records ?? []).find(
+              (p) => p.record?.resultsAttachment?.id === r.attachmentId,
+            )?.record?.resultsAttachment
+            return (
+              <div key={r.key} className="rounded-md border border-border bg-muted/30 px-3 py-2">
+                <p className="text-sm font-medium text-foreground">{rowTitle(r, incident)}</p>
+                <p className="mt-0.5 text-sm text-foreground">
+                  {r.personKind === 'REPRESENTATIVE' && r.name ? `${r.name} — ` : ''}
+                  {sharingSummary(r)}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  From the Duty of Candour results letter{letter ? ` (${letter.name})` : ''}. Change it in the Duty of
+                  Candour tab.
+                </p>
+              </div>
+            )
+          }
           return (
             <div
               key={r.key}

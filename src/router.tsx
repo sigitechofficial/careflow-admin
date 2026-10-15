@@ -48,6 +48,7 @@ import ServiceUserMedicationPage from '@/features/service-users/pages/ServiceUse
 import ServiceUserInitialAssessmentPage from '@/features/service-users/pages/ServiceUserInitialAssessmentPage'
 import ServiceUserCarePlanPage from '@/features/service-users/pages/ServiceUserCarePlanPage'
 import ServiceUserCarePlanFormPage from '@/features/service-users/pages/ServiceUserCarePlanFormPage'
+import type { CarePlanIncidentContext } from '@/features/incidents/components/CarePlanMeasureEvidence'
 import ServiceUserVisitPlanPage from '@/features/service-users/pages/ServiceUserVisitPlanPage'
 import ServiceUserTasksPlannerPage from '@/features/service-users/pages/ServiceUserTasksPlannerPage'
 import ServiceUserObservationsPage from '@/features/service-users/pages/ServiceUserObservationsPage'
@@ -1052,6 +1053,19 @@ const serviceUsersCarePlanRoute = createRoute({
 const serviceUsersCarePlanFormRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/care-plan/forms/$formId',
+  // Opened from an incident "Care plan update" measure: publish links the new version to it.
+  validateSearch: (raw: Record<string, unknown>): Partial<CarePlanIncidentContext> => {
+    const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+    const incidentId = str(raw.incidentId)
+    const incidentActionId = str(raw.incidentActionId)
+    if (!incidentId || !incidentActionId) return {}
+    return {
+      incidentId,
+      incidentActionId,
+      incidentRef: str(raw.incidentRef) ?? '',
+      measure: str(raw.measure) ?? '',
+    }
+  },
   beforeLoad: requirePermission('service_users.read'),
   loader: ({ context: { queryClient: qc }, params: { serviceUserId, formId } }) => {
     prefetchServiceUserCarePlanFormRoute(qc, serviceUserId, formId)

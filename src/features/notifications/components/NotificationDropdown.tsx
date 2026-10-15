@@ -9,7 +9,10 @@ import {
   useMarkNotificationRead,
 } from '@/features/notifications/hooks/useNotificationMutations'
 import { NotificationList } from '@/features/notifications/components/NotificationList'
-import { notificationEcmLiveSearch } from '@/features/notifications/utils/notification-deep-link'
+import {
+  notificationDeepLink,
+  notificationEcmLiveSearch,
+} from '@/features/notifications/utils/notification-deep-link'
 import type { NotificationListItem } from '@/features/notifications/types/notification.types'
 
 type Props = {
@@ -46,10 +49,16 @@ export function NotificationDropdown({ onOpenPreferences, onNavigate }: Props) {
 
   const onOpen = (item: NotificationListItem) => {
     const search = notificationEcmLiveSearch(item)
-    if (!search) return
+    const href = search ? null : notificationDeepLink(item)
+    if (!search && !href) return
     if (canUpdate && !item.readAt) void onMarkRead(item.id)
     onNavigate?.()
-    void navigate({ to: '/ecm/live', search })
+    if (search) {
+      void navigate({ to: '/ecm/live', search })
+      return
+    }
+    // Same as the live toast: any other in-app link (survey responses, hours approvals…).
+    void navigate({ to: href as never })
   }
 
   return (

@@ -11,9 +11,11 @@ import { ServiceUserEditVisitsPanel } from '@/features/service-users/components/
 import { ServiceUserFundingTab } from '@/features/service-users/components/ServiceUserFundingTab'
 import { ServiceUserInventoryTab } from '@/features/service-users/components/ServiceUserInventoryTab'
 import { ServiceUserLiveInProfileTab } from '@/features/service-users/components/ServiceUserLiveInProfileTab'
+import { ServiceUserNfcTagsSection } from '@/features/service-users/components/ServiceUserNfcTagsSection'
 import { ServiceUserPersonalDetailsForm } from '@/features/service-users/components/ServiceUserPersonalDetailsForm'
 import { ServiceUserPhotosTab } from '@/features/service-users/components/ServiceUserPhotosTab'
 import { ServiceUserPortalAccessSection } from '@/features/service-users/components/ServiceUserPortalAccessSection'
+import { ServiceUserIncidentsComplaintsPanel } from '@/features/service-users/components/ServiceUserIncidentsComplaintsPanel'
 import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
 import { ServiceUserReferralsTab } from '@/features/service-users/referrals/components/ServiceUserReferralsTab'
 import type { ServiceUserProfileTabId } from '@/features/service-users/service-user-profile-tabs'
@@ -93,6 +95,8 @@ export function ServiceUserProfileSectionContent({
         />
       )}
 
+      {tab === 'incidents' && <ServiceUserIncidentsComplaintsPanel serviceUserId={serviceUserId} />}
+
       {tab === 'calendar' && <ServiceUserCalendarTab serviceUserId={serviceUserId} />}
 
       {tab === 'privacy' && <PlaceholderTab title="Privacy" />}
@@ -100,6 +104,8 @@ export function ServiceUserProfileSectionContent({
       {tab === 'dom' && (
         <ServiceUserDomCareTab serviceUserId={serviceUserId} detail={detail} onSaved={onSaved} />
       )}
+
+      {tab === 'nfc' && <ServiceUserNfcTagsSection serviceUserId={serviceUserId} />}
 
       {tab === 'assessment' && (
         <ServiceUserInitialAssessmentEnterpriseTab

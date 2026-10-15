@@ -165,6 +165,8 @@ type Props = {
   justAssigned?: boolean
   /** Hide the "Visit vs working hours" block (e.g. in the Change carers modal). */
   hideTimeMismatch?: boolean
+  /** Denser card for long carer lists: same details, fewer lines. */
+  compact?: boolean
 }
 
 export function VisitPlanCarerCandidateDetails({
@@ -176,12 +178,13 @@ export function VisitPlanCarerCandidateDetails({
   isAssigned = false,
   justAssigned = false,
   hideTimeMismatch = false,
+  compact = false,
 }: Props) {
   const slotDays = [...slotDaysOfWeek].sort((a, b) => a - b)
   const availabilityBreakdown = buildCarerAvailabilityBreakdown(c.availability, slotDays)
 
   return (
-    <div className="min-w-0 flex-1 space-y-3">
+    <div className={cn('min-w-0 flex-1', compact ? 'space-y-2' : 'space-y-3')}>
       {!availabilityOnly ? (
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -240,36 +243,46 @@ export function VisitPlanCarerCandidateDetails({
               </span>
             ) : null}
           </div>
-          <p className={contentHelperClass}>
-            {formatVisitPlanCarerRoleLine(c.role, c.jobTitle) || 'Employee'}
-          </p>
-          {c.contractedWeeklyHours != null || c.allowedWeeklyHours != null ? (
-            <p
-              className={cn(
-                contentHelperClass,
-                c.exceedsContractedHours && 'font-medium text-amber-700 dark:text-amber-300',
-              )}
-            >
-              Weekly hours: ~{c.projectedWeeklyHours ?? c.assignedWeeklyHours ?? 0}h projected ·
-              {c.allowedWeeklyHours != null &&
-              c.allowedWeeklyHours !== c.contractedWeeklyHours
-                ? ` approved ${c.allowedWeeklyHours}h`
-                : ` contracted ${c.contractedWeeklyHours ?? c.allowedWeeklyHours}h`}
-            </p>
-          ) : (
-            <p className={contentHelperClass}>Contracted weekly hours not set</p>
-          )}
+          {(() => {
+            const roleLine = formatVisitPlanCarerRoleLine(c.role, c.jobTitle) || 'Employee'
+            const hoursSet = c.contractedWeeklyHours != null || c.allowedWeeklyHours != null
+            const hoursText = hoursSet
+              ? `Weekly hours: ~${c.projectedWeeklyHours ?? c.assignedWeeklyHours ?? 0}h projected ·${
+                  c.allowedWeeklyHours != null && c.allowedWeeklyHours !== c.contractedWeeklyHours
+                    ? ` approved ${c.allowedWeeklyHours}h`
+                    : ` contracted ${c.contractedWeeklyHours ?? c.allowedWeeklyHours}h`
+                }`
+              : 'Contracted weekly hours not set'
+            const hoursClass = cn(
+              contentHelperClass,
+              hoursSet && c.exceedsContractedHours && 'font-medium text-amber-700 dark:text-amber-300',
+            )
+            if (compact) {
+              return (
+                <p className={contentHelperClass}>
+                  {roleLine} · <span className={hoursClass}>{hoursText}</span>
+                </p>
+              )
+            }
+            return (
+              <>
+                <p className={contentHelperClass}>{roleLine}</p>
+                <p className={hoursClass}>{hoursText}</p>
+              </>
+            )
+          })()}
         </div>
       ) : null}
 
       {slotDays.length > 0 ? (
-        <div className="rounded-lg border border-border/80 bg-muted/20 px-3 py-2.5">
+        <div className={compact ? undefined : 'rounded-lg border border-border/80 bg-muted/20 px-3 py-2.5'}>
+          <div className={cn(compact && 'flex flex-wrap items-center gap-x-2 gap-y-1.5')}>
           <div className={cn('flex items-center gap-1.5', contentKickerClass)}>
             <Clock className="h-3.5 w-3.5" aria-hidden />
-            Working pattern · this slot
+            {compact ? 'Working pattern' : 'Working pattern · this slot'}
           </div>
           <TooltipProvider delayDuration={100}>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className={cn('flex flex-wrap gap-1.5', !compact && 'mt-2')}>
               {slotDays.map((day) => {
                 const status = dayStatus(day, c.availability)
                 return (
@@ -296,6 +309,7 @@ export function VisitPlanCarerCandidateDetails({
               })}
             </div>
           </TooltipProvider>
+          </div>
           <VisitPlanCarerAvailabilityBreakdown
             breakdown={availabilityBreakdown}
             hideTimeMismatch={hideTimeMismatch}

@@ -8,6 +8,7 @@ import {
   SCHEDULE_JOBS_TIMELINE_MINUTES,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import {
+  addDaysToOperationalIso,
   combineOperationalDateAndHm,
   dayKeyFromInstant,
   formatOpsHm,
@@ -64,17 +65,44 @@ export function buildJobScheduleDateTimes(
   endTime: string,
 ): { scheduledStartDateTime: string; scheduledEndDateTime: string } | null {
   if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) return null
+  // An end at or before the start is the next day, at that clock time — not start day + 24 hours,
+  // which is an hour out on the nights the clocks change (22:00–07:00 is 10 h in Oct, 8 h in Mar).
+  const endDayIso = endTime <= startTime ? addDaysToOperationalIso(dateIso, 1) : dateIso
   const startIso = combineOperationalDateAndHm(dateIso, startTime)
-  let endIso = combineOperationalDateAndHm(dateIso, endTime)
+  const endIso = combineOperationalDateAndHm(endDayIso, endTime)
   if (!startIso || !endIso) return null
   const start = new Date(startIso)
-  let end = new Date(endIso)
+  const end = new Date(endIso)
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null
-  if (end <= start) end = new Date(end.getTime() + 24 * 60 * 60 * 1000)
   if (end.getTime() - start.getTime() < 5 * 60 * 1000) return null
   return {
     scheduledStartDateTime: start.toISOString(),
     scheduledEndDateTime: end.toISOString(),
+  }
+}
+
+/** A job that ends on a later day than it starts (e.g. a 22:00–07:00 night visit). */
+function jobRunsPastMidnight(job: TimelineJob): boolean {
+  return Boolean(job.scheduledEndDateTime) && dayKeyFromInstant(job.scheduledEndDateTime!) !== dayKeyFromInstant(job.scheduledStartDateTime)
+}
+
+/**
+ * Latest start a dragged job may take. A same-day job must still end by `dayEndMinute`; a job that
+ * already runs past midnight only needs to start inside the board, so moving it never shortens it
+ * or pulls its start back to the afternoon.
+ */
+function latestDragStart(job: TimelineJob, duration: number, dayStartMinute: number, dayEndMinute: number): number {
+  if (jobRunsPastMidnight(job)) return Math.max(dayStartMinute, dayEndMinute - SCHEDULE_JOBS_SNAP_MINUTES)
+  return Math.max(dayStartMinute, dayEndMinute - duration)
+}
+
+/** New times for a dragged job: same length after the new start, so an end past midnight lands on the next day. */
+function movedJobTimes(date: string, startMinute: number, duration: number) {
+  const scheduledStartDateTime = dateTimeFromScheduleMinutes(date, startMinute)
+  if (!scheduledStartDateTime) return { scheduledStartDateTime, scheduledEndDateTime: '' }
+  return {
+    scheduledStartDateTime,
+    scheduledEndDateTime: new Date(new Date(scheduledStartDateTime).getTime() + duration * 60_000).toISOString(),
   }
 }
 
@@ -85,14 +113,9 @@ export function shiftJobScheduleTimes(
 ): { scheduledStartDateTime: string; scheduledEndDateTime: string } {
   const duration = jobDurationMinutes(job)
   const currentStart = minutesFromDayStart(job.scheduledStartDateTime)
-  const maxStart = Math.max(0, SCHEDULE_JOBS_TIMELINE_MINUTES - duration)
+  const maxStart = latestDragStart(job, duration, 0, SCHEDULE_JOBS_TIMELINE_MINUTES)
   const nextStart = snapTimelineMinutes(Math.min(maxStart, Math.max(0, currentStart + deltaMinutes)))
-  const nextEnd = nextStart + duration
-
-  return {
-    scheduledStartDateTime: dateTimeFromScheduleMinutes(date, nextStart),
-    scheduledEndDateTime: dateTimeFromScheduleMinutes(date, nextEnd),
-  }
+  return movedJobTimes(date, nextStart, duration)
 }
 
 export function pixelsToTimelineMinutes(deltaPx: number, trackWidthPx: number): number {
@@ -134,14 +157,9 @@ export function shiftJobScheduleTimesFromViewportDeltaPx(
   const duration = jobDurationMinutes(job)
   const currentStart = minutesFromDayStart(job.scheduledStartDateTime)
   const minStart = viewport.startMinute
-  const maxStart = Math.max(minStart, viewport.endMinute - duration)
+  const maxStart = latestDragStart(job, duration, minStart, viewport.endMinute)
   const nextStart = snapTimelineMinutes(Math.min(maxStart, Math.max(minStart, currentStart + deltaMinutes)))
-  const nextEnd = nextStart + duration
-
-  return {
-    scheduledStartDateTime: dateTimeFromScheduleMinutes(date, nextStart),
-    scheduledEndDateTime: dateTimeFromScheduleMinutes(date, nextEnd),
-  }
+  return movedJobTimes(date, nextStart, duration)
 }
 
 export type JobDropPayload = {

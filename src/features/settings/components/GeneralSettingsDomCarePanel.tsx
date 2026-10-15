@@ -85,6 +85,7 @@ type DomCareDraft = {
   domDownloadAllServiceUsers: boolean
   domFutureVisitsDays: number
   domAutoExtendRotaEnabled: boolean
+  domCancellationHospitalExemption: boolean
   domRotaHorizonDays: number
   domRotaHorizonMode: RotaHorizonMode
   domAutoExtendRotaRunHour: number
@@ -119,6 +120,7 @@ const DEFAULTS: DomCareDraft = {
   domDownloadAllServiceUsers: false,
   domFutureVisitsDays: 14,
   domAutoExtendRotaEnabled: true,
+  domCancellationHospitalExemption: true,
   domRotaHorizonDays: 28,
   domRotaHorizonMode: 'FIXED_DAYS',
   domAutoExtendRotaRunHour: 12,
@@ -162,6 +164,7 @@ function toDraft(s: OrganisationGeneralSettings, scheduleAreas: ScheduleAreaRow[
     domDownloadAllServiceUsers: s.domDownloadAllServiceUsers,
     domFutureVisitsDays: s.domFutureVisitsDays,
     domAutoExtendRotaEnabled: s.domAutoExtendRotaEnabled ?? true,
+    domCancellationHospitalExemption: s.domCancellationHospitalExemption ?? true,
     domRotaHorizonDays: s.domRotaHorizonDays ?? 28,
     domRotaHorizonMode: s.domRotaHorizonMode ?? 'FIXED_DAYS',
     domAutoExtendRotaRunHour: s.domAutoExtendRotaRunHour ?? 12,
@@ -515,6 +518,16 @@ export function GeneralSettingsDomCarePanel() {
             </Button>
           ) : null}
         </div>
+        <SettingsRow
+          label="No charge for hospital admission"
+          hint="When a visit is cancelled because the service user was admitted to hospital, the cancellation policy suggests no charge, whatever the notice."
+        >
+          <SettingsNoYesToggle
+            value={draft.domCancellationHospitalExemption}
+            onChange={v => setDraft(d => ({ ...d, domCancellationHospitalExemption: v }))}
+            disabled={!canUpdate}
+          />
+        </SettingsRow>
       </GeneralSettingsCard>
 
       <GeneralSettingsCard title="Automatic rota extension">

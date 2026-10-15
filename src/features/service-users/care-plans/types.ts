@@ -20,6 +20,8 @@ export type CarePlanPublishedVersionSummary = {
   publishedById?: string | null
   supersededAt?: string | null
   isCurrent?: boolean
+  /** Published for an incident "Care plan update" measure. */
+  incident?: { incidentId: string; referenceNumber: string; measureTitle: string } | null
 }
 
 export type CarePlanInstance = {

@@ -16,8 +16,12 @@ import {
 } from '@/features/complaints/api/complaints.api'
 import { complaintKeys } from '@/features/complaints/keys'
 
-export function useFeedbackList(params: FeedbackListParams) {
-  return useQuery({ queryKey: complaintKeys.list(params), queryFn: () => fetchFeedbackList(params) })
+export function useFeedbackList(params: FeedbackListParams, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: complaintKeys.list(params),
+    queryFn: () => fetchFeedbackList(params),
+    enabled: options?.enabled ?? true,
+  })
 }
 
 export function useFeedbackSummary() {

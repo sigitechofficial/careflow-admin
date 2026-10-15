@@ -32,8 +32,12 @@ import {
   employeeBriefInitials,
   employeeBriefRowLabel,
   SCHEDULE_JOBS_CARER_COL_WIDTH,
+  SCHEDULE_JOBS_DAY_PERIOD_BANDS,
   SCHEDULE_JOBS_HOUR_WIDTH,
+  scheduleJobsDayPeriodBandsFromTimeSlots,
+  syncScheduleJobsDayPeriodBands,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import { useMedicationRounds } from '@/features/settings/hooks/useMedicationRounds'
 import { resolveScheduleJobsTimelineViewport } from '@/features/scheduling/utils/schedule-jobs-timeline-viewport.util'
 import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 
@@ -77,9 +81,16 @@ export function ScheduleJobsGantt({
     if (!focusedPeriodBandId || scrollClientWidth <= 0) return undefined
     return Math.max(0, scrollClientWidth - SCHEDULE_JOBS_CARER_COL_WIDTH)
   }, [focusedPeriodBandId, scrollClientWidth])
+  // Day bands follow the organisation's time slots (Settings), e.g. Night 20:00–07:00.
+  const { data: timeSlots } = useMedicationRounds()
+  const periodBands = React.useMemo(() => {
+    const bands = scheduleJobsDayPeriodBandsFromTimeSlots(timeSlots ?? []) ?? SCHEDULE_JOBS_DAY_PERIOD_BANDS
+    syncScheduleJobsDayPeriodBands(bands)
+    return bands
+  }, [timeSlots])
   const viewport = React.useMemo(
-    () => resolveScheduleJobsTimelineViewport(focusedPeriodBandId, focusedTimelineGridWidth),
-    [focusedPeriodBandId, focusedTimelineGridWidth],
+    () => resolveScheduleJobsTimelineViewport(focusedPeriodBandId, focusedTimelineGridWidth, periodBands),
+    [focusedPeriodBandId, focusedTimelineGridWidth, periodBands],
   )
   const boardMinWidth = React.useMemo(
     () => scheduleJobsBoardMinWidth(viewport, scrollClientWidth),

@@ -39,6 +39,7 @@ type StepAction = {
   overrideMandatory?: boolean
   /** Close while an external body (police, LA safeguarding…) is still open (audited, needs a reason). */
   overrideExternal?: boolean
+  overrideCandour?: boolean
   primary?: boolean
   disabledReason?: string
   hidden?: boolean
@@ -62,6 +63,9 @@ export function IncidentNextStepBar({
   investigationStatus = null,
   undecidedSuspensions = 0,
   openExternalBodies = [],
+  candourUndecided = [],
+  candourIncomplete = [],
+  outcomeSharingUnanswered = 0,
   onCompleteInvestigation,
 }: {
   incidentId: string
@@ -82,6 +86,12 @@ export function IncidentNextStepBar({
   undecidedSuspensions?: number
   /** Names of external bodies still referred / in progress (closing needs a reason). */
   openExternalBodies?: string[]
+  /** Duty of Candour not decided / not known yet (blocks closing). */
+  candourUndecided?: string[]
+  /** Duty of Candour applies but isn't complete (closing needs a reason). */
+  candourIncomplete?: string[]
+  /** Saved "Outcome shared with" rows that are no longer answered (blocks closing). */
+  outcomeSharingUnanswered?: number
   /** Completes the investigation from the Investigate tab's form (absent when it can't be edited). */
   onCompleteInvestigation?: () => void
 }) {
@@ -106,6 +116,9 @@ export function IncidentNextStepBar({
     investigationStatus,
     undecidedSuspensions,
     openExternalBodies: openExternalBodies.length,
+    candourUndecided: candourUndecided.length,
+    candourIncomplete: candourIncomplete.length,
+    outcomeSharingUnanswered,
     canCompleteInvestigation: Boolean(onCompleteInvestigation),
   })
   const visible = actions.filter((a) => !a.hidden)
@@ -139,6 +152,7 @@ export function IncidentNextStepBar({
         reason: reason.trim(),
         ...(reasonFor.overrideMandatory ? { overrideMandatoryActions: true } : {}),
         ...(reasonFor.overrideExternal ? { overrideOpenExternalBodies: true } : {}),
+        ...(reasonFor.overrideCandour ? { overrideIncompleteCandour: true } : {}),
       },
       { onSuccess: () => setReasonFor(null) },
     )
@@ -193,6 +207,12 @@ export function IncidentNextStepBar({
                 say why below (kept in the audit log).
               </p>
             )}
+            {reasonFor?.overrideCandour && (
+              <p className="mb-3 rounded-md border border-warning/40 bg-warning/10 p-2 text-sm text-warning">
+                Duty of Candour isn&apos;t complete for {candourIncomplete.join(', ')}. Closing now is recorded on the
+                timeline with your reason; finish the steps as soon as you can.
+              </p>
+            )}
             <label htmlFor="next-step-reason" className="mb-1 block text-sm font-medium text-foreground">
               Reason<span className="ml-0.5 text-destructive dark:text-red-400">*</span>
             </label>
@@ -233,6 +253,9 @@ function describe(
     undecidedSuspensions: number
     /** External bodies still referred / in progress. */
     openExternalBodies: number
+    candourUndecided: number
+    candourIncomplete: number
+    outcomeSharingUnanswered: number
     canCompleteInvestigation: boolean
   },
 ): { hint: string; actions: StepAction[] } {
@@ -313,8 +336,14 @@ function describe(
           ? 'Record the final outcome below, then close the incident.'
           : ctx.undecidedSuspensions > 0
             ? `Decide what happens to ${ctx.undecidedSuspensions} suspended carer${ctx.undecidedSuspensions === 1 ? '' : 's'} (lift or continue) in Outcome & close.`
+            : ctx.outcomeSharingUnanswered > 0
+            ? 'Update "Outcome shared with" in Outcome & close, then close the incident.'
+            : ctx.candourUndecided > 0
+            ? `Decide Duty of Candour for ${ctx.candourUndecided} ${ctx.candourUndecided === 1 ? 'person' : 'people'} (Review tab) before closing.`
             : ctx.blockingMandatory > 0
             ? `${ctx.blockingMandatory} mandatory corrective measure${ctx.blockingMandatory === 1 ? ' is' : 's are'} still open. Complete ${ctx.blockingMandatory === 1 ? 'it' : 'them'}, or close with a reason.`
+            : ctx.candourIncomplete > 0
+            ? `Duty of Candour isn't complete for ${ctx.candourIncomplete} ${ctx.candourIncomplete === 1 ? 'person' : 'people'}. Finish it in the Duty of Candour tab, or close with a reason.`
             : ctx.openExternalBodies > 0
             ? `${ctx.openExternalBodies} external bod${ctx.openExternalBodies === 1 ? 'y is' : 'ies are'} still open (Investigate tab). Record their outcome, or close with a reason.`
             : 'The final outcome is recorded. Close the incident.',
@@ -330,17 +359,25 @@ function describe(
               ? 'Save the final outcome first (Outcome & close section).'
               : ctx.undecidedSuspensions > 0
                 ? 'Decide each carer suspension (lift or continue) first.'
-                : undefined,
-            ...(ctx.blockingMandatory > 0 || ctx.openExternalBodies > 0
+                : ctx.outcomeSharingUnanswered > 0
+                  ? 'Answer every row in "Outcome shared with" and save the outcome first.'
+                  : ctx.candourUndecided > 0
+                    ? 'Decide Duty of Candour for everyone affected first (Review tab).'
+                    : undefined,
+            ...(ctx.blockingMandatory > 0 || ctx.openExternalBodies > 0 || ctx.candourIncomplete > 0
               ? {
                   reasonTitle:
-                    ctx.blockingMandatory > 0 && ctx.openExternalBodies > 0
-                      ? 'Close with open measures and external bodies'
+                    [ctx.blockingMandatory > 0, ctx.openExternalBodies > 0, ctx.candourIncomplete > 0].filter(Boolean)
+                      .length > 1
+                      ? 'Close with items still open'
                       : ctx.blockingMandatory > 0
                         ? 'Close with incomplete mandatory measures'
-                        : 'Close while external bodies are still open',
+                        : ctx.candourIncomplete > 0
+                          ? 'Close with Duty of Candour incomplete'
+                          : 'Close while external bodies are still open',
                   overrideMandatory: ctx.blockingMandatory > 0,
                   overrideExternal: ctx.openExternalBodies > 0,
+                  overrideCandour: ctx.candourIncomplete > 0,
                 }
               : {}),
           },

@@ -105,6 +105,15 @@ export type EcmDailyOpsReport = {
     confirmedMissed: number
     manualAttendance: number
     electronicAttendance?: number
+    /** How visits were clocked in (first check-in per visit). */
+    checkInMethods?: {
+      gps: number
+      nfc: number
+      qr: number
+      manualCarer: number
+      office: number
+      none: number
+    }
     geofenceBreaches?: number
     verifiedConfidence: number
     totalVisits: number

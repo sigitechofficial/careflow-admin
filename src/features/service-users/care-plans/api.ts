@@ -137,7 +137,13 @@ export async function saveCarePlanDraftApi(
 export async function publishCarePlanApi(
   serviceUserId: string,
   formId: string,
-  payload?: { summary?: string; gapAcknowledged?: boolean; signatures?: Record<string, unknown> },
+  payload?: {
+    summary?: string
+    gapAcknowledged?: boolean
+    signatures?: Record<string, unknown>
+    /** Publishing for an incident "Care plan update" measure links the new version to it. */
+    incidentActionId?: string
+  },
 ): Promise<CarePlanInstance | null> {
   const res = await apiJson<ApiEnvelope<CarePlanInstance | null>>(
     `/service-users/${serviceUserId}/care-plans/${formId}/publish`,

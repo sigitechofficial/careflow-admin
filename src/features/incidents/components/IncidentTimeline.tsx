@@ -18,6 +18,8 @@ const KIND_META: Record<string, { label: string; variant: 'info' | 'warning' | '
   REVIEW_FLAG: { label: 'Review flag', variant: 'warning' },
   DOCUMENT: { label: 'Document', variant: 'muted' },
   SUSPENSION: { label: 'Suspension', variant: 'warning' },
+  STAFF_ACTION: { label: 'Staff action', variant: 'warning' },
+  CANDOUR: { label: 'Duty of Candour', variant: 'info' },
   EXTERNAL: { label: 'External body', variant: 'info' },
 }
 

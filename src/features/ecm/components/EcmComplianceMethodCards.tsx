@@ -5,7 +5,7 @@ import { cn } from '@/shared/lib/utils'
 import { useEcmDailyOpsReport } from '@/features/ecm/hooks/useEcm'
 import { useEcmOperationalPeriod } from '@/features/ecm/hooks/useEcmOperationalPeriod'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
-import { buildEcmMethodBreakdown, formatPct } from '@/features/ecm/utils/ecm-compliance-overview.util'
+import { buildEcmMethodBreakdown, formatPct, pct } from '@/features/ecm/utils/ecm-compliance-overview.util'
 
 export type EcmComplianceMethodCardsProps = {
   className?: string
@@ -33,6 +33,20 @@ export function EcmComplianceMethodCards({
     ? buildEcmMethodBreakdown(reportQuery.data.kpis)
     : null
   const geofenceBreaches = reportQuery.data?.kpis?.geofenceBreaches ?? 0
+  // Visits that were actually clocked in, split by how (GPS / NFC tag / …).
+  const methods = reportQuery.data?.kpis?.checkInMethods
+  const clockIn = methods
+    ? [
+        { label: 'GPS', count: methods.gps },
+        { label: 'NFC tag', count: methods.nfc },
+        { label: 'QR code', count: methods.qr },
+        { label: 'Manual (carer)', count: methods.manualCarer },
+        { label: 'Office (manual)', count: methods.office },
+      ].filter((r) => r.count > 0 || r.label === 'GPS' || r.label === 'NFC tag')
+    : null
+  const clockInTotal = methods
+    ? methods.gps + methods.nfc + methods.qr + methods.manualCarer + methods.office
+    : 0
 
   const electronicTone =
     method && method.electronicPercent >= 95
@@ -116,6 +130,26 @@ export function EcmComplianceMethodCards({
             </tr>
           </tbody>
         </table>
+        {clockIn ? (
+          <table className="w-full text-xs" data-testid="ecm-clock-in-methods">
+            <thead>
+              <tr className="border-b border-border text-left text-[10px] text-muted-foreground">
+                <th className="pb-1 pt-1 font-medium">Clock-in method</th>
+                <th className="pb-1 pt-1 font-medium">Visits</th>
+                <th className="pb-1 pt-1 font-medium">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clockIn.map((r) => (
+                <tr key={r.label} className="border-b border-border/60 last:border-0">
+                  <td className="py-1 font-medium text-foreground">{r.label}</td>
+                  <td className="py-1 tabular-nums">{r.count.toLocaleString()}</td>
+                  <td className="py-1 tabular-nums">{formatPct(pct(r.count, clockInTotal))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
       </ContentCard>
 
       <ContentCard className={cn('space-y-1.5', pad)}>

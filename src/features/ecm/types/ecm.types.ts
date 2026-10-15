@@ -76,6 +76,23 @@ export type EcmDashboardBucket =
   | 'completedOnTime'
   | 'completedLate'
 
+/** Per-carer timing — set on double-up visits only. */
+export type EcmCarerTiming = {
+  /** This carer's own planned start (assignment time, else the visit time). */
+  plannedStartDateTime?: string
+  checkInAt?: string | null
+  checkOutAt?: string | null
+  /** Minutes after own planned start, only when beyond the late tolerance. */
+  lateArrivalMinutes?: number | null
+  notClockedIn?: boolean
+}
+
+export type EcmLiveVisitCarer = {
+  employeeId: string
+  name: string
+  isLeadCarer: boolean
+} & EcmCarerTiming
+
 export type EcmLiveVisitRow = {
   scheduledJobId: string
   scheduledVisitId: string | null
@@ -85,7 +102,7 @@ export type EcmLiveVisitRow = {
   slotLabel?: string | null
   serviceUserId: string
   serviceUserName: string
-  carers?: Array<{ employeeId: string; name: string; isLeadCarer: boolean }>
+  carers?: EcmLiveVisitCarer[]
   address?: string | null
   postcode?: string | null
   plannedStartDateTime: string
@@ -107,6 +124,10 @@ export type EcmLiveVisitRow = {
   appliedSettingsLevel: EcmSettingsLevel | string
   operationalExceptionCodes: string[]
   buckets: EcmDashboardBucket[]
+  /** How the visit was clocked in. */
+  checkInMethod?: 'GPS' | 'NFC' | 'QR' | 'MANUAL' | 'OFFICE' | 'NONE'
+  /** e.g. "GPS", "NFC tag · Main tag", "Manual (carer)", "Office (manual)". */
+  checkInMethodLabel?: string
 }
 
 /** ECM visit rows for one service user or employee over a date range. */
@@ -166,8 +187,14 @@ export type EcmAttendanceEvent = {
   id: string
   eventType: string
   verificationMethod: string
+  /** Office label, e.g. "GPS", "NFC tag · Main tag", "Manual (carer)". */
+  methodLabel?: string
   occurredAt: string
   deviceCapturedAt: string | null
+  /** When the server received the event. */
+  receivedAt?: string | null
+  /** The server received it well after it happened on the phone (offline clock-in/out). */
+  syncedLate?: boolean
   latitude: number | null
   longitude: number | null
   accuracyMeters: number | null
@@ -259,13 +286,16 @@ export type EcmVisitDetail = {
   jobStatus: string
   serviceUser: { id: string; name: string }
   location: { address: string | null; postcode: string | null }
-  allocatedCarers: Array<{
-    allocationId: string
-    employeeId: string
-    isLeadCarer: boolean
-    status: string
-    name: string
-  }>
+  allocatedCarers: Array<
+    {
+      allocationId: string
+      employeeId: string
+      isLeadCarer: boolean
+      status: string
+      name: string
+      plannedEndDateTime?: string | null
+    } & EcmCarerTiming
+  >
   visit: {
     id: string
     status: string
@@ -359,6 +389,7 @@ export type EcmExceptionKind =
   | 'CARER_SOS'
   | 'OUTSIDE_AREA_CHECK_IN_REQUEST'
   | 'UNABLE_TO_START'
+  | 'NFC_TAG_MISMATCH'
   | 'OTHER'
 
 export type CarerSosAlertDto = {
@@ -437,6 +468,9 @@ export type EcmExceptionRow = {
     isMockLocation: boolean
     occurredAt: string
     employeeId: string
+    /** How the carer clocked in, e.g. NFC-verified while GPS was outside the area. */
+    methodCode?: 'GPS' | 'NFC' | 'QR' | 'MANUAL' | 'OFFICE' | 'NONE' | null
+    methodLabel?: string | null
   } | null
   sos?: CarerSosAlertDto | null
   checkInMethodRequest?: EcmCheckInMethodGrant | null

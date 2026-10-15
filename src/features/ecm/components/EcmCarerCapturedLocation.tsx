@@ -11,6 +11,8 @@ export type CapturedGpsPoint = {
   longitude: number
   distanceMeters?: number | null
   carerName?: string | null
+  /** Extra line under the distance, e.g. "Clock-in: NFC tag · Main tag". */
+  note?: string | null
 }
 
 function useReverseGeocodedAddress(latitude: number, longitude: number) {
@@ -96,6 +98,7 @@ export function EcmCarerCapturedLocation({
       {distance ? (
         <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">{distance}</p>
       ) : null}
+      {point.note ? <p className="mt-0.5 text-xs font-medium text-foreground/80">{point.note}</p> : null}
     </div>
   )
 

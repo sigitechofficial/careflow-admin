@@ -27,6 +27,7 @@ import {
 function humanizeTag(code: string): string {
   if (code === 'OUTSIDE_AREA_CHECK_IN_REQUEST') return 'Outside area check-in'
   if (code === 'UNABLE_TO_START') return 'Unable to start'
+  if (code === 'NFC_TAG_MISMATCH') return 'Wrong NFC tag'
   return code
     .replace(/_/g, ' ')
     .toLowerCase()

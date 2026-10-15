@@ -1,5 +1,5 @@
 ﻿import * as React from 'react'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
@@ -57,6 +57,22 @@ import {
 
 export default function ServiceUserCarePlanFormPage() {
   const params = useParams({ strict: false }) as { serviceUserId?: string; formId?: string }
+  // Opened from an incident "Care plan update" measure.
+  const search = useSearch({ strict: false }) as {
+    incidentId?: string
+    incidentActionId?: string
+    incidentRef?: string
+    measure?: string
+  }
+  const incidentContext =
+    search.incidentId && search.incidentActionId
+      ? {
+          incidentId: search.incidentId,
+          incidentActionId: search.incidentActionId,
+          incidentRef: search.incidentRef ?? '',
+          measure: search.measure ?? '',
+        }
+      : null
   const serviceUserId = params.serviceUserId ?? ''
   const formId = params.formId ?? ''
   const navigate = useNavigate()
@@ -268,10 +284,19 @@ export default function ServiceUserCarePlanFormPage() {
         publishMutation.mutateAsync({
           gapAcknowledged: payload.gapAcknowledged,
           summary: payload.summary,
+          ...(incidentContext ? { incidentActionId: incidentContext.incidentActionId } : {}),
         }),
       )
       .then(async () => {
         setPublishOpen(false)
+        if (incidentContext) {
+          toastSuccess(`Care plan published — linked to ${incidentContext.incidentRef || 'the incident'}`)
+          await navigate({
+            to: '/incidents/$incidentId',
+            params: { incidentId: incidentContext.incidentId },
+          })
+          return
+        }
         toastSuccess('Care Plan published successfully')
         await navigate({
           to: '/service-users/$serviceUserId/care-plan',
@@ -372,6 +397,25 @@ export default function ServiceUserCarePlanFormPage() {
             {error}
           </p>
         )}
+        {incidentContext && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/20 dark:text-amber-200">
+            <p className="font-medium">
+              Updating for {incidentContext.incidentRef || 'an incident'}
+              {incidentContext.measure ? ` — ${incidentContext.measure}` : ''}
+            </p>
+            <p className="text-xs">
+              Make the change and <strong>publish</strong>. The published version is linked to the
+              incident measure; a saved draft doesn’t count.{' '}
+              <Link
+                to="/incidents/$incidentId"
+                params={{ incidentId: incidentContext.incidentId }}
+                className="font-medium underline"
+              >
+                Back to the incident
+              </Link>
+            </p>
+          </div>
+        )}
         {!workspaceLoading && !error && form && valuesHydrated && (
           <>
             <CarePlanEvidencePanel
@@ -429,6 +473,12 @@ export default function ServiceUserCarePlanFormPage() {
         gaps={composeQuery.data?.gaps ?? []}
         hasValues={hasPublishableCarePlanValues(values)}
         publishing={publishMutation.isPending || saveDraftMutation.isPending}
+        incidentRef={incidentContext ? incidentContext.incidentRef || 'the incident' : undefined}
+        defaultSummary={
+          incidentContext
+            ? `Updated after ${incidentContext.incidentRef || 'incident'}${incidentContext.measure ? `: ${incidentContext.measure}` : ''}`
+            : undefined
+        }
         onConfirm={onPublishConfirm}
       />
     </div>

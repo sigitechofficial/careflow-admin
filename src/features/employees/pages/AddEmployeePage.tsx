@@ -40,6 +40,7 @@ import { EmployeeEditVisitsPanel } from '@/features/employees/components/Employe
 import { EmployeeEditSalaryPanel } from '@/features/employees/components/EmployeeEditSalaryPanel'
 import { EmployeeEditLearningPanel } from '@/features/employees/components/EmployeeEditLearningPanel'
 import { EmployeeEditSuspensionsPanel } from '@/features/employees/components/EmployeeEditSuspensionsPanel'
+import { EmployeeEditIncidentsPanel } from '@/features/employees/components/EmployeeEditIncidentsPanel'
 import { EmployeeEditAllocationsPanel } from '@/features/employees/components/EmployeeEditAllocationsPanel'
 import { EmployeeAppAccessSection } from '@/features/employees/components/EmployeeAppAccessSection'
 import { EmployeeEditReviewsPanel } from '@/features/employees/components/EmployeeEditReviewsPanel'
@@ -2150,6 +2151,10 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
             {isEditMode && editTab === 'suspensions' && editEmployeeId ? (
               <EmployeeEditSuspensionsPanel employeeId={editEmployeeId} />
+            ) : null}
+
+            {isEditMode && editTab === 'incidents' && editEmployeeId ? (
+              <EmployeeEditIncidentsPanel employeeId={editEmployeeId} />
             ) : null}
 
             {isEditMode && editTab === 'allocation' && editEmployeeId ? (
