@@ -262,7 +262,7 @@ function ComplianceCard({
   const near = compliance?.needsAttention ?? 0
   const pieData = [
     { name: 'Up to date', value: up, color: COMPLIANCE_PIE_COLORS.up },
-    { name: 'Nearing completion', value: near, color: COMPLIANCE_PIE_COLORS.near },
+    { name: 'Needs attention', value: near, color: COMPLIANCE_PIE_COLORS.near },
   ]
   const hasData = up + near > 0
 

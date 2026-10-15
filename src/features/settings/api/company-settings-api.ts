@@ -61,6 +61,23 @@ export type CompanyProfile = {
   activeModules: string[]
   availableModules: string[]
   moduleCatalog: CompanyModuleCatalogItem[]
+  /** Legal & regulatory (Companies House number is `companyNumber`). */
+  legalName: string | null
+  cqcProviderId: string | null
+  companyStatus: string | null
+  companyType: string | null
+  /** YYYY-MM-DD */
+  incorporationDate: string | null
+  sicCodes: string[]
+  registeredAddressLine1: string | null
+  registeredAddressLine2: string | null
+  registeredTown: string | null
+  registeredCounty: string | null
+  registeredPostcode: string | null
+  registeredCountry: string | null
+  countryCode: string
+  currency: string
+  locale: string
   updatedAt: string
 }
 
@@ -79,6 +96,23 @@ export type UpdateCompanyProfilePayload = {
   bankSortCode?: string
   bankAccountNumber?: string
   activeModules?: string[]
+  /** Empty string clears the value. */
+  legalName?: string
+  cqcProviderId?: string
+  companyStatus?: string
+  companyType?: string
+  /** YYYY-MM-DD, or null to clear. */
+  incorporationDate?: string | null
+  sicCodes?: string[]
+  registeredAddressLine1?: string
+  registeredAddressLine2?: string
+  registeredTown?: string
+  registeredCounty?: string
+  registeredPostcode?: string
+  registeredCountry?: string
+  countryCode?: string
+  currency?: string
+  locale?: string
 }
 
 export async function fetchCompanyBranding(init?: RequestInit): Promise<CompanyBranding> {

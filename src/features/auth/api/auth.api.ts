@@ -1,5 +1,5 @@
 ﻿import { getApiBaseUrl } from '@/shared/lib/api-base'
-import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+import { ApiError, apiJson, formatApiErrorMessage, type ApiEnvelope } from '@/shared/api/api-client'
 import { fetchWithResilience } from '@/shared/api/http-client'
 
 function nestErrorMessage(body: unknown, fallback: string): string {
@@ -206,6 +206,40 @@ export async function backendChangePassword(
     },
     { retry: { maxRetries: 0 } },
   )
+}
+
+/**
+ * Public POST (no Bearer) for the password-reset flow. Throws `ApiError` with the HTTP status
+ * so pages can map 400 / 429 to specific copy.
+ */
+async function postPublicAuth(path: string, payload: Record<string, string>): Promise<void> {
+  const base = getApiBaseUrl()
+  if (!base) throw new Error('VITE_API_BASE_URL is not set')
+
+  const res = await fetchWithResilience(
+    `${base}${path}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    { retry: { maxRetries: 0 } },
+  )
+
+  if (!res.ok) {
+    const body: unknown = await readJsonResponse(res)
+    throw new ApiError(formatApiErrorMessage(body, res.statusText || 'Request failed'), res.status, body)
+  }
+}
+
+/** Public POST /auth/forgot-password — always 200 on the server (never reveals if the account exists). */
+export async function backendForgotPassword(email: string): Promise<void> {
+  await postPublicAuth('/auth/forgot-password', { email: email.trim() })
+}
+
+/** Public POST /auth/reset-password with the one-time token from the emailed link. */
+export async function backendResetPassword(token: string, newPassword: string): Promise<void> {
+  await postPublicAuth('/auth/reset-password', { token, newPassword })
 }
 
 /** PATCH /auth/me */

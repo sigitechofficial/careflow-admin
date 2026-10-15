@@ -1,7 +1,7 @@
-import { Menu, Sun, Moon, Monitor } from 'lucide-react'
+import { Menu, Sun, Moon, Monitor, Type, RotateCcw } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { cn } from '@/shared/lib/utils'
-import { useUIStore } from '@/store/ui.store'
+import { useUIStore, DEFAULT_TEXT_SIZE, DEFAULT_TEXT_WEIGHT, type TextSize, type TextWeight } from '@/store/ui.store'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { UserAvatar } from '@/shared/ui/avatar'
@@ -72,6 +72,9 @@ export function Topbar({ pageTitle, className, variant = 'admin' }: TopbarProps)
         {!isPortal && <TopbarNavSearchMobile />}
 
         {!isPortal ? <TopbarLocationSelect /> : null}
+
+        {/* Reading comfort: text size and weight */}
+        <TextComfortMenu />
 
         {/* Theme toggle */}
         <DropdownMenu>
@@ -161,5 +164,100 @@ export function Topbar({ pageTitle, className, variant = 'admin' }: TopbarProps)
         </DropdownMenu>
       </div>
     </header>
+  )
+}
+
+const TEXT_SIZE_OPTIONS: Array<{ value: TextSize; label: string; sample: string }> = [
+  { value: 'standard', label: 'Standard', sample: 'text-[12px]' },
+  { value: 'large', label: 'Large (default)', sample: 'text-[14px]' },
+  { value: 'larger', label: 'Larger', sample: 'text-[16px]' },
+  { value: 'largest', label: 'Largest', sample: 'text-[19px]' },
+]
+
+const TEXT_WEIGHT_OPTIONS: Array<{ value: TextWeight; label: string; sample: string }> = [
+  { value: 'standard', label: 'Standard', sample: 'font-normal' },
+  { value: 'medium', label: 'Heavier (default)', sample: 'font-medium' },
+  { value: 'bold', label: 'Bold', sample: 'font-semibold' },
+]
+
+/**
+ * Text size and weight for easier reading. Saved in this browser (ui store) and applied
+ * across the whole app (store/ui.store.ts + styles/globals.css).
+ */
+function TextComfortMenu() {
+  const textSize = useUIStore(s => s.textSize)
+  const textWeight = useUIStore(s => s.textWeight)
+  const setTextSize = useUIStore(s => s.setTextSize)
+  const setTextWeight = useUIStore(s => s.setTextWeight)
+  const reset = useUIStore(s => s.resetTextPreferences)
+  const changed = textSize !== DEFAULT_TEXT_SIZE || textWeight !== DEFAULT_TEXT_WEIGHT
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Text size and weight"
+          title="Text size and weight"
+          data-testid="text-comfort-trigger"
+          className="relative"
+        >
+          <Type className="h-4 w-4" />
+          {changed ? <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden /> : null}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Text size</DropdownMenuLabel>
+        {TEXT_SIZE_OPTIONS.map(o => (
+          <DropdownMenuItem
+            key={o.value}
+            data-testid={`text-size-${o.value}`}
+            onSelect={e => {
+              e.preventDefault()
+              setTextSize(o.value)
+            }}
+            className="gap-2"
+          >
+            <span className={`w-6 text-center font-semibold leading-none ${o.sample}`} aria-hidden>
+              A
+            </span>
+            {o.label}
+            {textSize === o.value && <span className="ml-auto text-primary">✓</span>}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Text weight</DropdownMenuLabel>
+        {TEXT_WEIGHT_OPTIONS.map(o => (
+          <DropdownMenuItem
+            key={o.value}
+            data-testid={`text-weight-${o.value}`}
+            onSelect={e => {
+              e.preventDefault()
+              setTextWeight(o.value)
+            }}
+            className="gap-2"
+          >
+            <span className={`w-6 text-center text-[15px] leading-none ${o.sample}`} aria-hidden>
+              Aa
+            </span>
+            {o.label}
+            {textWeight === o.value && <span className="ml-auto text-primary">✓</span>}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          data-testid="text-comfort-reset"
+          disabled={!changed}
+          onSelect={() => reset()}
+          className="gap-2 text-muted-foreground"
+        >
+          <RotateCcw className="h-4 w-4" /> Reset to default
+        </DropdownMenuItem>
+        <p className="px-2 pb-1.5 pt-1 text-[11px] leading-snug text-muted-foreground">
+          Saved in this browser. Your browser zoom still works too.
+        </p>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
