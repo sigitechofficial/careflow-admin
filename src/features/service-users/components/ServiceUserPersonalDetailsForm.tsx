@@ -118,6 +118,12 @@ const FIELD_HELP = {
     'Preferred spoken or written language for communication and accessible information. Options are managed in Settings → Lookup data → Languages.',
 } as const
 
+/** Fixed Standard / Complex care-level options (rendered like a lookup). */
+const CARE_LEVEL_OPTIONS = [
+  { id: 'STANDARD', name: 'Standard Care', code: 'STANDARD' },
+  { id: 'COMPLEX', name: 'Complex Care', code: 'COMPLEX' },
+]
+
 function extValue(refs: ServiceUserDetailReference[], type: string): string {
   return refs.find((r) => r.referenceType === type)?.referenceValue ?? ''
 }
@@ -196,6 +202,7 @@ type FormState = {
   namedNurseId: string
   fundingTypeId: string
   careTypeId: string
+  careLevel: string
   riskLevelId: string
   nationalInsuranceNumber: string
   asNumber: string
@@ -318,6 +325,7 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     namedNurseId: d.namedNurse?.id ?? '',
     fundingTypeId: d.fundingType?.id ?? '',
     careTypeId: d.careType?.id ?? '',
+    careLevel: d.careLevel ?? '',
     riskLevelId: d.riskLevel?.id ?? '',
     nationalInsuranceNumber: d.nationalInsuranceNumber ?? '',
     asNumber: extValue(r, PROFILE_REF.asNumber),
@@ -659,6 +667,7 @@ export function ServiceUserPersonalDetailsForm({
         maritalStatusId: form.maritalStatusId || undefined,
         statusId: form.statusId || undefined,
         careTypeId: form.careTypeId || undefined,
+        careLevel: (form.careLevel || undefined) as 'STANDARD' | 'COMPLEX' | undefined,
         fundingTypeId: form.fundingTypeId || undefined,
         riskLevelId: form.riskLevelId || undefined,
         keyWorkerId: form.keyWorkerId || undefined,
@@ -1032,6 +1041,14 @@ export function ServiceUserPersonalDetailsForm({
             placeholder="Select care type"
             fieldKey="careTypeId"
             emptyHint="No care types yet. Add them in Settings → Lookup data → Care types."
+          />
+          <LookupSelect
+            label="Care level"
+            tooltip="Standard or Complex care. Complex applies the Complex-care charge card (SERVICE_TYPE) when no more specific card is set."
+            value={form.careLevel}
+            onChange={set('careLevel')}
+            rows={CARE_LEVEL_OPTIONS}
+            placeholder="Select care level"
           />
           <LookupSelect
             label="Risk level"
