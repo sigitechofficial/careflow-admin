@@ -97,22 +97,18 @@ export function PayCardConflictCheckNotice({ input }: { input: PayCardConflictCh
   const data = query.data
   if (!input || !data?.message) return null
   const held = data.affectedCarerCount > 0
+  // Only surface the real warning (a carer's pay is actually held). The benign
+  // "cards overlap but nobody relies on matching" note is hidden to keep the form uncluttered.
+  if (!held) return null
 
   return (
     <div
-      className={
-        held
-          ? 'space-y-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-500/40 dark:bg-amber-500/10'
-          : 'space-y-1 rounded-md border border-border bg-muted/30 px-3 py-2'
-      }
+      className="space-y-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-500/40 dark:bg-amber-500/10"
       data-testid="pay-card-conflict-check"
-      role={held ? 'alert' : 'note'}
+      role="alert"
     >
       <p className="flex items-start gap-2 text-sm text-foreground">
-        <AlertTriangle
-          className={held ? 'mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300' : 'mt-0.5 h-4 w-4 shrink-0 text-muted-foreground'}
-          aria-hidden
-        />
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
         <span>{data.message}</span>
       </p>
       {data.overlapping.length ? (
@@ -120,7 +116,7 @@ export function PayCardConflictCheckNotice({ input }: { input: PayCardConflictCh
           {data.overlapping.map(card => `${cardLabel(card)} (both in force from ${card.overlapFrom})`).join('; ')}
         </p>
       ) : null}
-      {held ? <CarerLinks carers={data.affectedCarers} total={data.affectedCarerCount} /> : null}
+      <CarerLinks carers={data.affectedCarers} total={data.affectedCarerCount} />
     </div>
   )
 }

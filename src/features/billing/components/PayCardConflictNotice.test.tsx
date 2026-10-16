@@ -134,7 +134,7 @@ describe('pay card conflicts (PC-32)', () => {
     expect(state.checkSeen).toEqual(input)
   })
 
-  it('cards that overlap while nobody relies on matching are a note, not an alarm', () => {
+  it('cards that overlap while nobody relies on matching are hidden (benign note not shown)', () => {
     state.check = check({
       affectedCarerCount: 0,
       affectedCarers: [],
@@ -142,7 +142,8 @@ describe('pay card conflicts (PC-32)', () => {
     })
     render(<PayCardConflictCheckNotice input={input} />)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(screen.getByRole('note')).toHaveTextContent("nobody's pay is held")
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pay-card-conflict-check')).not.toBeInTheDocument()
   })
 
   it('shows nothing when there is no overlap, or the form is not ready to check', () => {
