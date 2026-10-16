@@ -232,7 +232,6 @@ export function ChargeCardForm({ card, onSaved, onCancel, formId }: ChargeCardFo
 
       <CollapsibleCard
         id="charge-card-general"
-        defaultOpen
         icon={<FileText className="h-4 w-4" aria-hidden />}
         iconClassName="bg-slate-500/10 text-slate-700 dark:text-slate-300"
         title="Card details"
@@ -401,7 +400,6 @@ export function ChargeCardForm({ card, onSaved, onCancel, formId }: ChargeCardFo
 
       <CollapsibleCard
         id="charge-card-rates"
-        defaultOpen
         bodyClassName="space-y-3"
         icon={<PoundSterling className="h-4 w-4" aria-hidden />}
         iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
