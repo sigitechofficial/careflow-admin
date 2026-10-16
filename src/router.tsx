@@ -149,6 +149,7 @@ import ServiceUserInvoicesPage from '@/features/billing/pages/ServiceUserInvoice
 import PaymentsPage from '@/features/billing/pages/PaymentsPage'
 import AuditExportPage from '@/features/billing/pages/AuditExportPage'
 import PayCardEditorPage from '@/features/billing/pages/PayCardEditorPage'
+import ChargeCardEditorPage from '@/features/billing/pages/ChargeCardEditorPage'
 import EmployeePayCardChangePage from '@/features/billing/pages/EmployeePayCardChangePage'
 import PayItemsPage from '@/features/billing/pages/PayItemsPage'
 import WageRecoveriesPage from '@/features/billing/pages/WageRecoveriesPage'
@@ -339,6 +340,8 @@ const pageTitles: Record<string, string> = {
   '/settings/care-pathway': 'Care Pathway',
   '/billing': 'Billing Management',
   '/billing/pay-cards/new': 'New pay card',
+  '/billing/charge-cards/new': 'New charge card',
+  '/billing/charge-cards/$chargeCardId/edit': 'Edit charge card',
   '/billing/pay-items': 'Pay items',
   '/billing/wage-recoveries': 'Wage recoveries',
   '/billing/pay-items/new': 'New pay item',
@@ -1984,6 +1987,20 @@ const billingPayCardEditRoute = createRoute({
   component: PayCardEditorPage,
 })
 
+const billingChargeCardNewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/charge-cards/new',
+  beforeLoad: requirePermission('billing.charge_cards.manage'),
+  component: ChargeCardEditorPage,
+})
+
+const billingChargeCardEditRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/charge-cards/$chargeCardId/edit',
+  beforeLoad: requirePermission('billing.charge_cards.manage'),
+  component: ChargeCardEditorPage,
+})
+
 const billingPayItemsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/pay-items',
@@ -2529,6 +2546,8 @@ const routeTree = rootRoute.addChildren([
     billingRoute,
     billingPayCardNewRoute,
     billingPayCardEditRoute,
+    billingChargeCardNewRoute,
+    billingChargeCardEditRoute,
     employeePayCardChangeRoute,
     billingPayItemsRoute,
     billingWageRecoveriesRoute,
