@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
+import { CollapsibleCard } from '@/shared/ui/content-section'
 import { BillingCardRulesEditor } from '@/features/billing/components/BillingCardRulesEditor'
 import { serializeChargeCardRulesForApi, normalizeChargeCardRulesForEditor } from '@/features/billing/utils/billing-card-payload.util'
 import { isNightDutyChargeRule } from '@/features/billing/utils/billing-card-rule.util'
@@ -63,34 +64,6 @@ function FieldLabel({
       {children}
       {required ? <span className="text-destructive" aria-hidden>*</span> : null}
     </span>
-  )
-}
-
-function SectionTitle({
-  icon,
-  iconClassName,
-  title,
-  description,
-}: {
-  icon: React.ReactNode
-  iconClassName: string
-  title: string
-  description?: string
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <span
-        className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconClassName}`}
-      >
-        {icon}
-      </span>
-      <div className="min-w-0 pt-0.5">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {description ? (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        ) : null}
-      </div>
-    </div>
   )
 }
 
@@ -274,24 +247,27 @@ export function ChargeCardFormDialog({ open, onOpenChange, card }: ChargeCardFor
               {isEdit ? 'Edit charge card' : 'New charge card'}
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Set who this invoice template is for, then add charge rates on the right.
+              Set who this invoice template is for, then add the charge rates below.
             </p>
           </DialogHeader>
 
-          <DialogBody className="flex min-h-0 flex-1 flex-col overflow-y-auto p-0 lg:overflow-hidden">
+          <DialogBody className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
             {error ? (
-              <p className="shrink-0 border-b border-border px-5 py-3 text-sm text-destructive">{error}</p>
+              <p
+                role="alert"
+                className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              >
+                {error}
+              </p>
             ) : null}
 
-            <div className="grid min-h-0 flex-1 lg:grid-cols-2 lg:overflow-hidden">
-              <section className="space-y-4 border-b border-border p-5 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
-                <SectionTitle
-                  icon={<FileText className="h-4 w-4" aria-hidden />}
-                  iconClassName="bg-slate-500/10 text-slate-700 dark:text-slate-300"
-                  title="Card details"
-                  description="Who this rate card applies to. Invoice cadence, VAT, and grouping live on Invoice templates."
-                />
-
+            <CollapsibleCard
+              defaultOpen
+              icon={<FileText className="h-4 w-4" aria-hidden />}
+              iconClassName="bg-slate-500/10 text-slate-700 dark:text-slate-300"
+              title="Card details"
+              description="Who this rate card applies to. Invoice cadence, VAT, and grouping live on Invoice templates."
+            >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="space-y-1 text-sm sm:col-span-2">
                     <FieldLabel icon={<CreditCard className="h-3.5 w-3.5" aria-hidden />} required>
@@ -451,24 +427,24 @@ export function ChargeCardFormDialog({ open, onOpenChange, card }: ChargeCardFor
                     />
                   </label>
                 </div>
-              </section>
+            </CollapsibleCard>
 
-              <section className="space-y-3 bg-muted/5 p-5 lg:min-h-0 lg:overflow-y-auto">
-                <SectionTitle
-                  icon={<PoundSterling className="h-4 w-4" aria-hidden />}
-                  iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                  title="Charge rates"
-                  description="Add at least one rate. Every visit rule needs an amount and From / Until times."
-                />
-                <BillingCardRulesEditor
-                  key={editorKey}
-                  mode="charge"
-                  rules={form.rules ?? []}
-                  onChange={rules => patch({ rules: rules as ChargeCardRule[] })}
-                  disabled={saving}
-                />
-              </section>
-            </div>
+            <CollapsibleCard
+              defaultOpen
+              bodyClassName="space-y-3"
+              icon={<PoundSterling className="h-4 w-4" aria-hidden />}
+              iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              title="Charge rates"
+              description="Add at least one rate. Every visit rule needs an amount and From / Until times."
+            >
+              <BillingCardRulesEditor
+                key={editorKey}
+                mode="charge"
+                rules={form.rules ?? []}
+                onChange={rules => patch({ rules: rules as ChargeCardRule[] })}
+                disabled={saving}
+              />
+            </CollapsibleCard>
           </DialogBody>
 
           <DialogFooter>
