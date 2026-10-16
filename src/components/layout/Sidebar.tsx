@@ -1284,10 +1284,18 @@ function ModuleSidebar() {
   const [menuQuery, setMenuQuery] = React.useState('')
   const searching = menuQuery.trim().length > 0
   const searchResults = React.useMemo(() => filterNavByQuery(items, menuQuery), [items, menuQuery])
+  // Search opened from the rail button: forces the panel open (even unpinned) in search mode.
+  const [searchOpen, setSearchOpen] = React.useState(false)
+  const closeSearch = React.useCallback(() => {
+    setSearchOpen(false)
+    setMenuQuery('')
+  }, [])
 
   const panelModule = items.find((i) => i.label === openModule && i.children?.length)
   // Desktop: pages show on hover (fly-out) unless the user pins the panel open. Mobile drawer always shows it.
-  const panelVisible = (!!panelModule || searching) && (pagePanelPinned || sidebarMobileOpen)
+  // The rail search button also forces the panel open in search mode.
+  const panelVisible =
+    searchOpen || ((!!panelModule || searching) && (pagePanelPinned || sidebarMobileOpen))
 
   const closeMobile = () => setSidebarMobileOpen(false)
 
@@ -1311,11 +1319,22 @@ function ModuleSidebar() {
   }, [cancelClose])
   React.useEffect(() => () => cancelClose(), [cancelClose])
   React.useEffect(() => setHoverModule(undefined), [pathname])
+  // Close the search panel whenever the route changes (a result was opened).
+  React.useEffect(() => closeSearch(), [pathname, closeSearch])
+  // Focus the search field as soon as it opens.
+  React.useEffect(() => {
+    if (!searchOpen) return
+    const el = document.querySelector<HTMLInputElement>('[data-testid="sidebar-search"]')
+    el?.focus()
+  }, [searchOpen])
 
   const flyoutModule = items.find((i) => i.label === hoverModule && i.children?.length)
   // No fly-out on the mobile drawer, or when it would just repeat the docked panel.
   const showFlyout =
-    !!flyoutModule && !sidebarMobileOpen && !(panelVisible && !searching && flyoutModule.label === panelModule?.label)
+    !!flyoutModule &&
+    !sidebarMobileOpen &&
+    !searchOpen &&
+    !(panelVisible && !searching && flyoutModule.label === panelModule?.label)
   const flyoutMeta = flyoutModule ? NAV_MODULES[flyoutModule.label] : undefined
 
   return (
@@ -1339,6 +1358,24 @@ function ModuleSidebar() {
         <div className="flex w-[76px] shrink-0 flex-col items-center border-r border-sidebar-border">
           <div className="flex h-14 w-full shrink-0 items-center justify-center border-b border-sidebar-border">
             <CompanyBrandMark collapsed />
+          </div>
+          <div className="flex w-full shrink-0 justify-center px-1.5 pt-2">
+            <button
+              type="button"
+              data-testid="sidebar-search-button"
+              aria-label="Search pages"
+              aria-pressed={searchOpen}
+              title="Search pages"
+              onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+              className={cn(
+                'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
+                searchOpen
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground ring-2 ring-sidebar-primary/60'
+                  : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              )}
+            >
+              <Search className="h-5 w-5" />
+            </button>
           </div>
           <nav aria-label="Modules" className="flex w-full flex-1 flex-col gap-1 overflow-y-auto px-1.5 py-2">
             {items.map((item) => {
@@ -1442,7 +1479,7 @@ function ModuleSidebar() {
         {/* ── Page panel ── */}
         {panelVisible ? (
           <div className="flex w-[268px] min-w-0 flex-col" data-testid="sidebar-panel">
-            {panelModule && !searching ? (
+            {panelModule && !searching && !searchOpen ? (
               <ModulePanelHeader
                 module={panelModule}
                 onNavigate={closeMobile}
@@ -1454,8 +1491,18 @@ function ModuleSidebar() {
               />
             ) : (
               <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-sidebar-border px-3.5">
-                <span className="flex-1 font-display text-[15px] font-semibold text-sidebar-foreground">Search results</span>
-                <button className="shrink-0 text-muted-foreground hover:text-foreground lg:hidden" onClick={closeMobile} aria-label="Close menu">
+                <span className="flex-1 font-display text-[15px] font-semibold text-sidebar-foreground">
+                  {searching ? 'Search results' : 'Search'}
+                </span>
+                <button
+                  type="button"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    closeSearch()
+                    closeMobile()
+                  }}
+                  aria-label="Close search"
+                >
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -1465,6 +1512,12 @@ function ModuleSidebar() {
                 type="search"
                 value={menuQuery}
                 onChange={(e) => setMenuQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    closeSearch()
+                    closeMobile()
+                  }
+                }}
                 aria-label="Search all pages"
                 placeholder="Search all pages"
                 data-testid="sidebar-search"
@@ -1472,7 +1525,7 @@ function ModuleSidebar() {
                 className="h-9 rounded-xl border-sidebar-border bg-background/70 text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus-visible:border-sidebar-ring focus-visible:ring-sidebar-ring"
               />
             </div>
-            <nav aria-label={searching ? 'Search results' : `${panelModule?.label} pages`} className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
+            <nav aria-label={searching ? 'Search results' : searchOpen ? 'Search' : `${panelModule?.label} pages`} className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
               {searching ? (
                 searchResults.length === 0 ? (
                   <p className="px-2 py-6 text-center text-sm text-sidebar-foreground/70">No matching pages</p>
@@ -1487,7 +1540,7 @@ function ModuleSidebar() {
                             pathname={pathname}
                             search={search}
                             onNavigate={() => {
-                              setMenuQuery('')
+                              closeSearch()
                               closeMobile()
                             }}
                           />
@@ -1500,7 +1553,7 @@ function ModuleSidebar() {
                             pathname={pathname}
                             search={search}
                             onNavigate={() => {
-                              setMenuQuery('')
+                              closeSearch()
                               closeMobile()
                             }}
                           />
@@ -1509,6 +1562,10 @@ function ModuleSidebar() {
                     )}
                   </ul>
                 )
+              ) : searchOpen ? (
+                <p className="px-2 py-6 text-center text-sm text-sidebar-foreground/70">
+                  Type to search all pages…
+                </p>
               ) : panelModule ? (
                 <ul className="space-y-0.5">
                   <NavChildList variant="panel" items={panelModule.children!} pathname={pathname} search={search} onNavigate={closeMobile} />
