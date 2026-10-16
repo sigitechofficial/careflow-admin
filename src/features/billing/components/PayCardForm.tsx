@@ -1,6 +1,8 @@
 import * as React from 'react'
 import {
+  Calculator,
   CalendarDays,
+  ClipboardList,
   CreditCard,
   FileText,
   GitBranch,
@@ -16,6 +18,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Combobox } from '@/shared/ui/combobox'
 import { ContentCard } from '@/shared/ui/content-section'
+import { BillingStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { BillingCardRulesEditor } from '@/features/billing/components/BillingCardRulesEditor'
 import { PayCardWageTypeSummary } from '@/features/billing/components/PayCardWageTypeSummary'
 import { PayCardPayPreview } from '@/features/billing/components/PayCardPayPreview'
@@ -23,6 +26,8 @@ import { PayCardConflictCheckNotice } from '@/features/billing/components/PayCar
 import { BANK_HOLIDAY_REGION_OPTIONS, type BankHolidayRegion } from '@/features/billing/types/wage-types.types'
 import { useCreatePayCard, useUpdatePayCard } from '@/features/billing/hooks/usePayCards'
 import {
+  formatBillingDate,
+  formatPayCardAssignmentDisplay,
   PAY_CARD_ASSIGNMENT_OPTIONS,
   PAY_CARD_WORKER_TYPE_OPTIONS,
   slugBillingCode,
@@ -41,6 +46,22 @@ type PayCardFormProps = {
   /** Called after a successful save. */
   onSaved: (card: PayCard) => void
   onCancel: () => void
+  /** Native id on the <form>, so a header Save button outside the form can submit it. */
+  formId?: string
+}
+
+/** Scroll the app's main scroll surface to a section, leaving the sticky header clear. */
+function scrollToSection(id: string) {
+  const el = document.getElementById(id)
+  if (!el) return
+  const scroller = el.closest<HTMLElement>('[data-app-main-scroll]')
+  if (scroller) {
+    const top =
+      el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 168
+    scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+  } else {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 }
 
 /** Levels we can configure in this form (no orphan Individual / Client–funder without pickers). */
@@ -108,6 +129,69 @@ function SectionTitle({
   )
 }
 
+function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-right font-medium text-foreground">{children}</dd>
+    </div>
+  )
+}
+
+/** Sticky summary of the live form values + a jump to the pay preview. Reflects unsaved edits. */
+function PayCardSummarySidebar({ form }: { form: PayCardInput }) {
+  const ratesCount = (form.rules ?? []).length
+  const matching = formatPayCardAssignmentDisplay({
+    assignmentLevel: form.assignmentLevel ?? 'ORGANISATION_DEFAULT',
+    assignmentLabel: form.assignmentLabel,
+    assignmentTargetKey: form.assignmentTargetKey,
+  })
+
+  return (
+    <>
+      <ContentCard className="space-y-4" data-testid="pay-card-summary">
+        <SectionTitle
+          icon={<ClipboardList className="h-4 w-4" aria-hidden />}
+          iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
+          title="Summary"
+          description="Live values, including unsaved changes."
+        />
+        <dl className="text-sm">
+          <SummaryRow label="Starts">{formatBillingDate(form.effectiveFrom)}</SummaryRow>
+          <SummaryRow label="Ends">{form.effectiveTo ? formatBillingDate(form.effectiveTo) : '—'}</SummaryRow>
+          <SummaryRow label="Matching">{matching}</SummaryRow>
+          <SummaryRow label="Rates">
+            <span className="tabular-nums">{ratesCount}</span>
+          </SummaryRow>
+          <SummaryRow label="Status">
+            <BillingStatusBadge status={form.status ?? 'DRAFT'} size="sm" />
+          </SummaryRow>
+        </dl>
+      </ContentCard>
+
+      <ContentCard className="space-y-4">
+        <SectionTitle
+          icon={<Calculator className="h-4 w-4" aria-hidden />}
+          iconClassName="bg-indigo-500/10 text-indigo-700 dark:text-indigo-300"
+          title="Pay preview"
+          description="Check a sample visit against these rates."
+        />
+        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center text-xs text-muted-foreground">
+          Price a sample visit with the rates on this card. Nothing is saved and no pay is created.
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => scrollToSection('pay-card-preview')}
+        >
+          Open pay preview
+        </Button>
+      </ContentCard>
+    </>
+  )
+}
+
 function toFormState(card?: PayCard | null): PayCardInput {
   return {
     name: card?.name ?? '',
@@ -166,7 +250,7 @@ const HOLIDAY_PAY_CHOICES: { value: string; title: string; description: string }
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 
 /** Full-page create / edit form for a carer pay card. Remount (via `key`) to load a different card. */
-export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
+export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProps) {
   const isEdit = !!card
   const createMutation = useCreatePayCard()
   const updateMutation = useUpdatePayCard()
@@ -348,7 +432,7 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6" data-testid="pay-card-form">
+    <form onSubmit={onSubmit} id={formId} className="space-y-6" data-testid="pay-card-form">
       {error ? (
         <p
           role="alert"
@@ -358,6 +442,8 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
         </p>
       ) : null}
 
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="min-w-0 flex-[999] space-y-6">
       <ContentCard className="space-y-4" id="pay-card-general">
         <SectionTitle
           icon={<FileText className="h-4 w-4" aria-hidden />}
@@ -731,8 +817,17 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
         stackingPolicy={form.stackingPolicy ?? 'PRIORITY'}
         bankHolidayRegion={(form.bankHolidayRegion || 'UK') as BankHolidayRegion}
       />
+        </div>
 
-      <div className="sticky bottom-0 z-10 -mx-1 flex justify-end gap-2 border-t border-border bg-background/95 px-1 py-3 backdrop-blur">
+        <aside
+          className="w-full space-y-6 lg:sticky lg:top-[168px] lg:w-[340px] lg:shrink-0 lg:self-start"
+          aria-label="Pay card summary"
+        >
+          <PayCardSummarySidebar form={form} />
+        </aside>
+      </div>
+
+      <div className="sticky bottom-0 z-10 -mx-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:-mx-[22px] md:px-[22px]">
         <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>
