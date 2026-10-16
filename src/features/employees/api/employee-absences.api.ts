@@ -149,6 +149,8 @@ export async function createEmployeeAbsence(
     absenceType: AbsenceType
     fromDateTime: string
     toDateTime: string
+    /** Email the carer that this absence was recorded. */
+    notifyByEmail?: boolean
   },
 ): Promise<EmployeeAbsenceRow> {
   const res = await apiJson<ApiEnvelope<EmployeeAbsenceRow>>('/employee-absences', {
