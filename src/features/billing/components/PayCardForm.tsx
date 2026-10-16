@@ -17,7 +17,7 @@ import { ApiError } from '@/shared/api/api-client'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Combobox } from '@/shared/ui/combobox'
-import { ContentCard } from '@/shared/ui/content-section'
+import { CollapsibleCard } from '@/shared/ui/content-section'
 import { BillingStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { BillingCardRulesEditor } from '@/features/billing/components/BillingCardRulesEditor'
 import { PayCardWageTypeSummary } from '@/features/billing/components/PayCardWageTypeSummary'
@@ -54,6 +54,8 @@ type PayCardFormProps = {
 function scrollToSection(id: string) {
   const el = document.getElementById(id)
   if (!el) return
+  // Sections are collapsible <details> (closed by default) — open before scrolling.
+  if (el instanceof HTMLDetailsElement) el.open = true
   const scroller = el.closest<HTMLElement>('[data-app-main-scroll]')
   if (scroller) {
     const top =
@@ -101,34 +103,6 @@ function FieldLabel({
   )
 }
 
-function SectionTitle({
-  icon,
-  iconClassName,
-  title,
-  description,
-}: {
-  icon: React.ReactNode
-  iconClassName: string
-  title: string
-  description?: string
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <span
-        className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconClassName}`}
-      >
-        {icon}
-      </span>
-      <div className="min-w-0 pt-0.5">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {description ? (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
 function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0">
@@ -149,13 +123,13 @@ function PayCardSummarySidebar({ form }: { form: PayCardInput }) {
 
   return (
     <>
-      <ContentCard className="space-y-4" data-testid="pay-card-summary">
-        <SectionTitle
-          icon={<ClipboardList className="h-4 w-4" aria-hidden />}
-          iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
-          title="Summary"
-          description="Live values, including unsaved changes."
-        />
+      <CollapsibleCard
+        data-testid="pay-card-summary"
+        icon={<ClipboardList className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
+        title="Summary"
+        description="Live values, including unsaved changes."
+      >
         <dl className="text-sm">
           <SummaryRow label="Starts">{formatBillingDate(form.effectiveFrom)}</SummaryRow>
           <SummaryRow label="Ends">{form.effectiveTo ? formatBillingDate(form.effectiveTo) : '—'}</SummaryRow>
@@ -167,15 +141,14 @@ function PayCardSummarySidebar({ form }: { form: PayCardInput }) {
             <BillingStatusBadge status={form.status ?? 'DRAFT'} size="sm" />
           </SummaryRow>
         </dl>
-      </ContentCard>
+      </CollapsibleCard>
 
-      <ContentCard className="space-y-4">
-        <SectionTitle
-          icon={<Calculator className="h-4 w-4" aria-hidden />}
-          iconClassName="bg-indigo-500/10 text-indigo-700 dark:text-indigo-300"
-          title="Pay preview"
-          description="Check a sample visit against these rates."
-        />
+      <CollapsibleCard
+        icon={<Calculator className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-indigo-500/10 text-indigo-700 dark:text-indigo-300"
+        title="Pay preview"
+        description="Check a sample visit against these rates."
+      >
         <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center text-xs text-muted-foreground">
           Price a sample visit with the rates on this card. Nothing is saved and no pay is created.
         </div>
@@ -187,7 +160,7 @@ function PayCardSummarySidebar({ form }: { form: PayCardInput }) {
         >
           Open pay preview
         </Button>
-      </ContentCard>
+      </CollapsibleCard>
     </>
   )
 }
@@ -432,7 +405,7 @@ export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProp
   }
 
   return (
-    <form onSubmit={onSubmit} id={formId} className="space-y-6" data-testid="pay-card-form">
+    <form onSubmit={onSubmit} id={formId} noValidate className="space-y-6" data-testid="pay-card-form">
       {error ? (
         <p
           role="alert"
@@ -442,14 +415,13 @@ export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProp
         </p>
       ) : null}
 
-      <ContentCard className="space-y-4" id="pay-card-general">
-        <SectionTitle
-          icon={<FileText className="h-4 w-4" aria-hidden />}
-          iconClassName="bg-slate-500/10 text-slate-700 dark:text-slate-300"
-          title="Card details"
-          description="All fields are required."
-        />
-
+      <CollapsibleCard
+        id="pay-card-general"
+        icon={<FileText className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-slate-500/10 text-slate-700 dark:text-slate-300"
+        title="Card details"
+        description="All fields are required."
+      >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <label
             className={`space-y-1 text-sm${
@@ -629,15 +601,16 @@ export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProp
           </label>
         </div>
         <PayCardConflictCheckNotice input={conflictCheckInput} />
-      </ContentCard>
+      </CollapsibleCard>
 
-      <ContentCard className="space-y-3" id="pay-card-rates">
-        <SectionTitle
-          icon={<PoundSterling className="h-4 w-4" aria-hidden />}
-          iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-          title="Pay rates"
-          description="Add at least one rate: choose when it applies and the £ amount."
-        />
+      <CollapsibleCard
+        id="pay-card-rates"
+        bodyClassName="space-y-3"
+        icon={<PoundSterling className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+        title="Pay rates"
+        description="Add at least one rate: choose when it applies and the £ amount."
+      >
         {createsVersion ? (
           <div
             className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4"
@@ -687,15 +660,16 @@ export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProp
           onChange={rules => patch({ rules: rules as PayCardRule[] })}
           disabled={saving}
         />
-      </ContentCard>
+      </CollapsibleCard>
 
-      <ContentCard className="space-y-4" id="pay-card-rules-policy" data-testid="pay-card-rules-policy">
-        <SectionTitle
-          icon={<CalendarDays className="h-4 w-4" aria-hidden />}
-          iconClassName="bg-amber-500/10 text-amber-700 dark:text-amber-300"
-          title="Holidays"
-          description="How holiday pay works for carers on this card, and which bank holidays it uses."
-        />
+      <CollapsibleCard
+        id="pay-card-rules-policy"
+        data-testid="pay-card-rules-policy"
+        icon={<CalendarDays className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-amber-500/10 text-amber-700 dark:text-amber-300"
+        title="Holidays"
+        description="How holiday pay works for carers on this card, and which bank holidays it uses."
+      >
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium text-foreground">How is holiday paid?</legend>
           <div className="grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Holiday pay" data-testid="pay-card-holiday-pay-method">
@@ -805,7 +779,7 @@ export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProp
             </p>
           ) : null}
         </details>
-      </ContentCard>
+      </CollapsibleCard>
 
 
       <PayCardWageTypeSummary rules={form.rules ?? []} />

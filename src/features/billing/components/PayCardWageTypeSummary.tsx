@@ -1,5 +1,5 @@
 import { AlertTriangle, Layers } from 'lucide-react'
-import { ContentCard } from '@/shared/ui/content-section'
+import { CollapsibleCard } from '@/shared/ui/content-section'
 import { Badge } from '@/shared/ui/badge'
 import { useWageTypes } from '@/features/billing/hooks/useWageTypes'
 import { classifyPayRule } from '@/features/billing/utils/wage-type-classify.util'
@@ -86,17 +86,14 @@ export function PayCardWageTypeSummary({ rules }: { rules: PayCardRule[] }) {
   )
 
   return (
-    <ContentCard className="space-y-4" id="pay-card-wage-types" data-testid="pay-card-wage-type-summary">
-      <div className="flex items-start gap-3">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-300">
-          <Layers className="h-4 w-4" aria-hidden />
-        </span>
-        <div className="min-w-0 pt-0.5">
-          <h3 className="text-sm font-semibold text-foreground">Wage types on this card</h3>
-          <p className="text-xs text-muted-foreground">Worked out from the rates above. Nothing to fill in here.</p>
-        </div>
-      </div>
-
+    <CollapsibleCard
+      id="pay-card-wage-types"
+      data-testid="pay-card-wage-type-summary"
+      icon={<Layers className="h-4 w-4" aria-hidden />}
+      iconClassName="bg-teal-500/10 text-teal-700 dark:text-teal-300"
+      title="Wage types on this card"
+      description="Worked out from the rates above. Nothing to fill in here."
+    >
       {premiumRules.length && !hasWeekdayBase ? (
         <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -176,6 +173,6 @@ export function PayCardWageTypeSummary({ rules }: { rules: PayCardRule[] }) {
           })}
         </div>
       </details>
-    </ContentCard>
+    </CollapsibleCard>
   )
 }

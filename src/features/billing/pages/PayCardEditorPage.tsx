@@ -29,6 +29,8 @@ const SECTIONS = [
 function scrollToSection(id: string) {
   const el = document.getElementById(id)
   if (!el) return
+  // Sections are collapsible <details> (closed by default) — open before scrolling.
+  if (el instanceof HTMLDetailsElement) el.open = true
   const scroller = el.closest<HTMLElement>('[data-app-main-scroll]')
   if (scroller) {
     const top =

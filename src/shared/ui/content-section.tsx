@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import {
   contentBodyClass,
@@ -31,6 +32,64 @@ export function ContentCard({
       className={cn('rounded-xl border border-border bg-card p-6 shadow-sm', className)}
       {...props}
     />
+  )
+}
+
+/**
+ * Collapsible card shell: same look as ContentCard but as a native <details>
+ * accordion with an icon/title/description header. Collapsed by default.
+ * `id` / `data-testid` and other <details> props pass through to the outer element.
+ */
+export function CollapsibleCard({
+  className,
+  bodyClassName,
+  defaultOpen = false,
+  icon,
+  iconClassName,
+  title,
+  description,
+  children,
+  ...rest
+}: {
+  className?: string
+  bodyClassName?: string
+  defaultOpen?: boolean
+  icon?: React.ReactNode
+  iconClassName?: string
+  title: React.ReactNode
+  description?: React.ReactNode
+  children: React.ReactNode
+} & Omit<React.ComponentPropsWithoutRef<'details'>, 'title'>) {
+  return (
+    <details
+      className={cn('group rounded-xl border border-border bg-card shadow-sm', className)}
+      {...(defaultOpen ? { open: true } : {})}
+      {...rest}
+    >
+      <summary className="flex cursor-pointer select-none list-none items-center gap-3 p-6 [&::-webkit-details-marker]:hidden">
+        {icon ? (
+          <span
+            className={cn(
+              'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+              iconClassName,
+            )}
+          >
+            {icon}
+          </span>
+        ) : null}
+        <span className="min-w-0 flex-1 pt-0.5">
+          <span className="block text-sm font-semibold text-foreground">{title}</span>
+          {description ? (
+            <span className="block text-xs text-muted-foreground">{description}</span>
+          ) : null}
+        </span>
+        <ChevronDown
+          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+          aria-hidden
+        />
+      </summary>
+      <div className={cn('px-6 pb-6', bodyClassName ?? 'space-y-4')}>{children}</div>
+    </details>
   )
 }
 
