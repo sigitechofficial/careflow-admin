@@ -1,5 +1,17 @@
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { CalendarDays, ChevronRight, CreditCard, Loader2, PoundSterling, Save, Users } from 'lucide-react'
+import {
+  Calculator,
+  CalendarDays,
+  ChevronRight,
+  CreditCard,
+  FileText,
+  History,
+  Layers,
+  Loader2,
+  PoundSterling,
+  Save,
+  Users,
+} from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
@@ -17,12 +29,12 @@ const PAY_CARD_FORM_ID = 'pay-card-form'
 const HEADER_OFFSET = 168
 
 const SECTIONS = [
-  { id: 'pay-card-general', label: 'General' },
-  { id: 'pay-card-rates', label: 'Pay rates', countKey: 'rates' as const },
-  { id: 'pay-card-rules-policy', label: 'Holidays' },
-  { id: 'pay-card-wage-types', label: 'Wage types' },
-  { id: 'pay-card-preview', label: 'Pay preview' },
-  { id: 'pay-card-history', label: 'Rate history', editOnly: true },
+  { id: 'pay-card-general', label: 'General', icon: FileText },
+  { id: 'pay-card-rates', label: 'Pay rates', countKey: 'rates' as const, icon: PoundSterling },
+  { id: 'pay-card-rules-policy', label: 'Holidays', icon: CalendarDays },
+  { id: 'pay-card-wage-types', label: 'Wage types', icon: Layers },
+  { id: 'pay-card-preview', label: 'Pay preview', icon: Calculator },
+  { id: 'pay-card-history', label: 'Rate history', editOnly: true, icon: History },
 ]
 
 /** Scroll the app's main scroll surface to a section, leaving the sticky header clear. */
@@ -50,16 +62,21 @@ function SectionTabs({ isEdit, ratesCount }: { isEdit: boolean; ratesCount?: num
     >
       {SECTIONS.filter(s => isEdit || !s.editOnly).map(s => {
         const count = s.countKey === 'rates' ? ratesCount : undefined
+        const Icon = s.icon
         return (
           <button
             key={s.id}
             type="button"
-            className="flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+            className="group flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             onClick={() => scrollToSection(s.id)}
           >
+            <Icon
+              className="h-4 w-4 shrink-0 opacity-60 transition-opacity group-hover:opacity-100"
+              aria-hidden
+            />
             {s.label}
             {count != null ? (
-              <span className="rounded-full border border-border bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+              <span className="rounded-full border border-border bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground transition-colors group-hover:border-primary/30 group-hover:text-foreground">
                 {count}
               </span>
             ) : null}
@@ -152,40 +169,45 @@ function PayCardEditorHeader({
       <Breadcrumb isEdit={isEdit} />
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-        <div className="min-w-0 flex-1 basis-64">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-              {isEdit && card ? card.name : 'New pay card'}
-            </h1>
-            {card ? (
-              <span className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono text-xs font-medium text-muted-foreground">
-                {card.code}
-              </span>
-            ) : null}
-            {card ? <RateCardStatusBadge status={card.status} /> : null}
-            {card ? <Badge variant="muted">Version {card.version ?? 1}</Badge> : null}
-          </div>
-
-          <p className="mt-1 text-sm text-muted-foreground">
-            Set who this template is for, then add the £ rates carers are paid.
-          </p>
-
-          {card ? (
-            <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-                {formatBillingDate(card.effectiveFrom)} → {formatBillingDate(card.effectiveTo)}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5" aria-hidden />
-                {formatPayCardAssignmentDisplay(card)}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <PoundSterling className="h-3.5 w-3.5" aria-hidden />
-                {card.rules.length} rate{card.rules.length === 1 ? '' : 's'}
-              </span>
+        <div className="flex min-w-0 flex-1 basis-64 items-start gap-3">
+          <span className="mt-0.5 hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:inline-flex">
+            <CreditCard className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                {isEdit && card ? card.name : 'New pay card'}
+              </h1>
+              {card ? (
+                <span className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono text-xs font-medium text-muted-foreground">
+                  {card.code}
+                </span>
+              ) : null}
+              {card ? <RateCardStatusBadge status={card.status} /> : null}
+              {card ? <Badge variant="muted">Version {card.version ?? 1}</Badge> : null}
             </div>
-          ) : null}
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Set who this template is for, then add the £ rates carers are paid.
+            </p>
+
+            {card ? (
+              <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1">
+                  <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+                  {formatBillingDate(card.effectiveFrom)} → {formatBillingDate(card.effectiveTo)}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1">
+                  <Users className="h-3.5 w-3.5" aria-hidden />
+                  {formatPayCardAssignmentDisplay(card)}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1">
+                  <PoundSterling className="h-3.5 w-3.5" aria-hidden />
+                  {card.rules.length} rate{card.rules.length === 1 ? '' : 's'}
+                </span>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
