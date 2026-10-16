@@ -442,8 +442,6 @@ export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProp
         </p>
       ) : null}
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="min-w-0 flex-[999] space-y-6">
       <ContentCard className="space-y-4" id="pay-card-general">
         <SectionTitle
           icon={<FileText className="h-4 w-4" aria-hidden />}
@@ -817,14 +815,11 @@ export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProp
         stackingPolicy={form.stackingPolicy ?? 'PRIORITY'}
         bankHolidayRegion={(form.bankHolidayRegion || 'UK') as BankHolidayRegion}
       />
-        </div>
-
-        <aside
-          className="w-full space-y-6 lg:sticky lg:top-[168px] lg:w-[340px] lg:shrink-0 lg:self-start"
-          aria-label="Pay card summary"
-        >
-          <PayCardSummarySidebar form={form} />
-        </aside>
+      <div
+        className="grid grid-cols-1 gap-6 md:grid-cols-2"
+        aria-label="Pay card summary"
+      >
+        <PayCardSummarySidebar form={form} />
       </div>
 
       <div className="sticky bottom-0 z-10 -mx-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:-mx-[22px] md:px-[22px]">
