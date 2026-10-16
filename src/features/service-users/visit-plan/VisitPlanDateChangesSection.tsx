@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { CalendarOff, CalendarPlus, CalendarRange, ChevronRight } from 'lucide-react'
+import { CalendarOff, CalendarPlus, CalendarRange, ChevronRight, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { ContentCard, ContentSectionHeader, contentHelperClass } from '@/shared/ui/content-section'
 import { cn, formatDate } from '@/shared/lib/utils'
@@ -8,6 +8,7 @@ import { VISIT_CHARGE_DECISION_OPTIONS } from '@/features/scheduling/utils/visit
 import type { VisitPlanSlot, VisitPlanStatus } from '@/features/service-users/visit-plan/types'
 import { VisitPlanAddExtraVisitsDialog } from '@/features/service-users/visit-plan/VisitPlanAddExtraVisitsDialog'
 import { VisitPlanCancelVisitsDialog } from '@/features/service-users/visit-plan/VisitPlanCancelVisitsDialog'
+import { VisitPlanDeleteExtraVisitDialog } from '@/features/service-users/visit-plan/VisitPlanDeleteExtraVisitDialog'
 import { todayIsoDate } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
 import {
   useVisitPlanDateChanges,
@@ -54,7 +55,18 @@ function changeDetails(change: VisitPlanDateChange, carerNames: string): string 
     .join(' · ')
 }
 
-function ChangeRow({ change, employeeNameById }: { change: VisitPlanDateChange; employeeNameById: Map<string, string> }) {
+function ChangeRow({
+  change,
+  employeeNameById,
+  onEdit,
+  onDelete,
+}: {
+  change: VisitPlanDateChange
+  employeeNameById: Map<string, string>
+  /** Extra visits that have not started yet can be edited or deleted. */
+  onEdit?: (change: VisitPlanDateChange) => void
+  onDelete?: (change: VisitPlanDateChange) => void
+}) {
   const isCancel = change.type === 'CANCELLED'
   const carerNames = change.assignedEmployeeIds.map((id) => employeeNameById.get(id) ?? 'Carer').join(', ')
   return (
@@ -84,6 +96,36 @@ function ChangeRow({ change, employeeNameById }: { change: VisitPlanDateChange; 
           {changeDetails(change, carerNames)}
         </p>
       </div>
+      {change.type === 'EXTRA' && (change.canEdit || change.canDelete) && (onEdit || onDelete) ? (
+        <div className="flex shrink-0 items-center gap-1.5 self-center">
+          {change.canEdit && onEdit ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => onEdit(change)}
+              data-testid="date-change-edit"
+            >
+              <Pencil className="mr-1 h-3.5 w-3.5" />
+              Edit
+            </Button>
+          ) : null}
+          {change.canDelete && onDelete ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-destructive hover:text-destructive"
+              onClick={() => onDelete(change)}
+              data-testid="date-change-delete"
+            >
+              <Trash2 className="mr-1 h-3.5 w-3.5" />
+              Delete
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       <div className="shrink-0 text-right text-xs text-muted-foreground">
         <p>{change.source === 'ABSENCE' ? 'From absence' : (change.recordedByName ?? '—')}</p>
         <p>{formatDate(change.recordedAt)}</p>
@@ -107,6 +149,8 @@ export function VisitPlanDateChangesSection({
 }: Props) {
   const [cancelOpen, setCancelOpen] = React.useState(false)
   const [extraOpen, setExtraOpen] = React.useState(false)
+  const [editingExtra, setEditingExtra] = React.useState<VisitPlanDateChange | null>(null)
+  const [deletingExtra, setDeletingExtra] = React.useState<VisitPlanDateChange | null>(null)
   const changesQuery = useVisitPlanDateChanges(serviceUserId, planId)
   const isActive = planStatus === 'ACTIVE'
 
@@ -159,7 +203,10 @@ export function VisitPlanDateChangesSection({
               variant="outline"
               size="sm"
               disabled={!isActive || !planId}
-              onClick={() => setExtraOpen(true)}
+              onClick={() => {
+                setEditingExtra(null)
+                setExtraOpen(true)
+              }}
             >
               <CalendarPlus className="mr-1 h-3.5 w-3.5" />
               Add extra visits
@@ -187,7 +234,20 @@ export function VisitPlanDateChangesSection({
         ) : (
           <ul className="divide-y divide-border/70" data-testid="date-changes-upcoming">
             {upcoming.map((change) => (
-              <ChangeRow key={change.id} change={change} employeeNameById={employeeNameById} />
+              <ChangeRow
+                key={change.id}
+                change={change}
+                employeeNameById={employeeNameById}
+                onEdit={
+                  isActive
+                    ? (c) => {
+                        setEditingExtra(c)
+                        setExtraOpen(true)
+                      }
+                    : undefined
+                }
+                onDelete={isActive ? setDeletingExtra : undefined}
+              />
             ))}
           </ul>
         )}
@@ -217,12 +277,22 @@ export function VisitPlanDateChangesSection({
           />
           <VisitPlanAddExtraVisitsDialog
             open={extraOpen}
-            onOpenChange={setExtraOpen}
+            onOpenChange={(open) => {
+              setExtraOpen(open)
+              if (!open) setEditingExtra(null)
+            }}
             serviceUserId={serviceUserId}
             planId={planId}
             slots={slots}
             usualCarerIds={usualCarerIds}
             defaultRequiredCarers={defaultRequiredCarers}
+            editing={editingExtra}
+          />
+          <VisitPlanDeleteExtraVisitDialog
+            serviceUserId={serviceUserId}
+            planId={planId}
+            change={deletingExtra}
+            onClose={() => setDeletingExtra(null)}
           />
         </>
       ) : null}

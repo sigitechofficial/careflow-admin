@@ -212,9 +212,19 @@ export const personalStepSchema = z
           (v.startsWith('/uploads/') && !v.includes('..')),
         'Use a valid URL or upload a photo from this form.'
       ),
+    // The branch picker sits on the Personal tab, so it is checked here as well as on Employment.
+    locationId: uuidOpt,
+    accessAllZones: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     refineDateOfBirth(data.dateOfBirth, ctx)
+    if (!data.accessAllZones && !data.locationId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select at least one branch',
+        path: ['locationId'],
+      })
+    }
     const home = formatPhoneForApi(data.homeDialCode, data.homeTelephone)
     const mobile = formatPhoneForApi(data.mobileDialCode, data.mobileTelephone)
     if (home && home.length > 50) {

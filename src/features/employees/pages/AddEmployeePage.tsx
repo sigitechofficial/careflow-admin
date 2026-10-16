@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { useForm, Controller, useWatch, type FieldPath, type UseFormSetError } from 'react-hook-form'
+import { useForm, Controller, useWatch, type FieldErrors, type FieldPath, type UseFormSetError } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { ChevronLeft, Calendar, Clock, HelpCircle, Filter, Check, Plus } from 'lucide-react'
@@ -525,9 +525,18 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     },
   })
 
+  /** Branch error to show after jumping to the Personal tab (the tab change clears errors first). */
+  const pendingBranchErrorRef = React.useRef<string | null>(null)
+  const branchSectionRef = React.useRef<HTMLDivElement>(null)
+
   React.useEffect(() => {
     clearErrors()
-  }, [tab, editTab, clearErrors])
+    if (pendingBranchErrorRef.current) {
+      setError('locationId', { type: 'manual', message: pendingBranchErrorRef.current })
+      pendingBranchErrorRef.current = null
+      requestAnimationFrame(() => branchSectionRef.current?.scrollIntoView({ block: 'center' }))
+    }
+  }, [tab, editTab, clearErrors, setError])
 
   const [localPhotoObjectUrl, setLocalPhotoObjectUrl] = React.useState<string | null>(null)
   const pendingPhotoRef = React.useRef<File | null>(null)
@@ -838,19 +847,21 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
         serviceUserAreaIds: accessAllZones ? [] : (form.serviceUserAreaIds ?? []),
         accessAllZones,
       }
-      if (isEditMode && editEmployeeId) {
-        await patchPersonalMutation.mutateAsync({ employeeId: editEmployeeId, body: personalBody })
-        // Always persist location scope on personal save in edit mode so zone/branch/area
+      // Once the wizard has created the employee, saving Personal again updates that record instead of creating another.
+      const existingEmployeeId = isEditMode ? editEmployeeId : createdEmployeeId
+      if (existingEmployeeId) {
+        await patchPersonalMutation.mutateAsync({ employeeId: existingEmployeeId, body: personalBody })
+        // Always persist location scope on a repeat personal save so zone/branch/area
         // selections stay in sync with what the Personal tab shows.
         await patchEmploymentMutation.mutateAsync({
-          employeeId: editEmployeeId,
+          employeeId: existingEmployeeId,
           body: locationEmploymentBody,
         })
-        const photoOk = await flushPendingPhoto(editEmployeeId)
+        const photoOk = await flushPendingPhoto(existingEmployeeId)
         if (!photoOk) {
           return
         }
-        setCreatedEmployeeId(editEmployeeId)
+        setCreatedEmployeeId(existingEmployeeId)
         setBanner({ type: 'success', text: 'Personal details saved.' })
         setEditDisplayName([p.firstName, p.lastName].filter(Boolean).join(' ').trim() || 'Employee')
         if (!isEditMode) setTab('employment')
@@ -893,6 +904,22 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     }
   }
 
+  /** The branch picker is on the Personal tab, so a missing branch on Employment save takes the user there. */
+  const goToPersonalForBranch = (message: string) => {
+    pendingBranchErrorRef.current = message
+    setBanner({
+      type: 'error',
+      text: 'Select a branch under Zones, branches & service areas, then save Employment again.',
+    })
+    if (isEditMode) setEditTab('personal')
+    else setTab('personal')
+  }
+
+  const onEmploymentInvalid = (formErrors: FieldErrors<FormValues>) => {
+    const branchMessage = formErrors.locationId?.message
+    if (branchMessage) goToPersonalForBranch(branchMessage)
+  }
+
   const onSaveEmployment = async () => {
     setBanner(null)
     if (!createdEmployeeId) {
@@ -904,6 +931,11 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     const form = getValues()
     const parsed = employmentStepSchema.safeParse(form)
     if (!parsed.success) {
+      const branchIssue = parsed.error.issues.find(i => i.path[0] === 'locationId')
+      if (branchIssue) {
+        goToPersonalForBranch(branchIssue.message)
+        return
+      }
       applyZodErrors(parsed, setError)
       setBanner({ type: 'error', text: 'Fix employment fields marked in red.' })
       return
@@ -1403,7 +1435,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     />
                   </div>
 
-                  <div className={cn('space-y-3', accessAllZones && 'opacity-60')}>
+                  <div ref={branchSectionRef} className={cn('space-y-3', accessAllZones && 'opacity-60')}>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-semibold text-foreground">
                         Zones, branches &amp; service areas
@@ -1532,7 +1564,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                 id="employee-employment-form"
                 className="space-y-6"
                 data-testid="employee-employment-form"
-                onSubmit={handleSubmit(onSaveEmployment)}
+                onSubmit={handleSubmit(onSaveEmployment, onEmploymentInvalid)}
               >
                 <h2 className="text-sm font-semibold text-foreground">Employment</h2>
                 <p className="text-xs text-muted-foreground">

@@ -23,15 +23,28 @@ export function slotTimesCrossMidnight(start: string | null | undefined, end: st
   return endHm <= startHm
 }
 
-export function slotAllowsNightDuty(
-  slot: Pick<VisitPlanSlot, 'slotKind' | 'plannedStartTime' | 'plannedEndTime'>,
-): boolean {
+/** Code of the Night time slot (Settings → time slots). Same rule as the server. */
+export const NIGHT_TIME_SLOT_CODE = 'NIGHT'
+
+/** True for the Night time slot, including its extra rows (`NIGHT__2`, `NIGHT__X`). */
+export function isNightTimeSlotCode(code: string | null | undefined): boolean {
+  return (code ?? '').trim().toUpperCase().replace(/__.*$/, '') === NIGHT_TIME_SLOT_CODE
+}
+
+type NightDutySlotFields = Pick<VisitPlanSlot, 'slotKind' | 'plannedStartTime' | 'plannedEndTime'> & {
+  slotCode?: string | null
+  medicationRoundCode?: string | null
+}
+
+/** Waking / sleeping night applies to visits in the Night time slot or that run past midnight. */
+export function slotAllowsNightDuty(slot: NightDutySlotFields): boolean {
   if (slot.slotKind === 'OVERNIGHT') return true
+  if (isNightTimeSlotCode(slot.medicationRoundCode ?? slot.slotCode)) return true
   return slotTimesCrossMidnight(slot.plannedStartTime, slot.plannedEndTime)
 }
 
 export function resolveVisitPlanNightDuty(
-  slot: Pick<VisitPlanSlot, 'slotKind' | 'plannedStartTime' | 'plannedEndTime'> & {
+  slot: NightDutySlotFields & {
     nightDuty?: VisitPlanNightDuty | null
   },
 ): VisitPlanNightDuty {
@@ -40,9 +53,9 @@ export function resolveVisitPlanNightDuty(
   return 'NONE'
 }
 
-/** Choices for a visit that runs past midnight; a new one starts as a normal visit. */
+/** Choices for a night visit (Night time slot or past midnight); a new one starts as a normal visit. */
 export const VISIT_PLAN_NIGHT_TYPE_OPTIONS: { value: VisitPlanNightDuty; label: string; hint: string }[] = [
-  { value: 'NONE', label: 'Normal visit', hint: 'An ordinary visit that runs past midnight. Normal visit rates apply.' },
+  { value: 'NONE', label: 'Normal visit', hint: 'An ordinary visit. Normal visit rates apply.' },
   { value: 'WAKING_NIGHT', label: 'Waking night', hint: 'The carer stays awake. Paid and charged per hour at the waking night rate.' },
   { value: 'SLEEPING_NIGHT', label: 'Sleeping night', hint: 'The carer may sleep. Paid and charged at the fixed sleep-in rate.' },
 ]

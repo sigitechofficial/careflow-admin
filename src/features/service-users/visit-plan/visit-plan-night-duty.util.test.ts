@@ -7,6 +7,16 @@ import {
 } from '@/features/service-users/visit-plan/visit-plan-night-duty.util'
 
 describe('visit-plan-night-duty.util', () => {
+  it('allows night duty for any visit in the Night time slot, even 02:00–03:00', () => {
+    const night = { slotKind: 'STANDARD' as const, plannedStartTime: '02:00', plannedEndTime: '03:00' }
+    expect(slotAllowsNightDuty({ ...night, slotCode: 'NIGHT', medicationRoundCode: 'NIGHT' })).toBe(true)
+    expect(slotAllowsNightDuty({ ...night, slotCode: 'NIGHT__2', medicationRoundCode: null })).toBe(true)
+    expect(resolveVisitPlanNightDuty({ ...night, medicationRoundCode: 'NIGHT', nightDuty: 'SLEEPING_NIGHT' })).toBe(
+      'SLEEPING_NIGHT',
+    )
+    expect(slotAllowsNightDuty({ ...night, slotCode: 'EVENING', medicationRoundCode: 'EVENING' })).toBe(false)
+  })
+
   it('allows night duty only for overnight kind or midnight-crossing times', () => {
     expect(
       slotAllowsNightDuty({

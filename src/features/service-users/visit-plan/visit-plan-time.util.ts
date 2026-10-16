@@ -29,6 +29,16 @@ export function visitDurationMinutes(startHHmm: string, endHHmm: string): number
   return endMins - startMins
 }
 
+/**
+ * When the start time changes, keep the end time: returns the new length in minutes, or null when
+ * it cannot be worked out or would be longer than `maxMinutes` (then keep the duration instead).
+ */
+export function durationKeepingEndTime(newStartHHmm: string, endHHmm: string, maxMinutes: number): number | null {
+  const mins = visitDurationMinutes(normalizeTimeForInput(newStartHHmm), normalizeTimeForInput(endHHmm))
+  if (mins == null || mins <= 0 || mins > maxMinutes) return null
+  return mins
+}
+
 /** Add minutes to HH:mm; wraps within a 24-hour day. */
 export function addMinutesToTime(startHHmm: string, minutes: number): string | null {
   const normalized = normalizeTimeForInput(startHHmm)
