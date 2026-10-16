@@ -6,6 +6,8 @@ export const ABSENCE_TYPES = [
   'Sickness',
   'Casual leave',
   'Non-working Time',
+  'Maternity',
+  'Paternity',
   'Unauthorised',
   'Other',
 ] as const
