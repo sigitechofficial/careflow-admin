@@ -599,7 +599,14 @@ export function EmployeeEditHolidaysPanel({ employeeId }: { employeeId: string }
             <DialogTitle>{editingId ? 'Edit holiday' : 'Add holiday'}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
-            {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+            {formError ? (
+              <p
+                role="alert"
+                className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              >
+                {formError}
+              </p>
+            ) : null}
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Start date</label>

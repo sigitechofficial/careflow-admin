@@ -277,6 +277,14 @@ export function EmployeeAbsenceFormDialog({
         </DialogHeader>
 
         <DialogBody>
+        {error ? (
+          <p
+            role="alert"
+            className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          >
+            {error}
+          </p>
+        ) : null}
         <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
           {!editing && !fixedEmployeeId ? (
             <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -510,8 +518,6 @@ export function EmployeeAbsenceFormDialog({
             />
           </div>
         </div>
-
-        {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
         </DialogBody>
 
         <DialogFooter>
