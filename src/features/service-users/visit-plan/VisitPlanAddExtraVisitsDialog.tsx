@@ -21,6 +21,7 @@ import { useMedicationRounds } from '@/features/settings/hooks/useMedicationRoun
 import { sortMedicationRounds } from '@/features/service-users/medication/medication-time-slots'
 import type { VisitPlanNightDuty, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import {
+  isNightTimeSlotCode,
   slotTimesCrossMidnight,
   VISIT_PLAN_NIGHT_TYPE_OPTIONS,
 } from '@/features/service-users/visit-plan/visit-plan-night-duty.util'
@@ -28,11 +29,17 @@ import { VisitPlanCarersCountInput } from '@/features/service-users/visit-plan/V
 import { VisitPlanSlotCarersDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarersDialog'
 import { VISIT_PLAN_MAX_DURATION_MINUTES } from '@/features/service-users/visit-plan/visit-plan-constants'
 import { addDaysToIsoDate, todayIsoDate } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
-import { addMinutesToTime, visitDurationMinutes } from '@/features/service-users/visit-plan/visit-plan-time.util'
+import {
+  addMinutesToTime,
+  durationKeepingEndTime,
+  visitDurationMinutes,
+} from '@/features/service-users/visit-plan/visit-plan-time.util'
 import { formatSlotCarerDisplayRole } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import {
   previewExtraVisits,
   useAddExtraVisits,
+  useEditExtraVisit,
+  type VisitPlanDateChange,
 } from '@/features/service-users/visit-plan/visit-plan-date-changes.api'
 
 type Props = {
@@ -44,6 +51,8 @@ type Props = {
   slots: VisitPlanSlot[]
   usualCarerIds: string[]
   defaultRequiredCarers: number
+  /** An extra visit to edit: the date and time slot stay fixed. Adds new visits when left out. */
+  editing?: VisitPlanDateChange | null
 }
 
 type DateMode = 'single' | 'range' | 'specific'
@@ -87,7 +96,9 @@ export function VisitPlanAddExtraVisitsDialog({
   slots,
   usualCarerIds,
   defaultRequiredCarers,
+  editing = null,
 }: Props) {
+  const isEditing = Boolean(editing)
   const [mode, setMode] = React.useState<DateMode>('single')
   const [singleDate, setSingleDate] = React.useState('')
   const [rangeFrom, setRangeFrom] = React.useState('')
@@ -105,6 +116,19 @@ export function VisitPlanAddExtraVisitsDialog({
   const [pickerOpen, setPickerOpen] = React.useState(false)
 
   React.useEffect(() => {
+    if (open && editing) {
+      setMode('single')
+      setSingleDate(editing.date)
+      setRoundCode(editing.roundCode ?? '')
+      setStartTime(editing.plannedStartTime)
+      setDuration(editing.durationMinutes ?? visitDurationMinutes(editing.plannedStartTime, editing.plannedEndTime))
+      setNightDuty(editing.nightDuty ?? 'NONE')
+      setRequiredCarers(editing.requiredCarers ?? defaultRequiredCarers)
+      setEmployeeIds(editing.assignedEmployeeIds)
+      setReason(editing.notes)
+      setNotes('')
+      return
+    }
     if (open) {
       setRequiredCarers(defaultRequiredCarers)
       return
@@ -122,9 +146,11 @@ export function VisitPlanAddExtraVisitsDialog({
     setEmployeeIds([])
     setReason('')
     setNotes('')
-  }, [open, defaultRequiredCarers])
+  }, [open, defaultRequiredCarers, editing])
 
   const addExtra = useAddExtraVisits(serviceUserId, planId)
+  const editExtra = useEditExtraVisit(serviceUserId, planId)
+  const saving = addExtra.isPending || editExtra.isPending
   const roundsQuery = useMedicationRounds(open)
   const rounds = React.useMemo(
     () => sortMedicationRounds((roundsQuery.data ?? []).filter((r) => r.isActive)),
@@ -156,8 +182,9 @@ export function VisitPlanAddExtraVisitsDialog({
   /** Shown as soon as start time and duration are set — no need to pick dates first. */
   const endTime = timeReady ? addMinutesToTime(startTime, duration!) : null
   const runsPastMidnight = Boolean(endTime) && slotTimesCrossMidnight(startTime, endTime)
-  /** Waking / sleeping night only for a visit that runs past midnight; otherwise a normal visit. */
-  const effectiveNightDuty: VisitPlanNightDuty = runsPastMidnight ? nightDuty : 'NONE'
+  /** Waking / sleeping night for the Night time slot or a visit that runs past midnight; otherwise a normal visit. */
+  const nightTypeAllowed = runsPastMidnight || (Boolean(endTime) && isNightTimeSlotCode(roundCode))
+  const effectiveNightDuty: VisitPlanNightDuty = nightTypeAllowed ? nightDuty : 'NONE'
   const nightType = VISIT_PLAN_NIGHT_TYPE_OPTIONS.find((o) => o.value === effectiveNightDuty)
   const payload = React.useMemo(
     () => ({
@@ -167,8 +194,9 @@ export function VisitPlanAddExtraVisitsDialog({
       durationMinutes: duration ?? 0,
       requiredCarers,
       employeeIds: selectedCarerIds,
+      ...(editing ? { editingExceptionId: editing.id } : {}),
     }),
-    [dates, roundCode, startTime, duration, requiredCarers, selectedCarerIds],
+    [dates, roundCode, startTime, duration, requiredCarers, selectedCarerIds, editing],
   )
   const previewQuery = useQuery({
     queryKey: ['visit-plan-extra-preview', planId, payload],
@@ -235,7 +263,31 @@ export function VisitPlanAddExtraVisitsDialog({
       return
     }
     if (!preview || okCount === 0) {
-      toastWarning('Nothing to add', preview?.slotMessage ?? 'None of the chosen dates can take this extra visit.')
+      toastWarning(
+        isEditing ? 'Cannot save' : 'Nothing to add',
+        preview?.dates[0]?.message ?? preview?.slotMessage ?? 'None of the chosen dates can take this extra visit.',
+      )
+      return
+    }
+    if (editing) {
+      try {
+        await editExtra.mutateAsync({
+          exceptionId: editing.id,
+          payload: {
+            startTime,
+            durationMinutes: duration ?? 0,
+            requiredCarers,
+            employeeIds: selectedCarerIds,
+            reason: reason.trim(),
+            nightDuty: effectiveNightDuty,
+          },
+        })
+        toastSuccess('Extra visit updated', 'The rota visit has been updated. Other visits are not affected.')
+        onOpenChange(false)
+      } catch (error) {
+        toastApiError(error, 'Could not update the extra visit')
+        void previewQuery.refetch()
+      }
       return
     }
     try {
@@ -263,12 +315,25 @@ export function VisitPlanAddExtraVisitsDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent size="lg">
           <DialogHeader>
-            <DialogTitle>Add extra visits</DialogTitle>
+            <DialogTitle>{isEditing ? 'Edit extra visit' : 'Add extra visits'}</DialogTitle>
             <DialogDescription>
-              Add a visit outside the regular schedule. It must not clash with another visit.
+              {isEditing
+                ? 'Change the time, carers or reason. The date and time slot stay the same; it must not clash with another visit.'
+                : 'Add a visit outside the regular schedule. It must not clash with another visit.'}
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-5">
+            {editing ? (
+              <section className="space-y-1" data-testid="extra-visit-fixed-date">
+                <Label className="text-xs text-muted-foreground">Date</Label>
+                <p className="text-sm font-medium text-foreground">
+                  {weekdayLabel(editing.date)} {formatDate(editing.date)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  To move it to another date, delete this extra visit and add a new one.
+                </p>
+              </section>
+            ) : (
             <section className="space-y-3">
               <Label className="text-xs text-muted-foreground">
                 Dates <span className="text-red-600">*</span>
@@ -365,6 +430,7 @@ export function VisitPlanAddExtraVisitsDialog({
                 </p>
               ) : null}
             </section>
+            )}
 
             <section className="space-y-3">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -374,6 +440,7 @@ export function VisitPlanAddExtraVisitsDialog({
                   </Label>
                   <Select
                     value={roundCode}
+                    disabled={isEditing}
                     onValueChange={(code) => {
                       setRoundCode(code)
                       const next = rounds.find((r) => r.code === code)
@@ -418,7 +485,16 @@ export function VisitPlanAddExtraVisitsDialog({
                     className="mt-1"
                     value={startTime}
                     disabled={!round}
-                    onChange={(e) => setStartTime(e.target.value)}
+                    onChange={(e) => {
+                      const next = e.target.value
+                      // Keep the end time and recalculate the duration; over 12 hours, keep the duration instead.
+                      const keptLength =
+                        endTime && next
+                          ? durationKeepingEndTime(next, endTime, VISIT_PLAN_MAX_DURATION_MINUTES)
+                          : null
+                      setStartTime(next)
+                      if (keptLength != null) setDuration(keptLength)
+                    }}
                   />
                 </div>
                 <div>
@@ -458,7 +534,7 @@ export function VisitPlanAddExtraVisitsDialog({
                   />
                 </div>
               </div>
-              {runsPastMidnight ? (
+              {nightTypeAllowed ? (
                 <div className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2" data-testid="extra-visit-night-type">
                   <div>
                     <Label className="text-xs text-muted-foreground">Night type</Label>
@@ -475,7 +551,10 @@ export function VisitPlanAddExtraVisitsDialog({
                       </SelectContent>
                     </Select>
                   </div>
-                  <p className="self-end pb-2 text-xs text-muted-foreground">Ends the next morning. {nightType?.hint}</p>
+                  <p className="self-end pb-2 text-xs text-muted-foreground">
+                    {runsPastMidnight ? 'Ends the next morning. ' : ''}
+                    {nightType?.hint}
+                  </p>
                 </div>
               ) : null}
               {startOutsideSlot && round ? (
@@ -575,16 +654,26 @@ export function VisitPlanAddExtraVisitsDialog({
 
             <div>
               <Label htmlFor="extra-visit-reason" className="text-xs text-muted-foreground">
-                Reason for extra visit <span className="text-red-600">*</span>
+                {isEditing ? 'Reason and notes' : 'Reason for extra visit'} <span className="text-red-600">*</span>
               </Label>
-              <Input
-                id="extra-visit-reason"
-                className="mt-1"
-                placeholder="e.g. Family asked for an extra call after hospital discharge"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-              />
+              {isEditing ? (
+                <Textarea
+                  id="extra-visit-reason"
+                  className="mt-1 min-h-[64px]"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              ) : (
+                <Input
+                  id="extra-visit-reason"
+                  className="mt-1"
+                  placeholder="e.g. Family asked for an extra call after hospital discharge"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              )}
             </div>
+            {isEditing ? null : (
             <div>
               <Label htmlFor="extra-visit-notes" className="text-xs text-muted-foreground">
                 Notes (optional)
@@ -596,6 +685,7 @@ export function VisitPlanAddExtraVisitsDialog({
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
+            )}
 
             <section className="rounded-lg border border-border px-3.5 py-3" data-testid="extra-visit-preview">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Check before saving</p>
@@ -612,7 +702,9 @@ export function VisitPlanAddExtraVisitsDialog({
                       </span>
                       <span className={cn(d.ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300')}>
                         {d.ok
-                          ? 'Will be added'
+                          ? isEditing
+                            ? 'No clash — can be saved'
+                            : 'Will be added'
                           : `Skipped: ${d.message ?? 'not available'}${
                               d.clashEmployeeIds.length
                                 ? ` (${d.clashEmployeeIds.map((id) => employeeNameById.get(id) ?? 'Carer').join(', ')})`
@@ -626,17 +718,17 @@ export function VisitPlanAddExtraVisitsDialog({
             </section>
           </DialogBody>
           <DialogFooter className="border-t border-border">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={addExtra.isPending}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Close
             </Button>
             <Button
               type="button"
               onClick={() => void handleSubmit()}
-              disabled={addExtra.isPending || okCount === 0}
+              disabled={saving || okCount === 0}
               data-testid="extra-visit-submit"
             >
-              {addExtra.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Add {okCount > 0 ? okCount : ''} visit{okCount === 1 ? '' : 's'}
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isEditing ? 'Save changes' : `Add ${okCount > 0 ? okCount : ''} visit${okCount === 1 ? '' : 's'}`}
             </Button>
           </DialogFooter>
         </DialogContent>

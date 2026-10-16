@@ -57,6 +57,14 @@ export type VisitPlanDateChange = {
   notes: string
   chargeDecision: VisitChargeDecision | null
   assignedEmployeeIds: string[]
+  /** Extra visits: time slot code, duration, carers needed and night type, for editing. */
+  roundCode?: string
+  durationMinutes?: number | null
+  requiredCarers?: number | null
+  nightDuty?: VisitPlanNightDuty | null
+  /** Extra visits only: true while the rota visit has not started. */
+  canEdit?: boolean
+  canDelete?: boolean
   source: 'MANUAL' | 'ABSENCE'
   recordedByName: string | null
   recordedAt: string
@@ -179,6 +187,8 @@ export type ExtraVisitsPreviewPayload = {
   durationMinutes: number
   requiredCarers: number
   employeeIds: string[]
+  /** When editing: the extra visit being edited, so it is not counted as a clash with itself. */
+  editingExceptionId?: string
 }
 
 export type ExtraVisitDateCheck = {
@@ -212,6 +222,49 @@ export function useAddExtraVisits(serviceUserId: string, planId: string | undefi
       const res = await apiJson<
         ApiEnvelope<{ created: number; skipped: Array<{ date: string; message: string | null }> }>
       >(`${base(serviceUserId, planId!)}/extra`, { method: 'POST', body: JSON.stringify(payload) })
+      return res.data
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlans(serviceUserId) })
+      void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
+    },
+  })
+}
+
+export type EditExtraVisitPayload = {
+  startTime: string
+  durationMinutes: number
+  requiredCarers: number
+  employeeIds: string[]
+  reason: string
+  nightDuty?: VisitPlanNightDuty
+}
+
+export function useEditExtraVisit(serviceUserId: string, planId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ exceptionId, payload }: { exceptionId: string; payload: EditExtraVisitPayload }) => {
+      const res = await apiJson<ApiEnvelope<{ id: string; date: string; startTime: string; endTime: string }>>(
+        `${base(serviceUserId, planId!)}/extra/${exceptionId}`,
+        { method: 'PATCH', body: JSON.stringify(payload) },
+      )
+      return res.data
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlans(serviceUserId) })
+      void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
+    },
+  })
+}
+
+export function useDeleteExtraVisit(serviceUserId: string, planId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ exceptionId, reason }: { exceptionId: string; reason: string }) => {
+      const res = await apiJson<ApiEnvelope<{ id: string; date: string }>>(
+        `${base(serviceUserId, planId!)}/extra/${exceptionId}`,
+        { method: 'DELETE', body: JSON.stringify({ reason }) },
+      )
       return res.data
     },
     onSuccess: () => {

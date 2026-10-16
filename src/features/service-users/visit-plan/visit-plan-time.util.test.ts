@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   addMinutesToTime,
+  durationKeepingEndTime,
   visitDurationMinutes,
   visitPlanEndTimeFromStartAndDuration,
 } from '@/features/service-users/visit-plan/visit-plan-time.util'
@@ -30,5 +31,20 @@ describe('visitDurationMinutes round-trip', () => {
     const end = visitPlanEndTimeFromStartAndDuration('07:30', 90)
     expect(end).toBe('09:00')
     expect(visitDurationMinutes('07:30', end!)).toBe(90)
+  })
+})
+
+describe('durationKeepingEndTime', () => {
+  it('keeps a night visit ending at 07:00 when the start moves from 20:00 to 22:00', () => {
+    expect(durationKeepingEndTime('22:00', '07:00', 720)).toBe(540)
+  })
+
+  it('works for a same-day visit', () => {
+    expect(durationKeepingEndTime('09:15', '10:00', 720)).toBe(45)
+  })
+
+  it('returns null when the new length would be over the limit, so the duration is kept', () => {
+    expect(durationKeepingEndTime('18:00', '07:00', 720)).toBeNull()
+    expect(durationKeepingEndTime('07:00', '07:00', 720)).toBeNull()
   })
 })

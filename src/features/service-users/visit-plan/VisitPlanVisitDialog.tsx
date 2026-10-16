@@ -26,11 +26,13 @@ import {
 } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import {
   resolveVisitPlanNightDuty,
+  slotTimesCrossMidnight,
   slotAllowsNightDuty,
   VISIT_PLAN_NIGHT_TYPE_OPTIONS,
 } from '@/features/service-users/visit-plan/visit-plan-night-duty.util'
 import {
   normalizeTimeForInput,
+  durationKeepingEndTime,
   visitDurationMinutes,
   visitPlanEndTimeFromStartAndDuration,
 } from '@/features/service-users/visit-plan/visit-plan-time.util'
@@ -221,6 +223,14 @@ export function VisitPlanVisitDialog({
                   value={normalizeTimeForInput(draft.plannedStartTime)}
                   onChange={(e) => {
                     const plannedStartTime = e.target.value
+                    // Keep the end time and recalculate the duration; over 12 hours, keep the duration instead.
+                    const keptLength = draft.plannedEndTime
+                      ? durationKeepingEndTime(plannedStartTime, draft.plannedEndTime, VISIT_PLAN_MAX_DURATION_MINUTES)
+                      : null
+                    if (keptLength != null) {
+                      patch({ plannedStartTime, durationMinutes: keptLength })
+                      return
+                    }
                     const end = visitPlanEndTimeFromStartAndDuration(plannedStartTime, draft.durationMinutes)
                     patch({ plannedStartTime, ...(end ? { plannedEndTime: end } : {}) })
                   }}
@@ -306,7 +316,8 @@ export function VisitPlanVisitDialog({
                   </Select>
                 </div>
                 <p className="self-end pb-2 text-xs text-muted-foreground">
-                  Ends the next morning. {nightType?.hint}
+                  {slotTimesCrossMidnight(draft.plannedStartTime, draft.plannedEndTime) ? 'Ends the next morning. ' : ''}
+                  {nightType?.hint}
                 </p>
               </section>
             ) : null}

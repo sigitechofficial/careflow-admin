@@ -480,12 +480,15 @@ export function UrgentOfficeAlertDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() =>
+            onClick={() => {
+              const jobId = visit?.scheduledJobId
+              // Live SOS stays open until acknowledged; other alerts close and stay pending on ECM.
+              if (!hasSos) onLater()
               void navigate({
                 to: '/ecm/live',
-                search: ecmExceptionQueueSearch(visit?.scheduledJobId),
+                search: ecmExceptionQueueSearch(jobId),
               })
-            }
+            }}
           >
             Open visit
           </Button>

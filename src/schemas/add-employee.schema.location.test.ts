@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { employmentStepSchema } from '@/schemas/add-employee.schema'
+import { employmentStepSchema, personalStepSchema } from '@/schemas/add-employee.schema'
 
 const baseEmployment = {
   workAreaId: '11111111-1111-4111-8111-111111111111',
@@ -48,5 +48,37 @@ describe('employmentStepSchema location scope', () => {
     expect(parsed.data.baseLocationIds).toEqual([])
     expect(parsed.data.serviceUserAreaIds).toEqual([areaId])
     expect(parsed.data.accessAllZones).toBe(false)
+  })
+})
+
+describe('personalStepSchema location scope', () => {
+  const basePersonal = {
+    firstName: 'Test',
+    lastName: 'Carer',
+    username: 'test.carer',
+    homeDialCode: '+44',
+    mobileDialCode: '+44',
+    locationId: '',
+    accessAllZones: false,
+  }
+
+  it('requires a branch when access all zones is No', () => {
+    const parsed = personalStepSchema.safeParse(basePersonal)
+    expect(parsed.success).toBe(false)
+    if (parsed.success) return
+    expect(parsed.error.issues.some(i => i.path.join('.') === 'locationId')).toBe(true)
+  })
+
+  it('allows missing branch when access all zones is Yes', () => {
+    const parsed = personalStepSchema.safeParse({ ...basePersonal, accessAllZones: true })
+    expect(parsed.success).toBe(true)
+  })
+
+  it('accepts a selected branch', () => {
+    const parsed = personalStepSchema.safeParse({
+      ...basePersonal,
+      locationId: '33333333-3333-4333-8333-333333333333',
+    })
+    expect(parsed.success).toBe(true)
   })
 })
