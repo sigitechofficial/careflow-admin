@@ -165,17 +165,17 @@ function PayCardEditorHeader({
   onCancel: () => void
 }) {
   return (
-    <div className="sticky top-0 z-20 -mx-4 border-b border-border bg-background px-4 pt-1 md:-mx-[22px] md:px-[22px]">
+    <div className="sticky top-0 z-20 -mx-4 border-b border-border bg-card px-4 pt-3 shadow-sm md:-mx-[22px] md:px-[22px]">
       <Breadcrumb isEdit={isEdit} />
 
-      <div className="mt-2 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-        <div className="flex min-w-0 flex-1 basis-64 items-start gap-3">
-          <span className="mt-0.5 hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:inline-flex">
-            <CreditCard className="h-5 w-5" aria-hidden />
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="flex min-w-0 flex-1 basis-64 items-start gap-3.5">
+          <span className="mt-0.5 hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary ring-1 ring-inset ring-primary/10 sm:inline-flex">
+            <CreditCard className="h-6 w-6" aria-hidden />
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+              <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
                 {isEdit && card ? card.name : 'New pay card'}
               </h1>
               {card ? (
