@@ -10,8 +10,8 @@ import { usePayCard } from '@/features/billing/hooks/usePayCards'
 
 const SECTIONS = [
   { id: 'pay-card-general', label: 'General' },
-  { id: 'pay-card-rules-policy', label: 'Pay rules & conflicts' },
   { id: 'pay-card-rates', label: 'Pay rates' },
+  { id: 'pay-card-rules-policy', label: 'Holidays' },
   { id: 'pay-card-wage-types', label: 'Wage types' },
   { id: 'pay-card-preview', label: 'Pay preview' },
   { id: 'pay-card-history', label: 'Rate history', editOnly: true },

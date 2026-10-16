@@ -63,7 +63,7 @@ const STATUS_FILTERS: Array<{ value: 'ALL' | EmployeePayoutBatchStatus; label: s
   { value: 'ALL', label: 'All statuses' },
   { value: 'DRAFT', label: 'Draft' },
   { value: 'APPROVED', label: 'Approved' },
-  { value: 'PAID', label: 'Paid' },
+  { value: 'PAID', label: 'Payment recorded' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ]
 
@@ -72,6 +72,7 @@ type ScopeMode = 'period' | 'all'
 export function BillingEmployeePayoutsPanel() {
   const canRead = useAuthStore(s => s.can('billing.employee_payouts.read'))
   const canManage = useAuthStore(s => s.can('billing.employee_payouts.manage'))
+  const canResetTestData = useAuthStore(s => s.can('billing.financial_reset'))
   const { locationId } = useGlobalLocationScope()
 
   const { data: generalSettings } = useGeneralSettings(canRead)
@@ -246,11 +247,13 @@ export function BillingEmployeePayoutsPanel() {
                 </Button>
                 <AlertDialog open={purgeOpen} onOpenChange={setPurgeOpen}>
                   <AlertDialogTrigger asChild>
+                    {/* Test reset: only for users who hold the reset permission (off in production). */}
                     <Button
                       type="button"
                       size="sm"
                       variant="destructive"
                       disabled={deleteAll.isPending}
+                      className={canResetTestData ? undefined : 'hidden'}
                       data-testid="billing-payouts-delete-all"
                     >
                       {deleteAll.isPending ? (
@@ -266,7 +269,7 @@ export function BillingEmployeePayoutsPanel() {
                       <AlertDialogTitle>Delete payout batches?</AlertDialogTitle>
                       <AlertDialogDescription>
                         For testing only. This permanently deletes payout batches and lines, and
-                        resets Bank paid / Outstanding on Salary. Visit reconciliations and
+                        resets Payment recorded / Outstanding on Salary. Visit reconciliations and
                         visit-pay runs are not affected.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -358,8 +361,7 @@ export function BillingEmployeePayoutsPanel() {
             <p className="text-sm font-medium text-foreground">Create payout from UK run</p>
             <p className="text-xs text-muted-foreground">
               Pays <span className="font-medium text-foreground">UK net pay</span> (after W1/M1
-              PAYE/NI). Runs must be statutory-calculated or closed. Purge any legacy visit-pay-net
-              payouts before relying on Bank paid.
+              PAYE/NI). The UK run must be closed, so the net pay is final.
             </p>
           </div>
           {eligibleRunsQuery.isLoading ? (
@@ -369,8 +371,8 @@ export function BillingEmployeePayoutsPanel() {
             </div>
           ) : eligibleRuns.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No eligible UK payroll runs. Calculate tax &amp; NI on a UK run first, then return
-              here.
+              No eligible UK payroll runs. Close a UK run first (tax &amp; NI calculated, then
+              closed), then return here.
             </p>
           ) : (
             <div className="flex flex-wrap items-end gap-3">
@@ -409,9 +411,9 @@ export function BillingEmployeePayoutsPanel() {
           tone="violet"
         />
         <StatCard
-          label="Bank paid"
+          label="Payment recorded"
           value={money(totals.paid)}
-          hint="PAID batches"
+          hint="Recorded manually — not confirmed by a bank"
           icon={<Banknote className="h-5 w-5" aria-hidden />}
           tone="emerald"
           valueClassName="text-success"
@@ -439,8 +441,8 @@ export function BillingEmployeePayoutsPanel() {
               {scope === 'all' ? 'Payout history (all periods)' : `Payouts for ${periodLabel}`}
             </p>
             <p className="text-xs text-muted-foreground">
-              Open a batch to approve, mark paid, or cancel. Changing the {periodNoun} reloads this
-              list.
+              Open a batch to approve it, record the bank payment, or cancel it. Changing the{' '}
+              {periodNoun} reloads this list.
             </p>
           </div>
           <Select
@@ -540,6 +542,13 @@ export function BillingEmployeePayoutsPanel() {
                     </td>
                     <td className="px-3 py-2.5">
                       <BillingStatusBadge status={batch.status} />
+                      {batch.status === 'PAID' ? (
+                        <p className="mt-1 text-xs text-muted-foreground" data-testid="payout-payment-state">
+                          {batch.settlementConfirmed
+                            ? 'Settlement confirmed'
+                            : (batch.paymentStateLabel ?? 'Payment recorded manually')}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground">
                       {formatInstant(batch.createdAt)}

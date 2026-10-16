@@ -116,6 +116,12 @@ function DecimalAmountInput({
 }
 
 /** Pay only: how an hourly rule's number is used (absolute £/hr, or on top of the card's weekday base rate). */
+/**
+ * Value of the "Custom…" entry in the "When this rate applies" list. It must not be empty: the
+ * list is required, and an empty value made the browser refuse to save a card with a custom period.
+ */
+const CUSTOM_PERIOD_VALUE = 'CUSTOM'
+
 const PAY_RATE_METHOD_OPTIONS: { value: PayEnhancementMethod; label: string; amountLabel: string }[] = [
   { value: 'ABSOLUTE_HOURLY', label: '£ per hour (actual hourly rate)', amountLabel: '£ per hour' },
   { value: 'ADDITIONAL_PER_HOUR', label: 'Base rate + £ per hour premium', amountLabel: '+ £ per hour' },
@@ -1331,6 +1337,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   const renderDayTimePremiumCard = (rule: PayCardRule, index: number) => {
     const matched = forceCustomPeriod[index] ? undefined : matchPayTimePeriod(rule)
     const isCustom = !matched
+    // Pay cards: a named period shows its days and times as one line; From / Until open on request.
+    const compact = mode === 'pay' && !isCustom
     const fieldLabelClass = 'text-xs font-medium text-foreground/90'
     const isPeriodTaken = (code: PayTimePeriodCode) => {
       if (matched?.code === code) return false
@@ -1376,10 +1384,10 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             </span>
             <select
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={matched?.code ?? ''}
+              value={matched?.code ?? CUSTOM_PERIOD_VALUE}
               onChange={e => {
-                const code = e.target.value as PayTimePeriodCode
-                if (code) {
+                const code = e.target.value as PayTimePeriodCode | typeof CUSTOM_PERIOD_VALUE
+                if (code !== CUSTOM_PERIOD_VALUE) {
                   if (applyPeriodToRule(index, code)) {
                     setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
                   }
@@ -1401,7 +1409,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               disabled={disabled}
               required
             >
-              <option value="">Custom…</option>
+              <option value={CUSTOM_PERIOD_VALUE}>Custom…</option>
               {PAY_TIME_PERIOD_GROUPS.map(group => (
                 <optgroup key={group.id} label={group.label}>
                   {PAY_TIME_PERIOD_LOOKUP.filter(p => p.group === group.id).map(p => {
@@ -1509,6 +1517,20 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             </label>
           ) : null}
 
+          {compact ? (
+            <p className="text-xs text-muted-foreground sm:col-span-2" data-testid="pay-rule-period-summary">
+              {formatPayCardRuleDayType(rule.dayType)} · {formatPayCardRuleTimeBand(rule) ?? 'any time'} ·{' '}
+              <button
+                type="button"
+                className="font-medium text-primary hover:underline"
+                onClick={() => setForceCustomPeriod(prev => ({ ...prev, [index]: true }))}
+                disabled={disabled}
+              >
+                Change days or times
+              </button>
+            </p>
+          ) : null}
+          {compact ? null : (
           <label className="space-y-1 text-sm">
             <span className={fieldLabelClass}>
               From <span className="text-destructive" aria-hidden>*</span>
@@ -1530,6 +1552,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               required
             />
           </label>
+          )}
+          {compact ? null : (
           <label className="space-y-1 text-sm">
             <span className={fieldLabelClass}>
               Until <span className="text-destructive" aria-hidden>*</span>
@@ -1550,6 +1574,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               required
             />
           </label>
+          )}
         </div>
       </div>
     )

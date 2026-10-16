@@ -5,6 +5,9 @@ import type {
   PayCardInput,
   PayCardRule,
   PayCardAssignmentPreview,
+  PayCardConflictCheck,
+  PayCardConflictCheckInput,
+  PayCardConflictList,
   PayCardResolveResult,
   PayCardVersionHistoryItem,
   EmployeePayCardHistory,
@@ -180,6 +183,28 @@ export async function resolveEmployeePayCard(
     ...res.data,
     payCard: res.data.payCard ? normalizePayCard(res.data.payCard) : null,
   }
+}
+
+/** Carers whose pay card cannot be decided today (PC-32). Branch users pass their branch. */
+export async function fetchPayCardConflicts(locationId?: string | null): Promise<PayCardConflictList> {
+  const suffix = locationId ? `?locationId=${encodeURIComponent(locationId)}` : ''
+  const res = await apiJson<ApiEnvelope<PayCardConflictList>>(`/billing/pay-cards/conflicts${suffix}`, {
+    method: 'GET',
+  })
+  return res.data
+}
+
+/** Checks a card as entered in the form against the other active cards. Nothing is saved. */
+export async function checkPayCardConflicts(
+  input: PayCardConflictCheckInput,
+  locationId?: string | null,
+): Promise<PayCardConflictCheck> {
+  const suffix = locationId ? `?locationId=${encodeURIComponent(locationId)}` : ''
+  const res = await apiJson<ApiEnvelope<PayCardConflictCheck>>(
+    `/billing/pay-cards/conflict-check${suffix}`,
+    { method: 'POST', body: JSON.stringify(input) },
+  )
+  return res.data
 }
 
 export async function fetchEmployeeFunderPayAssignments(

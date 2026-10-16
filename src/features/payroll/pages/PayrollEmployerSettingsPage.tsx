@@ -2,6 +2,7 @@ import * as React from 'react'
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
 import { PayrollFieldLabel } from '@/features/payroll/components/PayrollFieldLabel'
 import { PayrollEpsPreviewPanel } from '@/features/payroll/components/PayrollEpsPreviewPanel'
+import { SalariedHoursAnnualisationSection } from '@/features/payroll/components/SalariedHoursAnnualisationSection'
 import { PAYROLL_SECTION_GUIDANCE } from '@/features/payroll/data/payroll-section-guidance'
 import {
   usePayrollEmployerSettings,
@@ -455,6 +456,8 @@ export default function PayrollEmployerSettingsPage() {
               )}
             </>
           )}
+
+          <SalariedHoursAnnualisationSection />
         </div>
       </TooltipProvider>
     </PayrollSectionLayout>

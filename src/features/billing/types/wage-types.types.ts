@@ -78,19 +78,70 @@ export const BANK_HOLIDAY_REGION_OPTIONS: { value: BankHolidayRegion; label: str
   { value: 'NORTHERN_IRELAND', label: 'Northern Ireland' },
 ]
 
+/** A nation's bank holidays, or the organisation's own special days (kept beside them). */
+export type CalendarRegion = BankHolidayRegion | 'ORGANISATION'
+
+export const CALENDAR_REGION_OPTIONS: { value: CalendarRegion; label: string }[] = [
+  ...BANK_HOLIDAY_REGION_OPTIONS,
+  { value: 'ORGANISATION', label: 'Organisation special days' },
+]
+
 export type BankHoliday = {
   id: string
   holidayDate: string
   name: string
-  region: BankHolidayRegion | string
+  region: CalendarRegion | string
   isActive: boolean
+  /** A weekday given in place of a holiday that fell on a weekend. */
+  isSubstitute?: boolean
+  /** For a substitute day: the date the holiday itself fell on. */
+  substituteForDate?: string | null
+  source?: 'GOV_UK' | 'MANUAL' | 'LEGACY' | string
 }
 
 export type BankHolidayImportResult = {
   added: number
   alreadyPresent: number
+  markedAsSubstitute?: number
   byRegion: Record<string, number>
   from: string
+}
+
+/**
+ * Carer pay when a holiday falls on a weekend (policy decision D-13).
+ * BOTH is how pay was calculated before the choice existed.
+ */
+export type HolidayPremiumBasis = 'BOTH' | 'ACTUAL_DAY' | 'STATUTORY_DAY'
+
+export const HOLIDAY_PREMIUM_BASIS_OPTIONS: { value: HolidayPremiumBasis; title: string; description: string }[] = [
+  {
+    value: 'BOTH',
+    title: 'Both days',
+    description:
+      'The date itself (25 and 26 December, 1 January) and the substitute weekday are both paid at the holiday rate. This is how pay has been calculated so far.',
+  },
+  {
+    value: 'ACTUAL_DAY',
+    title: 'The date the holiday falls on',
+    description: 'The weekend date is paid at the holiday rate. The substitute weekday is an ordinary day.',
+  },
+  {
+    value: 'STATUTORY_DAY',
+    title: 'The substitute weekday',
+    description: 'The substitute weekday is paid at the holiday rate. The weekend date is an ordinary weekend day.',
+  },
+]
+
+/** `GET /billing/bank-holidays/status` */
+export type HolidayCalendarStatus = {
+  years: number[]
+  basis: HolidayPremiumBasis
+  complete: boolean
+  organisationSpecialDays: number
+  regions: Array<{
+    region: BankHolidayRegion
+    years: Array<{ year: number; count: number; complete: boolean; issues: string[] }>
+  }>
 }
 
 export type PayPreviewInput = {

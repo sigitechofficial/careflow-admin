@@ -4,6 +4,7 @@ export const ABSENCE_TYPES = [
   'Holiday',
   'Days Off',
   'Sickness',
+  'Casual leave',
   'Non-working Time',
   'Unauthorised',
   'Other',

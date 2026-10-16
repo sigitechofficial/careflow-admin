@@ -9,12 +9,20 @@ export const billingKeys = {
     [...billingKeys.all, 'pay-items', params ?? {}] as const,
   payItemSuggestion: (params: { employeeId: string; wageTypeCode: string; unit: string; date: string }) =>
     [...billingKeys.all, 'pay-items', 'suggestion', params] as const,
+  visitMileageCorrections: (visitReconciliationId: string) =>
+    [...billingKeys.all, 'pay-items', 'mileage-corrections', visitReconciliationId] as const,
+  visitPayCorrections: (visitReconciliationId: string) =>
+    [...billingKeys.all, 'pay-items', 'visit-corrections', visitReconciliationId] as const,
   bankHolidays: (params?: { region?: string; year?: string }) =>
     [...billingKeys.all, 'bank-holidays', params ?? {}] as const,
   employeePayCardHistory: (employeeId: string) =>
     [...billingKeys.all, 'employee-pay-card-history', employeeId] as const,
   payCardAssignmentPreview: (id: string) =>
     [...billingKeys.all, 'pay-card-assignment-preview', id] as const,
+  payCardConflicts: (locationId?: string | null) =>
+    [...billingKeys.all, 'pay-card-conflicts', locationId ?? 'all'] as const,
+  payCardConflictCheck: (input: unknown, locationId?: string | null) =>
+    [...billingKeys.all, 'pay-card-conflict-check', locationId ?? 'all', input] as const,
   payCardResolve: (employeeId: string, funderId?: string) =>
     [...billingKeys.all, 'pay-card-resolve', employeeId, funderId ?? ''] as const,
   employeeFunderPayAssignments: (employeeId: string) =>
@@ -61,8 +69,10 @@ export const billingKeys = {
   visitReconciliation: (id: string) => [...billingKeys.all, 'visit-reconciliation', id] as const,
   visitReconciliationsSummary: (locationId?: string | null) =>
     [...billingKeys.all, 'visit-reconciliations-summary', locationId ?? 'all'] as const,
-  visitReconciliationExceptionQueue: (limit?: number) =>
-    [...billingKeys.all, 'visit-reconciliation-exception-queue', limit ?? 10] as const,
+  visitReconciliationExceptionQueue: (limit?: number, locationId?: string | null) =>
+    [...billingKeys.all, 'visit-reconciliation-exception-queue', limit ?? 10, locationId ?? 'all'] as const,
+  payEvaluationFailures: (locationId?: string | null) =>
+    [...billingKeys.all, 'pay-evaluation-failures', locationId ?? 'all'] as const,
   payrollRuns: (filters?: { locationId?: string }) =>
     [...billingKeys.all, 'payroll-runs', filters ?? {}] as const,
   payrollRun: (id: string) => [...billingKeys.all, 'payroll-run', id] as const,

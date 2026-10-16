@@ -3,6 +3,7 @@ import {
   assignRoleResponsibility,
   createRole,
   fetchPermissionsCatalog,
+  fetchFinancialAuthority,
   fetchRoleResponsibilities,
   fetchRoles,
   setRolePermissions,
@@ -97,6 +98,15 @@ export function useRoleResponsibilities(enabled = true) {
   return useQuery({
     queryKey: settingsKeys.roleResponsibilities(),
     queryFn: ({ signal }) => fetchRoleResponsibilities(signal),
+    enabled,
+  })
+}
+
+/** Who holds each pay authorisation power today. */
+export function useFinancialAuthority(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.financialAuthority(),
+    queryFn: ({ signal }) => fetchFinancialAuthority(signal),
     enabled,
   })
 }

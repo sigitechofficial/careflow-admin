@@ -1,5 +1,6 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  FinancialAuthority,
   RoleResponsibilitiesData,
   RoleResponsibility,
 } from '@/features/settings/roles-permissions/roles-permissions.types'
@@ -70,6 +71,14 @@ export async function fetchRoleResponsibilities(signal?: AbortSignal): Promise<R
     signal,
   })
   return res.data as RoleResponsibilitiesData
+}
+
+export async function fetchFinancialAuthority(signal?: AbortSignal): Promise<FinancialAuthority> {
+  const res = await apiJson<ApiEnvelope<FinancialAuthority>>('/role-responsibilities/financial-authority', {
+    method: 'GET',
+    signal,
+  })
+  return res.data as FinancialAuthority
 }
 
 /** Give a job to roles; other roles lose the ability (admins always keep it). */

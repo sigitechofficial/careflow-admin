@@ -5,6 +5,7 @@ import {
   createEmployeeSalaryDeduction,
   createPayrollRun,
   deleteEmployeeSalaryDeduction,
+  discardPayrollRun,
   downloadPayrollRunCsv,
   exportPayrollRun,
   fetchEmployeeEarnings,
@@ -133,6 +134,14 @@ export function useLockPayrollRun() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: lockPayrollRun,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.all }),
+  })
+}
+
+export function useDiscardPayrollRun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: discardPayrollRun,
     onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.all }),
   })
 }

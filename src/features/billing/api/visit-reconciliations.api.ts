@@ -1,7 +1,9 @@
+import type { PayTimeEdit } from '@/features/billing/utils/pay-time-outcome.util'
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
   ApproveScope,
   ExceptionQueueRow,
+  PayEvaluationFailure,
   VisitNightDutyFilter,
   VisitReconciliationDetail,
   VisitReconciliationRow,
@@ -75,9 +77,11 @@ export async function fetchVisitReconciliationsSummary(
 
 export async function fetchVisitReconciliationExceptionQueue(
   limit = 10,
+  locationId?: string,
 ): Promise<ExceptionQueueRow[]> {
+  const branch = locationId ? `&locationId=${encodeURIComponent(locationId)}` : ''
   const res = await apiJson<ApiEnvelope<ExceptionQueueRow[]>>(
-    `/billing/visit-reconciliations/exception-queue?limit=${limit}`,
+    `/billing/visit-reconciliations/exception-queue?limit=${limit}${branch}`,
     { method: 'GET' },
   )
   return res.data
@@ -102,8 +106,8 @@ export async function updateVisitReconciliation(
     travelMiles?: number | null
     travelMinutes?: number | null
   },
-): Promise<VisitReconciliationDetail> {
-  const res = await apiJson<ApiEnvelope<VisitReconciliationDetail>>(
+): Promise<VisitReconciliationDetail & { payTimeEdit?: PayTimeEdit }> {
+  const res = await apiJson<ApiEnvelope<VisitReconciliationDetail & { payTimeEdit?: PayTimeEdit }>>(
     `/billing/visit-reconciliations/${id}`,
     {
       method: 'PATCH',
@@ -308,4 +312,32 @@ export async function clearAllVisitReconciliations(params?: {
     }),
   })
   return res.data
+}
+
+export async function fetchPayEvaluationFailures(locationId?: string): Promise<PayEvaluationFailure[]> {
+  const qs = locationId ? `?locationId=${encodeURIComponent(locationId)}` : ''
+  const res = await apiJson<ApiEnvelope<PayEvaluationFailure[]>>(
+    `/billing/visit-reconciliations/evaluation-failures${qs}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function retryPayEvaluationFailure(
+  id: string,
+): Promise<{ message: string; data: PayEvaluationFailure }> {
+  return apiJson<{ message: string; data: PayEvaluationFailure }>(
+    `/billing/visit-reconciliations/evaluation-failures/${id}/retry`,
+    { method: 'POST' },
+  )
+}
+
+export async function dismissPayEvaluationFailure(
+  id: string,
+  reason: string,
+): Promise<{ message: string; data: PayEvaluationFailure }> {
+  return apiJson<{ message: string; data: PayEvaluationFailure }>(
+    `/billing/visit-reconciliations/evaluation-failures/${id}/dismiss`,
+    { method: 'POST', body: JSON.stringify({ reason }) },
+  )
 }

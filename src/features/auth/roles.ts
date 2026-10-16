@@ -542,6 +542,21 @@ export function permissionsForRole(role: RoleId): Permission[] {
   return [...ROLE_PERMISSIONS[role]]
 }
 
+/**
+ * Financial authorisation powers the Super Admin shortcut does not grant. They are held only when
+ * a role the user holds lists them. Mirrors the API (explicit-grant-permissions.ts).
+ */
+export const EXPLICIT_GRANT_PERMISSIONS: Permission[] = [
+  'billing.payroll_runs.approve',
+  'billing.employee_payouts.approve',
+  'billing.employee_payouts.settle',
+  'billing.financial_reset',
+  'payroll.runs.close',
+  'payroll.runs.reopen',
+  'payroll.pay_agreements.approve',
+  'audit_logs.delete',
+]
+
 export function hasPermission(
   granted: Permission[] | undefined,
   required: Permission | Permission[],

@@ -1,6 +1,11 @@
 import type {
   EmployeePayAgreementBasis,
   EmployeePayAgreementStatus,
+  GuaranteeLeaveTreatment,
+  GuaranteeQualifyingTime,
+  SalaryCoverage,
+  SalaryEntryPeriod,
+  SalaryProrationMethod,
   EmployeePayrollProfileStatus,
   PayrollNiCategory,
   PayrollPayFrequency,
@@ -91,6 +96,22 @@ export type UpsertEmployeePayrollProfileInput = {
   pensionOptedIn?: boolean
   deductionElections?: string[]
   pensionSchemeRef?: string | null
+  apprenticeshipStartDate?: string | null
+  isDirector?: boolean | null
+  directorAppointedOn?: string | null
+  directorNicMethod?: 'AN' | null
+  pensionStatus?: 'ENROLLED' | 'NOT_ENROLLED' | null
+  pensionEnrolledFrom?: string | null
+  pensionContributionBasis?: 'QUALIFYING_EARNINGS' | null
+  pensionTaxRelief?: 'RAS' | null
+  pensionEmployeeRatePercent?: number | null
+  pensionEmployerRatePercent?: number | null
+  pensionPolicyRef?: string | null
+  loanDeclarationStatus?: 'LOAN_DECLARED' | 'NO_LOAN_CONFIRMED' | null
+  loanDeclarationSource?: 'STARTER_CHECKLIST' | 'P45' | 'OTHER_RECORD' | null
+  loanDeclarationDate?: string | null
+  pensionUkWorker?: boolean | null
+  statePensionAgeDate?: string | null
   bankSortCode?: string | null
   bankAccountNumber?: string | null
   bankAccountName?: string | null
@@ -106,6 +127,14 @@ export type CreateEmployeePayAgreementInput = {
   annualSalary?: number | null
   contractedHours?: number | null
   hourlyRateOverride?: number | null
+  salaryEntryPeriod?: SalaryEntryPeriod | null
+  salaryEntryAmount?: number | null
+  salaryProrationMethod?: SalaryProrationMethod | null
+  salaryCoverage?: SalaryCoverage | null
+  guaranteedWeeklyHours?: number | null
+  guaranteeTopUp?: 'PAY_SHORTFALL' | null
+  guaranteeQualifyingTime?: GuaranteeQualifyingTime | null
+  guaranteeLeaveTreatment?: GuaranteeLeaveTreatment | null
   status?: EmployeePayAgreementStatus
   notes?: string | null
 }
@@ -143,4 +172,40 @@ export type PreviewEpsQuery = {
   shppRecovered?: number
   spbpRecovered?: number
   nicCompensationOnStatutory?: number
+}
+
+/** Gate C14: body of POST /payroll/employees/:id/loan-notices (C13 RecordLoanNoticeDto). */
+export type RecordLoanNoticeInput = {
+  noticeType: 'SL1' | 'SL2' | 'PGL1' | 'PGL2'
+  studentLoanPlan?: '1' | '2' | '4' | '5'
+  hmrcReference?: string
+  noticeDate: string
+  receivedOn: string
+  effectivePayday: string
+  notes?: string
+}
+
+/** Gate C15: body of POST /payroll/employees/:id/loan-notices/:noticeId/correction. */
+export type CorrectLoanNoticeInput = {
+  reason: string
+  evidenceReference: string
+  replacement?: RecordLoanNoticeInput
+}
+
+export type ProposeDeductionAdjustmentInput = {
+  employeeId: string
+  kind: 'STUDENT_LOAN' | 'POSTGRADUATE_LOAN' | 'PENSION_EMPLOYEE' | 'PENSION_EMPLOYER'
+  sourceRunId: string
+  correctedAmount: number
+  reason: string
+  evidenceRef: string
+}
+
+export type PensionAeEventInput = {
+  type: 'POSTPONEMENT' | 'ENROLMENT_NOTICE_SENT' | 'OPT_IN_REQUEST' | 'JOINING_REQUEST' | 'OPT_OUT' | 'CEASE_MEMBERSHIP' | 'RE_ENROLMENT_DUE'
+  date: string
+  endDate?: string
+  noticeSentOn?: string
+  evidenceRef?: string
+  note?: string
 }

@@ -19,6 +19,7 @@ import { ContentCard } from '@/shared/ui/content-section'
 import { BillingCardRulesEditor } from '@/features/billing/components/BillingCardRulesEditor'
 import { PayCardWageTypeSummary } from '@/features/billing/components/PayCardWageTypeSummary'
 import { PayCardPayPreview } from '@/features/billing/components/PayCardPayPreview'
+import { PayCardConflictCheckNotice } from '@/features/billing/components/PayCardConflictNotice'
 import { BANK_HOLIDAY_REGION_OPTIONS, type BankHolidayRegion } from '@/features/billing/types/wage-types.types'
 import { useCreatePayCard, useUpdatePayCard } from '@/features/billing/hooks/usePayCards'
 import {
@@ -148,6 +149,22 @@ const STACKING_POLICY_CHOICES: { value: PayStackingPolicy; title: string; descri
   },
 ]
 
+/** How holiday pay is handled for carers on this card ('' = not on the card). */
+const HOLIDAY_PAY_CHOICES: { value: string; title: string; description: string }[] = [
+  {
+    value: '',
+    title: 'Paid when taken (default)',
+    description: 'Holiday is recorded and paid separately through Billing → Pay items. Nothing is added to visit pay.',
+  },
+  {
+    value: 'ROLLED_UP_12_07',
+    title: 'Rolled-up 12.07% on every visit',
+    description: '12.07% holiday pay is added to each visit pay run. Only for irregular-hours or part-year workers.',
+  },
+]
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
 /** Full-page create / edit form for a carer pay card. Remount (via `key`) to load a different card. */
 export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
   const isEdit = !!card
@@ -173,6 +190,30 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
   const currentVersion = card?.version ?? 1
 
   const patch = (next: Partial<PayCardInput>) => setForm(prev => ({ ...prev, ...next }))
+
+  // PC-32: the card as entered is checked against the other active cards before it is saved.
+  const conflictCheckInput = React.useMemo(
+    () =>
+      DATE_ONLY.test(form.effectiveFrom ?? '') && form.status !== 'ARCHIVED'
+        ? {
+            ...(card?.id ? { id: card.id } : {}),
+            assignmentLevel: form.assignmentLevel,
+            assignmentTargetId: form.assignmentTargetId || null,
+            assignmentTargetKey: form.assignmentTargetKey || null,
+            effectiveFrom: form.effectiveFrom,
+            effectiveTo: DATE_ONLY.test(form.effectiveTo ?? '') ? form.effectiveTo : null,
+          }
+        : null,
+    [
+      card?.id,
+      form.assignmentLevel,
+      form.assignmentTargetId,
+      form.assignmentTargetKey,
+      form.effectiveFrom,
+      form.effectiveTo,
+      form.status,
+    ],
+  )
 
   const onAssignmentLevelChange = (assignmentLevel: PayCardInput['assignmentLevel']) => {
     patch({
@@ -503,88 +544,7 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
             />
           </label>
         </div>
-      </ContentCard>
-
-      <ContentCard className="space-y-4" id="pay-card-rules-policy" data-testid="pay-card-rules-policy">
-        <SectionTitle
-          icon={<Scale className="h-4 w-4" aria-hidden />}
-          iconClassName="bg-amber-500/10 text-amber-700 dark:text-amber-300"
-          title="Pay rules & conflicts"
-          description="How overlapping rates are paid, and which bank holiday calendar this card uses."
-        />
-        <div className="grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="When rates overlap">
-          {STACKING_POLICY_CHOICES.map(choice => {
-            const active = (form.stackingPolicy ?? 'PRIORITY') === choice.value
-            return (
-              <label
-                key={choice.value}
-                className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${
-                  active ? 'border-primary bg-primary/5' : 'border-border bg-muted/10'
-                } ${saving ? 'pointer-events-none opacity-60' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name="pay-card-stacking-policy"
-                  className="mt-0.5 shrink-0"
-                  checked={active}
-                  onChange={() => patch({ stackingPolicy: choice.value })}
-                  disabled={saving}
-                  data-testid={`stacking-policy-${choice.value}`}
-                />
-                <span>
-                  <span className="block font-medium text-foreground">{choice.title}</span>
-                  <span className="block text-xs text-muted-foreground">{choice.description}</span>
-                </span>
-              </label>
-            )
-          })}
-        </div>
-        {isEdit && card && (form.stackingPolicy ?? 'PRIORITY') !== (card.stackingPolicy ?? 'PRIORITY') ? (
-          <p className="text-xs text-amber-700 dark:text-amber-300">
-            This changes how visits priced from now on are paid. Visits already priced keep their amounts.
-          </p>
-        ) : null}
-        <label className="block space-y-1 text-sm sm:max-w-sm">
-          <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />}>Bank holiday calendar</FieldLabel>
-          <select
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={form.bankHolidayRegion ?? ''}
-            onChange={e => patch({ bankHolidayRegion: e.target.value })}
-            disabled={saving}
-            data-testid="pay-card-bank-holiday-region"
-          >
-            {BANK_HOLIDAY_REGION_OPTIONS.map(o => (
-              <option key={o.value} value={o.value === 'UK' ? '' : o.value}>
-                {o.value === 'UK' ? `${o.label} (default)` : o.label}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-muted-foreground">Dates are managed in Billing → Bank holidays.</p>
-        </label>
-        <label className="block space-y-1 text-sm sm:max-w-xl">
-          <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />}>Holiday pay</FieldLabel>
-          <select
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={form.holidayPayMethod ?? ''}
-            onChange={e => patch({ holidayPayMethod: e.target.value })}
-            disabled={saving}
-            data-testid="pay-card-holiday-pay-method"
-          >
-            <option value="">Not on this pay card — enter holiday pay as pay items (default)</option>
-            <option value="ROLLED_UP_12_07">Rolled-up 12.07% added to each visit pay run</option>
-            {form.holidayPayMethod && form.holidayPayMethod !== 'ROLLED_UP_12_07' ? (
-              <option value={form.holidayPayMethod}>{form.holidayPayMethod}</option>
-            ) : null}
-          </select>
-          {form.holidayPayMethod === 'ROLLED_UP_12_07' ? (
-            <p className="text-xs text-amber-700 dark:text-amber-300">
-              Rolled-up holiday pay is only allowed for irregular-hours and part-year workers. Confirm with your payroll
-              adviser before using it.
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">Holiday taken is paid through Billing → Pay items.</p>
-          )}
-        </label>
+        <PayCardConflictCheckNotice input={conflictCheckInput} />
       </ContentCard>
 
       <ContentCard className="space-y-3" id="pay-card-rates">
@@ -592,7 +552,7 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
           icon={<PoundSterling className="h-4 w-4" aria-hidden />}
           iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
           title="Pay rates"
-          description="Add at least one rate. Every rule needs an amount and From / Until times."
+          description="Add at least one rate: choose when it applies and the £ amount."
         />
         {createsVersion ? (
           <div
@@ -644,6 +604,125 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
           disabled={saving}
         />
       </ContentCard>
+
+      <ContentCard className="space-y-4" id="pay-card-rules-policy" data-testid="pay-card-rules-policy">
+        <SectionTitle
+          icon={<CalendarDays className="h-4 w-4" aria-hidden />}
+          iconClassName="bg-amber-500/10 text-amber-700 dark:text-amber-300"
+          title="Holidays"
+          description="How holiday pay works for carers on this card, and which bank holidays it uses."
+        />
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-foreground">How is holiday paid?</legend>
+          <div className="grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Holiday pay" data-testid="pay-card-holiday-pay-method">
+            {HOLIDAY_PAY_CHOICES.concat(
+              form.holidayPayMethod && !HOLIDAY_PAY_CHOICES.some(c => c.value === form.holidayPayMethod)
+                ? [{ value: form.holidayPayMethod, title: form.holidayPayMethod, description: 'Saved on this card.' }]
+                : [],
+            ).map(choice => {
+              const active = (form.holidayPayMethod ?? '') === choice.value
+              return (
+                <label
+                  key={choice.value || 'none'}
+                  className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${
+                    active ? 'border-primary bg-primary/5' : 'border-border bg-muted/10'
+                  } ${saving ? 'pointer-events-none opacity-60' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="pay-card-holiday-pay"
+                    className="mt-0.5 shrink-0"
+                    checked={active}
+                    onChange={() => patch({ holidayPayMethod: choice.value })}
+                    disabled={saving}
+                    data-testid={`holiday-pay-${choice.value || 'NONE'}`}
+                  />
+                  <span>
+                    <span className="block font-medium text-foreground">{choice.title}</span>
+                    <span className="block text-xs text-muted-foreground">{choice.description}</span>
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+          {form.holidayPayMethod === 'ROLLED_UP_12_07' ? (
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              Rolled-up holiday pay is only allowed for irregular-hours and part-year workers. Confirm with your payroll
+              adviser before using it.
+            </p>
+          ) : null}
+        </fieldset>
+        <label className="block space-y-1 text-sm sm:max-w-sm">
+          <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />}>Bank holiday calendar</FieldLabel>
+          <select
+            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={form.bankHolidayRegion ?? ''}
+            onChange={e => patch({ bankHolidayRegion: e.target.value })}
+            disabled={saving}
+            data-testid="pay-card-bank-holiday-region"
+          >
+            {BANK_HOLIDAY_REGION_OPTIONS.map(o => (
+              <option key={o.value} value={o.value === 'UK' ? '' : o.value}>
+                {o.value === 'UK' ? `${o.label} (default)` : o.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">Bank holiday rates use these dates (managed in Billing → Bank holidays).</p>
+        </label>
+
+        <details
+          className="rounded-lg border border-border p-3"
+          open={(form.stackingPolicy ?? 'PRIORITY') !== 'PRIORITY'}
+          data-testid="pay-card-overlap"
+        >
+          <summary className="cursor-pointer text-sm">
+            <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+              <Scale className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+              When rates overlap:
+            </span>{' '}
+            <span className="text-muted-foreground">
+              {STACKING_POLICY_CHOICES.find(c => c.value === (form.stackingPolicy ?? 'PRIORITY'))?.title}
+            </span>
+          </summary>
+          <p className="mt-2 text-xs text-muted-foreground">
+            For a time slot that matches more than one rate (e.g. a Sunday that is also a bank holiday). Leave the default
+            unless the contract says otherwise.
+          </p>
+          <div className="mt-2 grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="When rates overlap">
+            {STACKING_POLICY_CHOICES.map(choice => {
+              const active = (form.stackingPolicy ?? 'PRIORITY') === choice.value
+              return (
+                <label
+                  key={choice.value}
+                  className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${
+                    active ? 'border-primary bg-primary/5' : 'border-border bg-muted/10'
+                  } ${saving ? 'pointer-events-none opacity-60' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="pay-card-stacking-policy"
+                    className="mt-0.5 shrink-0"
+                    checked={active}
+                    onChange={() => patch({ stackingPolicy: choice.value })}
+                    disabled={saving}
+                    data-testid={`stacking-policy-${choice.value}`}
+                  />
+                  <span>
+                    <span className="block font-medium text-foreground">{choice.title}</span>
+                    <span className="block text-xs text-muted-foreground">{choice.description}</span>
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+          {isEdit && card && (form.stackingPolicy ?? 'PRIORITY') !== (card.stackingPolicy ?? 'PRIORITY') ? (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+              This changes how visits priced from now on are paid. Visits already priced keep their amounts.
+            </p>
+          ) : null}
+        </details>
+      </ContentCard>
+
 
       <PayCardWageTypeSummary rules={form.rules ?? []} />
 

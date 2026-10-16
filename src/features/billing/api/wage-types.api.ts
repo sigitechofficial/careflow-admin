@@ -3,6 +3,9 @@ import type {
   BankHoliday,
   BankHolidayImportResult,
   BankHolidayRegion,
+  CalendarRegion,
+  HolidayCalendarStatus,
+  HolidayPremiumBasis,
   PayPreviewInput,
   PayPreviewResult,
   WageType,
@@ -24,7 +27,7 @@ export async function updateWageType(
   return res.data
 }
 
-export async function fetchBankHolidays(params?: { region?: BankHolidayRegion; year?: string }): Promise<BankHoliday[]> {
+export async function fetchBankHolidays(params?: { region?: CalendarRegion; year?: string }): Promise<BankHoliday[]> {
   const qs = new URLSearchParams()
   if (params?.region) qs.set('region', params.region)
   if (params?.year) qs.set('year', params.year)
@@ -36,7 +39,8 @@ export async function fetchBankHolidays(params?: { region?: BankHolidayRegion; y
 export async function createBankHoliday(body: {
   holidayDate: string
   name: string
-  region: BankHolidayRegion
+  region: CalendarRegion
+  substituteForDate?: string
 }): Promise<BankHoliday> {
   const res = await apiJson<ApiEnvelope<BankHoliday>>('/billing/bank-holidays', {
     method: 'POST',
@@ -47,13 +51,29 @@ export async function createBankHoliday(body: {
 
 export async function updateBankHoliday(
   id: string,
-  body: { name?: string; isActive?: boolean },
+  body: { name?: string; isActive?: boolean; substituteForDate?: string | null },
 ): Promise<BankHoliday> {
   const res = await apiJson<ApiEnvelope<BankHoliday>>(`/billing/bank-holidays/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   })
   return res.data
+}
+
+/** Whether each nation's calendar is complete for this year and next, and the weekend-holiday policy. */
+export async function fetchHolidayCalendarStatus(): Promise<HolidayCalendarStatus> {
+  const res = await apiJson<ApiEnvelope<HolidayCalendarStatus>>('/billing/bank-holidays/status', { method: 'GET' })
+  return res.data
+}
+
+export async function setHolidayPremiumBasis(body: {
+  basis: HolidayPremiumBasis
+  reason: string
+}): Promise<{ message: string; data: { basis: HolidayPremiumBasis } }> {
+  return apiJson<{ message: string; data: { basis: HolidayPremiumBasis } }>('/billing/bank-holidays/premium-basis', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
 }
 
 export async function importBankHolidaysFromGovUk(): Promise<{ message: string; data: BankHolidayImportResult }> {

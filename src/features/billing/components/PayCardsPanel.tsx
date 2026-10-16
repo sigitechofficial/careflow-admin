@@ -28,6 +28,7 @@ import {
 } from '@/shared/ui/dialog'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { PayCardAssignDialog } from '@/features/billing/components/PayCardAssignDialog'
+import { PayCardConflictsBanner } from '@/features/billing/components/PayCardConflictNotice'
 import { RateCardStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import {
   useDeletePayCard,
@@ -289,6 +290,8 @@ export function PayCardsPanel() {
           ) : undefined
         }
       />
+
+      <PayCardConflictsBanner />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <PayCardStatCard
