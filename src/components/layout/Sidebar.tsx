@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Baby,
   Home,
   Users,
   Calendar,
@@ -413,14 +412,7 @@ const navItems: NavItem[] = [
         anyPermission: ['employees.read', 'employees.reports.read'],
         navTestId: 'nav-employee-absences',
       },
-      {
-        section: 'Time & absence',
-        label: 'Parental leave',
-        icon: <Baby className="h-4 w-4" />,
-        href: '/parental-leave',
-        anyPermission: ['employees.read', 'employees.reports.read'],
-        navTestId: 'nav-parental-leave',
-      },
+      // Parental leave is recorded via the employee Absence tracker (Maternity / Paternity types).
       // TODO(later): restore the HR Recruitment pages here (HR dashboard, vacancies, candidates) when HR is ready:
       //   { section: 'Recruitment', label: 'HR Dashboard', href: '/hr/employees', permission: 'hr.read', navTestId: 'nav-hr-employees' },
       //   { section: 'Recruitment', label: 'Recruitment', href: '/hr/recruitment', anyPermission: ['hr.vacancies.read', 'hr.candidates.read'], navTestId: 'nav-hr-recruitment' },
