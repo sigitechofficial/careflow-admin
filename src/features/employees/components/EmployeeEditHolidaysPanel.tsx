@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ExternalLink, Loader2, PenLine, Plus, Trash2 } from 'lucide-react'
+import { CalendarDays, ClipboardList, ExternalLink, Loader2, PenLine, Plus, Trash2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
@@ -71,6 +71,82 @@ function riskBadgeClass(risk: string): string {
   return ''
 }
 
+function SectionHeader({
+  icon,
+  iconClassName,
+  title,
+  description,
+  action,
+}: {
+  icon: React.ReactNode
+  iconClassName: string
+  title: string
+  description?: string
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start gap-3">
+        <span
+          className={cn(
+            'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+            iconClassName,
+          )}
+        >
+          {icon}
+        </span>
+        <div className="min-w-0 pt-0.5">
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+        </div>
+      </div>
+      {action ? <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div> : null}
+    </div>
+  )
+}
+
+/** Compact labelled figure used for the absence totals strip. */
+function StatChip({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string
+  value: React.ReactNode
+  tone?: 'default' | 'warning' | 'danger'
+}) {
+  return (
+    <div
+      className={cn(
+        'rounded-lg border px-3 py-2',
+        tone === 'danger'
+          ? 'border-destructive/30 bg-destructive/5'
+          : tone === 'warning'
+            ? 'border-warning/30 bg-warning/5'
+            : 'border-border bg-muted/30',
+      )}
+    >
+      <div
+        className={cn(
+          'text-base font-semibold tabular-nums',
+          tone === 'danger'
+            ? 'text-destructive'
+            : tone === 'warning'
+              ? 'text-warning'
+              : 'text-foreground',
+        )}
+      >
+        {value}
+      </div>
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+    </div>
+  )
+}
+
+const TABLE_WRAP = 'overflow-x-auto rounded-lg border border-border'
+const TH_BASE =
+  'border-b border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
+
 function EmployeeAbsenceRecordsSection({
   employeeId,
   canUpdate,
@@ -104,37 +180,55 @@ function EmployeeAbsenceRecordsSection({
 
   return (
     <div className="space-y-3" data-testid="employee-edit-absences-section">
-      <div className="flex flex-wrap items-center gap-1.5 text-sm">
-        <span className="font-semibold text-foreground">Absence records (UKVI tracker)</span>
-        {canUpdate ? (
-          <button
-            type="button"
-            onClick={() => {
-              setEditing(null)
-              setFormOpen(true)
-            }}
-            className="font-medium text-primary hover:underline"
-            data-testid="employee-edit-absences-add"
-          >
-            Record absence
-          </button>
-        ) : null}
-        <Link
-          to="/employee/absences"
-          className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-        >
-          Open absence tracker
-          <ExternalLink className="h-3 w-3" />
-        </Link>
-      </div>
+      <SectionHeader
+        icon={<ClipboardList className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
+        title="Absence records (UKVI tracker)"
+        description="Sponsored-worker absences tracked for UKVI compliance."
+        action={
+          <>
+            {canUpdate ? (
+              <Button
+                type="button"
+                size="sm"
+                leftIcon={<Plus className="h-4 w-4" />}
+                onClick={() => {
+                  setEditing(null)
+                  setFormOpen(true)
+                }}
+                data-testid="employee-edit-absences-add"
+              >
+                Record absence
+              </Button>
+            ) : null}
+            <Link
+              to="/employee/absences"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              Open absence tracker
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </>
+        }
+      />
 
       {totals ? (
-        <p className="text-xs text-muted-foreground">
-          {rows.length} record{rows.length === 1 ? '' : 's'} · {totals.durationDays} day
-          {totals.durationDays === 1 ? '' : 's'} ({totals.durationHours}h) ·{' '}
-          {totals.sicknessCount} sickness · {totals.unauthorisedCount} unauthorised ·{' '}
-          {totals.smsTriggerCount} UKVI SMS trigger{totals.smsTriggerCount === 1 ? '' : 's'}
-        </p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <StatChip label="Records" value={rows.length} />
+          <StatChip label={totals.durationDays === 1 ? 'Day' : 'Days'} value={totals.durationDays} />
+          <StatChip label="Hours" value={`${totals.durationHours}h`} />
+          <StatChip label="Sickness" value={totals.sicknessCount} />
+          <StatChip
+            label="Unauthorised"
+            value={totals.unauthorisedCount}
+            tone={totals.unauthorisedCount > 0 ? 'danger' : 'default'}
+          />
+          <StatChip
+            label="UKVI SMS"
+            value={totals.smsTriggerCount}
+            tone={totals.smsTriggerCount > 0 ? 'warning' : 'default'}
+          />
+        </div>
       ) : null}
 
       {absencesQuery.isLoading ? (
@@ -145,32 +239,38 @@ function EmployeeAbsenceRecordsSection({
       ) : absencesQuery.isError ? (
         <p className="text-sm text-destructive">Could not load absence records.</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No absence records yet.
-          {canUpdate ? ' Use “Record absence” to add the first one.' : ''}
-        </p>
+        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+          <ClipboardList className="h-6 w-6 text-muted-foreground" aria-hidden />
+          <p className="text-sm text-muted-foreground">
+            No absence records yet.
+            {canUpdate ? ' Use “Record absence” to add the first one.' : ''}
+          </p>
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full min-w-[1100px] text-sm">
-            <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+        <div className={TABLE_WRAP}>
+          <table className="w-full min-w-[1100px] border-collapse text-sm">
+            <thead className="bg-muted/40">
               <tr>
-                <th className="px-3 py-2 font-medium">Record ID</th>
-                <th className="px-3 py-2 font-medium">Type</th>
-                <th className="px-3 py-2 font-medium">From</th>
-                <th className="px-3 py-2 font-medium">To</th>
-                <th className="px-3 py-2 text-right font-medium">Days</th>
-                <th className="px-3 py-2 text-right font-medium">Hours</th>
-                <th className="px-3 py-2 font-medium">Permission</th>
-                <th className="px-3 py-2 font-medium">Flags</th>
-                <th className="px-3 py-2 font-medium">Evidence</th>
-                <th className="px-3 py-2 font-medium">UKVI risk</th>
-                <th className="px-3 py-2 font-medium">Notes</th>
-                {canUpdate ? <th className="px-3 py-2 font-medium">Actions</th> : null}
+                <th className={cn(TH_BASE, 'text-left')}>Record ID</th>
+                <th className={cn(TH_BASE, 'text-left')}>Type</th>
+                <th className={cn(TH_BASE, 'text-left')}>From</th>
+                <th className={cn(TH_BASE, 'text-left')}>To</th>
+                <th className={cn(TH_BASE, 'text-right')}>Days</th>
+                <th className={cn(TH_BASE, 'text-right')}>Hours</th>
+                <th className={cn(TH_BASE, 'text-left')}>Permission</th>
+                <th className={cn(TH_BASE, 'text-left')}>Flags</th>
+                <th className={cn(TH_BASE, 'text-left')}>Evidence</th>
+                <th className={cn(TH_BASE, 'text-left')}>UKVI risk</th>
+                <th className={cn(TH_BASE, 'text-left')}>Notes</th>
+                {canUpdate ? <th className={cn(TH_BASE, 'text-left')}>Actions</th> : null}
               </tr>
             </thead>
             <tbody>
               {rows.map(row => (
-                <tr key={row.id} className="border-t border-border align-top">
+                <tr
+                  key={row.id}
+                  className="border-b border-border align-top transition-colors last:border-0 hover:bg-muted/30"
+                >
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{row.recordId}</td>
                       <td className="whitespace-nowrap px-3 py-2">
                         {row.absenceType}
@@ -411,14 +511,25 @@ export function EmployeeEditHolidaysPanel({ employeeId }: { employeeId: string }
   return (
     <div className="space-y-6" data-testid="employee-edit-holidays-panel">
       <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-1.5 text-sm">
-        <span className="font-semibold text-foreground">Holiday &amp; leave records</span>
-        {canUpdate ? (
-          <button type="button" onClick={openCreate} className="font-medium text-primary hover:underline">
-            Add holiday
-          </button>
-        ) : null}
-      </div>
+      <SectionHeader
+        icon={<CalendarDays className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+        title="Holiday & leave records"
+        description="Booked annual leave and time off for this carer."
+        action={
+          canUpdate ? (
+            <Button
+              type="button"
+              size="sm"
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={openCreate}
+              data-testid="employee-edit-holidays-add"
+            >
+              Add holiday
+            </Button>
+          ) : null
+        }
+      />
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
@@ -428,27 +539,44 @@ export function EmployeeEditHolidaysPanel({ employeeId }: { employeeId: string }
           Loading…
         </div>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No holiday records yet.</p>
+        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+          <CalendarDays className="h-6 w-6 text-muted-foreground" aria-hidden />
+          <p className="text-sm text-muted-foreground">No holiday records yet.</p>
+          {canUpdate ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={openCreate}
+            >
+              Add holiday
+            </Button>
+          ) : null}
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full min-w-[480px] text-sm">
-            <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+        <div className={TABLE_WRAP}>
+          <table className="w-full min-w-[480px] border-collapse text-sm">
+            <thead className="bg-muted/40">
               <tr>
-                <th className="px-3 py-2 font-medium">Start</th>
-                <th className="px-3 py-2 font-medium">End</th>
-                <th className="px-3 py-2 font-medium">Notes</th>
-                {canUpdate ? <th className="px-3 py-2 font-medium">Actions</th> : null}
+                <th className={cn(TH_BASE, 'text-left')}>Start</th>
+                <th className={cn(TH_BASE, 'text-left')}>End</th>
+                <th className={cn(TH_BASE, 'text-left')}>Notes</th>
+                {canUpdate ? <th className={cn(TH_BASE, 'text-right')}>Actions</th> : null}
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id} className="border-t border-border">
-                  <td className="px-3 py-2">{formatHolidayDate(row.startDate)}</td>
-                  <td className="px-3 py-2">{formatHolidayDate(row.endDate)}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{row.notes?.trim() || '—'}</td>
+                <tr
+                  key={row.id}
+                  className="border-b border-border transition-colors last:border-0 hover:bg-muted/30"
+                >
+                  <td className="px-3 py-2.5 tabular-nums">{formatHolidayDate(row.startDate)}</td>
+                  <td className="px-3 py-2.5 tabular-nums">{formatHolidayDate(row.endDate)}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{row.notes?.trim() || '—'}</td>
                   {canUpdate ? (
-                    <td className="px-3 py-2">
-                      <div className="flex gap-1">
+                    <td className="px-3 py-2.5 text-right">
+                      <div className="flex justify-end gap-1">
                         <Button type="button" size="icon" variant="ghost" onClick={() => openEdit(row)}>
                           <PenLine className="h-4 w-4" />
                         </Button>
@@ -471,7 +599,14 @@ export function EmployeeEditHolidaysPanel({ employeeId }: { employeeId: string }
             <DialogTitle>{editingId ? 'Edit holiday' : 'Add holiday'}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
-            {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+            {formError ? (
+              <p
+                role="alert"
+                className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              >
+                {formError}
+              </p>
+            ) : null}
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Start date</label>

@@ -227,4 +227,38 @@ export type VisitReconciliationCalculationPreview = {
 
 export type VisitReconciliationDetail = VisitReconciliationRow & {
   calculationPreview: VisitReconciliationCalculationPreview
+  /** Pay is in a locked visit pay run or a closed UK run: changed only through a pay correction. */
+  paySettled?: boolean
+  /** Who or what approved, and whether the evidence has changed since (R-18). */
+  approval?: {
+    source: 'AUTO_VERIFIED' | 'MANAGER_APPROVED' | 'MANAGER_OVERRIDE' | null
+    approvedAt: string | null
+    approvedByPerson: boolean
+    evidenceChangedReason: string | null
+    evidenceChangedAt: string | null
+  }
+}
+
+/** A pay calculation that could not be completed and still needs attention (R-17). */
+export type PayEvaluationFailure = {
+  id: string
+  /** Short reference to quote to support. */
+  reference: string
+  operation: 'EVALUATE' | 'ENSURE_VISIT' | 'ENSURE_JOB' | string
+  visitReconciliationId: string | null
+  visitRef: string | null
+  employeeId: string | null
+  employeeName: string | null
+  serviceUserId: string | null
+  serviceUserName: string | null
+  /** BUSINESS: the office can fix the data. TECHNICAL: unexpected, logged for support. */
+  kind: 'BUSINESS' | 'TECHNICAL' | string
+  category: string
+  message: string
+  retryable: boolean
+  status: 'OPEN' | 'RESOLVED' | 'DISMISSED' | string
+  occurrences: number
+  firstOccurredAt: string
+  lastOccurredAt: string
+  succeeded?: boolean
 }

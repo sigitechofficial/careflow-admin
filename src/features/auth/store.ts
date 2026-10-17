@@ -1,7 +1,11 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { appendAuditEvent, loadAuditFromStorage } from '@/features/auth/audit'
-import { hasPermission as checkPerm, permissionsForRole } from '@/features/auth/roles'
+import {
+  EXPLICIT_GRANT_PERMISSIONS,
+  hasPermission as checkPerm,
+  permissionsForRole,
+} from '@/features/auth/roles'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import {
   accessTokenExpiryMs,
@@ -365,8 +369,15 @@ export const useAuthStore = create<AuthState>()(
       can: (p) => {
         const u = get().user
         if (!u) return false
-        if (u.role === 'super_admin') return true
-        if (u.backendRoles?.includes('Super Admin')) return true
+        // Pay approval, settlement, payroll close / reopen and data reset are never implied by
+        // Super Admin: the user's role has to list them (the API enforces the same rule).
+        const explicitOnly = (Array.isArray(p) ? p : [p]).some(key =>
+          EXPLICIT_GRANT_PERMISSIONS.includes(key),
+        )
+        if (!explicitOnly) {
+          if (u.role === 'super_admin') return true
+          if (u.backendRoles?.includes('Super Admin')) return true
+        }
         return checkPerm(u.permissions, p)
       },
 

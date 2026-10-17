@@ -10,6 +10,7 @@ import {
   ListChecks,
   PlusCircle,
   Search,
+  Scale,
   ShieldAlert,
 } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
@@ -78,7 +79,7 @@ export default function IncidentsDashboardPage() {
             Open list
           </Link>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Overdue actions"
             value={stats?.overdueActions ?? 0}
@@ -91,7 +92,7 @@ export default function IncidentsDashboardPage() {
             search={{ overdue: true }}
           />
           <StatCard
-            label="High / Critical"
+            label="Open high / critical"
             value={stats?.highOrCritical ?? 0}
             hint="Open severe cases"
             icon={<ShieldAlert className="h-5 w-5" aria-hidden />}
@@ -110,6 +111,17 @@ export default function IncidentsDashboardPage() {
             loading={loading}
             to="/incidents/view"
             search={{ status: 'ACTIONS_REQUIRED' }}
+          />
+          <StatCard
+            label="Duty of Candour overdue"
+            value={stats?.candourOverdue ?? 0}
+            hint="Not told in time"
+            icon={<Scale className="h-5 w-5" aria-hidden />}
+            tone="destructive"
+            emphasize={(stats?.candourOverdue ?? 0) > 0}
+            loading={loading}
+            to="/incidents/view"
+            search={{ doc: true }}
           />
         </div>
       </section>

@@ -377,6 +377,20 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
         </div>
       ) : null}
 
+      {!loading && !savedPayCardId && resolved?.source === 'CONFLICT' ? (
+        <div
+          className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-amber-950 dark:text-amber-100"
+          data-testid="employee-pay-card-conflict-warning"
+          role="alert"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span>
+            {resolved.message ?? 'More than one pay card applies to this carer.'} Until then this
+            carer&apos;s visit pay is held, not paid on either card.
+          </span>
+        </div>
+      ) : null}
+
       {!loading && (savedIsIncompatible || (dirty && selectedPayCardId && !selectedIsCompatible)) ? (
         <div
           className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-amber-950 dark:text-amber-100"

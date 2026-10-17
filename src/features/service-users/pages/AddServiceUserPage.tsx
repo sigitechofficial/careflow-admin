@@ -69,6 +69,12 @@ import {
   type ContactPhoneRow,
 } from '@/features/service-users/components/ServiceUserContactRows'
 
+/** Fixed Standard / Complex care-level options. */
+const CARE_LEVEL_OPTIONS = [
+  { id: 'STANDARD', name: 'Standard Care' },
+  { id: 'COMPLEX', name: 'Complex Care' },
+]
+
 type FormState = {
   firstName: string
   middleName: string
@@ -106,6 +112,7 @@ type FormState = {
   genderId: string
   maritalStatusId: string
   careTypeId: string
+  careLevel: string
   fundingTypeId: string
   riskLevelId: string
   locationId: string
@@ -167,6 +174,7 @@ const emptyForm: FormState = {
   genderId: '',
   maritalStatusId: '',
   careTypeId: '',
+  careLevel: '',
   fundingTypeId: '',
   riskLevelId: '',
   locationId: '',
@@ -403,6 +411,7 @@ function buildPayload(f: FormState): CreateServiceUserPayload {
   p.maritalStatusId = optId(f.maritalStatusId)
   p.statusId = optId(f.statusId)
   p.careTypeId = optId(f.careTypeId)
+  p.careLevel = (f.careLevel || undefined) as 'STANDARD' | 'COMPLEX' | undefined
   p.fundingTypeId = optId(f.fundingTypeId)
   p.riskLevelId = optId(f.riskLevelId)
   p.locationId = optId(f.locationId)
@@ -1206,6 +1215,12 @@ export default function AddServiceUserPage() {
             <div>
               <LabelWithTip tip="Category or package of care.">Category of Care</LabelWithTip>
               {lookups ? mapSelect('careTypeId', 'Please select a Category of Care', lookups.careTypes) : <Input disabled />}
+            </div>
+            <div>
+              <LabelWithTip tip="Standard or Complex care. Complex applies the Complex-care charge card (SERVICE_TYPE) when no more specific card is set.">
+                Care level
+              </LabelWithTip>
+              {mapSelect('careLevel', 'Select care level', CARE_LEVEL_OPTIONS)}
             </div>
 
             <div className="md:col-span-3">

@@ -1,5 +1,9 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  PensionAeEventInput,
+  ProposeDeductionAdjustmentInput,
+  CorrectLoanNoticeInput,
+  RecordLoanNoticeInput,
   CreatePayrollScheduleInput,
   CreatePayrollTaxCodeInput,
   CreatePayrollTaxYearInput,
@@ -28,6 +32,14 @@ import type {
   UkPayrollRunDetail,
   UkPayrollPayslipListItem,
   CareFpsPayload,
+  SalariedHoursMethods,
+  EmployeeLoanNotice,
+  LeaveEntryRow,
+  LeavePosition,
+  LeaveTermsRow,
+  EmployeePensionAe,
+  PayrollDeductionAdjustment,
+  PensionContributions,
 } from '@/features/payroll/types/payroll.types'
 import type { HmrcFraudClientContext } from '@/features/payroll/utils/hmrc-fraud-client-context.util'
 
@@ -351,6 +363,111 @@ export async function upsertEmployeePayrollProfile(
   return res.data
 }
 
+/** Gate C14: HMRC loan notices (C13 endpoints). */
+export async function fetchLoanNotices(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<EmployeeLoanNotice[]>>(`/payroll/employees/${employeeId}/loan-notices`)
+  return res.data ?? []
+}
+
+export async function recordLoanNotice(employeeId: string, body: RecordLoanNoticeInput) {
+  return apiJson<ApiEnvelope<EmployeeLoanNotice> & { duplicate?: boolean }>(
+    `/payroll/employees/${employeeId}/loan-notices`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+}
+
+/** Gate C15: correct a notice recorded in error in Careflow (voids it; optional replacement). */
+export async function correctLoanNotice(employeeId: string, noticeId: string, body: CorrectLoanNoticeInput) {
+  return apiJson<{ message: string; duplicate?: boolean }>(
+    `/payroll/employees/${employeeId}/loan-notices/${noticeId}/correction`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+}
+
+/** Loan / pension completion: corrections of closed runs (maker/checker). */
+export async function fetchDeductionAdjustments(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<PayrollDeductionAdjustment[]>>(`/payroll/adjustments?employeeId=${encodeURIComponent(employeeId)}`)
+  return res.data ?? []
+}
+
+export async function proposeDeductionAdjustment(body: ProposeDeductionAdjustmentInput) {
+  return apiJson<{ message: string; duplicate?: boolean }>('/payroll/adjustments', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function reviewDeductionAdjustment(id: string, body: { decision: 'APPROVE' | 'REJECT'; note?: string }) {
+  return apiJson<{ message: string }>(`/payroll/adjustments/${id}/review`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function fetchEmployeePensionAe(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<EmployeePensionAe | null>>(`/payroll/employees/${employeeId}/pension-ae`)
+  return res.data ?? null
+}
+
+export async function recordPensionAeEvent(employeeId: string, body: PensionAeEventInput) {
+  return apiJson<{ message: string }>(`/payroll/employees/${employeeId}/pension-ae/events`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function fetchPensionContributions(runId: string) {
+  const res = await apiJson<ApiEnvelope<PensionContributions>>(`/payroll/runs/${runId}/pension-contributions`)
+  return res.data
+}
+
+/** Payroll leave (holiday): position, terms (maker/checker) and entries. */
+export async function fetchLeavePosition(employeeId: string, query: { asOf?: string; leavingDate?: string } = {}) {
+  const params = new URLSearchParams()
+  if (query.asOf) params.set('asOf', query.asOf)
+  if (query.leavingDate) params.set('leavingDate', query.leavingDate)
+  const qs = params.toString()
+  const res = await apiJson<ApiEnvelope<LeavePosition>>(`/payroll/employees/${employeeId}/leave${qs ? `?${qs}` : ''}`)
+  return res.data
+}
+
+export async function fetchLeaveTerms(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<LeaveTermsRow[]>>(`/payroll/employees/${employeeId}/leave-terms`)
+  return res.data ?? []
+}
+
+export async function createLeaveTerms(employeeId: string, body: Record<string, unknown>) {
+  return apiJson<{ message: string }>(`/payroll/employees/${employeeId}/leave-terms`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function approveLeaveTerms(termsId: string) {
+  return apiJson<{ message: string }>(`/payroll/leave-terms/${termsId}/approve`, { method: 'POST', body: JSON.stringify({}) })
+}
+
+export async function fetchLeaveEntries(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<LeaveEntryRow[]>>(`/payroll/employees/${employeeId}/leave-entries`)
+  return res.data ?? []
+}
+
+export async function recordLeaveEntry(employeeId: string, body: Record<string, unknown>) {
+  return apiJson<{ message: string }>(`/payroll/employees/${employeeId}/leave-entries`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function fetchEmployeePayAgreements(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<EmployeePayAgreement[]>>(
+    `/payroll/employees/${employeeId}/pay-agreements`,
+  )
+  return res.data
+}
+
+/** A second person puts an agreement into effect (needed when it carries or replaces a salary). */
+export async function approveEmployeePayAgreement(agreementId: string) {
+  return apiJson<ApiEnvelope<EmployeePayAgreement> & { message?: string }>(
+    `/payroll/pay-agreements/${agreementId}/approve`,
+    { method: 'POST' },
+  )
+}
+
+/** Ends an agreement on its last day. The pay terms of an agreement in effect are not edited. */
+export async function endEmployeePayAgreement(agreementId: string, effectiveTo: string) {
+  const res = await apiJson<ApiEnvelope<EmployeePayAgreement>>(
+    `/payroll/pay-agreements/${agreementId}`,
+    { method: 'PATCH', body: JSON.stringify({ status: 'TERMINATED', effectiveTo }) },
+  )
+  return res.data
+}
+
 export async function createEmployeePayAgreement(
   employeeId: string,
   body: CreateEmployeePayAgreementInput,
@@ -605,6 +722,37 @@ export async function calculateUkPayrollStatutory(id: string) {
   return res.data
 }
 
+export async function fetchSalariedHoursMethods() {
+  const res = await apiJson<ApiEnvelope<SalariedHoursMethods>>('/payroll/salaried-hours-methods')
+  return res.data
+}
+
+export async function enterSalariedHoursMethod(body: { weeksPerYear: number; basis: string; effectiveFrom: string }) {
+  return apiJson<{ message: string }>('/payroll/salaried-hours-methods', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function approveSalariedHoursMethod(id: string) {
+  return apiJson<{ message: string }>(`/payroll/salaried-hours-methods/${id}/approve`, { method: 'POST' })
+}
+
+export async function withdrawSalariedHoursMethod(id: string, note: string) {
+  return apiJson<{ message: string }>(`/payroll/salaried-hours-methods/${id}/withdraw`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  })
+}
+
+export async function reviewUkNmwAssessment(
+  runId: string,
+  assessmentId: string,
+  body: { note: string; outcome: 'EVIDENCE_SUPPORTS_COMPLIANCE' | 'SHORTFALL_CONFIRMED' },
+) {
+  return apiJson<{ message: string }>(`/payroll/runs/${runId}/nmw-assessments/${assessmentId}/review`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
 export async function closeUkPayrollRun(id: string) {
   const res = await apiJson<ApiEnvelope<UkPayrollRun>>(`/payroll/runs/${id}/close`, {
     method: 'POST',
@@ -612,9 +760,10 @@ export async function closeUkPayrollRun(id: string) {
   return res.data
 }
 
-export async function cancelUkPayrollRun(id: string) {
+export async function cancelUkPayrollRun(id: string, reason?: string) {
   const res = await apiJson<ApiEnvelope<UkPayrollRun>>(`/payroll/runs/${id}/cancel`, {
     method: 'POST',
+    body: JSON.stringify({ reason: reason?.trim() || undefined }),
   })
   return res.data
 }

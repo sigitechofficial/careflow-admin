@@ -15,4 +15,6 @@ export const incidentKeys = {
   employeeSuspensions: (employeeId: string) =>
     [...incidentKeys.all(), 'employee-suspensions', employeeId] as const,
   myActions: () => [...incidentKeys.all(), 'my-actions'] as const,
+  carePlanEvidence: (actionId: string) =>
+    [...incidentKeys.all(), 'care-plan-evidence', actionId] as const,
 }

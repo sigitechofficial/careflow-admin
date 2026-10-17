@@ -27,12 +27,16 @@ import {
 } from '@/features/billing/hooks/useVisitReconciliations'
 import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
 import type { VisitReconciliationRateBreakdown } from '@/features/billing/types/visit-reconciliation.types'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastSuccess, toastWithVariant } from '@/shared/lib/toast'
+import { payTimeEditNotice } from '@/features/billing/utils/pay-time-outcome.util'
 import { useAuthStore } from '@/features/auth/store'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
+import { VisitPayCorrectionsCard } from '@/features/billing/components/VisitPayCorrectionsCard'
+import { VisitMileageCorrectionCard } from '@/features/billing/components/VisitMileageCorrectionCard'
+import { VisitTravelTimeCard } from '@/features/billing/components/VisitTravelTimeCard'
 
 type Props = {
   open: boolean
@@ -376,7 +380,9 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
   }, [detail?.id, detail?.travelMiles, detail?.payableAmount, detail?.billableAmount])
 
   const canEditAmounts = Boolean(canManage && detail && detail.status !== 'LOCKED')
-  const canEditTravel = detail && detail.status !== 'LOCKED'
+  // Settled pay is not edited here; the pay corrections card below is the way to change it.
+  const paySettled = Boolean(detail?.paySettled)
+  const canEditTravel = detail && detail.status !== 'LOCKED' && !paySettled
   const pendingOverrun =
     detail &&
     (detail.overrunMinutes ?? 0) > 0 &&
@@ -392,14 +398,17 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
   const saveTravel = async () => {
     if (!detail || !canEditTravel) return
     try {
-      await updateMutation.mutateAsync({
+      const saved = await updateMutation.mutateAsync({
         id: detail.id,
         body: {
           travelMiles: travelMiles.trim() === '' ? null : Number(travelMiles),
           // Travel time UI is hidden for now — keep existing value unchanged.
         },
       })
-      toastSuccess('Mileage saved. Payroll will use this with the pay card mileage rate.')
+      // A response that reports a payable-time edit is shown as it is, never as a plain success.
+      const notice = payTimeEditNotice(saved.payTimeEdit)
+      if (notice) toastWithVariant(notice.variant, notice.title, notice.description)
+      else toastSuccess('Mileage saved. Payroll will use this with the pay card mileage rate.')
     } catch (err) {
       toastApiError(err, 'Could not save mileage.')
     }
@@ -549,6 +558,28 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 >
                   {decisionBanner.text}
                 </div>
+              ) : null}
+
+              {detail.approval?.evidenceChangedReason ? (
+                <p
+                  className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-200"
+                  data-testid="visit-recon-evidence-changed"
+                >
+                  {detail.approval.evidenceChangedReason}
+                </p>
+              ) : null}
+              {detail.approval?.source ? (
+                <p className="text-xs text-muted-foreground" data-testid="visit-recon-approval-source">
+                  {detail.approval.source === 'AUTO_VERIFIED'
+                    ? 'Approved automatically: the visit had no exceptions.'
+                    : detail.approval.source === 'MANAGER_OVERRIDE'
+                      ? 'Approved by a person, overriding an exception.'
+                      : 'Approved by a person.'}
+                  {detail.approval.approvedAt
+                    ? ` ${formatDate(detail.approval.approvedAt)}.`
+                    : ''}{' '}
+                  New attendance evidence sends the visit back for review.
+                </p>
               ) : null}
 
               {detail.approvalNotes?.trim() ? (
@@ -740,6 +771,8 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </ContentCard>
               ) : null}
 
+              <VisitPayCorrectionsCard visitReconciliationId={row.id} />
+
               <ContentCard className="p-4 space-y-3">
                 <div>
                   <h4 className="flex items-center gap-2 text-sm font-semibold">
@@ -774,8 +807,14 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Locked — mileage can no longer be edited.</p>
+                  <p className="text-xs text-muted-foreground">
+                    {paySettled
+                      ? 'Paid — mileage can no longer be edited here. Record a mileage correction below for a difference.'
+                      : 'Locked — mileage can no longer be edited.'}
+                  </p>
                 )}
+                {paySettled ? <VisitMileageCorrectionCard visitReconciliationId={row.id} /> : null}
+                <VisitTravelTimeCard visitReconciliationId={row.id} visitDate={row.date} />
               </ContentCard>
 
               <div className={cn('space-y-2', carerNotPaid && 'opacity-70')}>
@@ -807,7 +846,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     onValueChange={setPayableInput}
                     onNotesChange={setPayableNotes}
                     onSave={() => void savePayableAmount()}
-                    disabled={!canEditAmounts}
+                    disabled={!canEditAmounts || paySettled}
                     saving={setPayableMutation.isPending}
                   />
                 ) : null}

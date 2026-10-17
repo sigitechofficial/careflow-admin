@@ -73,6 +73,8 @@ export type FeedbackListParams = {
   search?: string
   from?: string
   to?: string
+  /** Made by or about this service user. */
+  serviceUserId?: string
 }
 
 export type FeedbackDetailsPayload = {

@@ -82,6 +82,10 @@ import {
   Smartphone,
   Megaphone,
   Map as MapIcon,
+  Landmark,
+  AlertTriangle,
+  Shield,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -92,6 +96,7 @@ import { Input } from '@/shared/ui/input'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { Permission, RoleId } from '@/features/auth/types'
 import { useAuthStore } from '@/features/auth/store'
+import { hasOrganisationPayScope } from '@/features/auth/pay-scope'
 import { CompanyBrandMark } from '@/components/company/CompanyBrandMark'
 import { portalNavItems } from '@/features/service-user-portal/portal-nav'
 import { NAV_MODULES, moduleLabelForSlug, moduleLandingPath } from '@/components/layout/nav-modules'
@@ -185,17 +190,7 @@ const inspectorOnlyNavItems: NavItem[] = [
 ]
 
 /* ─── Nav data ─────────────────────────────────────────────── */
-/*
- * Nine top-level entries, arranged by how the office works (mirrors The Access Group's
- * product split: Care Planning, Care Rostering, PeoplePlanner/Learning, Care Compliance,
- * Webroster billing & payroll). `section` on a child renders a small sub-heading inside
- * the group so large areas stay scannable. Every href, permission and navTestId is
- * unchanged from the previous layout; only the grouping and a few labels moved.
- */
-/**
- * A page The Access Group offers that Careflow does not have yet. Shown in the menu with a
- * "Soon" badge for everyone who can see the module; opens the work-in-progress page.
- */
+/** A page we plan to add (an Access Group feature not built yet): shown with a "Soon" badge, opens /in-progress. */
 function planned(section: string | undefined, label: string, icon: React.ReactNode, description: string): SubNavItem {
   return { section, label, icon, href: '/in-progress', ready: false, planned: true, description }
 }
@@ -208,6 +203,7 @@ const navItems: NavItem[] = [
     label: 'Service Users',
     icon: <Users className="h-5 w-5" />,
     href: '/service-users',
+    badge: 12,
     children: [
       { section: 'People', label: 'All Service Users', icon: <Users className="h-4 w-4" />, href: '/service-users/all', permission: 'service_users.read', navTestId: 'nav-service-users-all' },
       { section: 'People', label: 'Add Service User', icon: <UserRoundPlus className="h-4 w-4" />, href: '/service-users/add', permission: 'service_users.create', navTestId: 'nav-service-users-add' },
@@ -271,21 +267,11 @@ const navItems: NavItem[] = [
         permission: 'service_users.read',
         navTestId: 'nav-care-plan-reviews',
       },
-      {
-        // Moved from Settings: used day to day on care, not configured once.
-        section: 'Assessment & care plans',
-        label: 'Care Pathway',
-        icon: <Route className="h-4 w-4" />,
-        href: '/settings/care-pathway',
-        search: { tab: 'wizard' },
-        permission: 'care_pathway.read',
-        navTestId: 'nav-settings-care-pathway',
-      },
       planned("Lifecycle", "Discharge & closure", <DoorOpen className="h-4 w-4" />, "Close a service cleanly: end visits, send final invoices and archive records."),
     ],
   },
   {
-    // Rota + live visits (was Scheduling, ECM and Billing › Visit reconciliation).
+    // Rota + live visits (was Scheduling, ECM live/graph and Billing › Visit reconciliation).
     label: 'Care Operations',
     icon: <Calendar className="h-5 w-5" />,
     href: '/scheduling/schedule-jobs',
@@ -354,7 +340,14 @@ const navItems: NavItem[] = [
       },
       planned("Rota", "Rota suggestions & sickness cover", <Wand2 className="h-4 w-4" />, "Suggest the best carer for open visits and cover sickness using travel time, continuity and contracted hours."),
       planned("Rota", "Route planning", <Route className="h-4 w-4" />, "Plan each carer's run to cut travel time and mileage."),
-      // View Schedule, View Schedule (Mobile), Schedule Templates, Build Schedule: hidden; URLs still work.
+      {
+        section: 'Rota',
+        label: 'Special visits',
+        icon: <CalendarClock className="h-4 w-4" />,
+        href: '/special-visits',
+        anyPermission: ['employees.read', 'employees.reports.read'],
+        navTestId: 'nav-special-visits',
+      },
       {
         section: 'Visits',
         label: 'Live monitoring',
@@ -365,14 +358,13 @@ const navItems: NavItem[] = [
       },
       {
         section: 'Visits',
-        label: 'ECM graph',
+        label: 'Graph',
         icon: <BarChart3 className="h-4 w-4" />,
         href: '/ecm/graph',
         anyPermission: ['ecm.read', 'ecm.monitor'],
         navTestId: 'nav-ecm-graph',
       },
       {
-        // Moved from Billing: coordinators confirm planned vs actual before billing and pay.
         section: 'Visits',
         label: 'Visit reconciliation',
         icon: <ClipboardList className="h-4 w-4" />,
@@ -382,6 +374,8 @@ const navItems: NavItem[] = [
       },
       planned("Visits", "Live staff map", <MapIcon className="h-4 w-4" />, "See where carers are now against their scheduled visits."),
       planned("Visits", "Voice notes to text", <Mic className="h-4 w-4" />, "Turn carers' voice notes into written visit notes."),
+      { section: 'Visits', label: 'Employee Operation Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/in-progress', ready: false },
+      { section: 'Visits', label: 'Service Overview', icon: <Eye className="h-4 w-4" />, href: '/in-progress', ready: false },
     ],
   },
   {
@@ -411,7 +405,7 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    // Staff records, time and absence, recruitment (Learning is its own module).
+    // Staff records, time and absence (Learning is its own module).
     label: 'Workforce',
     icon: <UserCheck className="h-5 w-5" />,
     href: '/employee',
@@ -431,6 +425,8 @@ const navItems: NavItem[] = [
         navTestId: 'nav-employee-compliance-board',
       },
       { section: 'Staff', label: 'General Employee Documents', icon: <FileText className="h-4 w-4" />, href: '/employee/documents', permission: 'employees.documents.read', navTestId: 'nav-employee-documents' },
+      { section: 'Staff', label: 'Temporary Inspector Login', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/temp-inspector', permission: 'employees.read' },
+      { section: 'Staff', label: 'Send Message', icon: <PlusCircle className="h-4 w-4" />, href: '/in-progress', ready: false },
       {
         section: 'Time & absence',
         label: 'Employee hours',
@@ -457,23 +453,22 @@ const navItems: NavItem[] = [
       },
       planned("Recruitment", "Recruitment", <Briefcase className="h-4 w-4" />, "Vacancies, candidates, interviews and offers."),
       planned("Development", "Supervision & appraisals", <MessagesSquare className="h-4 w-4" />, "One-to-one and group supervision records, appraisals and follow-up actions."),
-      // TODO(later): restore Recruitment here (HR dashboard, vacancies, candidates) when HR is ready:
+      // Parental leave is recorded via the employee Absence tracker (Maternity / Paternity types).
+      // TODO(later): restore the HR Recruitment pages here (HR dashboard, vacancies, candidates) when HR is ready:
       //   { section: 'Recruitment', label: 'HR Dashboard', href: '/hr/employees', permission: 'hr.read', navTestId: 'nav-hr-employees' },
       //   { section: 'Recruitment', label: 'Recruitment', href: '/hr/recruitment', anyPermission: ['hr.vacancies.read', 'hr.candidates.read'], navTestId: 'nav-hr-recruitment' },
       //   { section: 'Recruitment', label: 'Vacancies', href: '/hr/vacancies', permission: 'hr.vacancies.read', navTestId: 'nav-hr-vacancies' },
       //   { section: 'Recruitment', label: 'Candidates', href: '/hr/candidates', permission: 'hr.candidates.read', navTestId: 'nav-hr-candidates' },
-      // Send Message: returns as a Messages area once staff messaging is built.
     ],
   },
   {
-    // Training and development (Access Learning equivalent). Own module: own users and dashboard.
     label: 'Learning',
     icon: <GraduationCap className="h-5 w-5" />,
     href: '/learning/dashboard',
     children: [
       {
         section: 'Overview',
-        label: 'Learning dashboard',
+        label: 'Dashboard',
         icon: <GraduationCap className="h-4 w-4" />,
         href: '/learning/dashboard',
         permission: 'learning.dashboard.read',
@@ -507,7 +502,7 @@ const navItems: NavItem[] = [
       planned('Training', 'Virtual competency checks', <ClipboardCheck className="h-4 w-4" />, "Test carers' skills with realistic care scenarios."),
       {
         section: 'Records',
-        label: 'Training compliance',
+        label: 'Compliance',
         icon: <ShieldCheck className="h-4 w-4" />,
         href: '/learning/compliance',
         permission: 'learning.compliance.read',
@@ -531,7 +526,7 @@ const navItems: NavItem[] = [
       },
       {
         section: 'Settings',
-        label: 'Learning settings',
+        label: 'Settings',
         icon: <Settings2 className="h-4 w-4" />,
         href: '/learning/settings',
         permission: 'learning.settings.manage',
@@ -545,12 +540,12 @@ const navItems: NavItem[] = [
     icon: <ShieldCheck className="h-5 w-5" />,
     href: '/incidents/dashboard',
     children: [
-      { section: 'Incidents', label: 'Incident dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/incidents/dashboard', permission: 'incidents.read' },
+      { section: 'Incidents', label: 'Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/incidents/dashboard', permission: 'incidents.read' },
       { section: 'Incidents', label: 'All Incidents', icon: <Eye className="h-4 w-4" />, href: '/incidents/view', permission: 'incidents.read' },
       { section: 'Incidents', label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
-      { section: 'Incidents', label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read', hideForRoles: ['super_admin'] },
       { section: 'Incidents', label: 'Complaints & Compliments', icon: <MessageSquareWarning className="h-4 w-4" />, href: '/incidents/feedback', permission: 'complaints.read', navTestId: 'nav-complaints-compliments' },
       planned("Incidents", "Safeguarding cases", <ShieldAlert className="h-4 w-4" />, "Dedicated safeguarding cases with a chronology, actions and evidence."),
+      { section: 'Incidents', label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read', hideForRoles: ['super_admin'] },
       {
         section: 'Policies & procedures',
         label: 'Policy Library',
@@ -558,22 +553,6 @@ const navItems: NavItem[] = [
         href: '/policies',
         permission: 'policies.read',
         navTestId: 'nav-policies-library',
-      },
-      {
-        section: 'Policies & procedures',
-        label: 'Policy categories',
-        icon: <List className="h-4 w-4" />,
-        href: '/policies/categories',
-        permission: 'policies.read',
-        navTestId: 'nav-policies-categories',
-      },
-      {
-        section: 'Policies & procedures',
-        label: 'Policy tags',
-        icon: <ClipboardList className="h-4 w-4" />,
-        href: '/policies/tags',
-        permission: 'policies.read',
-        navTestId: 'nav-policies-tags',
       },
       {
         section: 'Policies & procedures',
@@ -591,19 +570,35 @@ const navItems: NavItem[] = [
         permission: 'policies.read',
         navTestId: 'nav-policies-acknowledgements',
       },
-      {
-        section: 'Feedback',
-        label: 'Surveys',
-        icon: <MessagesSquare className="h-4 w-4" />,
-        href: '/surveys',
-        permission: 'surveys.read',
-        navTestId: 'nav-surveys-all',
-      },
       planned("Governance", "Audits", <ClipboardList className="h-4 w-4" />, "An audit library, custom audits and due dates for each location."),
       planned("Governance", "Mock CQC inspection", <Scale className="h-4 w-4" />, "Work through the five key questions and quality statements and get a mock rating for each service."),
       planned("Governance", "Action plans & evidence", <ListChecks className="h-4 w-4" />, "One action plan for audits, incidents and complaints, with linked evidence."),
       planned("Governance", "Risk & assurance register", <AlertOctagon className="h-4 w-4" />, "Organisational risks, controls, owners and review dates."),
       planned("Governance", "CQC notifications", <Send className="h-4 w-4" />, "Prepare and track statutory notifications to the CQC."),
+      {
+        section: 'Policies & procedures',
+        label: 'Categories',
+        icon: <List className="h-4 w-4" />,
+        href: '/policies/categories',
+        permission: 'policies.read',
+        navTestId: 'nav-policies-categories',
+      },
+      {
+        section: 'Policies & procedures',
+        label: 'Tags',
+        icon: <ClipboardList className="h-4 w-4" />,
+        href: '/policies/tags',
+        permission: 'policies.read',
+        navTestId: 'nav-policies-tags',
+      },
+      {
+        section: 'Feedback',
+        label: 'All surveys',
+        icon: <List className="h-4 w-4" />,
+        href: '/surveys',
+        permission: 'surveys.read',
+        navTestId: 'nav-surveys-all',
+      },
     ],
   },
   {
@@ -645,9 +640,27 @@ const navItems: NavItem[] = [
       },
       planned("Billing", "Client payments & Direct Debit", <CreditCard className="h-4 w-4" />, "Collect payments from private clients by Direct Debit or card."),
       planned("Billing", "Accounting export", <FileOutput className="h-4 w-4" />, "Send invoices and payments to Xero, Sage or QuickBooks."),
-      // Service user invoices, Payments, Audit & export, Visit pay runs: hidden for now. Routes remain available by URL.
       {
-        section: 'Carer pay',
+        section: 'Billing',
+        label: 'Pay items',
+        icon: <Wallet className="h-4 w-4" />,
+        href: '/billing/pay-items',
+        permission: 'billing.payroll_runs.read',
+        organisationPayScope: true,
+        navTestId: 'nav-billing-pay-items',
+      },
+      planned("Carer pay", "On-demand pay", <Zap className="h-4 w-4" />, "Let carers draw pay they have already earned before payday."),
+      {
+        section: 'Billing',
+        label: 'Wage recoveries',
+        icon: <Wallet className="h-4 w-4" />,
+        href: '/billing/wage-recoveries',
+        permission: 'billing.payroll_runs.read',
+        organisationPayScope: true,
+        navTestId: 'nav-billing-wage-recoveries',
+      },
+      {
+        section: 'Billing',
         label: 'Salary',
         icon: <CircleDollarSign className="h-4 w-4" />,
         href: '/billing/salary',
@@ -655,26 +668,17 @@ const navItems: NavItem[] = [
         navTestId: 'nav-billing-salary',
       },
       {
-        section: 'Carer pay',
+        section: 'Billing',
         label: 'Employee payouts',
         icon: <Banknote className="h-4 w-4" />,
         href: '/billing/employee-payouts',
         permission: 'billing.employee_payouts.read',
+        organisationPayScope: true,
         navTestId: 'nav-billing-employee-payouts',
       },
       {
-        // From main (sigiofficials): additional pay items for carers.
-        section: 'Carer pay',
-        label: 'Pay items',
-        icon: <Wallet className="h-4 w-4" />,
-        href: '/billing/pay-items',
-        permission: 'billing.payroll_runs.read',
-        navTestId: 'nav-billing-pay-items',
-      },
-      planned("Carer pay", "On-demand pay", <Zap className="h-4 w-4" />, "Let carers draw pay they have already earned before payday."),
-      {
-        section: 'UK payroll',
-        label: 'Payroll overview',
+        section: 'Billing',
+        label: 'Overview',
         icon: <LayoutGrid className="h-4 w-4" />,
         href: '/payroll',
         anyPermission: [
@@ -685,15 +689,16 @@ const navItems: NavItem[] = [
         navTestId: 'nav-payroll-overview',
       },
       {
-        section: 'UK payroll',
+        section: 'Billing',
         label: 'UK payroll runs',
         icon: <Wallet className="h-4 w-4" />,
         href: '/payroll/runs',
         permission: 'payroll.runs.read',
+        organisationPayScope: true,
         navTestId: 'nav-payroll-runs',
       },
       {
-        section: 'UK payroll',
+        section: 'Billing',
         label: 'Payslips',
         icon: <FileText className="h-4 w-4" />,
         href: '/payroll/payslips',
@@ -701,48 +706,51 @@ const navItems: NavItem[] = [
         navTestId: 'nav-payroll-payslips',
       },
       {
-        section: 'UK payroll',
+        section: 'Billing',
         label: 'Taxes',
         icon: <Receipt className="h-4 w-4" />,
         href: '/payroll/taxes',
         permission: 'payroll.settings.read',
+        organisationPayScope: true,
         navTestId: 'nav-payroll-taxes',
       },
       {
-        section: 'UK payroll',
+        section: 'Billing',
         label: 'Employer PAYE',
         icon: <Building2 className="h-4 w-4" />,
         href: '/payroll/employer',
         permission: 'payroll.settings.read',
+        organisationPayScope: true,
         navTestId: 'nav-payroll-employer',
       },
       {
-        section: 'UK payroll',
-        label: 'Payroll employee setup',
+        section: 'Billing',
+        label: 'Employee setup',
         icon: <Users className="h-4 w-4" />,
         href: '/payroll/employees',
         permission: 'payroll.employees.read',
         navTestId: 'nav-payroll-employees',
       },
       {
-        section: 'UK payroll',
+        section: 'Billing',
         label: 'Schedules & periods',
         icon: <CalendarClock className="h-4 w-4" />,
         href: '/payroll/schedules',
         anyPermission: ['payroll.settings.read', 'payroll.periods.read'],
+        organisationPayScope: true,
         navTestId: 'nav-payroll-schedules',
       },
       {
-        section: 'UK payroll',
+        section: 'Billing',
         label: 'Tax years',
         icon: <CalendarDays className="h-4 w-4" />,
         href: '/payroll/tax-years',
         permission: 'payroll.settings.read',
+        organisationPayScope: true,
         navTestId: 'nav-payroll-tax-years',
       },
       {
-        // Separate from carer payroll; only office_salaries.manage (Super Admin / Admin) sees it.
-        section: 'Office staff',
+        section: 'Billing',
         label: 'Office salaries',
         icon: <Wallet className="h-4 w-4" />,
         href: '/office-salaries',
@@ -817,6 +825,7 @@ const navItems: NavItem[] = [
       planned(undefined, "Budgets & targets", <Target className="h-4 w-4" />, "Set budgets and targets and track performance against them."),
     ],
   },
+  { label: 'UI Showcase',       icon: <Sparkles className="h-5 w-5" />,      href: '/showcase', ready: false },
   {
     // Organisation setup, configuration, security (was Checklist, Settings, Administration).
     label: 'Administration',
@@ -824,7 +833,6 @@ const navItems: NavItem[] = [
     href: '/settings',
     children: [
       {
-        // Hidden without setup_checklist.read (Super Admin / Admin).
         section: 'Organisation',
         label: 'Setup checklist',
         icon: <ListChecks className="h-4 w-4" />,
@@ -859,14 +867,6 @@ const navItems: NavItem[] = [
         navTestId: 'nav-settings-roles-permissions',
       },
       {
-        // Moved from Employee: grants outside inspectors temporary access.
-        section: 'Organisation',
-        label: 'Temporary Inspector Login',
-        icon: <UserRoundPlus className="h-4 w-4" />,
-        href: '/employee/temp-inspector',
-        permission: 'employees.read',
-      },
-      {
         section: 'Configuration',
         label: 'General Settings',
         icon: <Settings2 className="h-4 w-4" />,
@@ -886,6 +886,15 @@ const navItems: NavItem[] = [
       },
       planned("Configuration", "Automation rules", <Workflow className="h-4 w-4" />, "Set up your own rules: when this happens, do that."),
       {
+        section: 'Configuration',
+        label: 'Care Pathway',
+        icon: <Route className="h-4 w-4" />,
+        href: '/settings/care-pathway',
+        search: { tab: 'wizard' },
+        permission: 'care_pathway.read',
+        navTestId: 'nav-settings-care-pathway',
+      },
+      {
         section: 'Security & audit',
         label: 'Audit log',
         icon: <FileText className="h-4 w-4" />,
@@ -898,8 +907,6 @@ const navItems: NavItem[] = [
       planned("Integrations", "Pharmacy integration", <Pill className="h-4 w-4" />, "Receive medication changes from the pharmacy and send orders."),
       planned("Integrations", "Telecare", <Radio className="h-4 w-4" />, "Use alerts from home sensors and alarms in care planning."),
       planned("Integrations", "AI assistant", <Bot className="h-4 w-4" />, "Answer questions about a service user, turn referral documents into draft care plans and draft action plans."),
-      // Service user portal: same page as Service Users › Portal access, so listed once there.
-      // From the azure branch: platform operations, kept under Administration.
       {
         section: 'Platform',
         label: 'System jobs',
@@ -918,18 +925,18 @@ const navItems: NavItem[] = [
       },
     ],
   },
-  // UI Showcase: developer page, removed from the menu (route still works at /showcase).
-  // Operations dashboards and Send Message were placeholders (hidden); they return when built.
 ]
 
-function navChildAllowed(
+export function navChildAllowed(
   child: SubNavItem,
   can: (p: Permission) => boolean,
   role?: RoleId,
+  organisationPayScope = true,
 ): boolean {
   if (child.planned) return true
   if (child.ready === false) return false
   if (role && child.hideForRoles?.includes(role)) return false
+  if (child.organisationPayScope && !organisationPayScope) return false
   if (child.anyPermission?.length) return child.anyPermission.some((p) => can(p))
   if (child.permission) return can(child.permission)
   // No permission key → hide (prevents tabs for modules the user cannot access).
@@ -940,6 +947,7 @@ function filterNavByPermission(
   items: NavItem[],
   can: (p: Permission) => boolean,
   role?: RoleId,
+  organisationPayScope = true,
 ): NavItem[] {
   return items
     .map((item) => {
@@ -949,7 +957,7 @@ function filterNavByPermission(
         if (item.permission && !can(item.permission)) return null
         return item
       }
-      const children = item.children.filter((ch) => navChildAllowed(ch, can, role))
+      const children = item.children.filter((ch) => navChildAllowed(ch, can, role, organisationPayScope))
       // Planned pages never unlock a module on their own: the user needs at least one real page,
       // unless the whole module is planned (e.g. Messages), which everyone can preview.
       const allPlanned = item.children.every((ch) => ch.planned)
@@ -1347,7 +1355,8 @@ function ModulePanelHeader({
 }
 
 function ModuleSidebar() {
-  const { pagePanelPinned, togglePagePanelPinned, sidebarMobileOpen, setSidebarMobileOpen } = useUIStore()
+  const { sidebarMobileOpen, setSidebarMobileOpen, pagePanelPinned, togglePagePanelPinned } =
+    useUIStore()
   const navigate = useNavigate()
   const location = useRouterState({ select: (s) => s.location })
   const { pathname, search } = location
@@ -1355,7 +1364,10 @@ function ModuleSidebar() {
   const logout = useAuthStore((s) => s.logout)
   const can = useAuthStore((s) => s.can)
 
-  const items = React.useMemo(() => filterNavByPermission(navItems, can, user?.role), [can, user?.role])
+  const items = React.useMemo(
+    () => filterNavByPermission(navItems, can, user?.role, hasOrganisationPayScope(user)),
+    [can, user],
+  )
   // Cheap (a few dozen string compares), so computed each render rather than memoised.
   const routeModule = moduleForLocation(items, pathname, search)
 
@@ -1366,10 +1378,18 @@ function ModuleSidebar() {
   const [menuQuery, setMenuQuery] = React.useState('')
   const searching = menuQuery.trim().length > 0
   const searchResults = React.useMemo(() => filterNavByQuery(items, menuQuery), [items, menuQuery])
+  // Search opened from the rail button: forces the panel open (even unpinned) in search mode.
+  const [searchOpen, setSearchOpen] = React.useState(false)
+  const closeSearch = React.useCallback(() => {
+    setSearchOpen(false)
+    setMenuQuery('')
+  }, [])
 
   const panelModule = items.find((i) => i.label === openModule && i.children?.length)
   // Desktop: pages show on hover (fly-out) unless the user pins the panel open. Mobile drawer always shows it.
-  const panelVisible = (!!panelModule || searching) && (pagePanelPinned || sidebarMobileOpen)
+  // The rail search button also forces the panel open in search mode.
+  const panelVisible =
+    searchOpen || ((!!panelModule || searching) && (pagePanelPinned || sidebarMobileOpen))
 
   const closeMobile = () => setSidebarMobileOpen(false)
 
@@ -1393,11 +1413,22 @@ function ModuleSidebar() {
   }, [cancelClose])
   React.useEffect(() => () => cancelClose(), [cancelClose])
   React.useEffect(() => setHoverModule(undefined), [pathname])
+  // Close the search panel whenever the route changes (a result was opened).
+  React.useEffect(() => closeSearch(), [pathname, closeSearch])
+  // Focus the search field as soon as it opens.
+  React.useEffect(() => {
+    if (!searchOpen) return
+    const el = document.querySelector<HTMLInputElement>('[data-testid="sidebar-search"]')
+    el?.focus()
+  }, [searchOpen])
 
   const flyoutModule = items.find((i) => i.label === hoverModule && i.children?.length)
   // No fly-out on the mobile drawer, or when it would just repeat the docked panel.
   const showFlyout =
-    !!flyoutModule && !sidebarMobileOpen && !(panelVisible && !searching && flyoutModule.label === panelModule?.label)
+    !!flyoutModule &&
+    !sidebarMobileOpen &&
+    !searchOpen &&
+    !(panelVisible && !searching && flyoutModule.label === panelModule?.label)
   const flyoutMeta = flyoutModule ? NAV_MODULES[flyoutModule.label] : undefined
 
   return (
@@ -1421,6 +1452,24 @@ function ModuleSidebar() {
         <div className="flex w-[76px] shrink-0 flex-col items-center border-r border-sidebar-border">
           <div className="flex h-14 w-full shrink-0 items-center justify-center border-b border-sidebar-border">
             <CompanyBrandMark collapsed />
+          </div>
+          <div className="flex w-full shrink-0 justify-center px-1.5 pt-2">
+            <button
+              type="button"
+              data-testid="sidebar-search-button"
+              aria-label="Search pages"
+              aria-pressed={searchOpen}
+              title="Search pages"
+              onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+              className={cn(
+                'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
+                searchOpen
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground ring-2 ring-sidebar-primary/60'
+                  : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              )}
+            >
+              <Search className="h-5 w-5" />
+            </button>
           </div>
           <nav aria-label="Modules" className="flex w-full flex-1 flex-col gap-1 overflow-y-auto px-1.5 py-2">
             {items.map((item) => {
@@ -1524,7 +1573,7 @@ function ModuleSidebar() {
         {/* ── Page panel ── */}
         {panelVisible ? (
           <div className="flex w-[268px] min-w-0 flex-col" data-testid="sidebar-panel">
-            {panelModule && !searching ? (
+            {panelModule && !searching && !searchOpen ? (
               <ModulePanelHeader
                 module={panelModule}
                 onNavigate={closeMobile}
@@ -1536,8 +1585,18 @@ function ModuleSidebar() {
               />
             ) : (
               <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-sidebar-border px-3.5">
-                <span className="flex-1 font-display text-[15px] font-semibold text-sidebar-foreground">Search results</span>
-                <button className="shrink-0 text-muted-foreground hover:text-foreground lg:hidden" onClick={closeMobile} aria-label="Close menu">
+                <span className="flex-1 font-display text-[15px] font-semibold text-sidebar-foreground">
+                  {searching ? 'Search results' : 'Search'}
+                </span>
+                <button
+                  type="button"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    closeSearch()
+                    closeMobile()
+                  }}
+                  aria-label="Close search"
+                >
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -1547,6 +1606,12 @@ function ModuleSidebar() {
                 type="search"
                 value={menuQuery}
                 onChange={(e) => setMenuQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    closeSearch()
+                    closeMobile()
+                  }
+                }}
                 aria-label="Search all pages"
                 placeholder="Search all pages"
                 data-testid="sidebar-search"
@@ -1554,7 +1619,7 @@ function ModuleSidebar() {
                 className="h-9 rounded-xl border-sidebar-border bg-background/70 text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus-visible:border-sidebar-ring focus-visible:ring-sidebar-ring"
               />
             </div>
-            <nav aria-label={searching ? 'Search results' : `${panelModule?.label} pages`} className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
+            <nav aria-label={searching ? 'Search results' : searchOpen ? 'Search' : `${panelModule?.label} pages`} className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
               {searching ? (
                 searchResults.length === 0 ? (
                   <p className="px-2 py-6 text-center text-sm text-sidebar-foreground/70">No matching pages</p>
@@ -1569,7 +1634,7 @@ function ModuleSidebar() {
                             pathname={pathname}
                             search={search}
                             onNavigate={() => {
-                              setMenuQuery('')
+                              closeSearch()
                               closeMobile()
                             }}
                           />
@@ -1582,7 +1647,7 @@ function ModuleSidebar() {
                             pathname={pathname}
                             search={search}
                             onNavigate={() => {
-                              setMenuQuery('')
+                              closeSearch()
                               closeMobile()
                             }}
                           />
@@ -1591,6 +1656,10 @@ function ModuleSidebar() {
                     )}
                   </ul>
                 )
+              ) : searchOpen ? (
+                <p className="px-2 py-6 text-center text-sm text-sidebar-foreground/70">
+                  Type to search all pages…
+                </p>
               ) : panelModule ? (
                 <ul className="space-y-0.5">
                   <NavChildList variant="panel" items={panelModule.children!} pathname={pathname} search={search} onNavigate={closeMobile} />
@@ -1658,8 +1727,8 @@ function ClassicSidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
     if (isPortal) return navSource
     // Temporary inspector list is already curated; skip strict ACL filter.
     if (user?.role === 'temporary_inspector') return navSource
-    return filterNavByPermission(navSource, can, user?.role)
-  }, [can, isPortal, navSource, user?.role])
+    return filterNavByPermission(navSource, can, user?.role, hasOrganisationPayScope(user))
+  }, [can, isPortal, navSource, user])
   const [menuQuery, setMenuQuery] = React.useState('')
   const isMenuSearching = !sidebarCollapsed && menuQuery.trim().length > 0
   const visibleNavItems = React.useMemo(() => {

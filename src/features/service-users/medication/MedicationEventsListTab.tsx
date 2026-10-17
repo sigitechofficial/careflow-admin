@@ -1,3 +1,4 @@
+import { PrnOverLimitBadge } from '@/features/service-users/medication/PrnOverLimitBadge'
 import * as React from 'react'
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
@@ -207,7 +208,10 @@ export function MedicationEventsListTab({ serviceUserId }: { serviceUserId: stri
                     <td className="px-3 py-2 tabular-nums text-muted-foreground">
                       {formatWhen(ev.actualDateTime ?? ev.scheduledDateTime ?? ev.createdAt)}
                     </td>
-                    <td className="px-3 py-2 font-medium">{ev.medication?.medicationName ?? '—'}</td>
+                    <td className="px-3 py-2 font-medium">
+                      {ev.medication?.medicationName ?? '—'}
+                      {ev.prnOverLimit ? <PrnOverLimitBadge className="ml-1.5" /> : null}
+                    </td>
                     <td className="px-3 py-2">
                       <MarEventStatusBadge status={ev.status} statusCode={ev.statusCode} />
                     </td>

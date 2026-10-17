@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createBankHoliday,
   fetchBankHolidays,
+  fetchHolidayCalendarStatus,
+  setHolidayPremiumBasis,
   fetchWageTypes,
   importBankHolidaysFromGovUk,
   previewPay,
@@ -9,7 +11,7 @@ import {
   updateWageType,
 } from '@/features/billing/api/wage-types.api'
 import { billingKeys } from '@/features/billing/keys'
-import type { BankHolidayRegion, PayPreviewInput } from '@/features/billing/types/wage-types.types'
+import type { CalendarRegion, PayPreviewInput } from '@/features/billing/types/wage-types.types'
 
 export function useWageTypes(enabled = true) {
   return useQuery({
@@ -29,7 +31,7 @@ export function useUpdateWageType() {
   })
 }
 
-export function useBankHolidays(params?: { region?: BankHolidayRegion; year?: string }) {
+export function useBankHolidays(params?: { region?: CalendarRegion; year?: string }) {
   return useQuery({
     queryKey: billingKeys.bankHolidays(params),
     queryFn: () => fetchBankHolidays(params),
@@ -49,10 +51,28 @@ export function useCreateBankHoliday() {
 export function useUpdateBankHoliday() {
   const invalidate = useInvalidateBankHolidays()
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { name?: string; isActive?: boolean } }) =>
-      updateBankHoliday(id, body),
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: { name?: string; isActive?: boolean; substituteForDate?: string | null }
+    }) => updateBankHoliday(id, body),
     onSuccess: invalidate,
   })
+}
+
+/** Calendar completeness and the weekend-holiday policy (PC-22 to PC-24). */
+export function useHolidayCalendarStatus() {
+  return useQuery({
+    queryKey: [...billingKeys.all, 'bank-holidays', 'status'] as const,
+    queryFn: fetchHolidayCalendarStatus,
+  })
+}
+
+export function useSetHolidayPremiumBasis() {
+  const invalidate = useInvalidateBankHolidays()
+  return useMutation({ mutationFn: setHolidayPremiumBasis, onSuccess: invalidate })
 }
 
 export function useImportBankHolidays() {

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { CalendarOff, CalendarClock, ClipboardList, Eye, History, Info, Loader2, Package, PanelRightOpen, Pause, Play, RefreshCw, Save, Sparkles, StopCircle, UserPlus } from 'lucide-react'
+import { CalendarClock, ClipboardList, History, Info, Loader2, Package, Pause, Play, RefreshCw, Save, Sparkles, StopCircle } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { FormField, Textarea } from '@/shared/ui/form-field'
@@ -14,18 +14,8 @@ import {
   contentKickerClass,
   contentSummaryClass,
   contentBadgeClass,
-  contentTableRowLabelClass,
   contentTitleClass,
 } from '@/shared/ui/content-section'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/ui/data-table'
-import { Switch, Checkbox } from '@/shared/ui/toggle-controls'
 import { cn, formatDate, formatDateTime } from '@/shared/lib/utils'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
@@ -38,13 +28,22 @@ import type {
   VisitPlanAmendment,
   VisitPlanSlot,
 } from '@/features/service-users/visit-plan/types'
-import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
-import { visitPlanSlotsFromMedicationRounds } from '@/features/service-users/visit-plan/visit-plan-time-slots.util'
+import {
+  isAdditionalVisitSlotCode,
+  newVisitPlanSlotForRound,
+  nextAdditionalVisitSlotCode,
+  visitPlanSlotRoundCode,
+  visitPlanSlotsFromMedicationRounds,
+} from '@/features/service-users/visit-plan/visit-plan-time-slots.util'
 import { useMedicationRounds } from '@/features/settings/hooks/useMedicationRounds'
 import { VisitPlanSlotAdvancedPanel } from '@/features/service-users/visit-plan/VisitPlanSlotAdvancedPanel'
 import { VisitPlanSlotLifecyclePanel } from '@/features/service-users/visit-plan/VisitPlanSlotLifecyclePanel'
 import { VisitPlanSlotCarerByDayPanel } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDayPanel'
-import { VisitPlanSlotExceptionsPanel } from '@/features/service-users/visit-plan/VisitPlanSlotExceptionsPanel'
+import { VisitPlanDateChangesSection } from '@/features/service-users/visit-plan/VisitPlanDateChangesSection'
+import { VisitPlanSlotGroups } from '@/features/service-users/visit-plan/VisitPlanSlotGroups'
+import { VisitPlanVisitDialog } from '@/features/service-users/visit-plan/VisitPlanVisitDialog'
+import { VisitPlanUnsavedChangesGuard } from '@/features/service-users/visit-plan/components/VisitPlanUnsavedChangesGuard'
+import { useVisitPlanDateChanges } from '@/features/service-users/visit-plan/visit-plan-date-changes.api'
 import { VisitPlanWeeklyHoursPanel } from '@/features/service-users/visit-plan/VisitPlanWeeklyHoursPanel'
 import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
 import { VisitPlanSlotAdditionalDetailsPanel } from '@/features/service-users/visit-plan/VisitPlanSlotAdditionalDetailsPanel'
@@ -59,16 +58,10 @@ import {
   visitDurationMinutes,
   visitPlanEndTimeFromStartAndDuration,
 } from '@/features/service-users/visit-plan/visit-plan-time.util'
-import { VISIT_PLAN_MAX_DURATION_MINUTES } from '@/features/service-users/visit-plan/visit-plan-constants'
-import {
-  formatVisitPlanNightDuty,
-  resolveVisitPlanNightDuty,
-} from '@/features/service-users/visit-plan/visit-plan-night-duty.util'
+import { resolveVisitPlanNightDuty } from '@/features/service-users/visit-plan/visit-plan-night-duty.util'
 import {
   assignedEmployeeIdsFromSlots,
-  formatSlotAssignedCarersSummary,
   normalizeSlotCarerFields,
-  slotGlobalCarerIds,
 } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import {
   assignCarersToGroup,
@@ -192,23 +185,6 @@ type Props = {
 const DRAFT_SAVE_DEFAULT_REASON = 'Draft visit plan updated'
 const SUSPENDED_SAVE_DEFAULT_REASON = 'Suspended visit plan updated before re-activation'
 
-function slotStartDateInputValue(
-  slot: VisitPlanSlot,
-  planEffectiveFrom?: string | null,
-): string {
-  if (slot.slotKind === 'ONE_OFF') {
-    return slot.oneOffDate?.slice(0, 10) ?? ''
-  }
-  return slot.slotEffectiveFrom?.slice(0, 10) ?? planEffectiveFrom?.slice(0, 10) ?? todayIsoDate()
-}
-
-function slotStartDatePatch(slot: VisitPlanSlot, value: string): Partial<VisitPlanSlot> {
-  if (slot.slotKind === 'ONE_OFF') {
-    return { oneOffDate: value || null }
-  }
-  return { slotEffectiveFrom: value || null }
-}
-
 function toSlotInput(slots: VisitPlanSlot[]) {
   return slots.map((s) => {
     const carers = normalizeSlotCarerFields(s)
@@ -243,7 +219,6 @@ function toSlotInput(slots: VisitPlanSlot[]) {
       slotEffectiveTo: s.slotEffectiveTo,
       oneOffDate: s.oneOffDate,
       allowBackfillDays: s.allowBackfillDays,
-      exceptions: (s.exceptions ?? []).map(({ id: _id, ...exception }) => exception),
     }
   })
 }
@@ -295,8 +270,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
     slotCode: VisitPlanSlot['slotCode']
     groupId: string
   } | null>(null)
-  const [exceptionsSectionOpen, setExceptionsSectionOpen] = React.useState(false)
-  const exceptionsSectionRef = React.useRef<HTMLDetailsElement>(null)
+  const dateChangesSectionRef = React.useRef<HTMLDivElement>(null)
+  const weeklyHoursInputRef = React.useRef<HTMLInputElement>(null)
+  const [visitDialog, setVisitDialog] = React.useState<{ mode: 'add' | 'edit'; visit: VisitPlanSlot } | null>(null)
+  /** The schedule as last loaded from the server, to tell the user when there are unsaved changes. */
+  const [savedSlotsSnapshot, setSavedSlotsSnapshot] = React.useState('')
   const [suspendDialogOpen, setSuspendDialogOpen] = React.useState(false)
   const [endDialogOpen, setEndDialogOpen] = React.useState(false)
   const [reactivateDialogOpen, setReactivateDialogOpen] = React.useState(false)
@@ -317,12 +295,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
   >(null)
   const [postReactivateGenerateOpen, setPostReactivateGenerateOpen] = React.useState(false)
 
-  const openExceptionsForSlot = React.useCallback((slotCode: VisitPlanSlot['slotCode']) => {
-    setConfigSlotCode(slotCode)
-    setExceptionsSectionOpen(true)
-    requestAnimationFrame(() => {
-      exceptionsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    })
+  const scrollToDateChanges = React.useCallback(() => {
+    dateChangesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [])
 
   const configSlotIndex = React.useMemo(
@@ -363,6 +337,15 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
 
   const careContext = useVisitPlanCareContext(serviceUserId, workingPlan?.status ?? null)
 
+  const dateChangesQuery = useVisitPlanDateChanges(serviceUserId, workingPlan?.id)
+  const dateChangeCountBySlotId = React.useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const change of dateChangesQuery.data?.changes ?? []) {
+      counts.set(change.visitPlanSlotId, (counts.get(change.visitPlanSlotId) ?? 0) + 1)
+    }
+    return counts
+  }, [dateChangesQuery.data])
+
   const assignedEmployeeIds = React.useMemo(() => assignedEmployeeIdsFromSlots(slots), [slots])
   const employeeNameById = useEmployeeNameMap(assignedEmployeeIds)
 
@@ -372,17 +355,19 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
     // a saved plan's explicit values, which come through `prev` in the builder).
     const defaultRequiredCarers = careContext.loneWorkerTwoCarerRequired ? 2 : 1
     if (!workingPlan) {
-      setSlots(visitPlanSlotsFromMedicationRounds(medicationRounds, undefined, { defaultRequiredCarers }))
+      const blank = visitPlanSlotsFromMedicationRounds(medicationRounds, undefined, { defaultRequiredCarers })
+      setSlots(blank)
+      setSavedSlotsSnapshot(JSON.stringify(toSlotInput(blank)))
       if (careContext.loneWorkerTwoCarerRequired) setNumberOfCarers(2)
       return
     }
-    setSlots(
-      visitPlanSlotsFromMedicationRounds(
-        medicationRounds,
-        workingPlan.slots?.length ? workingPlan.slots : undefined,
-        { defaultRequiredCarers },
-      ),
+    const loaded = visitPlanSlotsFromMedicationRounds(
+      medicationRounds,
+      workingPlan.slots?.length ? workingPlan.slots : undefined,
+      { defaultRequiredCarers },
     )
+    setSlots(loaded)
+    setSavedSlotsSnapshot(JSON.stringify(toSlotInput(loaded)))
     setWeeklyHours(workingPlan.weeklyContractedHours ?? '')
     setNumberOfCarers(workingPlan.numberOfCarers)
     setNotes(workingPlan.notes ?? '')
@@ -390,9 +375,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
 
   React.useEffect(() => {
     if (!slots.length) return
-    if (slots.some((s) => s.slotCode === configSlotCode)) return
-    const firstEnabled = slots.find((s) => s.isEnabled)
-    setConfigSlotCode((firstEnabled ?? slots[0]!).slotCode)
+    // Only a visit that exists can be selected; a removed visit drops the selection.
+    if (slots.some((s) => s.slotCode === configSlotCode && s.isEnabled)) return
+    setConfigSlotCode(slots.find((s) => s.isEnabled)?.slotCode ?? '')
   }, [slots, configSlotCode])
 
   React.useEffect(() => {
@@ -402,17 +387,6 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
       hasPlan: Boolean(workingPlan?.id),
     })
   }, [slots, workingPlan?.id, workingPlan?.status, onSetupGuideData])
-
-  const toggleDay = (slotIndex: number, day: number) => {
-    setSlots((prev) =>
-      prev.map((row, i) => {
-        if (i !== slotIndex) return row
-        const has = row.daysOfWeek.includes(day)
-        const daysOfWeek = has ? row.daysOfWeek.filter((d) => d !== day) : [...row.daysOfWeek, day].sort()
-        return { ...row, daysOfWeek }
-      }),
-    )
-  }
 
   const updateSlot = (slotIndex: number, patch: Partial<VisitPlanSlot>) => {
     setSlots((prev) =>
@@ -424,12 +398,91 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
     )
   }
 
+  const openAddVisit = (roundCode: string) => {
+    const round = medicationRounds.find((r) => r.code === roundCode)
+    if (!round) return
+    const rows = slots.filter((s) => visitPlanSlotRoundCode(s) === roundCode)
+    // A removed visit keeps its row, so adding again brings its settings back.
+    const reusable = rows.find((s) => !s.isEnabled)
+    if (reusable) {
+      // A row that was never set up has times but no duration yet — show the length they imply.
+      const durationMinutes =
+        reusable.durationMinutes ??
+        visitDurationMinutes(
+          normalizeTimeForInput(reusable.plannedStartTime),
+          normalizeTimeForInput(reusable.plannedEndTime),
+        )
+      setVisitDialog({ mode: 'add', visit: { ...reusable, isEnabled: true, durationMinutes } })
+      return
+    }
+    const fresh = newVisitPlanSlotForRound(round, nextAdditionalVisitSlotCode(roundCode, slots), {
+      defaultRequiredCarers: careContext.loneWorkerTwoCarerRequired ? 2 : numberOfCarers,
+    })
+    // Start the next visit where the slot's last one ends, for an hour.
+    const lastEnd = rows
+      .filter((s) => s.isEnabled)
+      .map((s) => s.plannedEndTime)
+      .sort()
+      .pop()
+    const start = lastEnd ?? fresh.plannedStartTime
+    const end = lastEnd ? visitPlanEndTimeFromStartAndDuration(start, 60) : null
+    setVisitDialog({
+      mode: 'add',
+      visit: end ? { ...fresh, plannedStartTime: start, plannedEndTime: end, durationMinutes: 60 } : fresh,
+    })
+  }
+
+  const openEditVisit = (slotCode: string) => {
+    const visit = slots.find((s) => s.slotCode === slotCode)
+    if (!visit) return
+    setConfigSlotCode(slotCode)
+    setVisitDialog({ mode: 'edit', visit })
+  }
+
+  const applyVisit = (visit: VisitPlanSlot) => {
+    const next = { ...visit, nightDuty: resolveVisitPlanNightDuty(visit) }
+    setSlots((prev) => {
+      if (prev.some((row) => row.slotCode === next.slotCode)) {
+        return prev.map((row) => (row.slotCode === next.slotCode ? next : row))
+      }
+      // A new row sits right after the other rows of its time slot.
+      const roundCode = visitPlanSlotRoundCode(next)
+      let insertAt = prev.length
+      prev.forEach((row, index) => {
+        if (visitPlanSlotRoundCode(row) === roundCode) insertAt = index + 1
+      })
+      return [...prev.slice(0, insertAt), next, ...prev.slice(insertAt)]
+    })
+    setConfigSlotCode(next.slotCode)
+  }
+
+  const removeVisit = (slotCode: string) => {
+    setSlots((prev) =>
+      prev.flatMap((row) => {
+        if (row.slotCode !== slotCode) return [row]
+        // An additional visit that was never saved simply goes away; a saved one is switched off
+        // so the save can cancel its rota visits.
+        if (!row.id && isAdditionalVisitSlotCode(row.slotCode)) return []
+        return [{ ...row, isEnabled: false }]
+      }),
+    )
+  }
+
+  const focusWeeklyHours = () => {
+    const input = weeklyHoursInputRef.current
+    if (!input) return
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    input.focus({ preventScroll: true })
+  }
+
   const handleCreate = async () => {
     if (parseWeeklyContractedHours(weeklyHours) === null) {
       toastApiError(
         new Error('Weekly contracted hours required'),
         'Enter weekly contracted hours before creating a visit plan',
       )
+      // The field is at the top of the page — take the user to it.
+      focusWeeklyHours()
       return
     }
     try {
@@ -701,6 +754,13 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
     toastSuccess('Contract values applied', 'Save or activate the plan to persist these figures.')
   }
 
+  const hasUnsavedSchedule =
+    savedSlotsSnapshot !== '' && savedSlotsSnapshot !== JSON.stringify(toSlotInput(slots))
+  const unsavedScheduleHint = !workingPlan
+    ? 'Create draft visit plan'
+    : workingPlan.status === 'ACTIVE'
+      ? 'Record amendment'
+      : 'Save draft'
   const isPublishing = update.isPending || activate.isPending
   const planIsLive = workingPlan?.status === 'ACTIVE'
   const hasWeeklyContractedHours = parseWeeklyContractedHours(weeklyHours) !== null
@@ -921,6 +981,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
             }
           >
             <Input
+              ref={weeklyHoursInputRef}
               value={weeklyHours}
               onChange={(e) => setWeeklyHours(e.target.value)}
               placeholder="e.g. 14"
@@ -1003,9 +1064,10 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
           titleAs="h3"
           description={
             <>
-              One row per call type (Morning, Evening, …). Turn visits on, pick days, set start date, times, and
-              duration, then <strong>Assign</strong> carers. Use <strong>Skip date</strong> to miss this visit on one
-              day only.
+              Visits are grouped by time slot (Morning, Evening, …). Use <strong>Add visit</strong> in a slot — a slot
+              can hold more than one visit — then pick days, set start date, times, and
+              duration, then <strong>Assign</strong> carers. Use <strong>Changes for specific dates</strong> below to
+              cancel or add a visit on particular days.
             </>
           }
           className="mb-4"
@@ -1017,305 +1079,48 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 No time slots configured. Add them under Settings → Time slots.
               </p>
             ) : null}
-            <Table className="min-w-[1080px]">
-                <TableHeader>
-                  <TableRow className="border-b border-border bg-muted/40 hover:bg-transparent">
-                    <TableHead variant="data">Slot</TableHead>
-                    <TableHead variant="data">On</TableHead>
-                    {VISIT_PLAN_DAY_LABELS.map((d) => (
-                      <TableHead key={d} variant="data" align="center" className="px-1">
-                        {d}
-                      </TableHead>
-                    ))}
-                    <TableHead variant="data" className="pl-2">Start</TableHead>
-                    <TableHead variant="data" className="pl-2">Duration (mins)</TableHead>
-                    <TableHead variant="data" className="pl-2">End</TableHead>
-                    <TableHead variant="data" className="pl-2">Carers</TableHead>
-                    <TableHead variant="data">Care plans</TableHead>
-                    <TableHead variant="data">Assigned carers</TableHead>
-                    <TableHead variant="data">Exceptions</TableHead>
-                    <TableHead variant="data">Details</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {slots.map((slot, rowIndex) => {
-                    const assignedIds = slotGlobalCarerIds(slot)
-                    const carerSummary = formatSlotAssignedCarersSummary(slot, employeeNameById)
-                    return (
-                      <TableRow
-                        key={slot.slotCode}
-                        className={cn(
-                          'cursor-pointer border-b border-border/60 hover:bg-muted/40',
-                          // Disabled controls swallow clicks; let them reach the row so the slot can be selected.
-                          !slot.isEnabled && '[&_:disabled]:pointer-events-none',
-                          configSlotCode === slot.slotCode && 'bg-teal-50/90 dark:bg-teal-950/30',
-                        )}
-                        onClick={() => setConfigSlotCode(slot.slotCode)}
-                      >
-                        <TableCell variant="data" className="pr-0">
-                          <div className={contentTableRowLabelClass}>{slot.label}</div>
-                          {slot.nightDuty !== 'NONE' ? (
-                            <p className="mt-0.5 text-[11px] text-sky-700 dark:text-sky-300">
-                              {formatVisitPlanNightDuty(slot.nightDuty)}
-                            </p>
-                          ) : null}
-                          <Input
-                            type="date"
-                            className="mt-1 h-8 w-[9.5rem] text-sm"
-                            value={slotStartDateInputValue(slot, workingPlan?.effectiveFrom)}
-                            disabled={!slot.isEnabled}
-                            aria-label={`${slot.label} start date`}
-                            onChange={(e) =>
-                              updateSlot(rowIndex, slotStartDatePatch(slot, e.target.value))
-                            }
-                          />
-                        </TableCell>
-                        <TableCell variant="data">
-                          <Switch
-                            checked={slot.isEnabled}
-                            onCheckedChange={(isEnabled) => {
-                              updateSlot(rowIndex, { isEnabled })
-                              if (isEnabled) setConfigSlotCode(slot.slotCode)
-                            }}
-                            aria-label={`Enable ${slot.label}`}
-                          />
-                        </TableCell>
-                        {VISIT_PLAN_DAY_LABELS.map((_, dayIndex) => (
-                          <TableCell key={dayIndex} variant="data" className="px-1 text-center">
-                            <Checkbox
-                              checked={slot.daysOfWeek.includes(dayIndex)}
-                              disabled={
-                                !slot.isEnabled ||
-                                slot.scheduleFrequency === 'MONTHLY' ||
-                                slot.scheduleFrequency === 'WEEKLY'
-                              }
-                              onCheckedChange={() => toggleDay(rowIndex, dayIndex)}
-                              aria-label={`${slot.label} ${VISIT_PLAN_DAY_LABELS[dayIndex]}`}
-                              title={
-                                slot.scheduleFrequency === 'MONTHLY'
-                                  ? 'Monthly visits use the day picker in Scheduling options'
-                                  : slot.scheduleFrequency === 'WEEKLY'
-                                    ? 'Weekly visits use the weekday picker in Scheduling options'
-                                    : undefined
-                              }
-                            />
-                          </TableCell>
-                        ))}
-                        <TableCell variant="data" className="pl-2">
-                          <Input
-                            type="time"
-                            className="h-8 w-[7.25rem] text-sm"
-                            value={normalizeTimeForInput(slot.plannedStartTime)}
-                            disabled={!slot.isEnabled}
-                            onChange={(e) => {
-                              const plannedStartTime = e.target.value
-                              const end = visitPlanEndTimeFromStartAndDuration(
-                                plannedStartTime,
-                                slot.durationMinutes,
-                              )
-                              updateSlot(rowIndex, {
-                                plannedStartTime,
-                                ...(end ? { plannedEndTime: end } : {}),
-                              })
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell variant="data" className="pl-2">
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            className="h-8 w-16 text-sm tabular-nums"
-                            value={slot.durationMinutes ?? ''}
-                            placeholder="min"
-                            disabled={!slot.isEnabled}
-                            aria-label={`${slot.label} duration minutes`}
-                            onChange={(e) => {
-                              const raw = e.target.value
-                              if (raw !== '' && !/^\d*$/.test(raw)) return
-                              const durationMinutes =
-                                raw === ''
-                                  ? null
-                                  : Math.min(VISIT_PLAN_MAX_DURATION_MINUTES, Math.max(1, Number(raw)))
-                              const end = visitPlanEndTimeFromStartAndDuration(
-                                slot.plannedStartTime,
-                                durationMinutes,
-                              )
-                              updateSlot(rowIndex, {
-                                durationMinutes,
-                                ...(end ? { plannedEndTime: end } : {}),
-                              })
-                            }}
-                            onFocus={(e) => e.currentTarget.select()}
-                          />
-                        </TableCell>
-                        <TableCell variant="data" className="pl-2">
-                          <Input
-                            type="time"
-                            className="h-8 w-[7.25rem] text-sm"
-                            value={normalizeTimeForInput(slot.plannedEndTime)}
-                            disabled={!slot.isEnabled}
-                            onChange={(e) => {
-                              const plannedEndTime = e.target.value
-                              const start = normalizeTimeForInput(slot.plannedStartTime)
-                              const end = normalizeTimeForInput(plannedEndTime)
-                              const mins = start && end ? visitDurationMinutes(start, end) : null
-                              updateSlot(rowIndex, {
-                                plannedEndTime,
-                                ...(mins != null && mins > 0 ? { durationMinutes: mins } : {}),
-                              })
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell variant="data" className="pl-2">
-                          <VisitPlanCarersCountInput
-                            className="h-8 w-16 text-sm"
-                            disabled={!slot.isEnabled}
-                            value={slot.requiredCarers}
-                            aria-label={`${slot.label} carers per visit`}
-                            onCommit={(requiredCarers) => {
-                              // Slot default count trims the global carers only; day-specific advanced
-                              // rows keep their own carers and per-row counts untouched.
-                              const globalIds = slotGlobalCarerIds(slot)
-                              const assignedEmployeeIds =
-                                globalIds.length > requiredCarers
-                                  ? globalIds.slice(0, requiredCarers)
-                                  : globalIds
-                              const carerAssignments = (slot.carerAssignments ?? []).filter(
-                                (a) => a.dayOfWeek != null || assignedEmployeeIds.includes(a.employeeId),
-                              )
-                              updateSlot(rowIndex, { requiredCarers, assignedEmployeeIds, carerAssignments })
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell variant="data">
-                          {slot.isEnabled ? (
-                            <div className="flex min-w-[120px]">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-8"
-                                onClick={() => setCarePlansModalSlotCode(slot.slotCode)}
-                              >
-                                <Eye className="mr-1 h-3.5 w-3.5" />
-                                View
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className={contentBodyClass}>—</span>
-                          )}
-                        </TableCell>
-                        <TableCell variant="data">
-                          {slot.isEnabled ? (
-                            <div className="flex min-w-[140px] flex-col gap-1">
-                              <p
-                                className={cn(
-                                  contentBodyClass,
-                                  'leading-snug',
-                                  assignedIds.length ? 'text-foreground' : undefined,
-                                )}
-                                title={carerSummary}
-                              >
-                                {carerSummary}
-                              </p>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-8 w-fit"
-                                onClick={() => setCarersModalSlotCode(slot.slotCode)}
-                              >
-                                <UserPlus className="mr-1 h-3.5 w-3.5" />
-                                {assignedIds.length > 0 ? 'Change' : 'Assign'}
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className={contentBodyClass}>—</span>
-                          )}
-                        </TableCell>
-                        <TableCell variant="data">
-                          {slot.isEnabled ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-8"
-                              onClick={() => openExceptionsForSlot(slot.slotCode)}
-                            >
-                              <CalendarOff className="mr-1 h-3.5 w-3.5" />
-                              {slot.exceptions.length > 0 ? `${slot.exceptions.length} set` : 'Skip date'}
-                            </Button>
-                          ) : (
-                            <span className={contentBodyClass}>—</span>
-                          )}
-                        </TableCell>
-                        <TableCell variant="data">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8"
-                            onClick={() => {
-                              setConfigSlotCode(slot.slotCode)
-                              setDetailsSlotCode(slot.slotCode)
-                            }}
-                          >
-                            <PanelRightOpen className="mr-1 h-3.5 w-3.5" />
-                            Details
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+            {hasUnsavedSchedule ? (
+              <p
+                className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+                data-testid="visit-plan-unsaved"
+              >
+                Unsaved changes to the visit schedule. Use <strong>{unsavedScheduleHint}</strong> below to save them.
+                {!workingPlan && !hasWeeklyContractedHours ? (
+                  <>
+                    {' '}First enter{' '}
+                    <button type="button" className="font-medium underline underline-offset-2" onClick={focusWeeklyHours}>
+                      Weekly contracted hours
+                    </button>
+                    .
+                  </>
+                ) : null}
+              </p>
+            ) : null}
+            <VisitPlanSlotGroups
+              rounds={medicationRounds}
+              slots={slots}
+              employeeNameById={employeeNameById}
+              dateChangeCountBySlotId={dateChangeCountBySlotId}
+              selectedSlotCode={configSlotCode}
+              onSelect={setConfigSlotCode}
+              onAddVisit={openAddVisit}
+              onEditVisit={openEditVisit}
+              onRemoveVisit={removeVisit}
+              onOpenDateChanges={scrollToDateChanges}
+            />
+
 
         {configSlot ? (
           <div className="mt-6 space-y-3 border-t border-border pt-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className={contentBodyClass}>
-                Optional settings for <strong className="font-medium text-foreground">{configSlot.label}</strong> — click a row
-                above to switch slot.
-                {!configSlot.isEnabled ? (
-                  <span className={cn('ml-1', contentHelperClass)}>
-                    This visit is off — turn it on to schedule it.
-                  </span>
-                ) : null}
+                More options for the{' '}
+                <strong className="font-medium text-foreground">
+                  {configSlot.label} visit at {configSlot.plannedStartTime}–{configSlot.plannedEndTime}
+                </strong>{' '}
+                — select another visit above to switch.
               </p>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => setCarersModalSlotCode(configSlot.slotCode)}
-              >
-                <UserPlus className="mr-1 h-3.5 w-3.5" />
-                Assign carers to {configSlot.label}
-              </Button>
             </div>
-            <details
-              ref={exceptionsSectionRef}
-              open={exceptionsSectionOpen}
-              onToggle={(event) => setExceptionsSectionOpen(event.currentTarget.open)}
-              className="rounded-lg border border-amber-200 bg-amber-50/40 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/20"
-            >
-              <summary className={contentSummaryClass}>
-                Skip or extra visit on a specific date
-                {configSlot.exceptions.length > 0 ? (
-                  <span className={cn('ml-2 font-normal', contentHelperClass)}>
-                    ({configSlot.exceptions.length} for {configSlot.label})
-                  </span>
-                ) : null}
-              </summary>
-              <div className="mt-4">
-                <VisitPlanSlotExceptionsPanel
-                  slot={configSlot}
-                  onChange={(patch) => {
-                    if (configSlotIndex < 0) return
-                    updateSlot(configSlotIndex, patch)
-                  }}
-                />
-              </div>
-            </details>
             <details className="rounded-lg border border-border bg-muted/20 px-4 py-3">
               <summary className={contentSummaryClass}>
                 Frequency &amp; schedule rules
@@ -1377,10 +1182,21 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
           </div>
         ) : (
           <p className={cn('mt-4 border-t border-border pt-4', contentHelperClass)}>
-            Click a visit row above to see optional settings for that slot.
+            Add or select a visit above to see more options for it.
           </p>
         )}
       </ContentCard>
+
+      <div ref={dateChangesSectionRef}>
+        <VisitPlanDateChangesSection
+          serviceUserId={serviceUserId}
+          planId={workingPlan?.id}
+          planStatus={workingPlan?.status ?? null}
+          slots={slots}
+          usualCarerIds={assignedEmployeeIds}
+          defaultRequiredCarers={numberOfCarers}
+        />
+      </div>
 
       {detailsSlot ? (
             <VisitPlanSlotDetailsSheet
@@ -1609,7 +1425,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                   type="button"
                   variant="default"
                   onClick={() => void handleCreate()}
-                  disabled={create.isPending || !hasWeeklyContractedHours}
+                  disabled={create.isPending}
                 >
                   {create.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1620,6 +1436,15 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 </Button>
               )}
             </div>
+            {!workingPlan && !hasWeeklyContractedHours ? (
+              <p className="text-sm text-amber-700 dark:text-amber-300" data-testid="visit-plan-hours-needed">
+                Enter{' '}
+                <button type="button" className="font-medium underline underline-offset-2" onClick={focusWeeklyHours}>
+                  Weekly contracted hours
+                </button>{' '}
+                at the top of the page before creating the plan.
+              </p>
+            ) : null}
       </ContentCard>
 
       {/* Forward regenerate — creates missing visits and syncs carers on existing ones */}
@@ -1807,6 +1632,25 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
               </ul>
         </ContentCard>
       ) : null}
+
+      <VisitPlanUnsavedChangesGuard
+        dirty={hasUnsavedSchedule && !create.isPending && !update.isPending && !activate.isPending}
+      />
+
+      <VisitPlanVisitDialog
+        open={visitDialog !== null}
+        onOpenChange={(open) => {
+          if (!open) setVisitDialog(null)
+        }}
+        mode={visitDialog?.mode ?? 'add'}
+        visit={visitDialog?.visit ?? null}
+        otherSlots={slots}
+        serviceUserId={serviceUserId}
+        planEffectiveFrom={workingPlan?.effectiveFrom}
+        acceptedCarePlans={careContext.acceptedCarePlans}
+        employeeNameById={employeeNameById}
+        onDone={applyVisit}
+      />
 
       <VisitPlanSuspendDialog
         open={suspendDialogOpen}

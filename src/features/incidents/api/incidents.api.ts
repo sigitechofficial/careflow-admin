@@ -8,6 +8,9 @@ import type {
   IncidentAnalyticsFilters,
   IncidentCategoryOption,
   IncidentCarerSuspension,
+  IncidentStaffAction,
+  CarePlanMeasureEvidence,
+  IncidentStaffActionInput,
   IncidentExternalBody,
   IncidentExternalBodyInput,
   EmployeeIncidentSuspension,
@@ -75,6 +78,8 @@ export async function fetchIncidents(
     categoryId: filters.categoryId,
     serviceUserId: filters.serviceUserId,
     employeeId: filters.employeeId,
+    reporterEmployeeId: filters.reporterEmployeeId,
+    candour: filters.candour,
     locationId: filters.locationId,
     openOnly: filters.openOnly,
     dateField: filters.dateField,
@@ -109,10 +114,17 @@ export async function changeIncidentStatus(
   reason?: string,
   overrideMandatoryActions?: boolean,
   overrideOpenExternalBodies?: boolean,
+  overrideIncompleteCandour?: boolean,
 ): Promise<IncidentListItem> {
   const res = await apiJson<ApiEnvelope<IncidentListItem>>(`/incidents/${id}/status`, {
     method: 'POST',
-    body: JSON.stringify({ status, reason, overrideMandatoryActions, overrideOpenExternalBodies }),
+    body: JSON.stringify({
+      status,
+      reason,
+      overrideMandatoryActions,
+      overrideOpenExternalBodies,
+      overrideIncompleteCandour,
+    }),
   })
   return res.data
 }
@@ -300,6 +312,56 @@ export async function continueIncidentCarerSuspension(
   return res.data
 }
 
+export async function createIncidentStaffAction(
+  id: string,
+  input: IncidentStaffActionInput & { employeeId: string },
+): Promise<IncidentStaffAction> {
+  const res = await apiJson<ApiEnvelope<IncidentStaffAction>>(`/incidents/${id}/staff-actions`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return res.data
+}
+
+export async function updateIncidentStaffAction(
+  id: string,
+  staffActionId: string,
+  input: IncidentStaffActionInput & { changeReason: string },
+): Promise<IncidentStaffAction> {
+  const res = await apiJson<ApiEnvelope<IncidentStaffAction>>(
+    `/incidents/${id}/staff-actions/${staffActionId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+  )
+  return res.data
+}
+
+export async function removeIncidentStaffAction(
+  id: string,
+  staffActionId: string,
+  reason: string,
+): Promise<void> {
+  await apiJson<ApiEnvelope<{ id: string }>>(
+    `/incidents/${id}/staff-actions/${staffActionId}/remove`,
+    { method: 'POST', body: JSON.stringify({ reason }) },
+  )
+}
+
+export type CandourStep = 'decision' | 'told' | 'written' | 'results' | 'unable' | 'attempts'
+
+/** Duty of Candour: one step for one service user. */
+export async function saveCandourStep(
+  incidentId: string,
+  serviceUserId: string,
+  step: CandourStep,
+  body: Record<string, unknown>,
+): Promise<{ status?: string } | undefined> {
+  const res = await apiJson<ApiEnvelope<{ status?: string } | undefined>>(
+    `/incidents/${incidentId}/candour/${serviceUserId}/${step}`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
 /** A carer's suspensions across incidents (employee record). */
 export async function fetchEmployeeIncidentSuspensions(
   employeeId: string,
@@ -369,11 +431,28 @@ export async function completeIncidentAction(
   actionId: string,
   completionNotes: string,
   completedRecords?: { id: string; label: string }[],
+  carePlanVersionId?: string,
 ): Promise<IncidentAction> {
   const res = await apiJson<ApiEnvelope<IncidentAction>>(`/incidents/actions/${actionId}/complete`, {
     method: 'POST',
-    body: JSON.stringify({ completionNotes, ...(completedRecords ? { completedRecords } : {}) }),
+    body: JSON.stringify({
+      completionNotes,
+      ...(completedRecords ? { completedRecords } : {}),
+      ...(carePlanVersionId ? { carePlanVersionId } : {}),
+    }),
   })
+  return res.data
+}
+
+/** Care plan update measure: plans to open + published versions that can complete it. */
+export async function fetchCarePlanMeasureEvidence(
+  actionId: string,
+  opts?: { signal?: AbortSignal },
+): Promise<CarePlanMeasureEvidence> {
+  const res = await apiJson<ApiEnvelope<CarePlanMeasureEvidence>>(
+    `/incidents/actions/${actionId}/care-plan-evidence`,
+    { signal: opts?.signal },
+  )
   return res.data
 }
 

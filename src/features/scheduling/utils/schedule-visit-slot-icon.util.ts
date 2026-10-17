@@ -3,6 +3,7 @@ import { CalendarClock, CloudSun, Moon, Sun, Sunrise, Sunset } from 'lucide-reac
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
   scheduleJobsPeriodBandForHour,
+  scheduleJobsPeriodFromText,
   type ScheduleJobsDayPeriod,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { formatOpsHm } from '@/shared/lib/operational-day.util'
@@ -14,15 +15,7 @@ export type ScheduleVisitSlotVisual = {
   iconClassName: string
 }
 
-function periodFromText(text: string): ScheduleJobsDayPeriod | null {
-  const t = text.toLowerCase()
-  if (/\b(night|bed|sleep|nocturnal)\b/.test(t)) return 'night'
-  if (/\b(evening|tea|supper|dusk)\b/.test(t)) return 'evening'
-  if (/\b(afternoon|pm call)\b/.test(t)) return 'afternoon'
-  if (/\b(midday|lunch|noon)\b/.test(t)) return 'midday'
-  if (/\b(morning|breakfast|am call)\b/.test(t)) return 'morning'
-  return null
-}
+const periodFromText = scheduleJobsPeriodFromText
 
 function iconForPeriod(period: ScheduleJobsDayPeriod): LucideIcon {
   switch (period) {

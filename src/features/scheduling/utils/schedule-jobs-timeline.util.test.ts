@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { EmployeeDayRow, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
+  scheduleJobsDayPeriodBandsFromTimeSlots,
   buildScheduleJobsBoard,
   jobBlockLayoutPx,
   jobBlockTone,
@@ -113,5 +114,57 @@ describe('jobBlockLayoutPx', () => {
     expect(layout.widthPx).toBe(SCHEDULE_JOBS_HOUR_WIDTH)
     expect(layout.startMin).toBe(8 * 60)
     expect(layout.endMin).toBe(9 * 60)
+  })
+})
+
+describe('scheduleJobsDayPeriodBandsFromTimeSlots', () => {
+  const slot = (code: string, name: string, windowStart: string | null, windowEnd: string | null, sortOrder: number) => ({
+    code,
+    name,
+    windowStart,
+    windowEnd,
+    sortOrder,
+    isActive: true,
+  })
+  const settings = [
+    slot('MORNING', 'Morning', '07:00', '11:00', 1),
+    slot('MIDDAY', 'Midday', '11:00', '14:00', 2),
+    slot('AFTERNOON', 'Afternoon', '14:00', '17:00', 3),
+    slot('EVENING', 'Evening', '17:00', '20:00', 4),
+    slot('NIGHT', 'Night', '20:00', '07:00', 5),
+    slot('QA_MED_BREAKFAST', 'QA-MED Breakfast', '23:35', '23:45', 6),
+  ]
+  const summary = (bands: ReturnType<typeof scheduleJobsDayPeriodBandsFromTimeSlots>) =>
+    bands?.map((b) => `${b.label} ${b.startHour}-${b.endHour} ${b.period}`)
+
+  it('follows the time slot windows, with Night split around midnight', () => {
+    expect(summary(scheduleJobsDayPeriodBandsFromTimeSlots(settings))).toEqual([
+      'Night 0-7 night',
+      'Morning 7-11 morning',
+      'Midday 11-14 midday',
+      'Afternoon 14-17 afternoon',
+      'Evening 17-20 evening',
+      'Night 20-24 night',
+    ])
+  })
+
+  it('gives each band its own id so either Night part can be zoomed', () => {
+    const ids = scheduleJobsDayPeriodBandsFromTimeSlots(settings)!.map((b) => b.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(ids).toContain('night-0')
+    expect(ids).toContain('night-20')
+  })
+
+  it('marks hours no slot covers and skips slots without a window or switched off', () => {
+    const bands = scheduleJobsDayPeriodBandsFromTimeSlots([
+      slot('MORNING', 'Morning', '07:00', '12:00', 1),
+      slot('LUNCH', 'Lunch', null, null, 2),
+      { ...slot('EVENING', 'Evening', '17:00', '20:00', 3), isActive: false },
+    ])
+    expect(summary(bands)).toEqual(['No time slot 0-7 morning', 'Morning 7-12 morning', 'No time slot 12-24 midday'])
+  })
+
+  it('returns null when no time slot has a window, so the board keeps its fallback bands', () => {
+    expect(scheduleJobsDayPeriodBandsFromTimeSlots([slot('MORNING', 'Morning', null, null, 1)])).toBeNull()
   })
 })

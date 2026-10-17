@@ -15,6 +15,11 @@ import { Badge } from '@/shared/ui/badge'
 import { StatCard } from '@/shared/ui/card'
 import { cn } from '@/shared/lib/utils'
 
+/** Gate C20: a figure the run was calculated before it was recorded. */
+function Unavailable() {
+  return <span className="text-xs text-muted-foreground">Historical detail unavailable</span>
+}
+
 function formatGbp(amount: number) {
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
@@ -360,6 +365,9 @@ export default function UkPayrollPayslipsPage() {
                     <th className="py-2.5 pr-3 text-right font-medium">Gross</th>
                     <th className="py-2.5 pr-3 text-right font-medium">Tax</th>
                     <th className="py-2.5 pr-3 text-right font-medium">Emp NI</th>
+                    <th className="py-2.5 pr-3 text-right font-medium">Student loan</th>
+                    <th className="py-2.5 pr-3 text-right font-medium">PG loan</th>
+                    <th className="py-2.5 pr-3 text-right font-medium">Pension (employee)</th>
                     <th className="py-2.5 pr-3 text-right font-medium">Net</th>
                     <th className="py-2.5 pr-4 text-right font-medium">Download</th>
                   </tr>
@@ -422,6 +430,35 @@ export default function UkPayrollPayslipsPage() {
                       <td className="py-3 pr-3 text-right tabular-nums">
                         {formatGbp(row.employeeNi)}
                       </td>
+                      <td className="py-3 pr-3 text-right tabular-nums" data-testid={`payslip-student-loan-${row.runEmployeeId}`}>
+                        {row.studentLoanPlanApplied == null ? (
+                          <Unavailable />
+                        ) : row.studentLoanPlanApplied === 'NONE' ? (
+                          '—'
+                        ) : (
+                          <>
+                            {formatGbp(row.studentLoanDeduction ?? 0)}
+                            <div className="text-xs text-muted-foreground">Plan {row.studentLoanPlanApplied}</div>
+                          </>
+                        )}
+                      </td>
+                      <td className="py-3 pr-3 text-right tabular-nums" data-testid={`payslip-pg-loan-${row.runEmployeeId}`}>
+                        {row.postgraduateLoanApplied == null ? <Unavailable /> : row.postgraduateLoanApplied ? formatGbp(row.postgraduateLoanDeduction ?? 0) : '—'}
+                      </td>
+                      <td className="py-3 pr-3 text-right tabular-nums" data-testid={`payslip-pension-${row.runEmployeeId}`}>
+                        {row.pensionApplied == null ? (
+                          <Unavailable />
+                        ) : row.pensionApplied ? (
+                          <>
+                            {formatGbp(row.pensionEmployeeNet ?? 0)}
+                            <div className="text-xs text-muted-foreground">
+                              Employer-paid {formatGbp(row.pensionEmployer ?? 0)} (not deducted)
+                            </div>
+                          </>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td className="py-3 pr-3 text-right font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
                         {formatGbp(row.netPay)}
                       </td>
@@ -446,7 +483,7 @@ export default function UkPayrollPayslipsPage() {
                   ))}
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
+                      <td colSpan={12} className="px-4 py-12 text-center text-muted-foreground">
                         <FileText
                           className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40"
                           aria-hidden

@@ -54,6 +54,13 @@ export const serviceUserKeys = {
   inventory: (id: string) =>
     [...serviceUserKeys.detail(id), 'inventory'] as const,
 
+  /** NFC tags in the home (scanned by carers at clock-in). */
+  nfcTags: (id: string) =>
+    [...serviceUserKeys.detail(id), 'nfc-tags'] as const,
+  /** Under nfcTags so tag changes also refresh the history. */
+  nfcTagScans: (id: string, tagId: string) =>
+    [...serviceUserKeys.nfcTags(id), tagId, 'scans'] as const,
+
   /** Medications list (`scope`: default active-only vs `all` includes ended/cancelled). */
   medications: (id: string, scope: 'active' | 'all' = 'active') =>
     [...serviceUserKeys.detail(id), 'medications', scope] as const,

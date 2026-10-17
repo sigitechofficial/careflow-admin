@@ -10,6 +10,11 @@ export interface SubNavItem {
   anyPermission?: Permission[]
   /** Hide this item for these UI roles (e.g. Super Admin personal inboxes). */
   hideForRoles?: RoleId[]
+  /**
+   * The screen covers every branch (pay runs, payouts, payroll settings). Hidden from a user
+   * whose pay access is limited to their own branches; the server refuses it for them anyway.
+   */
+  organisationPayScope?: boolean
   ready?: boolean
   navTestId?: string
   /** Optional sub-heading inside the parent group; shown above the first child of each run. */

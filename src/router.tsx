@@ -30,6 +30,7 @@ import { useNotificationSocket } from '@/features/notifications/hooks/useNotific
 import { UrgentOfficeAlertHost } from '@/features/ecm/components/UrgentOfficeAlertHost'
 import { useUIStore, applyTextPreferences } from '@/store/ui.store'
 import { useAuthStore } from '@/features/auth/store'
+import { withOrganisationPayScope } from '@/features/auth/pay-scope'
 import { rootAuthBeforeLoad } from '@/features/auth/guard'
 import type { Permission } from '@/features/auth/types'
 
@@ -47,6 +48,7 @@ import ServiceUserMedicationPage from '@/features/service-users/pages/ServiceUse
 import ServiceUserInitialAssessmentPage from '@/features/service-users/pages/ServiceUserInitialAssessmentPage'
 import ServiceUserCarePlanPage from '@/features/service-users/pages/ServiceUserCarePlanPage'
 import ServiceUserCarePlanFormPage from '@/features/service-users/pages/ServiceUserCarePlanFormPage'
+import type { CarePlanIncidentContext } from '@/features/incidents/components/CarePlanMeasureEvidence'
 import ServiceUserVisitPlanPage from '@/features/service-users/pages/ServiceUserVisitPlanPage'
 import ServiceUserTasksPlannerPage from '@/features/service-users/pages/ServiceUserTasksPlannerPage'
 import ServiceUserObservationsPage from '@/features/service-users/pages/ServiceUserObservationsPage'
@@ -147,8 +149,10 @@ import ServiceUserInvoicesPage from '@/features/billing/pages/ServiceUserInvoice
 import PaymentsPage from '@/features/billing/pages/PaymentsPage'
 import AuditExportPage from '@/features/billing/pages/AuditExportPage'
 import PayCardEditorPage from '@/features/billing/pages/PayCardEditorPage'
+import ChargeCardEditorPage from '@/features/billing/pages/ChargeCardEditorPage'
 import EmployeePayCardChangePage from '@/features/billing/pages/EmployeePayCardChangePage'
 import PayItemsPage from '@/features/billing/pages/PayItemsPage'
+import WageRecoveriesPage from '@/features/billing/pages/WageRecoveriesPage'
 import PayItemCreatePage from '@/features/billing/pages/PayItemCreatePage'
 import EcmLiveMonitoringPage from '@/features/ecm/pages/EcmLiveMonitoringPage'
 import EcmGraphPage from '@/features/ecm/pages/EcmGraphPage'
@@ -160,6 +164,7 @@ import PayrollTaxesPage from '@/features/payroll/pages/PayrollTaxesPage'
 import PayrollEmployerSettingsPage from '@/features/payroll/pages/PayrollEmployerSettingsPage'
 import PayrollSchedulesPage from '@/features/payroll/pages/PayrollSchedulesPage'
 import PayrollEmployeesPage from '@/features/payroll/pages/PayrollEmployeesPage'
+import PayrollEmployeeDetailPage from '@/features/payroll/pages/PayrollEmployeeDetailPage'
 import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesPage'
 import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
 import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
@@ -211,6 +216,7 @@ import ServiceUserHoursPage from '@/features/service-users/pages/ServiceUserHour
 import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
 import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
 import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
+import SpecialVisitsPage from '@/features/special-visits/pages/SpecialVisitsPage'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
 import {
   ROLES_PERMISSIONS_SUB_IDS,
@@ -296,6 +302,7 @@ const pageTitles: Record<string, string> = {
   '/employee/staff-list': 'Employee',
   '/employee/hours': 'Employee hours',
   '/employee/absences': 'Absence tracker',
+  '/special-visits': 'Special visits',
   '/employee/compliance': 'Compliance board',
   '/employee/review-status': 'Employee',
   '/employee/skills': 'Employee',
@@ -331,7 +338,10 @@ const pageTitles: Record<string, string> = {
   '/settings/care-pathway': 'Care Pathway',
   '/billing': 'Billing Management',
   '/billing/pay-cards/new': 'New pay card',
+  '/billing/charge-cards/new': 'New charge card',
+  '/billing/charge-cards/$chargeCardId/edit': 'Edit charge card',
   '/billing/pay-items': 'Pay items',
+  '/billing/wage-recoveries': 'Wage recoveries',
   '/billing/pay-items/new': 'New pay item',
   '/employee/$employeeId/pay-card/change': 'Change pay card',
   '/billing/pay-cards/$payCardId/edit': 'Edit pay card',
@@ -354,6 +364,7 @@ const pageTitles: Record<string, string> = {
   '/payroll/employer': 'Employer PAYE',
   '/payroll/schedules': 'Schedules & periods',
   '/payroll/employees': 'Employee payroll setup',
+  '/payroll/employees/$employeeId': 'Employee payroll',
   '/office-salaries': 'Office salaries',
   '/checklist': 'Checklist',
   '/my-tasks': 'My tasks',
@@ -1043,6 +1054,19 @@ const serviceUsersCarePlanRoute = createRoute({
 const serviceUsersCarePlanFormRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/care-plan/forms/$formId',
+  // Opened from an incident "Care plan update" measure: publish links the new version to it.
+  validateSearch: (raw: Record<string, unknown>): Partial<CarePlanIncidentContext> => {
+    const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+    const incidentId = str(raw.incidentId)
+    const incidentActionId = str(raw.incidentActionId)
+    if (!incidentId || !incidentActionId) return {}
+    return {
+      incidentId,
+      incidentActionId,
+      incidentRef: str(raw.incidentRef) ?? '',
+      measure: str(raw.measure) ?? '',
+    }
+  },
   beforeLoad: requirePermission('service_users.read'),
   loader: ({ context: { queryClient: qc }, params: { serviceUserId, formId } }) => {
     prefetchServiceUserCarePlanFormRoute(qc, serviceUserId, formId)
@@ -1401,6 +1425,22 @@ const employeeAbsencesRoute = createRoute({
   path: '/employee/absences',
   beforeLoad: requireAnyPermission('employees.read', 'employees.reports.read'),
   component: EmployeeAbsencesPage,
+})
+
+const parentalLeaveRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/parental-leave',
+  // Retired: parental leave is now recorded in the employee Absence tracker.
+  beforeLoad: () => {
+    throw redirect({ to: '/employee/absences' })
+  },
+})
+
+const specialVisitsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/special-visits',
+  beforeLoad: requireAnyPermission('employees.read', 'employees.reports.read'),
+  component: SpecialVisitsPage,
 })
 
 const employeeComplianceRoute = createRoute({
@@ -1947,18 +1987,39 @@ const billingPayCardEditRoute = createRoute({
   component: PayCardEditorPage,
 })
 
+const billingChargeCardNewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/charge-cards/new',
+  beforeLoad: requirePermission('billing.charge_cards.manage'),
+  component: ChargeCardEditorPage,
+})
+
+const billingChargeCardEditRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/charge-cards/$chargeCardId/edit',
+  beforeLoad: requirePermission('billing.charge_cards.manage'),
+  component: ChargeCardEditorPage,
+})
+
 const billingPayItemsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/pay-items',
   beforeLoad: requirePermission('billing.payroll_runs.read'),
-  component: PayItemsPage,
+  component: withOrganisationPayScope(PayItemsPage),
+})
+
+const billingWageRecoveriesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/wage-recoveries',
+  beforeLoad: requirePermission('billing.payroll_runs.read'),
+  component: withOrganisationPayScope(WageRecoveriesPage),
 })
 
 const billingPayItemNewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/pay-items/new',
   beforeLoad: requirePermission('billing.payroll_runs.manage'),
-  component: PayItemCreatePage,
+  component: withOrganisationPayScope(PayItemCreatePage),
 })
 
 const employeePayCardChangeRoute = createRoute({
@@ -1990,7 +2051,7 @@ const billingPayrollRunsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/payroll-runs',
   beforeLoad: requirePermission('billing.payroll_runs.read'),
-  component: PayrollRunsPage,
+  component: withOrganisationPayScope(PayrollRunsPage),
 })
 
 const billingSalaryRoute = createRoute({
@@ -2008,7 +2069,7 @@ const billingEmployeePayoutsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/employee-payouts',
   beforeLoad: requirePermission('billing.employee_payouts.read'),
-  component: EmployeePayoutsPage,
+  component: withOrganisationPayScope(EmployeePayoutsPage),
 })
 
 const billingServiceUserInvoicesRoute = createRoute({
@@ -2099,28 +2160,28 @@ const payrollTaxYearsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/tax-years',
   beforeLoad: requirePermission('payroll.settings.read'),
-  component: PayrollTaxYearsPage,
+  component: withOrganisationPayScope(PayrollTaxYearsPage),
 })
 
 const payrollTaxesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/taxes',
   beforeLoad: requirePermission('payroll.settings.read'),
-  component: PayrollTaxesPage,
+  component: withOrganisationPayScope(PayrollTaxesPage),
 })
 
 const payrollEmployerRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/employer',
   beforeLoad: requirePermission('payroll.settings.read'),
-  component: PayrollEmployerSettingsPage,
+  component: withOrganisationPayScope(PayrollEmployerSettingsPage),
 })
 
 const payrollSchedulesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/schedules',
   beforeLoad: requireAnyPermission('payroll.settings.read', 'payroll.periods.read'),
-  component: PayrollSchedulesPage,
+  component: withOrganisationPayScope(PayrollSchedulesPage),
 })
 
 const setupChecklistRoute = createRoute({
@@ -2165,18 +2226,25 @@ const payrollEmployeesRoute = createRoute({
   component: PayrollEmployeesPage,
 })
 
+const payrollEmployeeDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll/employees/$employeeId',
+  beforeLoad: requirePermission('payroll.employees.read'),
+  component: PayrollEmployeeDetailPage,
+})
+
 const payrollRunsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/runs',
   beforeLoad: requirePermission('payroll.runs.read'),
-  component: UkPayrollRunsPage,
+  component: withOrganisationPayScope(UkPayrollRunsPage),
 })
 
 const payrollRunDetailRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/runs/$runId',
   beforeLoad: requirePermission('payroll.runs.read'),
-  component: UkPayrollRunDetailPage,
+  component: withOrganisationPayScope(UkPayrollRunDetailPage),
 })
 
 const payrollPayslipsRoute = createRoute({
@@ -2427,6 +2495,8 @@ const routeTree = rootRoute.addChildren([
     employeeStaffListRoute,
     employeeHoursRoute,
     employeeAbsencesRoute,
+    parentalLeaveRoute,
+    specialVisitsRoute,
     employeeComplianceRoute,
     employeeReviewStatusRoute,
     employeeSkillsRoute,
@@ -2476,8 +2546,11 @@ const routeTree = rootRoute.addChildren([
     billingRoute,
     billingPayCardNewRoute,
     billingPayCardEditRoute,
+    billingChargeCardNewRoute,
+    billingChargeCardEditRoute,
     employeePayCardChangeRoute,
     billingPayItemsRoute,
+    billingWageRecoveriesRoute,
     billingPayItemNewRoute,
     billingVisitReconciliationRoute,
     billingPayrollRunsRoute,
@@ -2498,6 +2571,7 @@ const routeTree = rootRoute.addChildren([
     payrollEmployerRoute,
     payrollSchedulesRoute,
     payrollEmployeesRoute,
+    payrollEmployeeDetailRoute,
     officeSalariesRoute,
     setupChecklistRoute,
     myTasksRoute,

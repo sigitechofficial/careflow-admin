@@ -19,6 +19,10 @@ import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMa
 import { useLearningCourses } from '@/features/learning/hooks/useLearning'
 import { useContributingFactorOptions } from '@/features/incidents/hooks/useContributingFactorOptions'
 import { RecordItemsPicker } from '@/features/incidents/components/ContributingFactorDetail'
+import {
+  CarePlanOpenLinks,
+  CarePlanVersionPicker,
+} from '@/features/incidents/components/CarePlanMeasureEvidence'
 import { usePolicies } from '@/features/policies/hooks/usePolicies'
 import {
   useCompleteIncidentAction,
@@ -137,8 +141,11 @@ export function IncidentActionsSection({
   findings,
   serviceUsers = [],
   involvedEmployees = [],
+  incidentReference = '',
 }: {
   incidentId: string
+  /** e.g. INC-2026-000012 — carried to the care plan page so the new version links back. */
+  incidentReference?: string
   actions: IncidentAction[]
   canManage: boolean
   /** Investigation findings a measure can address. */
@@ -162,6 +169,8 @@ export function IncidentActionsSection({
   const [completionNotes, setCompletionNotes] = React.useState('')
   // Care plan / risk assessment / policy measures: the record actually updated or added.
   const [completedRecords, setCompletedRecords] = React.useState<Item[]>([])
+  // Care plan update measures: the published version that made the change.
+  const [carePlanVersionId, setCarePlanVersionId] = React.useState('')
   const completingAction = actions.find((a) => a.id === completingId)
   const completingType = INCIDENT_MEASURE_TYPE_OPTIONS.find(
     (o) => o.value === completingAction?.measureType,
@@ -380,6 +389,7 @@ export function IncidentActionsSection({
     setCompletionNotes('')
     // Start from the record the measure planned to update (if any).
     setCompletedRecords(a.linkedRecords ?? [])
+    setCarePlanVersionId('')
     setCancellingId(null)
     setRemovingId(null)
     if (mode !== 'closed') closeForm()
@@ -413,12 +423,15 @@ export function IncidentActionsSection({
 
   function confirmComplete() {
     if (!completingId || !completionNotes.trim()) return
-    const needsRecord = measureNeedsCompletedRecord(completingAction?.measureType)
+    const carePlan = completingAction?.measureType === 'CARE_PLAN_UPDATE'
+    const needsRecord = !carePlan && measureNeedsCompletedRecord(completingAction?.measureType)
+    if (carePlan && !carePlanVersionId) return
     if (needsRecord && !completedRecords.length) return
     completeMutation.mutate(
       {
         actionId: completingId,
         completionNotes: completionNotes.trim(),
+        ...(carePlan ? { carePlanVersionId } : {}),
         ...(needsRecord ? { completedRecords } : {}),
       },
       {
@@ -518,6 +531,15 @@ export function IncidentActionsSection({
                       {a.completionNotes && (
                         <p className="mt-1.5 text-xs text-muted-foreground">✓ {a.completionNotes}</p>
                       )}
+                      {a.measureType === 'CARE_PLAN_UPDATE' &&
+                        a.status !== 'COMPLETED' &&
+                        a.status !== 'CANCELLED' && (
+                          <CarePlanOpenLinks
+                            action={a}
+                            incidentId={incidentId}
+                            incidentRef={incidentReference}
+                          />
+                        )}
                     </div>
                     {a.status !== 'COMPLETED' && a.status !== 'CANCELLED' && (
                       <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row sm:items-center">
@@ -666,7 +688,15 @@ export function IncidentActionsSection({
 
                   {completingId === a.id && (
                     <div className="mt-3 space-y-2 rounded-md border border-dashed border-border bg-muted/30 p-3">
+                      {a.measureType === 'CARE_PLAN_UPDATE' && (
+                        <CarePlanVersionPicker
+                          actionId={a.id}
+                          value={carePlanVersionId}
+                          onChange={setCarePlanVersionId}
+                        />
+                      )}
                       {completingType?.newLabel &&
+                        a.measureType !== 'CARE_PLAN_UPDATE' &&
                         completingType.pick !== 'none' &&
                         completingType.pick !== 'note' &&
                         completingType.pick !== 'course' && (
@@ -710,7 +740,9 @@ export function IncidentActionsSection({
                           loading={completeMutation.isPending}
                           disabled={
                             !completionNotes.trim() ||
-                            (measureNeedsCompletedRecord(a.measureType) && !completedRecords.length)
+                            (a.measureType === 'CARE_PLAN_UPDATE'
+                              ? !carePlanVersionId
+                              : measureNeedsCompletedRecord(a.measureType) && !completedRecords.length)
                           }
                           onClick={confirmComplete}
                         >

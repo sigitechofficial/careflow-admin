@@ -24,6 +24,14 @@ export type PayrollNiCategory =
   | 'X'
 export type EmployeePayAgreementBasis = 'HOURLY_CARE' | 'SALARIED' | 'HYBRID'
 export type EmployeePayAgreementStatus = 'DRAFT' | 'ACTIVE' | 'SUPERSEDED' | 'TERMINATED'
+export type SalaryEntryPeriod = 'ANNUAL' | 'MONTHLY' | 'WEEKLY'
+export type SalaryProrationMethod =
+  | 'EQUAL_PERIODS_CALENDAR_DAYS'
+  | 'EQUAL_PERIODS_WORKING_DAYS'
+  | 'CALENDAR_DAYS_365_25'
+export type SalaryCoverage = 'ALL_VISIT_WORK' | 'CONTRACTED_HOURS' | 'NO_VISIT_WORK'
+export type GuaranteeQualifyingTime = 'VISITS' | 'VISITS_AND_TRAVEL'
+export type GuaranteeLeaveTreatment = 'COUNT_PAID_LEAVE_HOURS' | 'REDUCE_FOR_ABSENCE_DAYS'
 export type UkPayrollRunStatus =
   | 'DRAFT'
   | 'EMPLOYEES_ENROLLED'
@@ -140,6 +148,28 @@ export type EmployeePayrollProfile = {
   postgraduateLoan: boolean
   pensionOptedIn: boolean
   pensionSchemeRef: string | null
+  /** The day the apprenticeship began: decides the apprentice minimum wage rate at 19 or over. */
+  apprenticeshipStartDate?: string | null
+  /** Gate C7/C8: company director for NI as confirmed; null = not yet classified (tax and NI not calculated). */
+  isDirector?: boolean | null
+  directorAppointedOn?: string | null
+  /** Directors' NIC method: AN (standard annual earnings period) is the only one supported. */
+  directorNicMethod?: 'AN' | null
+  /** Gate C16/C17: workplace pension (relief at source); null status = not yet recorded. */
+  pensionStatus?: 'ENROLLED' | 'NOT_ENROLLED' | 'OPTED_OUT' | 'CEASED' | null
+  pensionEnrolledFrom?: string | null
+  pensionContributionBasis?: 'QUALIFYING_EARNINGS' | null
+  pensionTaxRelief?: 'RAS' | 'NET_PAY' | null
+  pensionEmployeeRatePercent?: number | null
+  pensionEmployerRatePercent?: number | null
+  pensionPolicyRef?: string | null
+  /** Student loan declaration (starter checklist / P45); null status = not yet verified. */
+  loanDeclarationStatus?: 'LOAN_DECLARED' | 'NO_LOAN_CONFIRMED' | null
+  loanDeclarationSource?: 'STARTER_CHECKLIST' | 'P45' | 'OTHER_RECORD' | null
+  loanDeclarationDate?: string | null
+  /** Automatic enrolment evidence. */
+  pensionUkWorker?: boolean | null
+  statePensionAgeDate?: string | null
   deductionElections: string[]
   bankSortCode: string | null
   bankAccountNumber: string | null
@@ -161,6 +191,25 @@ export type EmployeePayAgreement = {
   annualSalary: number | null
   contractedHours: number | null
   hourlyRateOverride: number | null
+  /** How the salary was entered; `annualSalary` is always the yearly figure. */
+  salaryEntryPeriod?: SalaryEntryPeriod | null
+  salaryEntryAmount?: number | null
+  /** How a part period is paid. Empty on an agreement made before methods existed. */
+  salaryProrationMethod?: SalaryProrationMethod | null
+  /** What work the salary already pays for. Empty = not decided: visit wages are held. */
+  salaryCoverage?: SalaryCoverage | null
+  /** Guaranteed hours a week (WM-07). A top-up is paid only when `guaranteeTopUp` says so. */
+  guaranteedWeeklyHours?: number | null
+  guaranteeTopUp?: 'PAY_SHORTFALL' | null
+  guaranteeQualifyingTime?: GuaranteeQualifyingTime | null
+  guaranteeLeaveTreatment?: GuaranteeLeaveTreatment | null
+  createdById?: string | null
+  approvedById?: string | null
+  approvedAt?: string | null
+  createdByName?: string | null
+  approvedByName?: string | null
+  /** A draft that carries or replaces a salary: a second person approves it. */
+  awaitingApproval?: boolean
   currency: string
   notes: string | null
   createdAt: string
@@ -242,6 +291,9 @@ export type UkPayrollInputLine = {
   amount: number
   isExpense: boolean
   isProvisional: boolean
+  /** Value of the source earning this line does not pay, and why. */
+  unpaidAmount?: number | null
+  unpaidReason?: 'COVERED_BY_SALARY' | 'SALARY_COVERAGE_NOT_DECIDED' | null
   sourcePayrollRunId: string | null
   sourcePayrollRunLineId: string | null
   sourceVisitReconciliationId: string | null
@@ -269,6 +321,18 @@ export type UkPayrollPayslipListItem = {
   incomeTax: number
   employeeNi: number
   netPay: number
+  /**
+   * Gate C20: stored on the closed run. An applied marker of null means the run was calculated
+   * before that figure was recorded (historical detail unavailable, not a zero).
+   */
+  studentLoanPlanApplied?: '1' | '2' | '4' | '5' | 'NONE' | null
+  studentLoanDeduction?: number
+  postgraduateLoanApplied?: boolean | null
+  postgraduateLoanDeduction?: number
+  pensionApplied?: boolean | null
+  pensionEmployeeNet?: number
+  /** Employer-paid: not an employee deduction. */
+  pensionEmployer?: number
   taxCodeApplied: string | null
   niCategoryApplied: string | null
   /** Bank disbursement via Employee payouts (separate from scheduled pay date). */
@@ -292,6 +356,15 @@ export type UkPayrollRunDetail = UkPayrollRun & {
     nmwTopUp: number
     otherPay: number
     expenseTotal: number
+    /** Mileage and expenses paid with this run's net pay; not wages (TR-13). */
+    reimbursementPayable?: number
+    /** Part of the expenses whose tax treatment has not been verified. */
+    expenseNotVerified?: number
+    totalPayable?: number
+    /** Earnings the salary already pays for: settled by this run, not paid again (WM-09). */
+    coveredBySalary?: number
+    /** Earnings held because the pay agreement does not say what the salary pays for. */
+    heldForSalaryDecision?: number
     deductionTotal: number
     totalGross: number
     inputLineCount: number
@@ -309,7 +382,85 @@ export type UkPayrollRunDetail = UkPayrollRun & {
     inputLines: UkPayrollInputLine[]
     ytd?: EmployeePayrollYtd | null
   }>
+  /** The user who created the run: they cannot review its minimum wage exceptions. */
+  createdById?: string | null
+  /** Minimum wage assessments this run made (salaried hours work). */
+  nmwAssessments?: UkNmwAssessment[]
   phaseNote?: string
+}
+
+export type NmwReviewOutcome = 'EVIDENCE_SUPPORTS_COMPLIANCE' | 'SHORTFALL_CONFIRMED'
+
+/** One employee's minimum wage position for the pay reference period of a UK payroll run. */
+export type UkNmwAssessment = {
+  id: string
+  employeeId: string
+  periodStart: string
+  periodEnd: string
+  workType: string
+  category: string
+  requiredHourly: number
+  /** Pay that counts towards the minimum wage. */
+  pay: number
+  /** Hours the pay is measured against (basic hours and hours paid on top). */
+  hours: number
+  workedHours: number
+  /** Top-up this run adds to reach the minimum wage. */
+  topUp: number
+  /** True, false, or null when the period cannot decide it. */
+  compliant: boolean | null
+  issue: string | null
+  issueMessage: string | null
+  /** Pay that may be missing (or, once confirmed, is missing). */
+  shortfall: number | null
+  /** Stops the run being closed. */
+  blocksClose: boolean
+  /** A review can be recorded: there is an open question of fact. */
+  canReview: boolean
+  reviewOutcome: NmwReviewOutcome | null
+  reviewedAt: string | null
+  reviewedByName: string | null
+  reviewNote: string | null
+  note: string | null
+  /** Contracted weekly hours of the agreement in force: the contract's own figure. */
+  contractedWeeklyHours?: number | null
+  /** Where the worker stands in the calculation year. Empty when the year was not assessed. */
+  calcYearStart?: string | null
+  calcYearEnd?: string | null
+  /** Weeks of the approved annualisation method used. */
+  weeksPerYear?: number | null
+  annualBasicHours?: number | null
+  /** Hours counted in the calculation year before this period. */
+  yearHoursBefore?: number | null
+  /** Hours beyond the basic hours of the year that this assessment counted. */
+  excessHours?: number | null
+}
+
+/** How the employer turns contracted weekly hours into basic hours for a year (salaried hours work). */
+export type SalariedHoursMethod = {
+  id: string
+  weeksPerYear: number
+  /** Where the method is written down and why it is right for these contracts. */
+  basis: string
+  effectiveFrom: string
+  status: 'DRAFT' | 'APPROVED' | 'WITHDRAWN'
+  /** A test fixture, never an employer's policy. */
+  isSynthetic: boolean
+  createdById: string | null
+  createdByName?: string | null
+  createdAt: string
+  approvedById: string | null
+  approvedByName?: string | null
+  approvedAt: string | null
+  withdrawnAt: string | null
+  withdrawnByName?: string | null
+  withdrawnNote: string | null
+}
+
+export type SalariedHoursMethods = {
+  /** The approved method that applies today, if any. */
+  inForce: SalariedHoursMethod | null
+  methods: SalariedHoursMethod[]
 }
 
 export type PayrollOverview = {
@@ -561,4 +712,155 @@ export type PayrollHmrcSubmission = {
   responseSha256?: string | null
   /** T21 — append-only lifecycle events (detail endpoints). */
   auditEvents?: PayrollHmrcSubmissionAuditEvent[]
+}
+
+/** Gate C13/C14: an HMRC student / postgraduate loan start or stop notice as recorded. */
+export type LoanNoticeType = 'SL1' | 'SL2' | 'PGL1' | 'PGL2'
+
+export type EmployeeLoanNotice = {
+  id: string
+  employeeId: string
+  noticeType: LoanNoticeType
+  studentLoanPlan: '1' | '2' | '4' | '5' | null
+  hmrcReference: string | null
+  noticeDate: string
+  receivedOn: string
+  effectivePayday: string
+  notes: string | null
+  createdById: string
+  createdAt: string
+  /** Gate C15: ACTIVE, VOIDED (recorded in error) or CORRECTED (voided and replaced). */
+  status?: 'ACTIVE' | 'VOIDED' | 'CORRECTED'
+  voidedAt?: string | null
+  voidReason?: string | null
+  voidEvidenceRef?: string | null
+  replacedById?: string | null
+  replacesId?: string | null
+}
+
+/** Correction of a loan / pension amount in a closed run (maker/checker). */
+export type PayrollDeductionAdjustment = {
+  id: string
+  employeeId: string
+  taxYearId: string
+  kind: 'STUDENT_LOAN' | 'POSTGRADUATE_LOAN' | 'PENSION_EMPLOYEE' | 'PENSION_EMPLOYER'
+  sourceRunId: string
+  originalAmount: number
+  correctedAmount: number
+  amount: number
+  reason: string
+  evidenceRef: string
+  origin: string
+  status: 'PROPOSED' | 'APPROVED' | 'REJECTED'
+  proposedById: string
+  proposedAt: string
+  reviewedById: string | null
+  reviewedAt: string | null
+  reviewNote: string | null
+  appliedRunId: string | null
+  appliedAt: string | null
+}
+
+/** Automatic enrolment duty record of one worker. */
+export type EmployeePensionAe = {
+  employeeId: string
+  lastAssessedOn: string | null
+  lastCategory: string | null
+  lastExplanation: string | null
+  automaticEnrolmentDate: string | null
+  enrolmentDeadline: string | null
+  enrolmentNoticeSentOn: string | null
+  postponementFrom: string | null
+  postponementEndsOn: string | null
+  postponementNoticeSentOn: string | null
+  optInRequestedOn: string | null
+  joiningRequestedOn: string | null
+  optOutReceivedOn: string | null
+  optOutEvidenceRef: string | null
+  ceasedOn: string | null
+  reEnrolmentDueOn: string | null
+}
+
+export type PensionContributionLine = {
+  employeeId: string
+  name: string
+  payrollNumber: string | null
+  schemeRef: string | null
+  periodStart: string | null
+  periodEnd: string | null
+  paymentDate: string | null
+  pensionablePay: number
+  qualifyingEarnings: number
+  employeeGross: number
+  employeeNet: number
+  providerTaxRelief: number
+  employer: number
+  employeeAdjustment: number
+  employerAdjustment: number
+  status: string
+  issues: string[]
+}
+
+export type PensionContributions = {
+  runId: string
+  runLabel: string
+  status: string
+  lines: PensionContributionLine[]
+  totals: Record<string, number>
+  reconciled: boolean
+  csv: string
+}
+
+/** Payroll leave (holiday) terms, entries and position (leave API). */
+export type LeaveTermsRow = {
+  id: string
+  workerCategory: 'REGULAR_HOURS' | 'IRREGULAR_HOURS' | 'PART_YEAR'
+  leaveYearStartMonth: number
+  leaveYearStartDay: number
+  weeklyHours: number | null
+  contractualExtraHours: number | null
+  payMethod: 'NORMAL_REMUNERATION_52_WEEKS' | 'ROLLED_UP_12_07'
+  carryOverMaxHours: number | null
+  effectiveFrom: string
+  effectiveTo: string | null
+  status: 'DRAFT' | 'ACTIVE' | 'SUPERSEDED'
+  note: string | null
+  createdById: string | null
+  approvedById: string | null
+  approvedAt: string | null
+}
+
+export type LeaveEntryRow = {
+  id: string
+  entryType: 'TAKEN' | 'ADJUSTMENT' | 'CARRY_OVER' | 'LEAVER_PAYMENT'
+  entitlementType: 'STATUTORY' | 'CONTRACTUAL'
+  hours: number
+  date: string
+  note: string | null
+  createdById: string | null
+  createdAt: string
+}
+
+type LeaveBalancePart = {
+  entitlement: number
+  taken: number
+  adjustments: number
+  carriedOver: number
+  paidOnLeaving: number
+  balance: number
+  fullYearEntitlement: number
+  basis?: string
+}
+
+export type LeavePosition = {
+  employeeId: string
+  asOf: string
+  terms: (Omit<LeaveTermsRow, 'effectiveTo' | 'status' | 'note' | 'createdById' | 'approvedById' | 'approvedAt'>) | null
+  note?: string
+  leaveYear?: { start: string; end: string }
+  statutory?: LeaveBalancePart
+  contractual?: LeaveBalancePart
+  holidayPay?: { method: string; averageHourlyPay: number | null; note: string }
+  carryOverAllowed?: number
+  leaver?: { leavingDate: string; untakenHours: number; paymentInLieu: number | null; takenMoreThanEarned: boolean } | null
 }

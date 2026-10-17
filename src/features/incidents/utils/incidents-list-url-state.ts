@@ -12,10 +12,14 @@ export type IncidentsListSearch = {
   to?: string
   su?: string
   emp?: string
+  /** Carer who reported it. */
+  rep?: string
   /** Closed on or after this day (YYYY-MM-DD). */
   closed?: string
   /** Only incidents with overdue corrective measures. */
   overdue?: boolean
+  /** Only incidents with Duty of Candour overdue. */
+  doc?: boolean
   page?: number
 }
 
@@ -29,8 +33,10 @@ export type IncidentsListUrlState = {
   dateTo: string
   serviceUserId: string
   employeeId: string
+  reporterEmployeeId: string
   closedFrom: string
   overdueOnly: boolean
+  candourOverdueOnly: boolean
   page: number
 }
 
@@ -44,8 +50,10 @@ export const EMPTY_INCIDENTS_LIST_URL_STATE: IncidentsListUrlState = {
   dateTo: '',
   serviceUserId: '',
   employeeId: '',
+  reporterEmployeeId: '',
   closedFrom: '',
   overdueOnly: false,
+  candourOverdueOnly: false,
   page: 1,
 }
 
@@ -107,10 +115,14 @@ export function validateIncidentsListSearch(raw: Record<string, unknown>): Incid
   if (su) out.su = su
   const emp = asUuid(raw.emp)
   if (emp) out.emp = emp
+  const rep = asUuid(raw.rep)
+  if (rep) out.rep = rep
   const closed = asIsoDay(raw.closed ?? raw.closedFrom)
   if (closed) out.closed = closed
   const overdue = raw.overdue === true ? 'true' : asString(raw.overdue)
   if (overdue === 'true' || overdue === '1') out.overdue = true
+  const doc = raw.doc === true ? 'true' : asString(raw.doc)
+  if (doc === 'true' || doc === '1') out.doc = true
   const page = Number(asString(raw.page))
   if (Number.isInteger(page) && page > 1) out.page = page
   return out
@@ -128,8 +140,10 @@ export function parseIncidentsListSearch(search: IncidentsListSearch): Incidents
     dateTo: v.to ?? '',
     serviceUserId: v.su ?? '',
     employeeId: v.emp ?? '',
+    reporterEmployeeId: v.rep ?? '',
     closedFrom: v.closed ?? '',
     overdueOnly: v.overdue === true,
+    candourOverdueOnly: v.doc === true,
     page: v.page ?? 1,
   }
 }
@@ -145,8 +159,10 @@ export function buildIncidentsListSearch(state: IncidentsListUrlState): Incident
     to: state.dateTo,
     su: state.serviceUserId,
     emp: state.employeeId,
+    rep: state.reporterEmployeeId,
     closed: state.closedFrom,
     overdue: state.overdueOnly ? true : undefined,
+    doc: state.candourOverdueOnly ? true : undefined,
     page: state.page > 1 ? state.page : undefined,
   })
 }
@@ -163,7 +179,9 @@ export function hasActiveIncidentsListFilters(state: IncidentsListUrlState): boo
       state.dateTo ||
       state.serviceUserId ||
       state.employeeId ||
+      state.reporterEmployeeId ||
       state.closedFrom ||
-      state.overdueOnly,
+      state.overdueOnly ||
+      state.candourOverdueOnly,
   )
 }

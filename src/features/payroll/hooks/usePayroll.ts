@@ -3,7 +3,15 @@ import {
   activatePayrollTaxYear,
   cancelUkPayrollRun,
   closeUkPayrollRun,
+  reviewUkNmwAssessment,
+  fetchSalariedHoursMethods,
+  enterSalariedHoursMethod,
+  approveSalariedHoursMethod,
+  withdrawSalariedHoursMethod,
+  approveEmployeePayAgreement,
   createEmployeePayAgreement,
+  endEmployeePayAgreement,
+  fetchEmployeePayAgreements,
   createPayrollSchedule,
   createPayrollTaxCode,
   createPayrollTaxYear,
@@ -46,6 +54,21 @@ import {
   updatePayrollStatutoryRates,
   updatePayrollTaxCode,
   upsertEmployeePayrollProfile,
+  fetchLoanNotices,
+  recordLoanNotice,
+  correctLoanNotice,
+  fetchDeductionAdjustments,
+  proposeDeductionAdjustment,
+  reviewDeductionAdjustment,
+  fetchEmployeePensionAe,
+  recordPensionAeEvent,
+  fetchPensionContributions,
+  fetchLeavePosition,
+  fetchLeaveTerms,
+  createLeaveTerms,
+  approveLeaveTerms,
+  fetchLeaveEntries,
+  recordLeaveEntry,
 } from '@/features/payroll/api/payroll.api'
 import { payrollKeys } from '@/features/payroll/keys'
 import type {
@@ -59,6 +82,10 @@ import type {
   UpdatePayrollStatutoryRatesInput,
   UpdatePayrollTaxCodeInput,
   UpsertEmployeePayrollProfileInput,
+  RecordLoanNoticeInput,
+  CorrectLoanNoticeInput,
+  PensionAeEventInput,
+  ProposeDeductionAdjustmentInput,
 } from '@/features/payroll/types/payroll-api.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { collectHmrcFraudClientContext } from '@/features/payroll/utils/hmrc-fraud-client-context.util'
@@ -426,14 +453,203 @@ export function useUpsertEmployeePayrollProfile(employeeId: string) {
   })
 }
 
+/** Gate C14: HMRC loan notices of one employee. */
+export function useLoanNotices(employeeId: string) {
+  return useQuery({
+    queryKey: payrollKeys.loanNotices(employeeId),
+    queryFn: () => fetchLoanNotices(employeeId),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useRecordLoanNotice(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: RecordLoanNoticeInput) => recordLoanNotice(employeeId, body),
+    onSuccess: async (res) => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.loanNotices(employeeId) })
+      toastSuccess(res?.duplicate ? 'This notice was already recorded' : 'Notice recorded')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+/** Gate C15: correct a loan notice recorded in error. */
+export function useCorrectLoanNotice(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ noticeId, body }: { noticeId: string; body: CorrectLoanNoticeInput }) =>
+      correctLoanNotice(employeeId, noticeId, body),
+    onSuccess: async (res) => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.loanNotices(employeeId) })
+      toastSuccess(res?.duplicate ? 'This correction was already recorded' : res?.message ?? 'Notice corrected')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+/** Loan / pension completion: corrections of closed runs. */
+export function useDeductionAdjustments(employeeId: string) {
+  return useQuery({
+    queryKey: payrollKeys.adjustments(employeeId),
+    queryFn: () => fetchDeductionAdjustments(employeeId),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useDeductionAdjustmentActions(employeeId: string) {
+  const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: payrollKeys.adjustments(employeeId) })
+  return {
+    propose: useMutation({
+      mutationFn: (body: ProposeDeductionAdjustmentInput) => proposeDeductionAdjustment(body),
+      onSuccess: async (res) => {
+        await refresh()
+        toastSuccess(res?.message ?? 'Correction proposed')
+      },
+      onError: (error) => toastApiError(error),
+    }),
+    review: useMutation({
+      mutationFn: ({ id, decision, note }: { id: string; decision: 'APPROVE' | 'REJECT'; note?: string }) =>
+        reviewDeductionAdjustment(id, { decision, note }),
+      onSuccess: async (res) => {
+        await refresh()
+        toastSuccess(res?.message ?? 'Correction reviewed')
+      },
+      onError: (error) => toastApiError(error),
+    }),
+  }
+}
+
+export function useEmployeePensionAe(employeeId: string) {
+  return useQuery({
+    queryKey: payrollKeys.pensionAe(employeeId),
+    queryFn: () => fetchEmployeePensionAe(employeeId),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useRecordPensionAeEvent(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: PensionAeEventInput) => recordPensionAeEvent(employeeId, body),
+    onSuccess: async (res) => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.pensionAe(employeeId) })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'employees'] })
+      await qc.invalidateQueries({ queryKey: payrollKeys.adjustments(employeeId) })
+      toastSuccess(res?.message ?? 'Recorded')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function usePensionContributions(runId: string, enabled = true) {
+  return useQuery({
+    queryKey: payrollKeys.pensionContributions(runId),
+    queryFn: () => fetchPensionContributions(runId),
+    enabled: Boolean(runId) && enabled,
+  })
+}
+
+/** Payroll leave (holiday) of one employee. */
+export function useLeavePosition(employeeId: string, query: { asOf?: string; leavingDate?: string } = {}) {
+  return useQuery({
+    queryKey: [...payrollKeys.leave(employeeId), 'position', query.asOf ?? '', query.leavingDate ?? ''],
+    queryFn: () => fetchLeavePosition(employeeId, query),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useLeaveTerms(employeeId: string) {
+  return useQuery({
+    queryKey: [...payrollKeys.leave(employeeId), 'terms'],
+    queryFn: () => fetchLeaveTerms(employeeId),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useLeaveEntries(employeeId: string) {
+  return useQuery({
+    queryKey: [...payrollKeys.leave(employeeId), 'entries'],
+    queryFn: () => fetchLeaveEntries(employeeId),
+    enabled: Boolean(employeeId),
+  })
+}
+
+export function useLeaveActions(employeeId: string) {
+  const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: payrollKeys.leave(employeeId) })
+  const done = async (res: { message?: string } | undefined, fallback: string) => {
+    await refresh()
+    toastSuccess(res?.message ?? fallback)
+  }
+  return {
+    createTerms: useMutation({
+      mutationFn: (body: Record<string, unknown>) => createLeaveTerms(employeeId, body),
+      onSuccess: (res) => done(res, 'Leave terms saved'),
+      onError: (error) => toastApiError(error),
+    }),
+    approveTerms: useMutation({
+      mutationFn: (termsId: string) => approveLeaveTerms(termsId),
+      onSuccess: (res) => done(res, 'Leave terms approved'),
+      onError: (error) => toastApiError(error),
+    }),
+    recordEntry: useMutation({
+      mutationFn: (body: Record<string, unknown>) => recordLeaveEntry(employeeId, body),
+      onSuccess: (res) => done(res, 'Leave recorded'),
+      onError: (error) => toastApiError(error),
+    }),
+  }
+}
+
 export function useCreateEmployeePayAgreement(employeeId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: CreateEmployeePayAgreementInput) =>
       createEmployeePayAgreement(employeeId, body),
+    onSuccess: async (agreement) => {
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'employees'] })
+      await qc.invalidateQueries({ queryKey: payrollKeys.agreements(employeeId) })
+      toastSuccess(
+        agreement?.awaitingApproval
+          ? 'Pay agreement saved. It takes effect when a second person approves it.'
+          : 'Pay agreement created',
+      )
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useEmployeePayAgreements(employeeId: string | null) {
+  return useQuery({
+    queryKey: payrollKeys.agreements(employeeId ?? ''),
+    queryFn: () => fetchEmployeePayAgreements(employeeId as string),
+    enabled: !!employeeId,
+  })
+}
+
+export function useApproveEmployeePayAgreement(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (agreementId: string) => approveEmployeePayAgreement(agreementId),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'employees'] })
-      toastSuccess('Pay agreement created')
+      await qc.invalidateQueries({ queryKey: payrollKeys.agreements(employeeId) })
+      toastSuccess('Pay agreement approved. It applies from its start date.')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useEndEmployeePayAgreement(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { agreementId: string; effectiveTo: string }) =>
+      endEmployeePayAgreement(input.agreementId, input.effectiveTo),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'employees'] })
+      await qc.invalidateQueries({ queryKey: payrollKeys.agreements(employeeId) })
+      toastSuccess('Pay agreement ended')
     },
     onError: (error) => toastApiError(error),
   })
@@ -615,6 +831,38 @@ export function useCalculateUkPayrollStatutory(id: string) {
   })
 }
 
+const salariedHoursMethodsKey = [...payrollKeys.all, 'salaried-hours-methods'] as const
+
+export function useSalariedHoursMethods() {
+  return useQuery({ queryKey: salariedHoursMethodsKey, queryFn: fetchSalariedHoursMethods })
+}
+
+export function useSalariedHoursMethodActions() {
+  const qc = useQueryClient()
+  const onSuccess = () => qc.invalidateQueries({ queryKey: salariedHoursMethodsKey })
+  return {
+    enter: useMutation({ mutationFn: enterSalariedHoursMethod, onSuccess }),
+    approve: useMutation({ mutationFn: approveSalariedHoursMethod, onSuccess }),
+    withdraw: useMutation({
+      mutationFn: ({ id, note }: { id: string; note: string }) => withdrawSalariedHoursMethod(id, note),
+      onSuccess,
+    }),
+  }
+}
+
+/** Records what a review of a minimum wage exception found. The run is read again afterwards. */
+export function useReviewUkNmwAssessment(runId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      assessmentId: string
+      note: string
+      outcome: 'EVIDENCE_SUPPORTS_COMPLIANCE' | 'SHORTFALL_CONFIRMED'
+    }) => reviewUkNmwAssessment(runId, input.assessmentId, { note: input.note, outcome: input.outcome }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', runId] }),
+  })
+}
+
 export function useCloseUkPayrollRun(id: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -632,12 +880,12 @@ export function useCloseUkPayrollRun(id: string) {
 export function useCancelUkPayrollRun(id: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => cancelUkPayrollRun(id),
+    mutationFn: (reason?: string) => cancelUkPayrollRun(id, reason),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', id] })
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'payslips'] })
-      toastSuccess('Run cancelled')
+      toastSuccess('Run cancelled', 'Its earnings can now be collected by a replacement run.')
     },
     onError: (error) => toastApiError(error),
   })

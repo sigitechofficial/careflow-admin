@@ -114,6 +114,101 @@ export const PAY_ITEM_STATUS_LABELS: Record<PayItemStatus, string> = {
   CANCELLED: 'Cancelled',
 }
 
+/** Pay items the system writes itself (not offered when entering an item by hand). */
+const SYSTEM_PAY_ITEM_LABELS: Record<string, string> = {
+  MILEAGE_CORRECTION: 'Mileage correction',
+  DISRUPTION_PAY: 'Cancelled / disrupted visit',
+}
+
 export function payItemTypeLabel(code: string): string {
-  return PAY_ITEM_TYPE_OPTIONS.find(o => o.value === code)?.label ?? code
+  return PAY_ITEM_TYPE_OPTIONS.find(o => o.value === code)?.label ?? SYSTEM_PAY_ITEM_LABELS[code] ?? code
+}
+
+/** `GET /billing/pay-items/mileage-corrections/:visitReconciliationId` (D-21). */
+export type VisitMileageCorrectionHistory = {
+  visit: { id: string; visitRef: string; employeeId: string | null; paySettled: boolean }
+  originalMiles: string
+  originalAmount: string
+  netMiles: string
+  netAmount: string
+  differenceAmount: string
+  taxTreatmentVerified: boolean
+  canRecordCorrection: boolean
+  items: Array<{
+    id: string
+    quantity: string | number | null
+    amount: string | number
+    reason: string
+    status: PayItemStatus
+    taxTreatment: string | null
+    createdAt: string
+    createdByName: string | null
+    approvedByName: string | null
+    isReversal: boolean
+    canReverse: boolean
+  }>
+}
+
+/** Where one pay correction or reversal has got to (decided by the server). */
+export type PayCorrectionDisplayStatus =
+  | 'PENDING_APPROVAL'
+  | 'APPROVED_FOR_PAYROLL'
+  | 'INCLUDED_IN_PAYROLL'
+  | 'SETTLED'
+  | 'REJECTED'
+  | 'CANCELLED'
+  | 'REVERSED'
+
+export const PAY_CORRECTION_STATUS_LABELS: Record<PayCorrectionDisplayStatus, string> = {
+  PENDING_APPROVAL: 'Pending approval',
+  APPROVED_FOR_PAYROLL: 'Approved for payroll',
+  INCLUDED_IN_PAYROLL: 'Included in payroll',
+  SETTLED: 'Settled',
+  REJECTED: 'Rejected',
+  CANCELLED: 'Cancelled',
+  REVERSED: 'Reversed',
+}
+
+export type VisitPayCorrectionItem = {
+  id: string
+  amount: string | number
+  reason: string
+  notes?: string | null
+  sourceType: 'VISIT_CORRECTION' | 'REVERSAL' | string
+  status: PayItemStatus | string
+  displayStatus: PayCorrectionDisplayStatus
+  originalAmount?: string | number | null
+  correctedAmount?: string | number | null
+  createdAt: string
+  createdById?: string | null
+  createdByName?: string | null
+  approvedByName?: string | null
+  rejectedByName?: string | null
+  rejectionReason?: string | null
+  payrollRunLabel?: string | null
+  reversesPayItemId?: string | null
+  reversalItemId?: string | null
+  canReverse: boolean
+}
+
+/** Original settled pay of one visit, its corrections and reversals, and the resulting total. */
+export type VisitPayCorrectionHistory = {
+  visit: {
+    id: string
+    visitRef: string
+    employeeId: string | null
+    paySettled: boolean
+    settledBy: 'VISIT_PAY_RUN' | 'UK_PAYROLL_RUN' | null
+  }
+  originalAmount: string
+  netAmount: string
+  differenceAmount: string
+  canRecordCorrection: boolean
+  items: VisitPayCorrectionItem[]
+}
+
+export type RecordVisitPayCorrectionInput = {
+  visitReconciliationId: string
+  correctedAmount: number
+  reason: string
 }

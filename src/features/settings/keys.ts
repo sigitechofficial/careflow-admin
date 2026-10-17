@@ -71,4 +71,5 @@ export const settingsKeys = {
 
   permissionsCatalog: () => [...settingsKeys.all(), 'permissions-catalog'] as const,
   roleResponsibilities: () => [...settingsKeys.all(), 'role-responsibilities'] as const,
+  financialAuthority: () => [...settingsKeys.all(), 'role-responsibilities', 'financial-authority'] as const,
 } as const

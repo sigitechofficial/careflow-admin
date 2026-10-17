@@ -1,6 +1,8 @@
 import * as React from 'react'
 import {
+  Calculator,
   CalendarDays,
+  ClipboardList,
   CreditCard,
   FileText,
   GitBranch,
@@ -15,13 +17,17 @@ import { ApiError } from '@/shared/api/api-client'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Combobox } from '@/shared/ui/combobox'
-import { ContentCard } from '@/shared/ui/content-section'
+import { CollapsibleCard } from '@/shared/ui/content-section'
+import { BillingStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { BillingCardRulesEditor } from '@/features/billing/components/BillingCardRulesEditor'
 import { PayCardWageTypeSummary } from '@/features/billing/components/PayCardWageTypeSummary'
 import { PayCardPayPreview } from '@/features/billing/components/PayCardPayPreview'
+import { PayCardConflictCheckNotice } from '@/features/billing/components/PayCardConflictNotice'
 import { BANK_HOLIDAY_REGION_OPTIONS, type BankHolidayRegion } from '@/features/billing/types/wage-types.types'
 import { useCreatePayCard, useUpdatePayCard } from '@/features/billing/hooks/usePayCards'
 import {
+  formatBillingDate,
+  formatPayCardAssignmentDisplay,
   PAY_CARD_ASSIGNMENT_OPTIONS,
   PAY_CARD_WORKER_TYPE_OPTIONS,
   slugBillingCode,
@@ -40,6 +46,24 @@ type PayCardFormProps = {
   /** Called after a successful save. */
   onSaved: (card: PayCard) => void
   onCancel: () => void
+  /** Native id on the <form>, so a header Save button outside the form can submit it. */
+  formId?: string
+}
+
+/** Scroll the app's main scroll surface to a section, leaving the sticky header clear. */
+function scrollToSection(id: string) {
+  const el = document.getElementById(id)
+  if (!el) return
+  // Sections are collapsible <details> (closed by default) — open before scrolling.
+  if (el instanceof HTMLDetailsElement) el.open = true
+  const scroller = el.closest<HTMLElement>('[data-app-main-scroll]')
+  if (scroller) {
+    const top =
+      el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 168
+    scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+  } else {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 }
 
 /** Levels we can configure in this form (no orphan Individual / Client–funder without pickers). */
@@ -79,31 +103,65 @@ function FieldLabel({
   )
 }
 
-function SectionTitle({
-  icon,
-  iconClassName,
-  title,
-  description,
-}: {
-  icon: React.ReactNode
-  iconClassName: string
-  title: string
-  description?: string
-}) {
+function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3">
-      <span
-        className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconClassName}`}
-      >
-        {icon}
-      </span>
-      <div className="min-w-0 pt-0.5">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {description ? (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        ) : null}
-      </div>
+    <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-right font-medium text-foreground">{children}</dd>
     </div>
+  )
+}
+
+/** Sticky summary of the live form values + a jump to the pay preview. Reflects unsaved edits. */
+function PayCardSummarySidebar({ form }: { form: PayCardInput }) {
+  const ratesCount = (form.rules ?? []).length
+  const matching = formatPayCardAssignmentDisplay({
+    assignmentLevel: form.assignmentLevel ?? 'ORGANISATION_DEFAULT',
+    assignmentLabel: form.assignmentLabel,
+    assignmentTargetKey: form.assignmentTargetKey,
+  })
+
+  return (
+    <>
+      <CollapsibleCard
+        data-testid="pay-card-summary"
+        icon={<ClipboardList className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
+        title="Summary"
+        description="Live values, including unsaved changes."
+      >
+        <dl className="text-sm">
+          <SummaryRow label="Starts">{formatBillingDate(form.effectiveFrom)}</SummaryRow>
+          <SummaryRow label="Ends">{form.effectiveTo ? formatBillingDate(form.effectiveTo) : '—'}</SummaryRow>
+          <SummaryRow label="Matching">{matching}</SummaryRow>
+          <SummaryRow label="Rates">
+            <span className="tabular-nums">{ratesCount}</span>
+          </SummaryRow>
+          <SummaryRow label="Status">
+            <BillingStatusBadge status={form.status ?? 'DRAFT'} size="sm" />
+          </SummaryRow>
+        </dl>
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        icon={<Calculator className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-indigo-500/10 text-indigo-700 dark:text-indigo-300"
+        title="Pay preview"
+        description="Check a sample visit against these rates."
+      >
+        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center text-xs text-muted-foreground">
+          Price a sample visit with the rates on this card. Nothing is saved and no pay is created.
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => scrollToSection('pay-card-preview')}
+        >
+          Open pay preview
+        </Button>
+      </CollapsibleCard>
+    </>
   )
 }
 
@@ -148,8 +206,24 @@ const STACKING_POLICY_CHOICES: { value: PayStackingPolicy; title: string; descri
   },
 ]
 
+/** How holiday pay is handled for carers on this card ('' = not on the card). */
+const HOLIDAY_PAY_CHOICES: { value: string; title: string; description: string }[] = [
+  {
+    value: '',
+    title: 'Paid when taken (default)',
+    description: 'Holiday is recorded and paid separately through Billing → Pay items. Nothing is added to visit pay.',
+  },
+  {
+    value: 'ROLLED_UP_12_07',
+    title: 'Rolled-up 12.07% on every visit',
+    description: '12.07% holiday pay is added to each visit pay run. Only for irregular-hours or part-year workers.',
+  },
+]
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
 /** Full-page create / edit form for a carer pay card. Remount (via `key`) to load a different card. */
-export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
+export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProps) {
   const isEdit = !!card
   const createMutation = useCreatePayCard()
   const updateMutation = useUpdatePayCard()
@@ -173,6 +247,30 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
   const currentVersion = card?.version ?? 1
 
   const patch = (next: Partial<PayCardInput>) => setForm(prev => ({ ...prev, ...next }))
+
+  // PC-32: the card as entered is checked against the other active cards before it is saved.
+  const conflictCheckInput = React.useMemo(
+    () =>
+      DATE_ONLY.test(form.effectiveFrom ?? '') && form.status !== 'ARCHIVED'
+        ? {
+            ...(card?.id ? { id: card.id } : {}),
+            assignmentLevel: form.assignmentLevel,
+            assignmentTargetId: form.assignmentTargetId || null,
+            assignmentTargetKey: form.assignmentTargetKey || null,
+            effectiveFrom: form.effectiveFrom,
+            effectiveTo: DATE_ONLY.test(form.effectiveTo ?? '') ? form.effectiveTo : null,
+          }
+        : null,
+    [
+      card?.id,
+      form.assignmentLevel,
+      form.assignmentTargetId,
+      form.assignmentTargetKey,
+      form.effectiveFrom,
+      form.effectiveTo,
+      form.status,
+    ],
+  )
 
   const onAssignmentLevelChange = (assignmentLevel: PayCardInput['assignmentLevel']) => {
     patch({
@@ -307,7 +405,7 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6" data-testid="pay-card-form">
+    <form onSubmit={onSubmit} id={formId} noValidate className="space-y-6" data-testid="pay-card-form">
       {error ? (
         <p
           role="alert"
@@ -317,14 +415,13 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
         </p>
       ) : null}
 
-      <ContentCard className="space-y-4" id="pay-card-general">
-        <SectionTitle
-          icon={<FileText className="h-4 w-4" aria-hidden />}
-          iconClassName="bg-slate-500/10 text-slate-700 dark:text-slate-300"
-          title="Card details"
-          description="All fields are required."
-        />
-
+      <CollapsibleCard
+        id="pay-card-general"
+        icon={<FileText className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-slate-500/10 text-slate-700 dark:text-slate-300"
+        title="Card details"
+        description="All fields are required."
+      >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <label
             className={`space-y-1 text-sm${
@@ -503,97 +600,17 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
             />
           </label>
         </div>
-      </ContentCard>
+        <PayCardConflictCheckNotice input={conflictCheckInput} />
+      </CollapsibleCard>
 
-      <ContentCard className="space-y-4" id="pay-card-rules-policy" data-testid="pay-card-rules-policy">
-        <SectionTitle
-          icon={<Scale className="h-4 w-4" aria-hidden />}
-          iconClassName="bg-amber-500/10 text-amber-700 dark:text-amber-300"
-          title="Pay rules & conflicts"
-          description="How overlapping rates are paid, and which bank holiday calendar this card uses."
-        />
-        <div className="grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="When rates overlap">
-          {STACKING_POLICY_CHOICES.map(choice => {
-            const active = (form.stackingPolicy ?? 'PRIORITY') === choice.value
-            return (
-              <label
-                key={choice.value}
-                className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${
-                  active ? 'border-primary bg-primary/5' : 'border-border bg-muted/10'
-                } ${saving ? 'pointer-events-none opacity-60' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name="pay-card-stacking-policy"
-                  className="mt-0.5 shrink-0"
-                  checked={active}
-                  onChange={() => patch({ stackingPolicy: choice.value })}
-                  disabled={saving}
-                  data-testid={`stacking-policy-${choice.value}`}
-                />
-                <span>
-                  <span className="block font-medium text-foreground">{choice.title}</span>
-                  <span className="block text-xs text-muted-foreground">{choice.description}</span>
-                </span>
-              </label>
-            )
-          })}
-        </div>
-        {isEdit && card && (form.stackingPolicy ?? 'PRIORITY') !== (card.stackingPolicy ?? 'PRIORITY') ? (
-          <p className="text-xs text-amber-700 dark:text-amber-300">
-            This changes how visits priced from now on are paid. Visits already priced keep their amounts.
-          </p>
-        ) : null}
-        <label className="block space-y-1 text-sm sm:max-w-sm">
-          <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />}>Bank holiday calendar</FieldLabel>
-          <select
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={form.bankHolidayRegion ?? ''}
-            onChange={e => patch({ bankHolidayRegion: e.target.value })}
-            disabled={saving}
-            data-testid="pay-card-bank-holiday-region"
-          >
-            {BANK_HOLIDAY_REGION_OPTIONS.map(o => (
-              <option key={o.value} value={o.value === 'UK' ? '' : o.value}>
-                {o.value === 'UK' ? `${o.label} (default)` : o.label}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-muted-foreground">Dates are managed in Billing → Bank holidays.</p>
-        </label>
-        <label className="block space-y-1 text-sm sm:max-w-xl">
-          <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />}>Holiday pay</FieldLabel>
-          <select
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={form.holidayPayMethod ?? ''}
-            onChange={e => patch({ holidayPayMethod: e.target.value })}
-            disabled={saving}
-            data-testid="pay-card-holiday-pay-method"
-          >
-            <option value="">Not on this pay card — enter holiday pay as pay items (default)</option>
-            <option value="ROLLED_UP_12_07">Rolled-up 12.07% added to each visit pay run</option>
-            {form.holidayPayMethod && form.holidayPayMethod !== 'ROLLED_UP_12_07' ? (
-              <option value={form.holidayPayMethod}>{form.holidayPayMethod}</option>
-            ) : null}
-          </select>
-          {form.holidayPayMethod === 'ROLLED_UP_12_07' ? (
-            <p className="text-xs text-amber-700 dark:text-amber-300">
-              Rolled-up holiday pay is only allowed for irregular-hours and part-year workers. Confirm with your payroll
-              adviser before using it.
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">Holiday taken is paid through Billing → Pay items.</p>
-          )}
-        </label>
-      </ContentCard>
-
-      <ContentCard className="space-y-3" id="pay-card-rates">
-        <SectionTitle
-          icon={<PoundSterling className="h-4 w-4" aria-hidden />}
-          iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-          title="Pay rates"
-          description="Add at least one rate. Every rule needs an amount and From / Until times."
-        />
+      <CollapsibleCard
+        id="pay-card-rates"
+        bodyClassName="space-y-3"
+        icon={<PoundSterling className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+        title="Pay rates"
+        description="Add at least one rate: choose when it applies and the £ amount."
+      >
         {createsVersion ? (
           <div
             className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4"
@@ -643,7 +660,127 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
           onChange={rules => patch({ rules: rules as PayCardRule[] })}
           disabled={saving}
         />
-      </ContentCard>
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        id="pay-card-rules-policy"
+        data-testid="pay-card-rules-policy"
+        icon={<CalendarDays className="h-4 w-4" aria-hidden />}
+        iconClassName="bg-amber-500/10 text-amber-700 dark:text-amber-300"
+        title="Holidays"
+        description="How holiday pay works for carers on this card, and which bank holidays it uses."
+      >
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-foreground">How is holiday paid?</legend>
+          <div className="grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Holiday pay" data-testid="pay-card-holiday-pay-method">
+            {HOLIDAY_PAY_CHOICES.concat(
+              form.holidayPayMethod && !HOLIDAY_PAY_CHOICES.some(c => c.value === form.holidayPayMethod)
+                ? [{ value: form.holidayPayMethod, title: form.holidayPayMethod, description: 'Saved on this card.' }]
+                : [],
+            ).map(choice => {
+              const active = (form.holidayPayMethod ?? '') === choice.value
+              return (
+                <label
+                  key={choice.value || 'none'}
+                  className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${
+                    active ? 'border-primary bg-primary/5' : 'border-border bg-muted/10'
+                  } ${saving ? 'pointer-events-none opacity-60' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="pay-card-holiday-pay"
+                    className="mt-0.5 shrink-0"
+                    checked={active}
+                    onChange={() => patch({ holidayPayMethod: choice.value })}
+                    disabled={saving}
+                    data-testid={`holiday-pay-${choice.value || 'NONE'}`}
+                  />
+                  <span>
+                    <span className="block font-medium text-foreground">{choice.title}</span>
+                    <span className="block text-xs text-muted-foreground">{choice.description}</span>
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+          {form.holidayPayMethod === 'ROLLED_UP_12_07' ? (
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              Rolled-up holiday pay is only allowed for irregular-hours and part-year workers. Confirm with your payroll
+              adviser before using it.
+            </p>
+          ) : null}
+        </fieldset>
+        <label className="block space-y-1 text-sm sm:max-w-sm">
+          <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />}>Bank holiday calendar</FieldLabel>
+          <select
+            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={form.bankHolidayRegion ?? ''}
+            onChange={e => patch({ bankHolidayRegion: e.target.value })}
+            disabled={saving}
+            data-testid="pay-card-bank-holiday-region"
+          >
+            {BANK_HOLIDAY_REGION_OPTIONS.map(o => (
+              <option key={o.value} value={o.value === 'UK' ? '' : o.value}>
+                {o.value === 'UK' ? `${o.label} (default)` : o.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">Bank holiday rates use these dates (managed in Billing → Bank holidays).</p>
+        </label>
+
+        <details
+          className="rounded-lg border border-border p-3"
+          open={(form.stackingPolicy ?? 'PRIORITY') !== 'PRIORITY'}
+          data-testid="pay-card-overlap"
+        >
+          <summary className="cursor-pointer text-sm">
+            <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+              <Scale className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+              When rates overlap:
+            </span>{' '}
+            <span className="text-muted-foreground">
+              {STACKING_POLICY_CHOICES.find(c => c.value === (form.stackingPolicy ?? 'PRIORITY'))?.title}
+            </span>
+          </summary>
+          <p className="mt-2 text-xs text-muted-foreground">
+            For a time slot that matches more than one rate (e.g. a Sunday that is also a bank holiday). Leave the default
+            unless the contract says otherwise.
+          </p>
+          <div className="mt-2 grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="When rates overlap">
+            {STACKING_POLICY_CHOICES.map(choice => {
+              const active = (form.stackingPolicy ?? 'PRIORITY') === choice.value
+              return (
+                <label
+                  key={choice.value}
+                  className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${
+                    active ? 'border-primary bg-primary/5' : 'border-border bg-muted/10'
+                  } ${saving ? 'pointer-events-none opacity-60' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="pay-card-stacking-policy"
+                    className="mt-0.5 shrink-0"
+                    checked={active}
+                    onChange={() => patch({ stackingPolicy: choice.value })}
+                    disabled={saving}
+                    data-testid={`stacking-policy-${choice.value}`}
+                  />
+                  <span>
+                    <span className="block font-medium text-foreground">{choice.title}</span>
+                    <span className="block text-xs text-muted-foreground">{choice.description}</span>
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+          {isEdit && card && (form.stackingPolicy ?? 'PRIORITY') !== (card.stackingPolicy ?? 'PRIORITY') ? (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+              This changes how visits priced from now on are paid. Visits already priced keep their amounts.
+            </p>
+          ) : null}
+        </details>
+      </CollapsibleCard>
+
 
       <PayCardWageTypeSummary rules={form.rules ?? []} />
 
@@ -652,8 +789,14 @@ export function PayCardForm({ card, onSaved, onCancel }: PayCardFormProps) {
         stackingPolicy={form.stackingPolicy ?? 'PRIORITY'}
         bankHolidayRegion={(form.bankHolidayRegion || 'UK') as BankHolidayRegion}
       />
+      <div
+        className="grid grid-cols-1 gap-6 md:grid-cols-2"
+        aria-label="Pay card summary"
+      >
+        <PayCardSummarySidebar form={form} />
+      </div>
 
-      <div className="sticky bottom-0 z-10 -mx-1 flex justify-end gap-2 border-t border-border bg-background/95 px-1 py-3 backdrop-blur">
+      <div className="sticky bottom-0 z-10 -mx-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:-mx-[22px] md:px-[22px]">
         <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>

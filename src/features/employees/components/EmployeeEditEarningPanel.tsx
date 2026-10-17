@@ -20,6 +20,13 @@ import {
 } from '@/features/billing/hooks/usePayrollRuns'
 import type { EmployeeEarningVisitRow } from '@/features/billing/api/payroll-runs.api'
 import {
+  earningCorrectionNote,
+  earningStageLabel,
+  earningTone,
+  earningToneBadgeClass,
+} from '@/features/employees/lib/earning-stage'
+import { VisitPayCorrectionsDialog } from '@/features/billing/components/VisitPayCorrectionsCard'
+import {
   rangeForPreset,
   type EarningsPeriodPreset,
 } from '@/features/employees/utils/employee-earnings-period.util'
@@ -47,27 +54,11 @@ import {
   AlertDialogTrigger,
 } from '@/shared/ui/dialog'
 
-function isPaidState(state: EmployeeEarningVisitRow['paymentState']): boolean {
-  return state === 'BANK_PAID' || state === 'PAID' || state === 'IN_UK_PAYROLL'
-}
-
-function paymentStateLabel(state: EmployeeEarningVisitRow['paymentState']): string {
-  if (isPaidState(state)) return 'Paid'
-  if (state === 'REMAINING') return 'Remaining'
-  if (state === 'REJECTED') return 'Rejected'
-  return 'Pending'
-}
-
-function paymentStateBadgeClass(state: EmployeeEarningVisitRow['paymentState']): string {
-  if (isPaidState(state)) return 'bg-success/10 text-success border-success/20'
-  if (state === 'REMAINING') return 'bg-warning/10 text-warning border-warning/20'
-  if (state === 'REJECTED') return 'bg-destructive/10 text-destructive border-destructive/20'
-  return 'bg-muted text-muted-foreground border-border'
-}
-
-function PaymentStateIcon({ state }: { state: EmployeeEarningVisitRow['paymentState'] }) {
-  if (isPaidState(state)) return <CheckCircle2 className="h-3 w-3" aria-hidden />
-  if (state === 'REMAINING') return <Clock className="h-3 w-3" aria-hidden />
+function PaymentStateIcon({ row }: { row: EmployeeEarningVisitRow }) {
+  const tone = earningTone(row)
+  if (tone === 'recorded' || tone === 'processed' || tone === 'earned')
+    return <CheckCircle2 className="h-3 w-3" aria-hidden />
+  if (tone === 'waiting') return <Clock className="h-3 w-3" aria-hidden />
   return <AlertCircle className="h-3 w-3" aria-hidden />
 }
 
@@ -159,6 +150,7 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
   const [customFrom, setCustomFrom] = React.useState('')
   const [customTo, setCustomTo] = React.useState('')
   const [resetOpen, setResetOpen] = React.useState(false)
+  const [correctionVisit, setCorrectionVisit] = React.useState<EmployeeEarningVisitRow | null>(null)
 
   const filters = React.useMemo(() => {
     if (preset === 'custom') {
@@ -211,7 +203,7 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
     <div className="space-y-6" data-testid="employee-edit-earnings-panel">
       <ContentSectionHeader
         title="Earnings"
-        description="Total earned from visits, how much is already paid, and how much is still remaining. Periods and visit times use the organisation operational timezone."
+        description="Total earned from visits, how much is settled in payroll, and how much is still remaining. A payment shows as recorded only after a payout is marked paid. Periods and visit times use the organisation operational timezone."
         icon={<Wallet className="h-5 w-5" aria-hidden />}
         iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
         action={
@@ -383,9 +375,9 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
               iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
             />
             <StatCard
-              title="Paid"
+              title="Settled in payroll"
               value={data.totalEarned}
-              hint={`${data.paidVisitCount} visit${data.paidVisitCount === 1 ? '' : 's'} already paid`}
+              hint={`${data.paidVisitCount} visit${data.paidVisitCount === 1 ? '' : 's'} in a locked pay run or closed UK payroll run`}
               icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
               iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
             />
@@ -503,12 +495,28 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                             variant="outline"
                             className={cn(
                               'inline-flex items-center gap-1 font-medium',
-                              paymentStateBadgeClass(row.paymentState),
+                              earningToneBadgeClass(row),
                             )}
+                            data-testid={`employee-earning-stage-${row.id}`}
                           >
-                            <PaymentStateIcon state={row.paymentState} />
-                            {paymentStateLabel(row.paymentState)}
+                            <PaymentStateIcon row={row} />
+                            {earningStageLabel(row)}
                           </Badge>
+                          {earningCorrectionNote(row) ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {earningCorrectionNote(row)}
+                            </p>
+                          ) : null}
+                          {row.paySettled ? (
+                            <button
+                              type="button"
+                              className="mt-1 block text-xs font-medium text-primary underline-offset-2 hover:underline"
+                              onClick={() => setCorrectionVisit(row)}
+                              data-testid={`employee-pay-corrections-${row.id}`}
+                            >
+                              Pay corrections
+                            </button>
+                          ) : null}
                         </td>
                         <td className="px-3 py-2.5 text-muted-foreground">
                           {row.ukPayrollRunLabel ?? row.payrollPeriod ?? '—'}
@@ -522,6 +530,14 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
           </ContentCard>
         </>
       ) : null}
+
+      <VisitPayCorrectionsDialog
+        visitReconciliationId={correctionVisit?.id ?? null}
+        visitRef={correctionVisit?.visitRef}
+        onOpenChange={open => {
+          if (!open) setCorrectionVisit(null)
+        }}
+      />
     </div>
   )
 }

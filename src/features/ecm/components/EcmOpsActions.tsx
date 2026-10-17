@@ -25,7 +25,8 @@ import {
   useMissedTriage,
   useRecordManualAttendance,
 } from '@/features/ecm/hooks/useEcm'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastSuccess, toastWithVariant } from '@/shared/lib/toast'
+import { attendancePayNotice } from '@/features/billing/utils/pay-time-outcome.util'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
 import { useAuthStore } from '@/features/auth/store'
 import {
@@ -211,8 +212,9 @@ export function EcmManualAttendanceDialog({
                   overrideGeofence,
                 },
                 {
-                  onSuccess: () => {
-                    toastSuccess('Manual attendance recorded')
+                  onSuccess: result => {
+                    const notice = attendancePayNotice(result)
+                    toastWithVariant(notice.variant, notice.title, notice.description)
                     onOpenChange(false)
                   },
                   onError: e => toastApiError(e, 'Could not record attendance'),

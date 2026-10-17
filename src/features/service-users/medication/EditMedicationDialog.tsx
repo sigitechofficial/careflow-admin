@@ -24,6 +24,14 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
+import {
+  EMPTY_PRN_LIMITS,
+  PrnLimitFields,
+  prnLimitValuesFromMedication,
+  prnLimitsPayload,
+  validatePrnLimits,
+  type PrnLimitValues,
+} from '@/features/service-users/medication/PrnLimitFields'
 import { MedicationFieldLabelWithTooltip } from '@/features/service-users/medication/MedicationFieldLabelWithTooltip'
 import {
   CONTROLLED_MEDICATION_TOOLTIP,
@@ -125,6 +133,7 @@ export function EditMedicationDialog({
   const [timeCritical, setTimeCritical] = React.useState(false)
   const [timeToleranceMinutes, setTimeToleranceMinutes] = React.useState(30)
   const [isPrnMedication, setIsPrnMedication] = React.useState(false)
+  const [prnLimits, setPrnLimits] = React.useState<PrnLimitValues>(EMPTY_PRN_LIMITS)
   const [times, setTimes] = React.useState<string[]>([])
   const [formError, setFormError] = React.useState<string | null>(null)
 
@@ -147,6 +156,7 @@ export function EditMedicationDialog({
     setTimeCritical(Boolean(medication.timeCritical))
     setTimeToleranceMinutes(medication.timeToleranceMinutes ?? 30)
     setIsPrnMedication(medication.medicationKind === 'PRN')
+    setPrnLimits(prnLimitValuesFromMedication(medication))
     const initialTimes = [
       ...new Set(
         (medication.schedules ?? [])
@@ -188,6 +198,7 @@ export function EditMedicationDialog({
     timeCritical,
     timeToleranceMinutes,
     medicationKind: isPrnMedication ? 'PRN' : 'REGULAR',
+    ...(isPrnMedication ? prnLimitsPayload(prnLimits) : {}),
     // Timed medicines send their administration times (backend replaces existing).
     // PRN sends none — the backend clears any times on conversion.
     ...(isPrnMedication ? {} : { schedules: cleanTimes.map(dueTime => ({ dueTime })) }),
@@ -198,6 +209,13 @@ export function EditMedicationDialog({
     if (!medicationName.trim()) {
       setFormError('Medication name is required.')
       return
+    }
+    if (isPrnMedication) {
+      const prnError = validatePrnLimits(prnLimits)
+      if (prnError) {
+        setFormError(prnError)
+        return
+      }
     }
     if (!isPrnMedication && cleanTimes.length === 0) {
       setFormError('Add at least one administration time, or mark this medication as PRN.')
@@ -561,7 +579,12 @@ export function EditMedicationDialog({
               </p>
             ) : null}
             {isPrn ? (
-              <p className="text-sm text-muted-foreground">PRN — as required (no fixed daily times).</p>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  PRN — as required (no fixed daily times).
+                </p>
+                <PrnLimitFields values={prnLimits} onChange={setPrnLimits} />
+              </div>
             ) : (
               <div className="space-y-2">
                 {times.length === 0 ? (

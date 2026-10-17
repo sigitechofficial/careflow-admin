@@ -33,7 +33,8 @@ export function IncidentCategoryDetailsView({
   if (ap?.kind) {
     const who =
       ap.kind === 'STAFF'
-        ? (ap.employeeId && staffNameById?.(ap.employeeId)) || 'Staff member'
+        ? (ap.employeeId && staffNameById?.(ap.employeeId)) ||
+          (ap.name ? `Staff member: ${ap.name} (named by the carer)` : 'Staff member')
         : ap.kind === 'OTHER_PERSON'
           ? [ap.name, ap.relationship && `(${ap.relationship})`].filter(Boolean).join(' ')
           : label(ALLEGED_PERSON_OPTIONS, ap.kind)

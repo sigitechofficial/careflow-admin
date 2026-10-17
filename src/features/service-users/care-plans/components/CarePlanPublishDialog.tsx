@@ -19,6 +19,10 @@ type Props = {
   /** At least one non-empty field value in the current draft. */
   hasValues?: boolean
   publishing?: boolean
+  /** Opened from an incident measure: the version is linked to it. */
+  incidentRef?: string
+  /** Version-history label to use instead of the form name. */
+  defaultSummary?: string
   onConfirm: (payload: { gapAcknowledged: boolean; summary?: string }) => void
 }
 
@@ -29,6 +33,8 @@ export function CarePlanPublishDialog({
   gaps,
   hasValues = true,
   publishing,
+  incidentRef,
+  defaultSummary,
   onConfirm,
 }: Props) {
   const blockingGaps = gaps.filter(g => g.severity === 'blocking')
@@ -53,6 +59,13 @@ export function CarePlanPublishDialog({
             <span className="font-medium text-foreground">{formName ?? 'this care plan'}</span>.
             Staff will see the published version until you save a new draft.
           </p>
+
+          {incidentRef ? (
+            <p className="rounded-md border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/20 dark:text-amber-200">
+              This version will be linked to the corrective measure on{' '}
+              <span className="font-medium">{incidentRef}</span> as the evidence of the change.
+            </p>
+          ) : null}
 
           <div className="flex flex-wrap gap-2">
             {!hasValues ? (
@@ -127,7 +140,7 @@ export function CarePlanPublishDialog({
             onClick={() =>
               onConfirm({
                 gapAcknowledged: blockingGaps.length > 0,
-                summary: formName ?? undefined,
+                summary: defaultSummary ?? formName ?? undefined,
               })
             }
           >

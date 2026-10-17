@@ -96,7 +96,7 @@ export function useSaveCarePlanDraft(serviceUserId: string, formId: string) {
 export function usePublishCarePlan(serviceUserId: string, formId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload?: { summary?: string; gapAcknowledged?: boolean }) =>
+    mutationFn: (payload?: { summary?: string; gapAcknowledged?: boolean; incidentActionId?: string }) =>
       publishCarePlanApi(serviceUserId, formId, payload),
     onSuccess: async (published) => {
       if (published) {

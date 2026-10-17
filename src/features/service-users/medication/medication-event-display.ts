@@ -127,8 +127,9 @@ export function eventReason(ev: {
 export function eventReviewLabel(ev: {
   status: string
   managerReviewedAt?: string | null
+  prnOverLimit?: boolean
 }): string {
-  if (!REVIEWABLE_STATUSES.has(ev.status)) return 'N/A'
+  if (!REVIEWABLE_STATUSES.has(ev.status) && !ev.prnOverLimit) return 'N/A'
   return ev.managerReviewedAt ? 'Reviewed' : 'Pending'
 }
 

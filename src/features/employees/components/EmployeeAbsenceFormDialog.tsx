@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import { Label, Textarea } from '@/shared/ui/form-field'
+import { Label } from '@/shared/ui/form-field'
 
 const selectClass = 'flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm'
 
@@ -63,6 +63,7 @@ type Draft = {
   smsReportDate: string
   responsiblePerson: string
   nextReviewDate: string
+  notifyByEmail: boolean
 }
 
 const EMPTY_DRAFT: Draft = {
@@ -90,6 +91,7 @@ const EMPTY_DRAFT: Draft = {
   smsReportDate: '',
   responsiblePerson: 'HR / Compliance',
   nextReviewDate: '',
+  notifyByEmail: false,
 }
 
 function draftFromRow(row: EmployeeAbsenceRow): Draft {
@@ -124,6 +126,7 @@ function draftFromRow(row: EmployeeAbsenceRow): Draft {
     smsReportDate: row.smsReportDate ?? '',
     responsiblePerson: row.responsiblePerson ?? '',
     nextReviewDate: row.nextReviewDate ?? '',
+    notifyByEmail: false,
   }
 }
 
@@ -252,6 +255,7 @@ export function EmployeeAbsenceFormDialog({
           absenceType: draft.absenceType,
           fromDateTime: fromIso,
           toDateTime: toIso,
+          notifyByEmail: draft.notifyByEmail,
         })
       }
       onClose()
@@ -277,6 +281,14 @@ export function EmployeeAbsenceFormDialog({
         </DialogHeader>
 
         <DialogBody>
+        {error ? (
+          <p
+            role="alert"
+            className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          >
+            {error}
+          </p>
+        ) : null}
         <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
           {!editing && !fixedEmployeeId ? (
             <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -360,27 +372,7 @@ export function EmployeeAbsenceFormDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 rounded-lg border border-border bg-muted/30 p-4 sm:col-span-2 sm:grid-cols-4">
-            {(
-              [
-                ['sicknessFlag', 'Sickness flag'],
-                ['lastMinuteFlag', 'Last minute flag'],
-                ['returnToWorkCompleted', 'Return-to-work completed'],
-                ['evidenceHeld', 'Evidence held?'],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft[key]}
-                  onChange={e => set(key, e.target.checked)}
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label>Notes</Label>
             <Input
               value={draft.notes}
@@ -388,130 +380,25 @@ export function EmployeeAbsenceFormDialog({
               placeholder="e.g. Eid day"
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Country visited</Label>
-            <Input
-              value={draft.countryVisited}
-              onChange={e => set('countryVisited', e.target.value)}
-              placeholder="No Recorded"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Tracker status</Label>
-            <Input
-              value={draft.trackerStatus}
-              onChange={e => set('trackerStatus', e.target.value)}
-              placeholder="N/A"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Evidence/notes received</Label>
-            <Input
-              value={draft.evidenceNotesStatus}
-              onChange={e => set('evidenceNotesStatus', e.target.value)}
-              placeholder="Notes Received"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Manager action / follow-up</Label>
-            <Input
-              value={draft.managerAction}
-              onChange={e => set('managerAction', e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Evidence type required</Label>
-            <Input
-              value={draft.evidenceTypeRequired}
-              onChange={e => set('evidenceTypeRequired', e.target.value)}
-              placeholder="e.g. Approved annual leave record"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Evidence received date</Label>
-            <Input
-              type="date"
-              value={draft.evidenceReceivedDate}
-              onChange={e => set('evidenceReceivedDate', e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Continuous working days absent</Label>
-            <Input
-              type="number"
-              min={0}
-              value={draft.continuousDays}
-              onChange={e => set('continuousDays', e.target.value)}
-              placeholder="Auto (derived)"
-            />
-          </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label>CoS / worker ref</Label>
-            <Input
-              value={draft.cosWorkerRef}
-              onChange={e => set('cosWorkerRef', e.target.value)}
-              placeholder="e.g. C2G8N98265A"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Visa / RTW expiry</Label>
-            <Input
-              value={draft.visaRtwExpiry}
-              onChange={e => set('visaRtwExpiry', e.target.value)}
-              placeholder="Date or e.g. British Passport"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>SMS reported?</Label>
-            <select
-              className={selectClass}
-              value={draft.smsReported}
-              onChange={e => set('smsReported', e.target.value as Draft['smsReported'])}
-            >
-              <option value="na">N/A</option>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>SMS report date</Label>
-            <Input
-              type="date"
-              value={draft.smsReportDate}
-              onChange={e => set('smsReportDate', e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Responsible person</Label>
-            <Input
-              value={draft.responsiblePerson}
-              onChange={e => set('responsiblePerson', e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Next review date</Label>
-            <Input
-              type="date"
-              value={draft.nextReviewDate}
-              onChange={e => set('nextReviewDate', e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <Label>Comments</Label>
-            <Textarea
-              rows={3}
-              value={draft.comments}
-              onChange={e => set('comments', e.target.value)}
-              placeholder="Compliance comments for this absence…"
-            />
-          </div>
+          {!editing ? (
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-border bg-muted/20 p-3 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={draft.notifyByEmail}
+                onChange={e => set('notifyByEmail', e.target.checked)}
+                data-testid="absence-form-notify-email"
+              />
+              <span>
+                <span className="block font-medium text-foreground">Notify carer by email</span>
+                <span className="block text-xs text-muted-foreground">
+                  Email the carer to tell them this absence was recorded.
+                </span>
+              </span>
+            </label>
+          ) : null}
         </div>
-
-        {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
         </DialogBody>
 
         <DialogFooter>

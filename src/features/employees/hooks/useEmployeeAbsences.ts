@@ -30,6 +30,7 @@ export function useCreateEmployeeAbsence() {
         absenceType: AbsenceType
         fromDateTime: string
         toDateTime: string
+        notifyByEmail?: boolean
       },
     ) => createEmployeeAbsence(body),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ABSENCES_ROOT }),

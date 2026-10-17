@@ -207,7 +207,7 @@ export default function UkPayrollRunsPage() {
                             <>
                               Permanently deletes all UK payroll runs ({data.length}), enrolled
                               employees, and gross/tax calculations. Linked employee payout batches
-                              are also removed (Bank paid resets). Employee year-to-date (YTD)
+                              are also removed (Payment recorded resets). Employee year-to-date (YTD)
                               figures — Gross, Tax, and NI — are reset to £0 for the tax year.
                               Closed/in-run pay periods are reopened so you can create runs again.
                               Tax years, schedules, and employee payroll profiles are kept.

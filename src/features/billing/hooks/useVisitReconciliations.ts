@@ -5,6 +5,8 @@ import {
   backfillVisitReconciliations,
   bulkApproveVisitReconciliations,
   clearAllVisitReconciliations,
+  dismissPayEvaluationFailure,
+  fetchPayEvaluationFailures,
   fetchVisitReconciliation,
   fetchVisitReconciliationExceptionQueue,
   fetchVisitReconciliations,
@@ -12,6 +14,7 @@ import {
   recalculateVisitReconciliationAmounts,
   rejectVisitOverrun,
   rejectVisitReconciliation,
+  retryPayEvaluationFailure,
   setVisitPayableAmount,
   setVisitBillableAmount,
   updateVisitReconciliation,
@@ -52,10 +55,11 @@ export function useVisitReconciliationsSummary(locationId?: string | null) {
   })
 }
 
-export function useVisitReconciliationExceptionQueue(limit = 10) {
+/** `locationId`: a branch-limited user must name one of their branches. */
+export function useVisitReconciliationExceptionQueue(limit = 10, locationId?: string | null) {
   return useQuery({
-    queryKey: billingKeys.visitReconciliationExceptionQueue(limit),
-    queryFn: () => fetchVisitReconciliationExceptionQueue(limit),
+    queryKey: billingKeys.visitReconciliationExceptionQueue(limit, locationId),
+    queryFn: () => fetchVisitReconciliationExceptionQueue(limit, locationId ?? undefined),
   })
 }
 
@@ -230,6 +234,35 @@ export function useClearAllVisitReconciliations() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (params: { serviceUserId?: string } = {}) => clearAllVisitReconciliations(params),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+    },
+  })
+}
+
+/** Pay calculations that failed and still need attention. */
+export function usePayEvaluationFailures(locationId?: string | null, enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.payEvaluationFailures(locationId),
+    queryFn: () => fetchPayEvaluationFailures(locationId ?? undefined),
+    enabled,
+  })
+}
+
+export function useRetryPayEvaluationFailure() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => retryPayEvaluationFailure(id),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+    },
+  })
+}
+
+export function useDismissPayEvaluationFailure() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => dismissPayEvaluationFailure(id, reason),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
     },

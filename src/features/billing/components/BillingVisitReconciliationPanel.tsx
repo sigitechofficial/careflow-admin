@@ -48,6 +48,7 @@ import { listAllEmployees } from '@/features/employees/api'
 import { SERVICE_USER_PROFILE_ROUTE } from '@/features/service-users/service-user-profile-tabs'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
+import { PayEvaluationFailuresCard } from '@/features/billing/components/PayEvaluationFailuresCard'
 import { formatCurrency, formatDateTime } from '@/shared/lib/utils'
 
 type VisitReconciliationRecalculateSummary = NonNullable<
@@ -387,6 +388,7 @@ export function BillingVisitReconciliationPanel({
 
   return (
     <div className="space-y-6">
+      <PayEvaluationFailuresCard locationId={locationId} />
       <div className="flex flex-col gap-3" data-testid="visit-recon-toolbar">
         <h2 className="sr-only">Visit reconciliation</h2>
 

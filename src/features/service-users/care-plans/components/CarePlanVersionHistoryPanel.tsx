@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { ChevronDown, Loader2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { cn, formatDate } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { fetchCarePlanVersions } from '@/features/service-users/care-plans/api'
@@ -71,6 +72,19 @@ export function CarePlanVersionHistoryPanel({
                       {formatDate(version.publishedAt)}
                       {version.summary ? ` · ${version.summary}` : ''}
                     </p>
+                    {version.incident ? (
+                      <p className="text-xs text-foreground">
+                        Changed for{' '}
+                        <Link
+                          to="/incidents/$incidentId"
+                          params={{ incidentId: version.incident.incidentId }}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {version.incident.referenceNumber}
+                        </Link>{' '}
+                        — {version.incident.measureTitle}
+                      </p>
+                    ) : null}
                   </div>
                   {onViewVersion ? (
                     <Button

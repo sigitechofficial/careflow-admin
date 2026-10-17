@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import type { GenerateSchedulePreview } from '@/features/service-users/visit-plan/types'
+import { formatDate } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import {
@@ -56,11 +57,12 @@ export function VisitPlanGeneratePreviewDialog({
       ? 'Regenerate rota from visit plan'
       : 'Generate rota from visit plan'
 
+  const range = `${formatDate(fromDate)} to ${formatDate(toDate)}`
   const description = isBackfill
-    ? `Preview for ${fromDate} to ${toDate} (days before rota start). Confirm before creating backdated visits.`
+    ? `Preview for ${range} (days before rota start). Confirm before creating backdated visits.`
     : isRegenerate
-      ? `Preview for ${fromDate} to ${toDate}. Missing visits will be created; existing visits will sync carers (including day-specific assignments).`
-      : `Preview for ${fromDate} to ${toDate}. Confirm before creating visits on the scheduling board.`
+      ? `Preview for ${range}. New visits will be created. Visits already on the rota will have their carers updated from this plan.`
+      : `Preview for ${range}. Confirm before creating visits on the scheduling board.`
 
   const confirmLabel = isBackfill
     ? 'Backfill visits'
@@ -98,7 +100,7 @@ export function VisitPlanGeneratePreviewDialog({
               ) : null}
               {preview.visitsSkippedSkip > 0 ? (
                 <li className="text-muted-foreground">
-                  {preview.visitsSkippedSkip} skipped — plan SKIP exceptions
+                  {preview.visitsSkippedSkip} not created — cancelled for that date
                 </li>
               ) : null}
               {preview.visitsSkippedBankHoliday > 0 ? (
@@ -108,19 +110,20 @@ export function VisitPlanGeneratePreviewDialog({
               ) : null}
               {(preview.visitsSkippedOffPattern ?? 0) > 0 ? (
                 <li className="text-muted-foreground">
-                  {preview.visitsSkippedOffPattern} skipped — not on call pattern (weekday / dates)
+                  {preview.visitsSkippedOffPattern} day{preview.visitsSkippedOffPattern === 1 ? '' : 's'} not
+                  included — outside this visit's days or start/end dates
                 </li>
               ) : null}
               {(preview.visitsSkippedNoBackfillAllow ?? 0) > 0 ? (
                 <li className="text-destructive">
                   {preview.visitsSkippedNoBackfillAllow} day(s) skipped — Max backfill days not saved on
-                  the call (use Record amendment, then try again)
+                  the visit (use Record amendment, then try again)
                 </li>
               ) : null}
               {isBackfill && (preview.maxSlotBackfillDays ?? 0) <= 0 ? (
                 <li className="text-destructive">
-                  Saved plan has Max backfill days = 0 on all enabled calls. Set it on Morning (or
-                  another call), click Record amendment, then backfill again.
+                  Saved plan has Max backfill days = 0 on all enabled visits. Set Max backfill days on a
+                  visit, then Record amendment, then backfill again.
                 </li>
               ) : null}
             </ul>
@@ -130,7 +133,7 @@ export function VisitPlanGeneratePreviewDialog({
             <p className="text-sm text-muted-foreground">
               {isRegenerate
                 ? 'No new visits to create — existing rota entries in this window will sync carers from the visit plan.'
-                : 'No new visits to create — matching call days in this window already have rota entries.'}
+                : 'No new visits to create — matching visit days in this window already have rota entries.'}
             </p>
           ) : null}
 

@@ -3,18 +3,11 @@ import { cn } from '@/shared/lib/utils'
 import { contentHelperClass, contentOverlineClass, contentTitleClass } from '@/shared/ui/content-section'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
-import type { VisitPlanNightDuty, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
+import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_MAX_DURATION_MINUTES } from '@/features/service-users/visit-plan/visit-plan-constants'
 import {
-  defaultOvernightTimePatch,
+  formatVisitPlanNightDuty,
   slotAllowsNightDuty,
 } from '@/features/service-users/visit-plan/visit-plan-night-duty.util'
 import { operationalTodayIso } from '@/shared/lib/operational-day.util'
@@ -58,66 +51,11 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <Label className={cn('flex items-center gap-1', contentOverlineClass)}>
-            Slot type
-            <FieldHelp text="Overnight means the end time is the next day (for example 22:00–07:00). One-off is a single special visit." />
-          </Label>
-          <Select
-            value={slot.slotKind}
-            disabled={disabled}
-            onValueChange={(v) =>
-              onChange({
-                slotKind: v as VisitPlanSlot['slotKind'],
-                oneOffDate: v === 'ONE_OFF' ? slot.oneOffDate ?? todayIsoDate() : null,
-                ...(v === 'OVERNIGHT' ? defaultOvernightTimePatch(slot) : {}),
-              })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="STANDARD">Standard (recurring)</SelectItem>
-              <SelectItem value="OVERNIGHT">Overnight (end next day)</SelectItem>
-              <SelectItem value="ONE_OFF">One-off / special visit</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         {showNightDuty ? (
           <div>
-            <Label className={cn('flex items-center gap-1', contentOverlineClass)}>
-              Night duty
-              <FieldHelp text="Sleeping night: carer may sleep (fixed charge later). Waking night: carer stays awake (hourly later). Charge cards are not applied in this step." />
-            </Label>
-            <Select
-              value={slot.nightDuty}
-              disabled={disabled}
-              onValueChange={(v) =>
-                onChange({
-                  nightDuty: v as VisitPlanNightDuty,
-                  ...(v === 'SLEEPING_NIGHT' || v === 'WAKING_NIGHT'
-                    ? defaultOvernightTimePatch(slot)
-                    : {}),
-                })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="NONE">None</SelectItem>
-                <SelectItem value="SLEEPING_NIGHT">Sleeping night</SelectItem>
-                <SelectItem value="WAKING_NIGHT">Waking night</SelectItem>
-              </SelectContent>
-            </Select>
-            {slot.nightDuty === 'SLEEPING_NIGHT' || slot.nightDuty === 'WAKING_NIGHT' ? (
-              <p className={cn('mt-1.5', contentHelperClass)}>
-                Your selected time for this slot will be adjusted to {slot.plannedStartTime}–
-                {slot.plannedEndTime} (next day) for the overnight window.
-              </p>
-            ) : null}
+            <Label className={contentOverlineClass}>Night type</Label>
+            <p className="mt-2 text-sm text-foreground">{formatVisitPlanNightDuty(slot.nightDuty, 'Normal visit')}</p>
+            <p className={cn('mt-1', contentHelperClass)}>Change it with Edit on the visit.</p>
           </div>
         ) : null}
 

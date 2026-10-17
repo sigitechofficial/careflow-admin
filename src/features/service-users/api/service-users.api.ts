@@ -60,6 +60,7 @@ export type ServiceUserListRow = {
   gender: { id: string; name: string; code: string } | null
   status: { id: string; name: string; code: string } | null
   careType: { id: string; name: string; code: string } | null
+  careLevel?: 'STANDARD' | 'COMPLEX' | null
   fundingType: { id: string; name: string; code: string } | null
   riskLevel: { id: string; name: string; code: string; color: string | null } | null
   location: {
@@ -238,6 +239,7 @@ export type ServiceUserDetail = {
   maritalStatus: { id: string; name: string; code: string } | null
   status: { id: string; name: string; code: string } | null
   careType: { id: string; name: string; code: string } | null
+  careLevel?: 'STANDARD' | 'COMPLEX' | null
   fundingType: { id: string; name: string; code: string } | null
   riskLevel: { id: string; name: string; code: string; color: string | null } | null
   location: {
@@ -762,6 +764,10 @@ export type ServiceUserMedicationRow = {
   isDecongestantMedication: boolean
   timeCritical?: boolean
   timeToleranceMinutes?: number
+  /** PRN only, optional limits. */
+  prnMinGapHours?: number | null
+  prnMaxDosesIn24Hours?: number | null
+  prnMaxDosePerTime?: string | null
   route?: ServiceUserMedicationLookupNested
   frequency?: ServiceUserMedicationLookupNested
   medicationType?: ServiceUserMedicationLookupNested
@@ -1016,6 +1022,10 @@ export type CreateServiceUserMedicationPayload = {
   isDecongestantMedication?: boolean
   timeCritical?: boolean
   timeToleranceMinutes?: number
+  /** PRN only, optional limits. Null clears a limit. */
+  prnMinGapHours?: number | null
+  prnMaxDosesIn24Hours?: number | null
+  prnMaxDosePerTime?: string | null
   medicationPackId?: string
   status?: 'ACTIVE' | 'ENDED' | 'PAUSED' | 'CANCELLED'
   /** One schedule row per administration time (e.g. 3× daily → 3 rows). */
@@ -1798,6 +1808,7 @@ export type UpdateServiceUserPayload = {
   maritalStatusId?: string | null
   statusId?: string | null
   careTypeId?: string | null
+  careLevel?: 'STANDARD' | 'COMPLEX' | null
   fundingTypeId?: string | null
   riskLevelId?: string | null
   locationId?: string | null
@@ -1961,6 +1972,7 @@ export type CreateServiceUserPayload = {
   maritalStatusId?: string
   statusId?: string
   careTypeId?: string
+  careLevel?: 'STANDARD' | 'COMPLEX'
   fundingTypeId?: string
   riskLevelId?: string
   locationId?: string

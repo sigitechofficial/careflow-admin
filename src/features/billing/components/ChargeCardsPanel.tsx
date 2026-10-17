@@ -4,7 +4,7 @@ import { ApiError } from '@/shared/api/api-client'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { ChargeCardFormDialog } from '@/features/billing/components/ChargeCardFormDialog'
+import { useNavigate } from '@tanstack/react-router'
 import { ChargeCardAssignDialog } from '@/features/billing/components/ChargeCardAssignDialog'
 import { RateCardStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { useChargeCards, useDeleteChargeCard } from '@/features/billing/hooks/useChargeCards'
@@ -39,12 +39,11 @@ function rulesSummary(card: ChargeCard): string {
 }
 
 export function ChargeCardsPanel() {
+  const navigate = useNavigate()
   const canManage = useAuthStore(s => s.can('billing.charge_cards.manage' as never))
   const { locationId } = useGlobalLocationScope()
   const [search, setSearch] = React.useState('')
-  const [dialogOpen, setDialogOpen] = React.useState(false)
   const [assignDialogOpen, setAssignDialogOpen] = React.useState(false)
-  const [editing, setEditing] = React.useState<ChargeCard | null>(null)
   const [assigning, setAssigning] = React.useState<ChargeCard | null>(null)
 
   const listQuery = useChargeCards({
@@ -61,15 +60,10 @@ export function ChargeCardsPanel() {
         ? 'Could not load charge cards.'
         : null
 
-  const openCreate = () => {
-    setEditing(null)
-    setDialogOpen(true)
-  }
+  const openCreate = () => void navigate({ to: '/billing/charge-cards/new' })
 
-  const openEdit = (card: ChargeCard) => {
-    setEditing(card)
-    setDialogOpen(true)
-  }
+  const openEdit = (card: ChargeCard) =>
+    void navigate({ to: '/billing/charge-cards/$chargeCardId/edit', params: { chargeCardId: card.id } })
 
   const openAssign = (card: ChargeCard) => {
     setAssigning(card)
@@ -212,7 +206,6 @@ export function ChargeCardsPanel() {
         ))}
       </div>
 
-      <ChargeCardFormDialog open={dialogOpen} onOpenChange={setDialogOpen} card={editing} />
       <ChargeCardAssignDialog
         card={assigning}
         open={assignDialogOpen}

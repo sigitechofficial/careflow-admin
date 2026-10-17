@@ -116,6 +116,12 @@ function DecimalAmountInput({
 }
 
 /** Pay only: how an hourly rule's number is used (absolute £/hr, or on top of the card's weekday base rate). */
+/**
+ * Value of the "Custom…" entry in the "When this rate applies" list. It must not be empty: the
+ * list is required, and an empty value made the browser refuse to save a card with a custom period.
+ */
+const CUSTOM_PERIOD_VALUE = 'CUSTOM'
+
 const PAY_RATE_METHOD_OPTIONS: { value: PayEnhancementMethod; label: string; amountLabel: string }[] = [
   { value: 'ABSOLUTE_HOURLY', label: '£ per hour (actual hourly rate)', amountLabel: '£ per hour' },
   { value: 'ADDITIONAL_PER_HOUR', label: 'Base rate + £ per hour premium', amountLabel: '+ £ per hour' },
@@ -945,26 +951,23 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
       ? (OVERTIME_METHOD_OPTIONS.find(o => o.value === method)?.amountLabel ?? 'Multiplier (×)')
       : (meta?.amountLabel ?? '£')
     return (
-      <div key={index} className={ruleShellClass(index)} data-testid={`additional-pay-${rule.rateType}`}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 space-y-1">
-            <p className="truncate text-sm font-medium text-foreground">{rule.label?.trim() || meta?.title}</p>
+      <div
+        key={index}
+        data-testid={`additional-pay-${rule.rateType}`}
+        className={cn(
+          'flex flex-col gap-4 border-t border-border py-4 transition-colors md:flex-row md:items-start md:justify-between',
+          flashIndices.has(index) ? 'billing-rule-flash bg-primary/5' : '',
+        )}
+      >
+        <div className="min-w-0 space-y-1 md:max-w-sm md:flex-1">
+          <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
+            <span className="truncate">{rule.label?.trim() || meta?.title}</span>
             <Badge variant="secondary" className="text-[10px] font-normal">{meta?.title}</Badge>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 shrink-0 p-0 text-destructive"
-            onClick={() => removeRule(index)}
-            disabled={disabled}
-            title="Remove rule"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {meta?.hint ? <p className="text-xs text-muted-foreground">{meta.hint}</p> : null}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="space-y-1 text-sm">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="w-44 space-y-1 text-sm">
             <span className="text-xs font-medium text-foreground/90">Label</span>
             <Input
               value={rule.label ?? ''}
@@ -973,7 +976,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             />
           </label>
           {overtime ? (
-            <label className="space-y-1 text-sm">
+            <label className="w-64 space-y-1 text-sm">
               <span className="text-xs font-medium text-foreground/90">How overtime is paid</span>
               <select
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -988,7 +991,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               </select>
             </label>
           ) : null}
-          <label className="space-y-1 text-sm">
+          <label className="w-40 space-y-1 text-sm">
             <span className="text-xs font-medium text-foreground/90">
               {amountLabel} <span className="text-destructive" aria-hidden>*</span>
             </span>
@@ -1006,7 +1009,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             />
           </label>
           {overtime ? (
-            <label className="space-y-1 text-sm">
+            <label className="w-40 space-y-1 text-sm">
               <span className="text-xs font-medium text-foreground/90">
                 Weekly threshold (hours) <span className="text-destructive" aria-hidden>*</span>
               </span>
@@ -1025,8 +1028,18 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               />
             </label>
           ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-9 w-9 shrink-0 p-0 text-destructive"
+            onClick={() => removeRule(index)}
+            disabled={disabled}
+            title="Remove rule"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
-        {meta?.hint ? <p className="text-xs text-muted-foreground">{meta.hint}</p> : null}
       </div>
     )
   }
@@ -1331,6 +1344,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   const renderDayTimePremiumCard = (rule: PayCardRule, index: number) => {
     const matched = forceCustomPeriod[index] ? undefined : matchPayTimePeriod(rule)
     const isCustom = !matched
+    // Pay cards: a named period shows its days and times as one line; From / Until open on request.
+    const compact = mode === 'pay' && !isCustom
     const fieldLabelClass = 'text-xs font-medium text-foreground/90'
     const isPeriodTaken = (code: PayTimePeriodCode) => {
       if (matched?.code === code) return false
@@ -1344,42 +1359,22 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     }
 
     return (
-      <div key={index} className={ruleShellClass(index)}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 space-y-1">
-            <p className="text-sm font-medium text-foreground truncate">
-              {matched?.label ?? (rule.label?.trim() || 'Custom period')}
-            </p>
-            {flashIndices.has(index) ? (
-              <Badge variant="default" className="text-[10px] font-normal">
-                New
-              </Badge>
-            ) : null}
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 shrink-0 p-0 text-destructive"
-            onClick={() => removeRule(index)}
-            disabled={disabled}
-            title="Remove rule"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>
-              When this rate applies <span className="text-destructive" aria-hidden>*</span>
-            </span>
+      <tr
+        key={index}
+        className={cn(
+          'transition-colors hover:bg-muted/40',
+          flashIndices.has(index) ? 'billing-rule-flash bg-primary/5' : '',
+        )}
+      >
+        <td className="border-b border-border px-3 py-2.5 align-top first:pl-4">
+          <label className="block space-y-1 text-sm">
+            <span className="sr-only">When this rate applies</span>
             <select
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={matched?.code ?? ''}
+              value={matched?.code ?? CUSTOM_PERIOD_VALUE}
               onChange={e => {
-                const code = e.target.value as PayTimePeriodCode
-                if (code) {
+                const code = e.target.value as PayTimePeriodCode | typeof CUSTOM_PERIOD_VALUE
+                if (code !== CUSTOM_PERIOD_VALUE) {
                   if (applyPeriodToRule(index, code)) {
                     setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
                   }
@@ -1401,7 +1396,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               disabled={disabled}
               required
             >
-              <option value="">Custom…</option>
+              <option value={CUSTOM_PERIOD_VALUE}>Custom…</option>
               {PAY_TIME_PERIOD_GROUPS.map(group => (
                 <optgroup key={group.id} label={group.label}>
                   {PAY_TIME_PERIOD_LOOKUP.filter(p => p.group === group.id).map(p => {
@@ -1416,11 +1411,148 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               ))}
             </select>
           </label>
+          {flashIndices.has(index) ? (
+            <Badge variant="default" className="mt-1 inline-flex text-[10px] font-normal">
+              New
+            </Badge>
+          ) : null}
+        </td>
 
-          <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>
-              {mode === 'pay' ? payRateAmountLabel(rule.enhancementMethod) : '£ per hour'}{' '}
-              <span className="text-destructive" aria-hidden>*</span>
+        <td className="border-b border-border px-3 py-2.5 align-top">
+          <div className="space-y-2">
+            {isCustom ? (
+              <label className="block space-y-1 text-sm">
+                <span className="sr-only">Label</span>
+                <Input
+                  value={rule.label ?? ''}
+                  onChange={e => updateRule(index, { label: e.target.value })}
+                  placeholder="e.g. Midweek twilight"
+                  disabled={disabled}
+                />
+              </label>
+            ) : null}
+
+            {isCustom ? (
+              <label className="block space-y-1 text-sm">
+                <span className="sr-only">Applies on</span>
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={rule.dayType}
+                  onChange={e => {
+                    const dayType = e.target.value as BillingDayType
+                    const ok = tryUpdateHourlyWindow(index, {
+                      dayType,
+                      label: rule.label?.trim() || 'Custom period',
+                      enhancementMethod:
+                        mode === 'pay' ? (rule.enhancementMethod ?? 'ABSOLUTE_HOURLY') : 'ABSOLUTE_HOURLY',
+                    })
+                    if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
+                  }}
+                  disabled={disabled}
+                  required
+                >
+                  {BILLING_DAY_TYPE_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            {compact ? (
+              <p className="text-xs text-muted-foreground" data-testid="pay-rule-period-summary">
+                {formatPayCardRuleDayType(rule.dayType)} · {formatPayCardRuleTimeBand(rule) ?? 'any time'} ·{' '}
+                <button
+                  type="button"
+                  className="font-medium text-primary hover:underline"
+                  onClick={() => setForceCustomPeriod(prev => ({ ...prev, [index]: true }))}
+                  disabled={disabled}
+                >
+                  Change days or times
+                </button>
+              </p>
+            ) : null}
+
+            {compact ? null : (
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block space-y-1 text-sm">
+                  <span className={fieldLabelClass}>
+                    From <span className="text-destructive" aria-hidden>*</span>
+                  </span>
+                  <Input
+                    type="time"
+                    value={normalizeBillingTimeInput(rule.startTime)}
+                    onChange={e => {
+                      const startTime = e.target.value || null
+                      const ok = tryUpdateHourlyWindow(index, {
+                        startTime,
+                        label: isCustom
+                          ? (rule.label?.trim() || 'Custom period')
+                          : 'Custom period',
+                      })
+                      if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
+                    }}
+                    disabled={disabled}
+                    required
+                  />
+                </label>
+                <label className="block space-y-1 text-sm">
+                  <span className={fieldLabelClass}>
+                    Until <span className="text-destructive" aria-hidden>*</span>
+                  </span>
+                  <Input
+                    type="time"
+                    value={normalizeBillingTimeInput(rule.endTime)}
+                    onChange={e => {
+                      const ok = tryUpdateHourlyWindow(index, {
+                        endTime: e.target.value || null,
+                        label: isCustom
+                          ? (rule.label?.trim() || 'Custom period')
+                          : 'Custom period',
+                      })
+                      if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
+                    }}
+                    disabled={disabled}
+                    required
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+        </td>
+
+        {mode === 'pay' ? (
+          <td className="border-b border-border px-3 py-2.5 align-top">
+            <label className="block space-y-1 text-sm">
+              <span className="sr-only">How this rate is paid</span>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={rule.enhancementMethod ?? 'ABSOLUTE_HOURLY'}
+                onChange={e =>
+                  updateRule(
+                    index,
+                    payRateMethodFields(e.target.value as PayEnhancementMethod, Number(rule.amount)),
+                  )
+                }
+                disabled={disabled}
+                data-testid="pay-rule-method"
+              >
+                {PAY_RATE_METHOD_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
+            {rule.enhancementMethod && rule.enhancementMethod !== 'ABSOLUTE_HOURLY' ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Applied to this card&apos;s weekday base hourly rate — check the result in Pay preview.
+              </p>
+            ) : null}
+          </td>
+        ) : null}
+
+        <td className="border-b border-border px-3 py-2.5 align-top text-right">
+          <label className="block space-y-1 text-sm">
+            <span className="sr-only">
+              {mode === 'pay' ? payRateAmountLabel(rule.enhancementMethod) : '£ per hour'}
             </span>
             <DecimalAmountInput
               value={rule.amount}
@@ -1439,139 +1571,12 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               disabled={disabled}
               placeholder="0.00"
               required
+              className="text-right"
             />
           </label>
+        </td>
 
-          {mode === 'pay' ? (
-            <label className="space-y-1 text-sm sm:col-span-2">
-              <span className={fieldLabelClass}>How this rate is paid</span>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={rule.enhancementMethod ?? 'ABSOLUTE_HOURLY'}
-                onChange={e =>
-                  updateRule(
-                    index,
-                    payRateMethodFields(e.target.value as PayEnhancementMethod, Number(rule.amount)),
-                  )
-                }
-                disabled={disabled}
-                data-testid="pay-rule-method"
-              >
-                {PAY_RATE_METHOD_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-              {rule.enhancementMethod && rule.enhancementMethod !== 'ABSOLUTE_HOURLY' ? (
-                <p className="text-xs text-muted-foreground">
-                  Applied to this card&apos;s weekday base hourly rate — check the result in Pay preview.
-                </p>
-              ) : null}
-            </label>
-          ) : null}
-
-          {isCustom ? (
-            <label className="space-y-1 text-sm sm:col-span-2">
-              <span className={fieldLabelClass}>Label</span>
-              <Input
-                value={rule.label ?? ''}
-                onChange={e => updateRule(index, { label: e.target.value })}
-                placeholder="e.g. Midweek twilight"
-                disabled={disabled}
-              />
-            </label>
-          ) : null}
-
-          {isCustom ? (
-            <label className="space-y-1 text-sm sm:col-span-2">
-              <span className={fieldLabelClass}>
-                Applies on <span className="text-destructive" aria-hidden>*</span>
-              </span>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={rule.dayType}
-                onChange={e => {
-                  const dayType = e.target.value as BillingDayType
-                  const ok = tryUpdateHourlyWindow(index, {
-                    dayType,
-                    label: rule.label?.trim() || 'Custom period',
-                    enhancementMethod:
-                      mode === 'pay' ? (rule.enhancementMethod ?? 'ABSOLUTE_HOURLY') : 'ABSOLUTE_HOURLY',
-                  })
-                  if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
-                }}
-                disabled={disabled}
-                required
-              >
-                {BILLING_DAY_TYPE_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
-          <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>
-              From <span className="text-destructive" aria-hidden>*</span>
-            </span>
-            <Input
-              type="time"
-              value={normalizeBillingTimeInput(rule.startTime)}
-              onChange={e => {
-                const startTime = e.target.value || null
-                const ok = tryUpdateHourlyWindow(index, {
-                  startTime,
-                  label: isCustom
-                    ? (rule.label?.trim() || 'Custom period')
-                    : 'Custom period',
-                })
-                if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
-              }}
-              disabled={disabled}
-              required
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>
-              Until <span className="text-destructive" aria-hidden>*</span>
-            </span>
-            <Input
-              type="time"
-              value={normalizeBillingTimeInput(rule.endTime)}
-              onChange={e => {
-                const ok = tryUpdateHourlyWindow(index, {
-                  endTime: e.target.value || null,
-                  label: isCustom
-                    ? (rule.label?.trim() || 'Custom period')
-                    : 'Custom period',
-                })
-                if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
-              }}
-              disabled={disabled}
-              required
-            />
-          </label>
-        </div>
-      </div>
-    )
-  }
-
-  const renderFixedVisitCard = (rule: PayCardRule, index: number) => {
-    const durationMinutes = ruleDurationMinutes(rule)
-    const fieldLabelClass = 'text-xs font-medium text-foreground/90'
-    const band = formatPayCardRuleTimeBand(rule)
-
-    return (
-      <div key={index} className={ruleShellClass(index)}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 space-y-0.5">
-            <p className="text-sm font-medium text-foreground truncate">
-              {fixedVisitRuleTitle(rule, durationMinutes)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {formatPayCardRuleDayType(rule.dayType)}
-              {band ? ` · ${band}` : ' · any time'}
-            </p>
-          </div>
+        <td className="border-b border-border px-3 py-2.5 align-top text-right">
           <Button
             type="button"
             variant="ghost"
@@ -1579,15 +1584,30 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             className="h-8 w-8 shrink-0 p-0 text-destructive"
             onClick={() => removeRule(index)}
             disabled={disabled}
-            title="Remove"
+            title="Remove rule"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
-        </div>
+        </td>
+      </tr>
+    )
+  }
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>
+  const renderFixedVisitCard = (rule: PayCardRule, index: number) => {
+    const durationMinutes = ruleDurationMinutes(rule)
+    const cellClass = 'border-b border-border px-3 py-2.5 align-top'
+
+    return (
+      <tr
+        key={index}
+        className={cn(
+          'transition-colors hover:bg-muted/40',
+          flashIndices.has(index) ? 'billing-rule-flash bg-primary/5' : '',
+        )}
+      >
+        <td className={cn(cellClass, 'first:pl-4')}>
+          <label className="block space-y-1 text-sm">
+            <span className="sr-only">
               Visit length <span className="text-destructive" aria-hidden>*</span>
             </span>
             <select
@@ -1613,8 +1633,61 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               ))}
             </select>
           </label>
-          <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>
+          {flashIndices.has(index) ? (
+            <Badge variant="default" className="mt-1 inline-flex text-[10px] font-normal">
+              New
+            </Badge>
+          ) : null}
+        </td>
+        <td className={cellClass}>
+          <label className="block space-y-1 text-sm">
+            <span className="sr-only">
+              Applies on <span className="text-destructive" aria-hidden>*</span>
+            </span>
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={rule.dayType}
+              onChange={e => updateRule(index, { dayType: e.target.value as BillingDayType })}
+              disabled={disabled}
+              required
+            >
+              {BILLING_DAY_TYPE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
+        </td>
+        <td className={cellClass}>
+          <label className="block space-y-1 text-sm">
+            <span className="sr-only">
+              From <span className="text-destructive" aria-hidden>*</span>
+            </span>
+            <Input
+              type="time"
+              value={normalizeBillingTimeInput(rule.startTime)}
+              onChange={e => updateRule(index, { startTime: e.target.value || null })}
+              disabled={disabled}
+              required
+            />
+          </label>
+        </td>
+        <td className={cellClass}>
+          <label className="block space-y-1 text-sm">
+            <span className="sr-only">
+              Until <span className="text-destructive" aria-hidden>*</span>
+            </span>
+            <Input
+              type="time"
+              value={normalizeBillingTimeInput(rule.endTime)}
+              onChange={e => updateRule(index, { endTime: e.target.value || null })}
+              disabled={disabled}
+              required
+            />
+          </label>
+        </td>
+        <td className={cn(cellClass, 'text-right')}>
+          <label className="block space-y-1 text-sm">
+            <span className="sr-only">
               Flat £ <span className="text-destructive" aria-hidden>*</span>
             </span>
             <DecimalAmountInput
@@ -1632,50 +1705,24 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               disabled={disabled}
               placeholder="0.00"
               required
+              className="text-right"
             />
           </label>
-          <label className="space-y-1 text-sm sm:col-span-2">
-            <span className={fieldLabelClass}>
-              Applies on <span className="text-destructive" aria-hidden>*</span>
-            </span>
-            <select
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={rule.dayType}
-              onChange={e => updateRule(index, { dayType: e.target.value as BillingDayType })}
-              disabled={disabled}
-              required
-            >
-              {BILLING_DAY_TYPE_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>
-              From <span className="text-destructive" aria-hidden>*</span>
-            </span>
-            <Input
-              type="time"
-              value={normalizeBillingTimeInput(rule.startTime)}
-              onChange={e => updateRule(index, { startTime: e.target.value || null })}
-              disabled={disabled}
-              required
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>
-              Until <span className="text-destructive" aria-hidden>*</span>
-            </span>
-            <Input
-              type="time"
-              value={normalizeBillingTimeInput(rule.endTime)}
-              onChange={e => updateRule(index, { endTime: e.target.value || null })}
-              disabled={disabled}
-              required
-            />
-          </label>
-        </div>
-      </div>
+        </td>
+        <td className={cn(cellClass, 'text-right')}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 shrink-0 p-0 text-destructive"
+            onClick={() => removeRule(index)}
+            disabled={disabled}
+            title="Remove"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </td>
+      </tr>
     )
   }
 
@@ -1783,8 +1830,33 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               )
             }
             return (
-              <div className="space-y-3">
-                {items.map(({ rule, index }) => renderDayTimePremiumCard(rule, index))}
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="bg-muted/40">
+                      <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-4">
+                        When this rate applies
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Days &amp; times
+                      </th>
+                      {mode === 'pay' ? (
+                        <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          How it&apos;s paid
+                        </th>
+                      ) : null}
+                      <th className="border-b border-border px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        £ per hour
+                      </th>
+                      <th className="w-14 border-b border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map(({ rule, index }) => renderDayTimePremiumCard(rule, index))}
+                  </tbody>
+                </table>
               </div>
             )
           })()}
@@ -1838,8 +1910,34 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               )
             }
             return (
-              <div className="space-y-3">
-                {items.map(({ rule, index }) => renderFixedVisitCard(rule, index))}
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="bg-muted/40">
+                      <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-4">
+                        Visit length
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Applies on
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        From
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Until
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Flat £
+                      </th>
+                      <th className="w-14 border-b border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map(({ rule, index }) => renderFixedVisitCard(rule, index))}
+                  </tbody>
+                </table>
               </div>
             )
           })()}
@@ -1903,87 +2001,121 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               )
             }
             return (
-              <div className="space-y-3">
-                {items.map(({ rule, index }) => {
-                  const isSleepIn =
-                    rule.rateType === 'SLEEP_IN'
-                    || (rule as ChargeCardRule).chargeMethod === 'SLEEP_IN'
-                  return (
-                  <div key={index} className={ruleShellClass(index)}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 space-y-1">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {rule.label?.trim() || getRuleRateTypeLabel(rule)}
-                        </p>
-                        <Badge variant="secondary" className="text-[10px] font-normal">
-                          {getRuleRateTypeLabel(rule)}
-                          {' · '}
-                          {formatPayCardRuleDayType(rule.dayType)}
-                        </Badge>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 shrink-0 p-0 text-destructive"
-                        onClick={() => removeRule(index)}
-                        disabled={disabled}
-                        title="Remove"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="space-y-1 text-sm sm:col-span-2">
-                        <span className="text-xs font-medium text-foreground/90">Label</span>
-                        <Input
-                          value={rule.label ?? ''}
-                          onChange={e => updateRule(index, { label: e.target.value })}
-                          placeholder={
-                            isSleepIn
-                              ? 'e.g. Sleeping night — weekday'
-                              : 'e.g. Waking night — weekend'
-                          }
-                          disabled={disabled}
-                        />
-                      </label>
-                      <label className="space-y-1 text-sm">
-                        <span className="text-xs font-medium text-foreground/90">
-                          {getRuleAmountFieldLabel(rule)} <span className="text-destructive" aria-hidden>*</span>
-                        </span>
-                        <DecimalAmountInput
-                          value={rule.amount}
-                          onValueChange={amount => updateRule(index, { amount })}
-                          disabled={disabled}
-                          placeholder="0.00"
-                          required
-                        />
-                      </label>
-                      <label className="space-y-1 text-sm">
-                        <span className="text-xs font-medium text-foreground/90">Applies on</span>
-                        <select
-                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                          value={rule.dayType}
-                          onChange={e =>
-                            tryUpdateNightDutyDayType(index, e.target.value as BillingDayType)
-                          }
-                          disabled={disabled}
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="bg-muted/40">
+                      <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-4">
+                        Type
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Label
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Applies on
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Rate
+                      </th>
+                      <th className="w-14 border-b border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map(({ rule, index }) => {
+                      const isSleepIn =
+                        rule.rateType === 'SLEEP_IN'
+                        || (rule as ChargeCardRule).chargeMethod === 'SLEEP_IN'
+                      const cellClass = 'border-b border-border px-3 py-2.5 align-top'
+                      return (
+                        <tr
+                          key={index}
+                          className={cn(
+                            'transition-colors hover:bg-muted/40',
+                            flashIndices.has(index) ? 'billing-rule-flash bg-primary/5' : '',
+                          )}
                         >
-                          {BILLING_DAY_TYPE_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    <p className="text-xs leading-snug text-foreground/80 dark:text-zinc-300">
-                      Note :{' '}
-                      {isSleepIn
-                        ? `For this type of visit the ${mode === 'charge' ? 'charge' : 'pay'} should be fixed — one amount for the whole night.`
-                        : `For this type of visit the ${mode === 'charge' ? 'charge' : 'pay'} should be hourly — ${mode === 'charge' ? 'billed' : 'paid'} for the hours worked.`}
-                    </p>
-                  </div>
-                  )
-                })}
+                          <td className={cn(cellClass, 'first:pl-4')}>
+                            <p className="text-sm font-medium text-foreground">
+                              {getRuleRateTypeLabel(rule)}
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {isSleepIn
+                                ? `Fixed — one amount for the whole night.`
+                                : `Hourly — ${mode === 'charge' ? 'billed' : 'paid'} for the hours worked.`}
+                            </p>
+                            {flashIndices.has(index) ? (
+                              <Badge variant="default" className="mt-1 inline-flex text-[10px] font-normal">
+                                New
+                              </Badge>
+                            ) : null}
+                          </td>
+                          <td className={cellClass}>
+                            <label className="block space-y-1 text-sm">
+                              <span className="sr-only">Label</span>
+                              <Input
+                                value={rule.label ?? ''}
+                                onChange={e => updateRule(index, { label: e.target.value })}
+                                placeholder={
+                                  isSleepIn
+                                    ? 'e.g. Sleeping night — weekday'
+                                    : 'e.g. Waking night — weekend'
+                                }
+                                disabled={disabled}
+                              />
+                            </label>
+                          </td>
+                          <td className={cellClass}>
+                            <label className="block space-y-1 text-sm">
+                              <span className="sr-only">Applies on</span>
+                              <select
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                value={rule.dayType}
+                                onChange={e =>
+                                  tryUpdateNightDutyDayType(index, e.target.value as BillingDayType)
+                                }
+                                disabled={disabled}
+                              >
+                                {BILLING_DAY_TYPE_OPTIONS.map(opt => (
+                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                              </select>
+                            </label>
+                          </td>
+                          <td className={cn(cellClass, 'text-right')}>
+                            <label className="block space-y-1 text-sm">
+                              <span className="sr-only">
+                                {getRuleAmountFieldLabel(rule)} <span className="text-destructive" aria-hidden>*</span>
+                              </span>
+                              <DecimalAmountInput
+                                value={rule.amount}
+                                onValueChange={amount => updateRule(index, { amount })}
+                                disabled={disabled}
+                                placeholder="0.00"
+                                required
+                                className="text-right"
+                              />
+                            </label>
+                          </td>
+                          <td className={cn(cellClass, 'text-right')}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 shrink-0 p-0 text-destructive"
+                              onClick={() => removeRule(index)}
+                              disabled={disabled}
+                              title="Remove"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             )
           })()}
@@ -2036,7 +2168,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 )
               }
               return (
-                <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {items.map(({ rule, index }) => renderRuleCard(rule, index))}
                 </div>
               )
@@ -2097,7 +2229,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                     </p>
                   )
                 }
-                return <div className="space-y-3">{items.map(({ rule, index }) => renderAdditionalPayRule(rule, index))}</div>
+                return <div className="flex flex-col">{items.map(({ rule, index }) => renderAdditionalPayRule(rule, index))}</div>
               })()}
             </>
           ) : null}

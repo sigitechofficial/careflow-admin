@@ -139,7 +139,7 @@ export function BillingDashboardPanel() {
   const payrollSummaryQuery = usePayrollRunsSummary(locationId)
   const invoiceSummaryQuery = useInvoiceRunsSummary(locationId)
   const paymentsSummaryQuery = usePaymentsSummary()
-  const exceptionQueueQuery = useVisitReconciliationExceptionQueue(10)
+  const exceptionQueueQuery = useVisitReconciliationExceptionQueue(10, locationId)
   const stats = {
     ...BILLING_DASHBOARD_STATS,
     missingFundingContracts:

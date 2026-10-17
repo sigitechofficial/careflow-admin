@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { PayableBreakdown } from '@/features/billing/components/PayableBreakdown'
 import { Link, useParams } from '@tanstack/react-router'
 import {
   ArrowLeft,
@@ -23,6 +24,8 @@ import {
 } from 'lucide-react'
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
+import { NmwComplianceSection } from '@/features/payroll/components/NmwComplianceSection'
+import { PensionContributionsPanel } from '@/features/payroll/components/PensionContributionsPanel'
 import { PayrollHmrcSubmissionStatusPanel } from '@/features/payroll/components/PayrollHmrcSubmissionStatusPanel'
 import {
   downloadUkPayrollRunEmployeePayslip,
@@ -66,6 +69,9 @@ function formatGbp(amount: number) {
 export default function UkPayrollRunDetailPage() {
   const { runId } = useParams({ strict: false }) as { runId: string }
   const canManage = useAuthStore((s) => s.can('payroll.runs.manage'))
+  // Closing posts year-to-date figures and reopening reverses them: separate powers from running payroll.
+  const canClose = useAuthStore((s) => s.can('payroll.runs.close'))
+  const canReopen = useAuthStore((s) => s.can('payroll.runs.reopen'))
   const currentUserId = useAuthStore((s) => s.user?.id ?? null)
   const canManagePayouts = useAuthStore((s) => s.can('billing.employee_payouts.manage'))
   const canReadPayouts = useAuthStore((s) => s.can('billing.employee_payouts.read'))
@@ -322,7 +328,12 @@ export default function UkPayrollRunDetailPage() {
                   <Button
                     size="sm"
                     className="gap-1.5"
-                    disabled={reactivateMut.isPending}
+                    disabled={reactivateMut.isPending || (data?.status === 'CLOSED' && !canReopen)}
+                    title={
+                      data?.status === 'CLOSED' && !canReopen
+                        ? 'Reopening a closed run needs the "Approve pay and record payments" responsibility'
+                        : undefined
+                    }
                     onClick={() => reactivateMut.mutate(runId)}
                   >
                     <RotateCcw className="h-3.5 w-3.5" aria-hidden />
@@ -370,7 +381,12 @@ export default function UkPayrollRunDetailPage() {
                       size="sm"
                       variant="outline"
                       className="gap-1.5"
-                      disabled={closeMut.isPending || data.employeeCount < 1}
+                      disabled={closeMut.isPending || data.employeeCount < 1 || !canClose}
+                      title={
+                        canClose
+                          ? undefined
+                          : 'Closing a run needs the "Approve pay and record payments" responsibility, held by a different user from the one who created the run'
+                      }
                       onClick={() => closeMut.mutate(undefined)}
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
@@ -381,7 +397,14 @@ export default function UkPayrollRunDetailPage() {
                       variant="destructive"
                       className="gap-1.5"
                       disabled={cancelMut.isPending}
-                      onClick={() => cancelMut.mutate(undefined)}
+                      title="The run is kept as a record. Its earnings become available to a replacement run."
+                      onClick={() => {
+                        const reason = window.prompt(
+                          'Cancel this UK payroll run?\n\nThe run is kept as a record and nothing is posted. Its earnings can then be collected by a replacement run.\n\nReason for cancelling:',
+                        )
+                        if (reason === null) return
+                        cancelMut.mutate(reason)
+                      }}
                     >
                       <XCircle className="h-3.5 w-3.5" aria-hidden />
                       Cancel
@@ -799,6 +822,16 @@ export default function UkPayrollRunDetailPage() {
             </div>
           ) : null}
 
+          <NmwComplianceSection
+            runId={runId}
+            assessments={data.nmwAssessments ?? []}
+            employees={data.employees}
+            runOpen={!!open}
+            canReview={canClose}
+            createdRun={data.createdById != null && data.createdById === currentUserId}
+            formatDate={formatDate}
+          />
+
           <div className="overflow-hidden rounded-xl border border-border">
             <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-3">
               <div className="flex items-center gap-2">
@@ -852,6 +885,25 @@ export default function UkPayrollRunDetailPage() {
                               provisional
                             </Badge>
                           ) : null}
+                          {(e.coveredBySalary ?? 0) > 0 ? (
+                            <span
+                              className="text-xs text-muted-foreground"
+                              data-testid={`uk-run-covered-by-salary-${e.id}`}
+                              title="Visit work the salary already pays for. It is settled by this run and not paid again."
+                            >
+                              {formatGbp(e.coveredBySalary ?? 0)} of visit work paid by the salary
+                            </span>
+                          ) : null}
+                          {(e.heldForSalaryDecision ?? 0) > 0 ? (
+                            <Badge
+                              variant="secondary"
+                              className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                              data-testid={`uk-run-held-for-salary-${e.id}`}
+                              title="The pay agreement does not say what the salary pays for. These visit wages are not paid by this run and stay payable until an approved agreement records it."
+                            >
+                              {formatGbp(e.heldForSalaryDecision ?? 0)} held: salary cover not recorded
+                            </Badge>
+                          ) : null}
                           {e.taxCodeApplied ? (
                             <span className="text-xs text-muted-foreground">
                               {e.taxCodeApplied}
@@ -873,6 +925,11 @@ export default function UkPayrollRunDetailPage() {
                       </td>
                       <td className="bg-emerald-50/40 py-3 pr-3 text-right font-semibold tabular-nums text-emerald-900 dark:bg-emerald-950/15 dark:text-emerald-100">
                         {formatGbp(e.netPay)}
+                        <PayableBreakdown
+                          netPay={e.netPay}
+                          reimbursement={e.reimbursementPayable ?? 0}
+                          notVerified={e.expenseNotVerified ?? 0}
+                        />
                       </td>
                       <td className="py-3 pr-3 text-right tabular-nums text-muted-foreground">
                         {e.ytd ? formatGbp(e.ytd.incomeTaxYtd) : '—'}
@@ -919,6 +976,7 @@ export default function UkPayrollRunDetailPage() {
           </div>
         </div>
       )}
+      {data ? <PensionContributionsPanel runId={runId} /> : null}
     </PayrollSectionLayout>
   )
 }

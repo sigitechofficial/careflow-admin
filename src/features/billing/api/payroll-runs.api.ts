@@ -34,6 +34,8 @@ export type PayrollRunLineDetail = {
     | 'SICK_PAY'
     | 'BONUS'
     | 'LIVE_IN'
+    | 'GUARANTEED_HOURS'
+    | 'CANCELLATION'
     | (string & {})
   visitRef: string | null
   employeeId: string | null
@@ -58,10 +60,22 @@ export type PayrollRunCarerSummary = {
   grossPay: string
 }
 
+/** A minimum wage assessment of the run that needs a person (Sprint B3). */
+export type PayrollRunNmwException = {
+  employeeId: string
+  periodStart: string
+  periodEnd: string
+  periodSource: string
+  issue: string
+  message: string | null
+  compliant: boolean | null
+}
+
 export type PayrollRunDetail = PayrollRunRow & {
   notes: string | null
   carerSummaries: PayrollRunCarerSummary[]
   lines: PayrollRunLineDetail[]
+  nmwExceptions?: PayrollRunNmwException[]
 }
 
 export async function fetchPayrollRuns(params?: {
@@ -107,8 +121,18 @@ export async function createPayrollRun(body: {
   return res.data
 }
 
-export async function calculatePayrollRun(id: string): Promise<void> {
-  await apiJson(`/billing/payroll-runs/${id}/calculate`, { method: 'POST' })
+/** Returns how many approved visits were left out because another pay run already holds them. */
+export async function calculatePayrollRun(id: string): Promise<{ heldByOtherRuns: number }> {
+  const res = await apiJson<ApiEnvelope<{ heldByOtherRuns?: number }>>(
+    `/billing/payroll-runs/${id}/calculate`,
+    { method: 'POST' },
+  )
+  return { heldByOtherRuns: res.data?.heldByOtherRuns ?? 0 }
+}
+
+/** Remove a run that has not been locked; its visits become available to other runs. */
+export async function discardPayrollRun(id: string): Promise<void> {
+  await apiJson(`/billing/payroll-runs/${id}`, { method: 'DELETE' })
 }
 
 export async function approvePayrollRun(id: string): Promise<void> {
@@ -205,6 +229,25 @@ export type EmployeeEarningVisitRow = {
     | 'REJECTED'
     | 'BANK_PAID'
     | 'IN_UK_PAYROLL'
+  /** Where the pay has reached; the server's wording is in `earningStageLabel`. */
+  earningStage?:
+    | 'RECORDED'
+    | 'RECONCILED'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'IN_DRAFT_PAY_RUN'
+    | 'IN_LOCKED_PAY_RUN'
+    | 'IN_OPEN_UK_RUN'
+    | 'IN_CLOSED_UK_RUN'
+    | 'PAYMENT_PREPARED'
+    | 'PAYMENT_APPROVED'
+    | 'PAYMENT_RECORDED'
+  earningStageLabel?: string
+  earningPhase?: 'NOT_PAYABLE' | 'EARNED' | 'PAYROLL_PROCESSED' | 'PAYMENT_PREPARED' | 'PAYMENT_RECORDED'
+  correctionState?: 'NONE' | 'PENDING_APPROVAL' | 'ADJUSTED'
+  correctionAdjustmentValue?: number
+  /** In a locked visit pay run or a closed UK run: changed only through a pay correction. */
+  paySettled?: boolean
   paid: boolean
   countsTowardSalary?: boolean
   payrollRunId: string | null
@@ -223,6 +266,9 @@ export type EmployeeSalaryDeductionRow = {
   notes: string | null
   salaryMonth: string
   createdAt: string
+  /** Set when the fine was decided on an incident (changed / removed there). */
+  incidentId?: string | null
+  incidentReference?: string | null
 }
 
 export type EmployeeEarningsSummary = {

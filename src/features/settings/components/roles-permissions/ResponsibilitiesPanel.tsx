@@ -24,6 +24,7 @@ import {
   useRoleResponsibilities,
 } from '@/features/settings/hooks/useRolesPermissions'
 import type { RoleResponsibility } from '@/features/settings/roles-permissions/roles-permissions.types'
+import { FinancialAuthorityCard } from '@/features/settings/components/roles-permissions/FinancialAuthorityCard'
 
 type Group = { id: string; title: string; icon: React.ReactNode; keys: string[] }
 
@@ -32,7 +33,7 @@ const GROUPS: Group[] = [
     id: 'finance',
     title: 'Finance & payroll',
     icon: <PoundSterling className="h-4 w-4" aria-hidden />,
-    keys: ['payroll', 'carer-pay', 'office-salaries', 'invoices', 'visit-reconciliation'],
+    keys: ['approve-pay', 'payroll', 'carer-pay', 'office-salaries', 'invoices', 'visit-reconciliation'],
   },
   {
     id: 'care',
@@ -118,7 +119,9 @@ export function ResponsibilitiesPanel() {
   const items = React.useMemo(() => data?.responsibilities ?? [], [data?.responsibilities])
   const byKey = React.useMemo(() => new Map(items.map((i) => [i.key, i])), [items])
   const adminLabel = data?.adminRoles.join(' & ') || 'Admin'
-  const nameOf = (id: string) => roles.find((r) => r.id === id)?.name ?? id
+  // Admin roles hold every job except financial authorisation, where they are a choice like any role.
+  const adminRoleOptions = data?.adminRoleOptions ?? []
+  const nameOf = (id: string) => [...roles, ...adminRoleOptions].find((r) => r.id === id)?.name ?? id
 
   const selectedFor = (item: RoleResponsibility) => draft[item.key] ?? item.roleIds
   const toggle = (item: RoleResponsibility, roleId: string) =>
@@ -203,6 +206,7 @@ export function ResponsibilitiesPanel() {
   return (
     <TooltipProvider delayDuration={200}>
     <div className="space-y-4" data-testid="responsibilities-panel">
+      <FinancialAuthorityCard />
       <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl space-y-1">
@@ -212,7 +216,8 @@ export function ResponsibilitiesPanel() {
             </h2>
             <p className="text-xs leading-relaxed text-muted-foreground">
               Tick the roles responsible for each job. Only ticked roles can make changes there — {adminLabel} always
-              have full access. Roles you untick keep any view access they already have.
+              have full access, except for approving pay and recording payments, which every role has to be given.
+              Roles you untick keep any view access they already have.
             </p>
           </div>
           <div className="relative w-full max-w-xs">
@@ -344,12 +349,33 @@ export function ResponsibilitiesPanel() {
                           )
                         })}
                         <td className="border-b border-l border-border bg-muted/20 px-2 py-3 text-center">
-                          <span
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-muted text-muted-foreground"
-                            aria-label={`${adminLabel} always responsible`}
-                          >
-                            <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
-                          </span>
+                          {item.explicitOnly ? (
+                            <div className="flex flex-col items-center gap-1.5">
+                              {adminRoleOptions.map((role) => {
+                                const on = selected.includes(role.id)
+                                const partial = !on && item.partialRoleIds.includes(role.id)
+                                return (
+                                  <span key={role.id} className="inline-flex items-center gap-1.5 text-[11px] text-foreground">
+                                    <MatrixCell
+                                      state={on ? 'on' : partial ? 'partial' : 'off'}
+                                      changed={on !== item.roleIds.includes(role.id)}
+                                      label={`${role.name} — ${item.label}`}
+                                      onToggle={() => toggle(item, role.id)}
+                                    />
+                                    {role.name}
+                                  </span>
+                                )
+                              })}
+                              <span className="text-[11px] text-muted-foreground">Not automatic</span>
+                            </div>
+                          ) : (
+                            <span
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-muted text-muted-foreground"
+                              aria-label={`${adminLabel} always responsible`}
+                            >
+                              <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
+                            </span>
+                          )}
                         </td>
                       </tr>
                     )

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { AlertTriangle, Calculator, Loader2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
-import { ContentCard } from '@/shared/ui/content-section'
+import { CollapsibleCard } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { usePayPreview } from '@/features/billing/hooks/useWageTypes'
@@ -54,20 +54,14 @@ export function PayCardPayPreview({ rules, stackingPolicy, bankHolidayRegion }: 
   }
 
   return (
-    <ContentCard className="space-y-4" id="pay-card-preview" data-testid="pay-card-preview">
-      <div className="flex items-start gap-3">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-700 dark:text-indigo-300">
-          <Calculator className="h-4 w-4" aria-hidden />
-        </span>
-        <div className="min-w-0 pt-0.5">
-          <h3 className="text-sm font-semibold text-foreground">Pay preview</h3>
-          <p className="text-xs text-muted-foreground">
-            Try a sample visit with the rates above (including unsaved changes). Uses the same calculation as real
-            visits. Nothing is saved and no pay is created.
-          </p>
-        </div>
-      </div>
-
+    <CollapsibleCard
+      id="pay-card-preview"
+      data-testid="pay-card-preview"
+      icon={<Calculator className="h-4 w-4" aria-hidden />}
+      iconClassName="bg-indigo-500/10 text-indigo-700 dark:text-indigo-300"
+      title="Pay preview"
+      description="Try a sample visit with the rates above (including unsaved changes). Uses the same calculation as real visits. Nothing is saved and no pay is created."
+    >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <label className="space-y-1 text-sm">
           <span className="text-xs font-medium text-foreground/90">Visit date</span>
@@ -161,6 +155,6 @@ export function PayCardPayPreview({ rules, stackingPolicy, bankHolidayRegion }: 
           ) : null}
         </div>
       ) : null}
-    </ContentCard>
+    </CollapsibleCard>
   )
 }
