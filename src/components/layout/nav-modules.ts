@@ -207,6 +207,13 @@ export const NAV_MODULES: Record<string, NavModuleMeta> = {
     Icon: PoundSterling,
     tone: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
   },
+  Messages: {
+    slug: 'messages',
+    railLabel: 'Messages',
+    description: 'Staff messaging, SMS and announcements',
+    Icon: MessagesSquare,
+    tone: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
+  },
 }
 
 export function moduleLabelForSlug(slug: string): string | undefined {
