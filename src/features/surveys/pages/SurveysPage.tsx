@@ -1,6 +1,28 @@
 import * as React from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { CheckCircle2, ClipboardList, Eye, FileEdit, Loader2, Lock, Pencil, Plus, Trash2, Users } from 'lucide-react'
+import {
+  BookmarkMinus,
+  BookmarkPlus,
+  CalendarClock,
+  CheckCircle2,
+  ClipboardList,
+  Copy,
+  EyeOff,
+  Eye,
+  FileEdit,
+  FilePlus2,
+  Globe,
+  HeartHandshake,
+  LayoutTemplate,
+  Loader2,
+  Lock,
+  Pencil,
+  Plus,
+  Repeat,
+  Trash2,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
@@ -22,14 +44,22 @@ import {
 } from '@/shared/ui/dialog'
 import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
-import { useCreateSurvey, useDeleteSurvey, useSurveys } from '@/features/surveys/hooks/useSurveys'
+import {
+  useCreateSurvey,
+  useDeleteSurvey,
+  useDuplicateSurvey,
+  useSetSurveyTemplate,
+  useSurveys,
+} from '@/features/surveys/hooks/useSurveys'
 import { SurveyPreviewDialog } from '@/features/surveys/components/SurveyPreviewDialog'
 import { SurveyCompletionProgress } from '@/features/surveys/components/SurveyCompletionProgress'
 import type { SurveyListItem, SurveyRecurrence, SurveyStatus, SurveyTargetKind } from '@/features/surveys/types'
 import { SURVEY_RECURRENCE_LABELS, SURVEY_TARGET_KIND_LABELS } from '@/features/surveys/types'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { combineOperationalDateAndHm, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
+import { cn } from '@/shared/lib/utils'
 import { useLocationManagementTree } from '@/features/settings/hooks/useLocationManagement'
+import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
 import {
   Select,
@@ -39,10 +69,20 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 
-const STATUS_TONE: Record<SurveyStatus, string> = {
-  DRAFT: 'bg-muted text-muted-foreground',
-  ACTIVE: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',
-  CLOSED: 'bg-amber-500/15 text-amber-900 dark:text-amber-200',
+const STATUS_BADGE: Record<SurveyStatus, { variant: 'muted' | 'success' | 'warning'; icon: LucideIcon }> = {
+  DRAFT: { variant: 'muted', icon: FileEdit },
+  ACTIVE: { variant: 'success', icon: CheckCircle2 },
+  CLOSED: { variant: 'warning', icon: Lock },
+}
+
+/** Audience icon + chip tone for the Audience column. */
+const AUDIENCE_META: Record<SurveyTargetKind, { icon: LucideIcon; className: string }> = {
+  EMPLOYEE: { icon: Users, className: 'bg-teal-600/10 text-teal-700 dark:text-teal-300' },
+  SERVICE_USER: {
+    icon: HeartHandshake,
+    className: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+  },
+  PUBLIC: { icon: Globe, className: 'bg-sky-500/10 text-sky-700 dark:text-sky-300' },
 }
 
 export default function SurveysPage() {
@@ -53,9 +93,13 @@ export default function SurveysPage() {
     const day = dayKeyFromInstant(iso)
     return day ? `${formatDate(day)} ${formatTime(iso)}` : '—'
   }
-  const { data: surveys = [], isLoading, isError } = useSurveys()
+  const [view, setView] = React.useState<'surveys' | 'templates'>('surveys')
+  const isTemplatesView = view === 'templates'
+  const { data: surveys = [], isLoading, isError } = useSurveys({ isTemplate: isTemplatesView })
   const createMut = useCreateSurvey()
   const deleteMut = useDeleteSurvey()
+  const duplicateMut = useDuplicateSurvey()
+  const setTemplateMut = useSetSurveyTemplate()
 
   const statusCounts = React.useMemo(() => {
     let draft = 0
@@ -72,22 +116,38 @@ export default function SurveysPage() {
   const { data: locationTree } = useLocationManagementTree()
 
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [createIsTemplate, setCreateIsTemplate] = React.useState(false)
   const [title, setTitle] = React.useState('')
   const [targetKind, setTargetKind] = React.useState<SurveyTargetKind>('EMPLOYEE')
   const [description, setDescription] = React.useState('')
   const [isAnonymous, setIsAnonymous] = React.useState(false)
   const [selectedZoneId, setSelectedZoneId] = React.useState('')
   const [selectedLocationIds, setSelectedLocationIds] = React.useState<string[]>([])
+  const [selectedRoleIds, setSelectedRoleIds] = React.useState<string[]>([])
   const [opensAt, setOpensAt] = React.useState('')
   const [closesAt, setClosesAt] = React.useState('')
   const [distributeAt, setDistributeAt] = React.useState('')
   const [recurrence, setRecurrence] = React.useState<SurveyRecurrence | ''>('')
   const [toDelete, setToDelete] = React.useState<SurveyListItem | null>(null)
   const [previewId, setPreviewId] = React.useState<string | null>(null)
+  const [duplicateSource, setDuplicateSource] = React.useState<SurveyListItem | null>(null)
+  const [dupTitle, setDupTitle] = React.useState('')
+  const [dupTargetKind, setDupTargetKind] = React.useState<SurveyTargetKind>('EMPLOYEE')
+  const [dupAnonymous, setDupAnonymous] = React.useState(false)
+  const [dupRoleIds, setDupRoleIds] = React.useState<string[]>([])
   const [locationsView, setLocationsView] = React.useState<{
     surveyTitle: string
     names: string[]
   } | null>(null)
+
+  const { data: employeeLookups } = useEmployeeLookups(
+    (createOpen && targetKind === 'EMPLOYEE') ||
+      (duplicateSource != null && dupTargetKind === 'EMPLOYEE'),
+  )
+  const roleOptions = React.useMemo<MultiSelectOption[]>(
+    () => (employeeLookups?.roles ?? []).map(r => ({ value: r.id, label: r.name })),
+    [employeeLookups],
+  )
 
   const selectedZone = locationTree?.zones.find(z => z.id === selectedZoneId)
   const branchOptions = React.useMemo<MultiSelectOption[]>(
@@ -119,10 +179,12 @@ export default function SurveysPage() {
   const resetCreate = () => {
     setTitle('')
     setTargetKind('EMPLOYEE')
+    setCreateIsTemplate(false)
     setDescription('')
     setIsAnonymous(false)
     setSelectedZoneId('')
     setSelectedLocationIds([])
+    setSelectedRoleIds([])
     setOpensAt('')
     setClosesAt('')
     setDistributeAt('')
@@ -140,6 +202,7 @@ export default function SurveysPage() {
       } else if (selectedZone) {
         locIds = selectedZone.branches.map(b => b.locationId).filter((id): id is string => id != null)
       }
+      const forPublic = targetKind === 'PUBLIC'
       const survey = await createMut.mutateAsync({
         title: title.trim(),
         description: description.trim() || undefined,
@@ -147,13 +210,17 @@ export default function SurveysPage() {
         isAnonymous,
         opensAt: opensAt ? combineOperationalDateAndHm(opensAt.slice(0, 10), opensAt.slice(11, 16)) : undefined,
         closesAt: closesAt ? combineOperationalDateAndHm(closesAt.slice(0, 10), closesAt.slice(11, 16)) : undefined,
-        distributeAt: distributeAt
-          ? combineOperationalDateAndHm(distributeAt.slice(0, 10), distributeAt.slice(11, 16))
-          : undefined,
-        recurrence: recurrence || undefined,
-        locationIds: locIds.length > 0 ? locIds : undefined,
+        distributeAt:
+          !forPublic && distributeAt
+            ? combineOperationalDateAndHm(distributeAt.slice(0, 10), distributeAt.slice(11, 16))
+            : undefined,
+        recurrence: !forPublic && recurrence ? recurrence : undefined,
+        locationIds: !forPublic && locIds.length > 0 ? locIds : undefined,
+        roleIds:
+          targetKind === 'EMPLOYEE' && selectedRoleIds.length > 0 ? selectedRoleIds : undefined,
+        isTemplate: createIsTemplate || undefined,
       })
-      toastSuccess('Survey created')
+      toastSuccess(createIsTemplate ? 'Template created' : 'Survey created')
       setCreateOpen(false)
       resetCreate()
       void navigate({ to: '/surveys/$surveyId', params: { surveyId: survey.id } })
@@ -173,27 +240,110 @@ export default function SurveysPage() {
     }
   }
 
+  const openDuplicate = (s: SurveyListItem) => {
+    setDuplicateSource(s)
+    // From a template → start a fresh survey with the template's name; from a survey → append "(Copy)".
+    setDupTitle(s.isTemplate ? s.title : `${s.title} (Copy)`)
+    setDupTargetKind(s.targetKind)
+    setDupAnonymous(s.isAnonymous)
+    setDupRoleIds(s.roleIds ?? [])
+  }
+
+  const handleDuplicateConfirm = async () => {
+    if (!duplicateSource || !dupTitle.trim()) return
+    const fromTemplate = duplicateSource.isTemplate
+    try {
+      const copy = await duplicateMut.mutateAsync({
+        id: duplicateSource.id,
+        overrides: {
+          title: dupTitle.trim(),
+          targetKind: dupTargetKind,
+          isAnonymous: dupAnonymous,
+          roleIds:
+            dupTargetKind === 'EMPLOYEE' && dupRoleIds.length > 0 ? dupRoleIds : undefined,
+        },
+      })
+      toastSuccess(fromTemplate ? 'Survey created from template' : 'Survey duplicated — edit the copy')
+      setDuplicateSource(null)
+      void navigate({ to: '/surveys/$surveyId', params: { surveyId: copy.id } })
+    } catch (e) {
+      toastApiError(e, fromTemplate ? 'Could not create from template' : 'Could not duplicate survey')
+    }
+  }
+
+  const handleSetTemplate = async (s: SurveyListItem, isTemplate: boolean) => {
+    try {
+      await setTemplateMut.mutateAsync({ id: s.id, isTemplate })
+      toastSuccess(isTemplate ? 'Saved as template' : 'Moved back to surveys')
+    } catch (e) {
+      toastApiError(e, 'Could not update template')
+    }
+  }
+
   return (
-    <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="w-full flex-1 px-4 py-6 sm:px-6">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-5">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600/10 text-teal-700 dark:text-teal-300">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600/10 text-teal-700 shadow-sm ring-1 ring-teal-600/20 dark:text-teal-300">
             <ClipboardList className="h-5 w-5" aria-hidden />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold text-foreground">Surveys</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                {isTemplatesView ? 'Templates' : 'Surveys'}
+              </h1>
+              {!isLoading && statusCounts.total > 0 ? (
+                <Badge variant="muted" className="tabular-nums">
+                  {statusCounts.total}
+                </Badge>
+              ) : null}
+            </div>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Create survey forms and send them to employees or service users. Responses feed quality
-              assurance.
+              {isTemplatesView
+                ? 'Reusable survey templates. Use a template to start a new editable survey.'
+                : 'Create survey forms for employees, service users or the public. Responses feed quality assurance.'}
             </p>
           </div>
         </div>
         {canManage ? (
-          <Button type="button" size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" aria-hidden />
-            New survey
+          <Button
+            type="button"
+            size="sm"
+            className="gap-1.5 shadow-sm"
+            onClick={() => {
+              setCreateIsTemplate(isTemplatesView)
+              setCreateOpen(true)
+            }}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            {isTemplatesView ? 'New template' : 'New survey'}
           </Button>
         ) : null}
+      </div>
+
+      {/* Surveys / Templates tabs */}
+      <div className="mt-5 flex w-fit gap-1 rounded-lg bg-muted/50 p-1 text-sm">
+        {(
+          [
+            ['surveys', 'Surveys', ClipboardList],
+            ['templates', 'Templates', LayoutTemplate],
+          ] as const
+        ).map(([key, label, Icon]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setView(key)}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-colors',
+              view === key
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Icon className="h-4 w-4" aria-hidden />
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -229,7 +379,7 @@ export default function SurveysPage() {
         ].map(card => (
           <div
             key={card.label}
-            className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm"
+            className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3.5 shadow-sm transition-shadow hover:shadow-md"
           >
             <div
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${card.iconClass}`}
@@ -254,14 +404,36 @@ export default function SurveysPage() {
         ) : isError ? (
           <p className="p-6 text-sm text-destructive">Could not load surveys.</p>
         ) : surveys.length === 0 ? (
-          <div className="p-10 text-center">
-            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-              <ClipboardList className="h-5 w-5 text-muted-foreground" aria-hidden />
+          <div className="p-12 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-teal-600/10 text-teal-700 ring-1 ring-teal-600/20 dark:text-teal-300">
+              {isTemplatesView ? (
+                <LayoutTemplate className="h-6 w-6" aria-hidden />
+              ) : (
+                <ClipboardList className="h-6 w-6" aria-hidden />
+              )}
             </div>
-            <p className="text-sm font-medium text-foreground">No surveys yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Create your first survey to get started.
+            <p className="text-sm font-medium text-foreground">
+              {isTemplatesView ? 'No templates yet' : 'No surveys yet'}
             </p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              {isTemplatesView
+                ? 'Save a survey as a template, or create one here — then reuse it to start new surveys.'
+                : 'Create your first survey to gather feedback from employees, service users or the public.'}
+            </p>
+            {canManage ? (
+              <Button
+                type="button"
+                size="sm"
+                className="mt-4 gap-1.5"
+                onClick={() => {
+                  setCreateIsTemplate(isTemplatesView)
+                  setCreateOpen(true)
+                }}
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+                {isTemplatesView ? 'New template' : 'New survey'}
+              </Button>
+            ) : null}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -293,30 +465,59 @@ export default function SurveysPage() {
                       >
                         {s.title}
                       </Link>
-                      {s.isAnonymous ? (
-                        <div className="mt-0.5 text-xs text-muted-foreground">Anonymous</div>
-                      ) : null}
-                      {s.distributeAt && !s.distributedAt ? (
-                        <div className="mt-0.5 text-xs text-teal-700 dark:text-teal-300">
-                          {s.recurrence
-                            ? `${SURVEY_RECURRENCE_LABELS[s.recurrence]} · next ${formatInstant(s.distributeAt)}`
-                            : `Scheduled ${formatInstant(s.distributeAt)}`}
-                        </div>
-                      ) : s.recurrence && !s.clonedFromId ? (
-                        <div className="mt-0.5 text-xs text-muted-foreground">
-                          Repeats {SURVEY_RECURRENCE_LABELS[s.recurrence].toLowerCase()}
+                      {s.isAnonymous || (s.distributeAt && !s.distributedAt) || (s.recurrence && !s.clonedFromId) ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          {s.isAnonymous ? (
+                            <Badge variant="muted" size="sm" className="gap-1">
+                              <EyeOff className="h-3 w-3" aria-hidden /> Anonymous
+                            </Badge>
+                          ) : null}
+                          {s.distributeAt && !s.distributedAt ? (
+                            <Badge variant="info" size="sm" className="gap-1">
+                              <CalendarClock className="h-3 w-3" aria-hidden />
+                              {s.recurrence
+                                ? `${SURVEY_RECURRENCE_LABELS[s.recurrence]} · next ${formatInstant(s.distributeAt)}`
+                                : `Scheduled ${formatInstant(s.distributeAt)}`}
+                            </Badge>
+                          ) : s.recurrence && !s.clonedFromId ? (
+                            <Badge variant="muted" size="sm" className="gap-1">
+                              <Repeat className="h-3 w-3" aria-hidden />
+                              Repeats {SURVEY_RECURRENCE_LABELS[s.recurrence].toLowerCase()}
+                            </Badge>
+                          ) : null}
                         </div>
                       ) : null}
                     </td>
                     <td className="px-3 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_TONE[s.status]}`}
-                      >
-                        {s.status}
-                      </span>
+                      {(() => {
+                        const cfg = STATUS_BADGE[s.status]
+                        const Icon = cfg.icon
+                        return (
+                          <Badge variant={cfg.variant} className="gap-1">
+                            <Icon className="h-3 w-3" aria-hidden />
+                            {s.status}
+                          </Badge>
+                        )
+                      })()}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
-                      {SURVEY_TARGET_KIND_LABELS[s.targetKind]}
+                    <td className="whitespace-nowrap px-3 py-3">
+                      {(() => {
+                        const meta = AUDIENCE_META[s.targetKind]
+                        const Icon = meta.icon
+                        return (
+                          <span className="inline-flex items-center gap-2 font-medium text-foreground">
+                            <span
+                              className={cn(
+                                'flex h-6 w-6 shrink-0 items-center justify-center rounded-md',
+                                meta.className,
+                              )}
+                            >
+                              <Icon className="h-3.5 w-3.5" aria-hidden />
+                            </span>
+                            {SURVEY_TARGET_KIND_LABELS[s.targetKind]}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">
                       {(() => {
@@ -386,16 +587,18 @@ export default function SurveysPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button asChild size="sm" variant="ghost" className="h-8 w-8 p-0">
-                          <Link
-                            to="/surveys/$surveyId/responses"
-                            params={{ surveyId: s.id }}
-                            aria-label={`View responses for ${s.title}`}
-                            title="Response audience"
-                          >
-                            <Users className="h-4 w-4" />
-                          </Link>
-                        </Button>
+                        {!isTemplatesView ? (
+                          <Button asChild size="sm" variant="ghost" className="h-8 w-8 p-0">
+                            <Link
+                              to="/surveys/$surveyId/responses"
+                              params={{ surveyId: s.id }}
+                              aria-label={`View responses for ${s.title}`}
+                              title="Response audience"
+                            >
+                              <Users className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        ) : null}
                         <Button asChild size="sm" variant="ghost" className="h-8 w-8 p-0">
                           <Link
                             to="/surveys/$surveyId"
@@ -407,16 +610,72 @@ export default function SurveysPage() {
                           </Link>
                         </Button>
                         {canManage ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                            aria-label={`Delete ${s.title}`}
-                            onClick={() => setToDelete(s)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <>
+                            {isTemplatesView ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 gap-1.5 px-2.5 text-xs"
+                                  aria-label={`Use template ${s.title}`}
+                                  title="Start a new survey from this template"
+                                  onClick={() => openDuplicate(s)}
+                                >
+                                  <FilePlus2 className="h-3.5 w-3.5" aria-hidden />
+                                  Use
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  aria-label={`Remove ${s.title} from templates`}
+                                  title="Move back to surveys"
+                                  disabled={setTemplateMut.isPending}
+                                  onClick={() => void handleSetTemplate(s, false)}
+                                >
+                                  <BookmarkMinus className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  aria-label={`Duplicate ${s.title}`}
+                                  title="Duplicate survey"
+                                  onClick={() => openDuplicate(s)}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  aria-label={`Save ${s.title} as template`}
+                                  title="Save as template"
+                                  disabled={setTemplateMut.isPending}
+                                  onClick={() => void handleSetTemplate(s, true)}
+                                >
+                                  <BookmarkPlus className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              aria-label={`Delete ${s.title}`}
+                              onClick={() => setToDelete(s)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
                         ) : null}
                       </div>
                     </td>
@@ -438,7 +697,7 @@ export default function SurveysPage() {
       >
         <DialogContent size="lg">
           <DialogHeader>
-            <DialogTitle>New survey</DialogTitle>
+            <DialogTitle>{createIsTemplate ? 'New template' : 'New survey'}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
             <label className="block space-y-1 text-sm">
@@ -454,14 +713,33 @@ export default function SurveysPage() {
                 <SelectContent>
                   <SelectItem value="EMPLOYEE">{SURVEY_TARGET_KIND_LABELS.EMPLOYEE}</SelectItem>
                   <SelectItem value="SERVICE_USER">{SURVEY_TARGET_KIND_LABELS.SERVICE_USER}</SelectItem>
+                  <SelectItem value="PUBLIC">{SURVEY_TARGET_KIND_LABELS.PUBLIC}</SelectItem>
                 </SelectContent>
               </Select>
               <span className="block text-xs text-muted-foreground">
                 {targetKind === 'SERVICE_USER'
                   ? 'Answered in the Service User Portal by the service user, or by a family member or representative on their behalf. Only service users with a portal account receive it.'
-                  : 'Each employee receives a personal link by push notification and email.'}
+                  : targetKind === 'PUBLIC'
+                    ? 'Open survey answered through one shareable public link — anyone with the link can respond, no account needed. There is no recipient list.'
+                    : 'Each employee receives a personal link by push notification and email. Optionally limit it to selected job roles.'}
               </span>
             </div>
+            {targetKind === 'EMPLOYEE' && (
+              <div className="space-y-1 text-sm">
+                <span className="font-medium">Job roles</span>
+                <MultiSelect
+                  options={roleOptions}
+                  value={selectedRoleIds}
+                  onChange={setSelectedRoleIds}
+                  placeholder="All job roles"
+                  searchPlaceholder="Search roles…"
+                />
+                <span className="block text-xs text-muted-foreground">
+                  Leave empty to send to all roles. Otherwise only employees in the selected roles
+                  receive it.
+                </span>
+              </div>
+            )}
             <label className="block space-y-1 text-sm">
               <span className="font-medium">Description</span>
               <textarea
@@ -481,37 +759,50 @@ export default function SurveysPage() {
               />
               Anonymous responses (recommended for honest feedback)
             </label>
-            <div className="space-y-1 text-sm">
-              <span className="font-medium">Zone</span>
-              <Select
-                value={selectedZoneId}
-                onValueChange={v => {
-                  setSelectedZoneId(v)
-                  setSelectedLocationIds([])
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="All zones" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locationTree?.zones.map(z => (
-                    <SelectItem key={z.id} value={z.id}>
-                      {z.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {selectedZoneId && branchOptions.length > 0 && (
-              <div className="space-y-1 text-sm">
-                <span className="font-medium">Branch</span>
-                <MultiSelect
-                  options={branchOptions}
-                  value={selectedLocationIds}
-                  onChange={setSelectedLocationIds}
-                  placeholder="All branches in zone"
-                />
-              </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={createIsTemplate}
+                onChange={e => setCreateIsTemplate(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              Save as a reusable template (shown under Templates)
+            </label>
+            {targetKind !== 'PUBLIC' && (
+              <>
+                <div className="space-y-1 text-sm">
+                  <span className="font-medium">Zone</span>
+                  <Select
+                    value={selectedZoneId}
+                    onValueChange={v => {
+                      setSelectedZoneId(v)
+                      setSelectedLocationIds([])
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="All zones" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locationTree?.zones.map(z => (
+                        <SelectItem key={z.id} value={z.id}>
+                          {z.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedZoneId && branchOptions.length > 0 && (
+                  <div className="space-y-1 text-sm">
+                    <span className="font-medium">Branch</span>
+                    <MultiSelect
+                      options={branchOptions}
+                      value={selectedLocationIds}
+                      onChange={setSelectedLocationIds}
+                      placeholder="All branches in zone"
+                    />
+                  </div>
+                )}
+              </>
             )}
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1 text-sm">
@@ -531,42 +822,46 @@ export default function SurveysPage() {
             {scheduleInvalid ? (
               <p className="text-xs text-destructive">End must be after the start.</p>
             ) : null}
-            <label className="block space-y-1 text-sm">
-              <span className="font-medium">
-                Distribute to {SURVEY_TARGET_KIND_LABELS[targetKind].toLowerCase()} at
-              </span>
-              <Input
-                type="datetime-local"
-                value={distributeAt}
-                onChange={e => setDistributeAt(e.target.value)}
-              />
-              <span className="text-xs text-muted-foreground">
-                Optional first run time. After you add questions, a new survey is created and sent at
-                this time (and again each period if you choose a repeat below).
-              </span>
-            </label>
-            <label className="block space-y-1 text-sm">
-              <span className="font-medium">Repeat</span>
-              <Select
-                value={recurrence || 'none'}
-                onValueChange={v => setRecurrence(v === 'none' ? '' : (v as SurveyRecurrence))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="One-time only" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">One-time only</SelectItem>
-                  {(Object.keys(SURVEY_RECURRENCE_LABELS) as SurveyRecurrence[]).map(key => (
-                    <SelectItem key={key} value={key}>
-                      {SURVEY_RECURRENCE_LABELS[key]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">
-                Monthly (and other periods) create a fresh survey each time from this template.
-              </span>
-            </label>
+            {targetKind !== 'PUBLIC' && (
+              <>
+                <label className="block space-y-1 text-sm">
+                  <span className="font-medium">
+                    Distribute to {SURVEY_TARGET_KIND_LABELS[targetKind].toLowerCase()} at
+                  </span>
+                  <Input
+                    type="datetime-local"
+                    value={distributeAt}
+                    onChange={e => setDistributeAt(e.target.value)}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    Optional first run time. After you add questions, a new survey is created and sent
+                    at this time (and again each period if you choose a repeat below).
+                  </span>
+                </label>
+                <label className="block space-y-1 text-sm">
+                  <span className="font-medium">Repeat</span>
+                  <Select
+                    value={recurrence || 'none'}
+                    onValueChange={v => setRecurrence(v === 'none' ? '' : (v as SurveyRecurrence))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="One-time only" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">One-time only</SelectItem>
+                      {(Object.keys(SURVEY_RECURRENCE_LABELS) as SurveyRecurrence[]).map(key => (
+                        <SelectItem key={key} value={key}>
+                          {SURVEY_RECURRENCE_LABELS[key]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">
+                    Monthly (and other periods) create a fresh survey each time from this template.
+                  </span>
+                </label>
+              </>
+            )}
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
@@ -576,7 +871,94 @@ export default function SurveysPage() {
               disabled={!title.trim() || scheduleInvalid || createMut.isPending}
               onClick={() => void handleCreate()}
             >
-              {createMut.isPending ? 'Creating…' : 'Create & add questions'}
+              {createMut.isPending
+                ? 'Creating…'
+                : createIsTemplate
+                  ? 'Create template'
+                  : 'Create & add questions'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate dialog — edit the copy before creating it */}
+      <Dialog
+        open={duplicateSource != null}
+        onOpenChange={o => {
+          if (!o) setDuplicateSource(null)
+        }}
+      >
+        <DialogContent size="md">
+          <DialogHeader>
+            <DialogTitle>
+              {duplicateSource?.isTemplate ? 'Use template' : 'Duplicate survey'}
+            </DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              {duplicateSource?.isTemplate
+                ? 'A new survey is created from this template with its questions and settings. It starts as a Draft you can edit and send.'
+                : 'Questions, description, location and dates are copied. The copy starts as a Draft you can keep editing.'}
+            </p>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">Name *</span>
+              <Input
+                value={dupTitle}
+                onChange={e => setDupTitle(e.target.value)}
+                placeholder="Survey name"
+              />
+            </label>
+            <div className="space-y-1 text-sm">
+              <span className="font-medium">Audience *</span>
+              <Select value={dupTargetKind} onValueChange={v => setDupTargetKind(v as SurveyTargetKind)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EMPLOYEE">{SURVEY_TARGET_KIND_LABELS.EMPLOYEE}</SelectItem>
+                  <SelectItem value="SERVICE_USER">{SURVEY_TARGET_KIND_LABELS.SERVICE_USER}</SelectItem>
+                  <SelectItem value="PUBLIC">{SURVEY_TARGET_KIND_LABELS.PUBLIC}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {dupTargetKind === 'EMPLOYEE' && (
+              <div className="space-y-1 text-sm">
+                <span className="font-medium">Job roles</span>
+                <MultiSelect
+                  options={roleOptions}
+                  value={dupRoleIds}
+                  onChange={setDupRoleIds}
+                  placeholder="All job roles"
+                  searchPlaceholder="Search roles…"
+                />
+                <span className="block text-xs text-muted-foreground">Leave empty for all roles.</span>
+              </div>
+            )}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={dupAnonymous}
+                onChange={e => setDupAnonymous(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              Anonymous responses
+            </label>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicateSource(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!dupTitle.trim() || duplicateMut.isPending}
+              onClick={() => void handleDuplicateConfirm()}
+            >
+              {duplicateMut.isPending
+                ? duplicateSource?.isTemplate
+                  ? 'Creating…'
+                  : 'Duplicating…'
+                : duplicateSource?.isTemplate
+                  ? 'Create survey'
+                  : 'Duplicate & edit'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -4,6 +4,8 @@ import {
   addSurveyQuestion,
   createSurvey,
   deleteSurvey,
+  duplicateSurvey,
+  type DuplicateSurveyInput,
   fetchPortalSurveyAnswers,
   fetchPortalSurveys,
   fetchPublicSurvey,
@@ -87,6 +89,25 @@ export function useDeleteSurvey() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => deleteSurvey(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: surveyKeys.all() }),
+  })
+}
+
+export function useDuplicateSurvey() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (args: { id: string; overrides?: DuplicateSurveyInput }) =>
+      duplicateSurvey(args.id, args.overrides),
+    onSuccess: () => qc.invalidateQueries({ queryKey: surveyKeys.all() }),
+  })
+}
+
+/** Mark a survey as a template, or move it back to regular surveys. */
+export function useSetSurveyTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (args: { id: string; isTemplate: boolean }) =>
+      updateSurvey(args.id, { isTemplate: args.isTemplate }),
     onSuccess: () => qc.invalidateQueries({ queryKey: surveyKeys.all() }),
   })
 }
