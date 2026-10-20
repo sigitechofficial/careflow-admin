@@ -145,7 +145,7 @@ export default function SurveysPage() {
       (duplicateSource != null && dupTargetKind === 'EMPLOYEE'),
   )
   const roleOptions = React.useMemo<MultiSelectOption[]>(
-    () => (employeeLookups?.roles ?? []).map(r => ({ value: r.id, label: r.name })),
+    () => (employeeLookups?.jobTitles ?? []).map(r => ({ value: r.id, label: r.name })),
     [employeeLookups],
   )
 
@@ -721,22 +721,22 @@ export default function SurveysPage() {
                   ? 'Answered in the Service User Portal by the service user, or by a family member or representative on their behalf. Only service users with a portal account receive it.'
                   : targetKind === 'PUBLIC'
                     ? 'Open survey answered through one shareable public link — anyone with the link can respond, no account needed. There is no recipient list.'
-                    : 'Each employee receives a personal link by push notification and email. Optionally limit it to selected job roles.'}
+                    : 'Each employee receives a personal link by push notification and email. Optionally limit it to selected job titles.'}
               </span>
             </div>
             {targetKind === 'EMPLOYEE' && (
               <div className="space-y-1 text-sm">
-                <span className="font-medium">Job roles</span>
+                <span className="font-medium">Job titles</span>
                 <MultiSelect
                   options={roleOptions}
                   value={selectedRoleIds}
                   onChange={setSelectedRoleIds}
-                  placeholder="All job roles"
-                  searchPlaceholder="Search roles…"
+                  placeholder="All job titles"
+                  searchPlaceholder="Search job titles…"
                 />
                 <span className="block text-xs text-muted-foreground">
-                  Leave empty to send to all roles. Otherwise only employees in the selected roles
-                  receive it.
+                  Leave empty to send to all job titles. Otherwise only employees with the selected
+                  job titles (e.g. HR, Manager) receive it.
                 </span>
               </div>
             )}
@@ -923,15 +923,15 @@ export default function SurveysPage() {
             </div>
             {dupTargetKind === 'EMPLOYEE' && (
               <div className="space-y-1 text-sm">
-                <span className="font-medium">Job roles</span>
+                <span className="font-medium">Job titles</span>
                 <MultiSelect
                   options={roleOptions}
                   value={dupRoleIds}
                   onChange={setDupRoleIds}
-                  placeholder="All job roles"
-                  searchPlaceholder="Search roles…"
+                  placeholder="All job titles"
+                  searchPlaceholder="Search job titles…"
                 />
-                <span className="block text-xs text-muted-foreground">Leave empty for all roles.</span>
+                <span className="block text-xs text-muted-foreground">Leave empty for all job titles.</span>
               </div>
             )}
             <label className="flex items-center gap-2 text-sm">
