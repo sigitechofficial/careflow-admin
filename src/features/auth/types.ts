@@ -242,6 +242,7 @@ export type Permission =
   | 'safeguarding.manage'
   | 'crm.read'
   | 'crm.manage'
+  | 'carer_notifications.send'
   | 'complaints.read'
   | 'complaints.manage'
   | 'hours_approvals.read'
