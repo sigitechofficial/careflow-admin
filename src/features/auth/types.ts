@@ -235,6 +235,7 @@ export type Permission =
   | 'surveys.manage'
   | 'surveys.respond'
   | 'surveys.responses.record'
+  | 'carer_notifications.send'
   | 'complaints.read'
   | 'complaints.manage'
   | 'hours_approvals.read'

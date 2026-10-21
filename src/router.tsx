@@ -1875,6 +1875,7 @@ const GENERAL_SETTINGS_TAB_IDS: GeneralSettingsTabId[] = [
   'alerts',
   'critical-information',
   'app-setting',
+  'carer-notifications',
   'privacy',
 ]
 
