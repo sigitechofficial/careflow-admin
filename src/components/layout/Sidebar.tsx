@@ -190,6 +190,11 @@ const inspectorOnlyNavItems: NavItem[] = [
 ]
 
 /* ─── Nav data ─────────────────────────────────────────────── */
+/** A page we plan to add (an Access Group feature not built yet): shown with a "Soon" badge, opens /in-progress. */
+function planned(section: string | undefined, label: string, icon: React.ReactNode, description: string): SubNavItem {
+  return { section, label, icon, href: '/in-progress', ready: false, planned: true, description }
+}
+
 const navItems: NavItem[] = [
   { label: 'Home', icon: <Home className="h-5 w-5" />, href: '/' },
   // Tasks given to the user's roles — every office user (managers open Role tasks from the page).
@@ -219,6 +224,9 @@ const navItems: NavItem[] = [
         permission: 'service_users.portal.read',
         navTestId: 'nav-service-user-portal-admin',
       },
+      planned("People", "Referrals & enquiries", <Inbox className="h-4 w-4" />, "Every referral and enquiry across all service users, from triage to admission. Today referrals are recorded on each service user's profile (Referrals tab)."),
+      planned("People", "Private quotations", <Calculator className="h-4 w-4" />, "All private care quotations in one list. Today quotations are created from a referral on each service user's profile."),
+      planned("People", "Family & funder access", <HeartHandshake className="h-4 w-4" />, "Let next of kin and funders sign in to see the parts of the care record they are allowed to see."),
       {
         section: 'Assessment & care plans',
         label: 'Initial Assessment',
@@ -259,6 +267,7 @@ const navItems: NavItem[] = [
         permission: 'service_users.read',
         navTestId: 'nav-care-plan-reviews',
       },
+      planned("Lifecycle", "Discharge & closure", <DoorOpen className="h-4 w-4" />, "Close a service cleanly: end visits, send final invoices and archive records."),
     ],
   },
   {
@@ -329,6 +338,8 @@ const navItems: NavItem[] = [
           'schedule_timelines.read',
         ],
       },
+      planned("Rota", "Rota suggestions & sickness cover", <Wand2 className="h-4 w-4" />, "Suggest the best carer for open visits and cover sickness using travel time, continuity and contracted hours."),
+      planned("Rota", "Route planning", <Route className="h-4 w-4" />, "Plan each carer's run to cut travel time and mileage."),
       {
         section: 'Rota',
         label: 'Special visits',
@@ -361,8 +372,36 @@ const navItems: NavItem[] = [
         permission: 'billing.visit_reconciliations.read',
         navTestId: 'nav-billing-reconciliation',
       },
+      planned("Visits", "Live staff map", <MapIcon className="h-4 w-4" />, "See where carers are now against their scheduled visits."),
+      planned("Visits", "Voice notes to text", <Mic className="h-4 w-4" />, "Turn carers' voice notes into written visit notes."),
       { section: 'Visits', label: 'Employee Operation Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/in-progress', ready: false },
       { section: 'Visits', label: 'Service Overview', icon: <Eye className="h-4 w-4" />, href: '/in-progress', ready: false },
+    ],
+  },
+  {
+    // eMAR: the manager's view across all service users. Each person's MAR and medicines stay on their profile.
+    label: 'Medication',
+    icon: <Pill className="h-5 w-5" />,
+    href: '/medication',
+    children: [
+      { section: 'Administration', label: 'Missed & refused doses', icon: <AlertOctagon className="h-4 w-4" />, href: '/medication/exceptions', permission: 'service_users.read', navTestId: 'nav-medication-exceptions' },
+      { section: 'Administration', label: 'Late doses', icon: <Clock className="h-4 w-4" />, href: '/medication/late', permission: 'service_users.read', navTestId: 'nav-medication-late' },
+      { section: 'Administration', label: 'Administration log', icon: <ClipboardList className="h-4 w-4" />, href: '/medication/administered', permission: 'service_users.read', navTestId: 'nav-medication-administered' },
+      planned("Administration", "MAR charts (all service users)", <CalendarDays className="h-4 w-4" />, "Every service user's MAR chart in one place, filtered by branch, round or carer, with gaps highlighted."),
+      planned("Administration", "PRN protocols & use", <Activity className="h-4 w-4" />, "PRN protocols with maximum doses and minimum gaps, plus how often each PRN medicine is used and whether it worked."),
+      planned("Prescriptions", "Medicines across service users", <List className="h-4 w-4" />, "Search every current medicine across all service users, for example everyone on a recalled medicine."),
+      planned("Prescriptions", "Medication reviews", <FileSearch className="h-4 w-4" />, "Every service user's medication review date in one list, with overdue reviews first."),
+      planned("Prescriptions", "Support levels & self-administration", <HeartHandshake className="h-4 w-4" />, "Prompt, assist or administer for each service user, with self-administration risk assessments due for review."),
+      planned("Safety & governance", "Controlled drugs register", <ShieldAlert className="h-4 w-4" />, "A running balance for each controlled drug, with witnessed administrations and stock checks."),
+      planned("Safety & governance", "Monthly medication audits", <ListChecks className="h-4 w-4" />, "A monthly MAR and stock audit per service user, with scores and an action plan for anything that fails."),
+      planned("Safety & governance", "Medication errors", <MessageSquareWarning className="h-4 w-4" />, "Medication incidents with severity, the dose and carer involved, and lessons learned."),
+      planned("Safety & governance", "Covert medicines & homely remedies", <ShieldCheck className="h-4 w-4" />, "Covert administration agreements (with best-interest decisions) and approved homely remedies per service user."),
+      { section: 'Supply', label: 'Stock movements', icon: <Package className="h-4 w-4" />, href: '/medication/stock', permission: 'service_users.read', navTestId: 'nav-medication-stock' },
+      planned("Supply", "Packs & deliveries", <Inbox className="h-4 w-4" />, "All blister packs and pharmacy deliveries waiting for a prescription check or countersignature."),
+      planned("Supply", "Pharmacy orders", <Send className="h-4 w-4" />, "Send repeat orders and medication changes to the pharmacy and track what has arrived."),
+      planned("Staff", "Medication competency", <Award className="h-4 w-4" />, "Observed competency checks for every carer who gives medication, with renewal dates (linked to Learning)."),
+      { section: 'Setup', label: 'MAR status codes', icon: <Settings2 className="h-4 w-4" />, href: '/settings', search: { tab: 'medication' }, permission: 'lookups.read', navTestId: 'nav-medication-status-codes' },
+      { section: 'Setup', label: 'Medication time slots', icon: <Clock className="h-4 w-4" />, href: '/settings', search: { tab: 'time-slots' }, permission: 'lookups.read', navTestId: 'nav-medication-time-slots' },
     ],
   },
   {
@@ -412,6 +451,8 @@ const navItems: NavItem[] = [
         anyPermission: ['employees.read', 'employees.reports.read'],
         navTestId: 'nav-employee-absences',
       },
+      planned("Recruitment", "Recruitment", <Briefcase className="h-4 w-4" />, "Vacancies, candidates, interviews and offers."),
+      planned("Development", "Supervision & appraisals", <MessagesSquare className="h-4 w-4" />, "One-to-one and group supervision records, appraisals and follow-up actions."),
       // Parental leave is recorded via the employee Absence tracker (Maternity / Paternity types).
       // TODO(later): restore the HR Recruitment pages here (HR dashboard, vacancies, candidates) when HR is ready:
       //   { section: 'Recruitment', label: 'HR Dashboard', href: '/hr/employees', permission: 'hr.read', navTestId: 'nav-hr-employees' },
@@ -534,6 +575,8 @@ const navItems: NavItem[] = [
         permission: 'learning.training_events.read',
         navTestId: 'nav-learning-training-events',
       },
+      planned('Training', 'Course library', <Library className="h-4 w-4" />, 'Ready-made courses such as the Care Certificate and mandatory training.'),
+      planned('Training', 'Virtual competency checks', <ClipboardCheck className="h-4 w-4" />, "Test carers' skills with realistic care scenarios."),
       {
         section: 'Records',
         label: 'Compliance',
@@ -606,6 +649,27 @@ const navItems: NavItem[] = [
       },
       {
         section: 'Policies & procedures',
+        label: 'My policies to read',
+        icon: <PenLine className="h-4 w-4" />,
+        href: '/policies/to-read',
+        permission: 'policies.read',
+        navTestId: 'nav-policies-to-read',
+      },
+      {
+        section: 'Policies & procedures',
+        label: 'Read and sign tracking',
+        icon: <ListChecks className="h-4 w-4" />,
+        href: '/policies/acknowledgements',
+        permission: 'policies.read',
+        navTestId: 'nav-policies-acknowledgements',
+      },
+      planned("Governance", "Audits", <ClipboardList className="h-4 w-4" />, "An audit library, custom audits and due dates for each location."),
+      planned("Governance", "Mock CQC inspection", <Scale className="h-4 w-4" />, "Work through the five key questions and quality statements and get a mock rating for each service."),
+      planned("Governance", "Action plans & evidence", <ListChecks className="h-4 w-4" />, "One action plan for audits, incidents and complaints, with linked evidence."),
+      planned("Governance", "Risk & assurance register", <AlertOctagon className="h-4 w-4" />, "Organisational risks, controls, owners and review dates."),
+      planned("Governance", "CQC notifications", <Send className="h-4 w-4" />, "Prepare and track statutory notifications to the CQC."),
+      {
+        section: 'Policies & procedures',
         label: 'Categories',
         icon: <List className="h-4 w-4" />,
         href: '/policies/categories',
@@ -667,6 +731,8 @@ const navItems: NavItem[] = [
         permission: 'billing.invoice_runs.read',
         navTestId: 'nav-billing-invoice-audit-trail',
       },
+      planned("Billing", "Client payments & Direct Debit", <CreditCard className="h-4 w-4" />, "Collect payments from private clients by Direct Debit or card."),
+      planned("Billing", "Accounting export", <FileOutput className="h-4 w-4" />, "Send invoices and payments to Xero, Sage or QuickBooks."),
       {
         section: 'Billing',
         label: 'Pay items',
@@ -676,6 +742,7 @@ const navItems: NavItem[] = [
         organisationPayScope: true,
         navTestId: 'nav-billing-pay-items',
       },
+      planned("Carer pay", "On-demand pay", <Zap className="h-4 w-4" />, "Let carers draw pay they have already earned before payday."),
       {
         section: 'Billing',
         label: 'Wage recoveries',
@@ -786,6 +853,17 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    // Staff messaging (Access Messenger equivalent). Planned: every page opens the work-in-progress page.
+    label: 'Messages',
+    icon: <MessagesSquare className="h-5 w-5" />,
+    href: '/in-progress',
+    children: [
+      planned(undefined, 'Staff messaging', <MessageCircle className="h-4 w-4" />, 'Secure two-way messages between the office and carers, with read receipts.'),
+      planned(undefined, 'SMS to staff & clients', <Smartphone className="h-4 w-4" />, 'Send automatic or one-off text messages to staff, clients and suppliers.'),
+      planned(undefined, 'Announcements', <Megaphone className="h-4 w-4" />, 'Post notices to every carer or to one team.'),
+    ],
+  },
+  {
     // Reporting — every report page in one place (each link keeps its module permission).
     label: 'Reports',
     icon: <BarChart3 className="h-5 w-5" />,
@@ -836,6 +914,8 @@ const navItems: NavItem[] = [
         permission: 'learning.reports.read',
         navTestId: 'nav-learning-reports',
       },
+      planned(undefined, "Dashboards & KPIs", <LayoutDashboard className="h-4 w-4" />, "Build dashboards for each role with the measures that matter to them."),
+      planned(undefined, "Budgets & targets", <Target className="h-4 w-4" />, "Set budgets and targets and track performance against them."),
     ],
   },
   { label: 'UI Showcase',       icon: <Sparkles className="h-5 w-5" />,      href: '/showcase', ready: false },
@@ -897,6 +977,7 @@ const navItems: NavItem[] = [
         permission: 'lookups.read',
         navTestId: 'nav-settings-tasks-planner',
       },
+      planned("Configuration", "Automation rules", <Workflow className="h-4 w-4" />, "Set up your own rules: when this happens, do that."),
       {
         section: 'Configuration',
         label: 'Care Pathway',
@@ -915,6 +996,26 @@ const navItems: NavItem[] = [
         navTestId: 'nav-admin-audit',
       },
       { section: 'Security & audit', label: 'Security', icon: <ShieldCheck className="h-4 w-4" />, href: '/admin/security', permission: 'security.admin' },
+      planned("Integrations", "GP Connect", <Stethoscope className="h-4 w-4" />, "Bring NHS GP records, medications and allergies into the care record."),
+      planned("Integrations", "Pharmacy integration", <Pill className="h-4 w-4" />, "Receive medication changes from the pharmacy and send orders."),
+      planned("Integrations", "Telecare", <Radio className="h-4 w-4" />, "Use alerts from home sensors and alarms in care planning."),
+      planned("Integrations", "AI assistant", <Bot className="h-4 w-4" />, "Answer questions about a service user, turn referral documents into draft care plans and draft action plans."),
+      {
+        section: 'Platform',
+        label: 'System jobs',
+        icon: <Timer className="h-4 w-4" />,
+        href: '/system-jobs',
+        permission: 'system_jobs.read',
+        navTestId: 'nav-admin-system-jobs',
+      },
+      {
+        section: 'Platform',
+        label: 'Azure Pricing',
+        icon: <Cloud className="h-4 w-4" />,
+        href: '/azure-pricing',
+        permission: 'platform_costs.read',
+        navTestId: 'nav-azure-pricing',
+      },
     ],
   },
 ]
