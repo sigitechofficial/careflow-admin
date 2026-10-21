@@ -16,6 +16,7 @@ import type {
   SurveyResponseItem,
   SurveyResponsesPayload,
   SurveyResults,
+  SurveyTargetKind,
   SubmitSurveyResponseInput,
   UpdateQuestionInput,
   UpdateRecordedSurveyResponseInput,
@@ -37,7 +38,11 @@ export async function fetchSurveys(
   init?: RequestInit,
 ): Promise<SurveyListItem[]> {
   const res = await apiJson<ApiEnvelope<SurveyListItem[]>>(
-    `/surveys${buildQuery({ status: filters.status, targetKind: filters.targetKind })}`,
+    `/surveys${buildQuery({
+      status: filters.status,
+      targetKind: filters.targetKind,
+      isTemplate: filters.isTemplate === undefined ? undefined : String(filters.isTemplate),
+    })}`,
     { method: 'GET', ...init },
   )
   return res.data ?? []
@@ -91,6 +96,26 @@ export async function updateSurvey(id: string, input: UpdateSurveyInput): Promis
 
 export async function deleteSurvey(id: string): Promise<void> {
   await apiJson<ApiEnvelope<unknown>>(`/surveys/${id}`, { method: 'DELETE' })
+}
+
+/** Overrides applied to a duplicated survey; anything omitted is copied from the source. */
+export type DuplicateSurveyInput = {
+  title?: string
+  targetKind?: SurveyTargetKind
+  isAnonymous?: boolean
+  roleIds?: string[]
+}
+
+/** Duplicate a survey (and its questions) as a new draft, with optional edits. Returns the new survey. */
+export async function duplicateSurvey(
+  id: string,
+  overrides: DuplicateSurveyInput = {},
+): Promise<SurveyDetail> {
+  const res = await apiJson<ApiEnvelope<SurveyDetail>>(`/surveys/${id}/duplicate`, {
+    method: 'POST',
+    body: JSON.stringify(overrides),
+  })
+  return res.data as SurveyDetail
 }
 
 export async function addSurveyQuestion(

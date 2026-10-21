@@ -45,6 +45,7 @@ import {
   type SurveyRecurrence,
 } from '@/features/surveys/types'
 import { useLocationManagementTree } from '@/features/settings/hooks/useLocationManagement'
+import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 import { listAllEmployees } from '@/features/employees/api/employees.api'
 import { combineOperationalDateAndHm, dayKeyFromInstant, formatOpsHm } from '@/shared/lib/operational-day.util'
 import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
@@ -187,6 +188,7 @@ export default function SurveyBuilderPage() {
   const updateMutSurvey = useUpdateSurvey(surveyId)
   const alreadySent = (survey?.recipientCount ?? 0) > 0
   const forServiceUsers = survey?.targetKind === 'SERVICE_USER'
+  const forPublic = survey?.targetKind === 'PUBLIC'
   /** e.g. "employees" / "service users" for sentences. */
   const audienceLower = SURVEY_TARGET_KIND_LABELS[survey?.targetKind ?? 'EMPLOYEE'].toLowerCase()
   const { data: results } = useSurveyResults(surveyId, Boolean(surveyId))
@@ -198,7 +200,13 @@ export default function SurveyBuilderPage() {
   const [sendOpen, setSendOpen] = React.useState(false)
   const [selectedZoneId, setSelectedZoneId] = React.useState('')
   const [selectedLocationIds, setSelectedLocationIds] = React.useState<string[]>([])
+  const [selectedRoleIds, setSelectedRoleIds] = React.useState<string[]>([])
   const { data: locationTree } = useLocationManagementTree(sendOpen)
+  const { data: employeeLookups } = useEmployeeLookups(sendOpen && !forServiceUsers && !forPublic)
+  const roleOptions = React.useMemo<MultiSelectOption[]>(
+    () => (employeeLookups?.jobTitles ?? []).map(r => ({ value: r.id, label: r.name })),
+    [employeeLookups],
+  )
   const [sendingEmployees, setSendingEmployees] = React.useState(false)
   const [distributeAtLocal, setDistributeAtLocal] = React.useState('')
   const [recurrenceLocal, setRecurrenceLocal] = React.useState<SurveyRecurrence | ''>('')
@@ -291,6 +299,7 @@ export default function SurveyBuilderPage() {
   const resetSendState = () => {
     setSelectedZoneId('')
     setSelectedLocationIds([])
+    setSelectedRoleIds([])
     setSendingEmployees(false)
     setDistributeAtLocal('')
     setRecurrenceLocal('')
@@ -342,11 +351,17 @@ export default function SurveyBuilderPage() {
         resetSendState()
         return
       }
-      if (locationIds.length > 0) {
-        const employees = await listAllEmployees({ locationIds })
+      if (locationIds.length > 0 || selectedRoleIds.length > 0) {
+        const employees = await listAllEmployees({
+          locationIds: locationIds.length ? locationIds : undefined,
+          jobTitleIds: selectedRoleIds.length ? selectedRoleIds : undefined,
+        })
         employeeIds = employees.map(e => e.id)
         if (employeeIds.length === 0) {
-          toastApiError(new Error('No employees found in selected branches'), 'No employees')
+          toastApiError(
+            new Error('No employees match the selected branches/roles'),
+            'No employees',
+          )
           return
         }
       }
@@ -508,16 +523,18 @@ export default function SurveyBuilderPage() {
                       : 'Copy shareable link'}
                 </Button>
                 ) : null}
-                <Button
-                  type="button"
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={questions.length === 0 || sendMut.isPending}
-                  onClick={() => setSendOpen(true)}
-                >
-                  <Send className="h-3.5 w-3.5" aria-hidden />
-                  {alreadySent ? `Send to new ${audienceLower}` : 'Send or schedule'}
-                </Button>
+                {!forPublic ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={questions.length === 0 || sendMut.isPending}
+                    onClick={() => setSendOpen(true)}
+                  >
+                    <Send className="h-3.5 w-3.5" aria-hidden />
+                    {alreadySent ? `Send to new ${audienceLower}` : 'Send or schedule'}
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   size="sm"
@@ -897,6 +914,7 @@ export default function SurveyBuilderPage() {
         onOpenChange={o => {
           setSendOpen(o)
           if (o && survey?.recurrence) setRecurrenceLocal(survey.recurrence)
+          if (o) setSelectedRoleIds(survey?.roleIds ?? [])
           if (!o) resetSendState()
         }}
       >
@@ -980,6 +998,23 @@ export default function SurveyBuilderPage() {
                 />
                 <span className="text-xs text-muted-foreground">
                   Leave empty to send to all {audienceLower} in this zone
+                </span>
+              </label>
+            ) : null}
+
+            {!forServiceUsers ? (
+              <label className="block space-y-1 text-sm">
+                <span className="font-medium">Job titles</span>
+                <MultiSelect
+                  options={roleOptions}
+                  value={selectedRoleIds}
+                  onChange={setSelectedRoleIds}
+                  placeholder="All job titles"
+                  searchPlaceholder="Search job titles…"
+                />
+                <span className="text-xs text-muted-foreground">
+                  Leave empty to send to all job titles. Otherwise only employees with the selected
+                  job titles (e.g. HR, Manager) receive it.
                 </span>
               </label>
             ) : null}
