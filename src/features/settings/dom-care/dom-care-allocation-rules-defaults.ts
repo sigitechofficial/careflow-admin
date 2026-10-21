@@ -13,6 +13,19 @@ export const DEFAULT_DOM_CARE_ALLOCATION_RULES: DomCareAllocationRule[] = [
   { key: 'visit_time_tolerance', label: 'Visit Time Tolerance', behavior: 'DONT_ALLOW', minutes: null },
   { key: 'carer_on_holiday', label: 'Carer on holiday', behavior: 'DONT_ALLOW', minutes: null },
   { key: 'carer_on_nca', label: 'Carer on NCA', behavior: 'DONT_ALLOW', minutes: null },
+  { key: 'carer_on_leave', label: 'Carer on leave or sick', behavior: 'DONT_ALLOW', minutes: null },
+  {
+    key: 'medication_not_trained',
+    label: 'Medication visit, carer not medication trained',
+    behavior: 'REQUEST_CONFIRMATION',
+    minutes: null,
+  },
+  {
+    key: 'missing_client_skills',
+    label: "Carer missing client's required skills",
+    behavior: 'REQUEST_CONFIRMATION',
+    minutes: null,
+  },
   {
     key: 'carer_blocked_su_on_run',
     label: 'Carer blocked with 1 SU on run or job allocated to',

@@ -245,9 +245,13 @@ export function VisitPlanSlotCarerAssignment({
   const showBlockedCarers = useShowBlockedCarersInSchedule()
 
   const visibleCandidates = React.useMemo(() => {
-    if (showBlockedCarers) return displayCandidates
-    return displayCandidates.filter((c) => !c.isBlocked)
-  }, [displayCandidates, showBlockedCarers])
+    // "Don't allow" allocation rules hide the carer, unless already on this slot.
+    const allowed = displayCandidates.filter(
+      (c) => !c.ruleBlocked || assignedIds.includes(c.employeeId),
+    )
+    if (showBlockedCarers) return allowed
+    return allowed.filter((c) => !c.isBlocked)
+  }, [assignedIds, displayCandidates, showBlockedCarers])
 
   const searchFilteredCandidates = React.useMemo(() => {
     const q = carerSearch.trim().toLowerCase()

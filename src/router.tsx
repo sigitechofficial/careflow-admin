@@ -128,6 +128,14 @@ import SurveysPage from '@/features/surveys/pages/SurveysPage'
 import SurveyBuilderPage from '@/features/surveys/pages/SurveyBuilderPage'
 import SurveyResponsesPage from '@/features/surveys/pages/SurveyResponsesPage'
 import TakeSurveyPage from '@/features/surveys/pages/TakeSurveyPage'
+import PathwayCasesListPage from '@/features/specialist-pathways/pages/PathwayCasesListPage'
+import PathwayCaseDetailPage from '@/features/specialist-pathways/pages/PathwayCaseDetailPage'
+import SafeguardingListPage from '@/features/safeguarding/pages/SafeguardingListPage'
+import SafeguardingCaseDetailPage from '@/features/safeguarding/pages/SafeguardingCaseDetailPage'
+import EnquiryBoardPage from '@/features/crm/pages/EnquiryBoardPage'
+import EnquiryDetailPage from '@/features/crm/pages/EnquiryDetailPage'
+import EnquiryNewPage from '@/features/crm/pages/EnquiryNewPage'
+import EnquiryEditPage from '@/features/crm/pages/EnquiryEditPage'
 import HoursApprovalsPage from '@/features/hours-approvals/pages/HoursApprovalsPage'
 import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
 import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
@@ -192,6 +200,7 @@ import PolicyCategoriesPage from '@/features/policies/pages/PolicyCategoriesPage
 import PolicyTagsPage from '@/features/policies/pages/PolicyTagsPage'
 import MyPoliciesToReadPage from '@/features/policies/pages/MyPoliciesToReadPage'
 import PolicyAcknowledgementsPage from '@/features/policies/pages/PolicyAcknowledgementsPage'
+import ComplianceDashboardPage from '@/features/compliance/pages/ComplianceDashboardPage'
 import { validatePolicyLibrarySearch } from '@/features/policies/policy-routes'
 import {
   BILLING_SECTION_PATHS,
@@ -373,6 +382,14 @@ const pageTitles: Record<string, string> = {
   '/payroll/runs': 'UK payroll runs',
   '/payroll/runs/$runId': 'UK payroll run',
   '/payroll/payslips': 'Payslips',
+  '/specialist-pathways/$pathway': 'Specialist pathway',
+  '/specialist-pathways/$pathway/$caseId': 'Pathway case',
+  '/safeguarding': 'Safeguarding',
+  '/safeguarding/$caseId': 'Safeguarding case',
+  '/crm': 'Enquiries',
+  '/crm/$enquiryId': 'Enquiry',
+  '/crm/new': 'New enquiry',
+  '/crm/$enquiryId/edit': 'Edit enquiry',
   '/learning/dashboard': 'Learning dashboard',
   '/learning/courses': 'Learning courses',
   '/learning/courses/new': 'New course',
@@ -392,6 +409,7 @@ const pageTitles: Record<string, string> = {
   '/policies/tags': 'Policy tags',
   '/policies/to-read': 'My policies to read',
   '/policies/acknowledgements': 'Read and sign tracking',
+  '/compliance': 'Compliance dashboard',
   '/medication/exceptions': 'Missed & refused doses',
   '/medication/late': 'Late doses',
   '/medication/administered': 'Administration log',
@@ -922,6 +940,14 @@ const serviceUsersAddRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/add',
   beforeLoad: requirePermission('service_users.create'),
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { firstName?: string; lastName?: string; dob?: string; enquiryId?: string } => ({
+    firstName: typeof search.firstName === 'string' ? search.firstName : undefined,
+    lastName: typeof search.lastName === 'string' ? search.lastName : undefined,
+    dob: typeof search.dob === 'string' ? search.dob : undefined,
+    enquiryId: typeof search.enquiryId === 'string' ? search.enquiryId : undefined,
+  }),
   loader: ({ context: { queryClient: qc } }) => {
     void qc.prefetchQuery({
       queryKey: serviceUserKeys.lookups(),
@@ -2339,6 +2365,70 @@ const learningSettingsRoute = createRoute({
   component: LearningSettingsPage,
 })
 
+const specialistPathwaysIndexRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/specialist-pathways',
+  beforeLoad: () => {
+    throw redirect({ to: '/specialist-pathways/$pathway', params: { pathway: 'learning-disability' } })
+  },
+})
+
+const specialistPathwaysListRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/specialist-pathways/$pathway',
+  beforeLoad: requirePermission('specialist_pathways.read'),
+  component: PathwayCasesListPage,
+})
+
+const specialistPathwaysCaseRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/specialist-pathways/$pathway/$caseId',
+  beforeLoad: requirePermission('specialist_pathways.read'),
+  component: PathwayCaseDetailPage,
+})
+
+const safeguardingListRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/safeguarding',
+  beforeLoad: requirePermission('safeguarding.read'),
+  component: SafeguardingListPage,
+})
+
+const safeguardingCaseRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/safeguarding/$caseId',
+  beforeLoad: requirePermission('safeguarding.read'),
+  component: SafeguardingCaseDetailPage,
+})
+
+const crmBoardRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm',
+  beforeLoad: requirePermission('crm.read'),
+  component: EnquiryBoardPage,
+})
+
+const crmEnquiryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/$enquiryId',
+  beforeLoad: requirePermission('crm.read'),
+  component: EnquiryDetailPage,
+})
+
+const crmNewEnquiryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/new',
+  beforeLoad: requirePermission('crm.manage'),
+  component: EnquiryNewPage,
+})
+
+const crmEditEnquiryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/$enquiryId/edit',
+  beforeLoad: requirePermission('crm.manage'),
+  component: EnquiryEditPage,
+})
+
 const policiesLibraryRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/policies',
@@ -2373,6 +2463,25 @@ const myPoliciesToReadRoute = createRoute({
   path: '/policies/to-read',
   beforeLoad: requirePermission('policies.read'),
   component: MyPoliciesToReadPage,
+})
+
+/** Unified compliance view; each area card is gated by its own read permission. */
+const COMPLIANCE_DASHBOARD_PERMISSIONS: Permission[] = [
+  'employees.compliance.reports.read',
+  'learning.dashboard.read',
+  'policies.read',
+  'safeguarding.read',
+  'safeguarding.manage',
+  'incidents.read',
+  'complaints.read',
+  'specialist_pathways.read',
+]
+
+const complianceDashboardRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/compliance',
+  beforeLoad: requireAnyPermission(...COMPLIANCE_DASHBOARD_PERMISSIONS),
+  component: ComplianceDashboardPage,
 })
 
 const policyAcknowledgementsRoute = createRoute({
@@ -2592,12 +2701,22 @@ const routeTree = rootRoute.addChildren([
     learningExternalTrainingRoute,
     learningReportsRoute,
     learningSettingsRoute,
+    specialistPathwaysIndexRoute,
+    specialistPathwaysListRoute,
+    specialistPathwaysCaseRoute,
+    safeguardingListRoute,
+    safeguardingCaseRoute,
+    crmBoardRoute,
+    crmNewEnquiryRoute,
+    crmEnquiryRoute,
+    crmEditEnquiryRoute,
     policiesLibraryRoute,
     policyNewRoute,
     policyCategoriesRoute,
     policyTagsRoute,
     myPoliciesToReadRoute,
     policyAcknowledgementsRoute,
+    complianceDashboardRoute,
     policyDetailRoute,
     policyEditRoute,
   ]),

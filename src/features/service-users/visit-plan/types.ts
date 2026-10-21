@@ -192,6 +192,9 @@ export type VisitPlanCarerCandidate = {
   complianceIssues: number
   /** True when org policy is BLOCK and this carer has blocking compliance. */
   complianceBlocksAllocation?: boolean
+  /** An allocation rule in Settings set to "Don't allow" applies: hide from assign lists. */
+  ruleBlocked?: boolean
+  ruleBlockReasons?: string[]
   /** Carer's contracted weekly hours (from employment), null when unset. */
   contractedWeeklyHours?: number | null
   /** Active approved extra hours threshold, else contracted. */

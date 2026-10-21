@@ -781,6 +781,8 @@ export type EmployeeDocumentRow = {
   fileSize: number
   mimeType: string
   uploadedDate: string
+  complianceTypeId: string | null
+  complianceType: { id: string; name: string } | null
   tags: string[]
 }
 
@@ -801,7 +803,7 @@ function parseEnvelopeFromFetch(body: unknown): ApiEnvelope<EmployeeDocumentRow>
 export async function uploadEmployeeDocument(
   employeeId: string,
   file: File,
-  opts?: { name?: string; description?: string },
+  opts?: { name?: string; description?: string; complianceTypeId?: string },
 ): Promise<EmployeeDocumentRow> {
   const base = getApiBaseUrl()
   if (!base) {
@@ -818,6 +820,7 @@ export async function uploadEmployeeDocument(
   const title = (opts?.name ?? file.name).trim()
   if (title) form.append('name', title)
   if (opts?.description?.trim()) form.append('description', opts.description.trim())
+  if (opts?.complianceTypeId) form.append('complianceTypeId', opts.complianceTypeId)
 
   const res = await fetch(url, { method: 'POST', headers, body: form })
   const text = await res.text()

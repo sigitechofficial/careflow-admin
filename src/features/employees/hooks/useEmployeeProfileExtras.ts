@@ -30,11 +30,13 @@ export function useUploadEmployeeDocument(employeeId: string) {
       file,
       name,
       description,
+      complianceTypeId,
     }: {
       file: File
       name?: string
       description?: string
-    }) => uploadEmployeeDocument(employeeId, file, { name, description }),
+      complianceTypeId?: string
+    }) => uploadEmployeeDocument(employeeId, file, { name, description, complianceTypeId }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: employeeKeys.documents(employeeId) })
     },

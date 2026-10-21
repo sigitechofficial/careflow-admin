@@ -24,8 +24,8 @@ export function useFeedbackList(params: FeedbackListParams, options?: { enabled?
   })
 }
 
-export function useFeedbackSummary() {
-  return useQuery({ queryKey: complaintKeys.summary(), queryFn: fetchFeedbackSummary })
+export function useFeedbackSummary(enabled = true) {
+  return useQuery({ queryKey: complaintKeys.summary(), queryFn: fetchFeedbackSummary, enabled })
 }
 
 export function useFeedback(id: string) {

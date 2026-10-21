@@ -4,6 +4,21 @@ import tseslint from 'typescript-eslint'
 
 import globals from 'globals'
 
+import jsxA11y from 'eslint-plugin-jsx-a11y'
+
+/** jsx-a11y recommended rules as warnings (rule options kept) while the existing backlog is fixed. */
+const jsxA11yRecommendedAsWarnings = {
+  ...jsxA11y.flatConfigs.recommended,
+  files: ['**/*.{jsx,tsx}'],
+  rules: Object.fromEntries(
+    Object.entries(jsxA11y.flatConfigs.recommended.rules).map(([rule, setting]) => {
+      const level = Array.isArray(setting) ? setting[0] : setting
+      if (level === 'off') return [rule, setting]
+      return [rule, Array.isArray(setting) ? ['warn', ...setting.slice(1)] : 'warn']
+    }),
+  ),
+}
+
 
 
 const featureSurfaceApiImportRule = {
@@ -90,6 +105,8 @@ export default tseslint.config(
   js.configs.recommended,
 
   ...tseslint.configs.recommended,
+
+  jsxA11yRecommendedAsWarnings,
 
   {
 

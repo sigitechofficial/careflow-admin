@@ -11,6 +11,7 @@ import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { cn, formatDate } from '@/shared/lib/utils'
+import { useComplianceTypes } from '@/features/settings/hooks/useLookupsAdmin'
 
 const ACCEPT =
   'application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -31,6 +32,7 @@ export function EmployeeDocumentsSection({
   const canRead = useAuthStore(s => s.can('employees.documents.read'))
   const canUpload = useAuthStore(s => s.can('employees.documents.upload'))
   const canDelete = useAuthStore(s => s.can('employees.documents.delete'))
+  const canReadComplianceTypes = useAuthStore(s => s.can('compliance_types.read'))
 
   const enabled = !!employeeId && apiReady && canRead
   const docsQuery = useEmployeeDocuments(employeeId, enabled)
@@ -50,7 +52,14 @@ export function EmployeeDocumentsSection({
         : null)
   const [docTitle, setDocTitle] = React.useState('')
   const [docDescription, setDocDescription] = React.useState('')
+  const [complianceTypeId, setComplianceTypeId] = React.useState('')
   const fileRef = React.useRef<HTMLInputElement>(null)
+
+  const complianceTypesQuery = useComplianceTypes(
+    { limit: 100 },
+    enabled && canUpload && canReadComplianceTypes,
+  )
+  const complianceTypes = complianceTypesQuery.data ?? []
 
   const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -62,9 +71,11 @@ export function EmployeeDocumentsSection({
         file,
         name: docTitle.trim() || file.name,
         description: docDescription.trim() || undefined,
+        complianceTypeId: complianceTypeId || undefined,
       })
       setDocTitle('')
       setDocDescription('')
+      setComplianceTypeId('')
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Upload failed.'
       setActionError(msg)
@@ -112,6 +123,25 @@ export function EmployeeDocumentsSection({
             PDF, Word, JPEG, or PNG — max 10 MB per file (same limits as the server).
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
+            {canReadComplianceTypes ? (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground" htmlFor="emp-doc-type">
+                  Document type (optional)
+                </label>
+                <select
+                  id="emp-doc-type"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={complianceTypeId}
+                  onChange={e => setComplianceTypeId(e.target.value)}
+                  disabled={uploading || complianceTypesQuery.isLoading}
+                >
+                  <option value="">— None —</option>
+                  {complianceTypes.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground" htmlFor="emp-doc-title">
                 Title (optional)
@@ -160,6 +190,7 @@ export function EmployeeDocumentsSection({
             <thead>
               <tr className="border-b border-border bg-muted/40 text-left">
                 <th className="px-3 py-2 font-medium">Document</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Type</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Size</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Uploaded</th>
                 <th className="w-24 px-3 py-2" />
@@ -168,13 +199,13 @@ export function EmployeeDocumentsSection({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
                     Loading documents…
                   </td>
                 </tr>
               ) : docs.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
                     No documents yet.
                   </td>
                 </tr>
@@ -198,6 +229,9 @@ export function EmployeeDocumentsSection({
                           ) : null}
                         </div>
                       </div>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-muted-foreground text-xs">
+                      {d.complianceType?.name ?? '—'}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatBytes(d.fileSize)}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-muted-foreground text-xs">

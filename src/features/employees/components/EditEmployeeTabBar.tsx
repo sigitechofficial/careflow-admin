@@ -10,6 +10,7 @@ import {
   CreditCard,
   FileText,
   GraduationCap,
+  LayoutDashboard,
   LayoutGrid,
   Package,
   ShieldCheck,
@@ -21,6 +22,7 @@ import {
 import { cn } from '@/shared/lib/utils'
 
 export type EditEmployeeTabId =
+  | 'overview'
   | 'personal'
   | 'employment'
   | 'pay-card'
@@ -45,6 +47,7 @@ export const EDIT_EMPLOYEE_TABS: {
   Icon: LucideIcon
   iconClassName: string
 }[] = [
+  { id: 'overview', label: 'Overview', Icon: LayoutDashboard, iconClassName: 'text-primary' },
   { id: 'personal', label: 'Personal Details', Icon: UserCircle, iconClassName: 'text-sky-600 dark:text-sky-400' },
   { id: 'employment', label: 'Employment', Icon: Briefcase, iconClassName: 'text-indigo-600 dark:text-indigo-400' },
   { id: 'pay-card', label: 'Pay card', Icon: CreditCard, iconClassName: 'text-violet-600 dark:text-violet-400' },

@@ -204,7 +204,7 @@ export default function SurveyBuilderPage() {
   const { data: locationTree } = useLocationManagementTree(sendOpen)
   const { data: employeeLookups } = useEmployeeLookups(sendOpen && !forServiceUsers && !forPublic)
   const roleOptions = React.useMemo<MultiSelectOption[]>(
-    () => (employeeLookups?.roles ?? []).map(r => ({ value: r.id, label: r.name })),
+    () => (employeeLookups?.jobTitles ?? []).map(r => ({ value: r.id, label: r.name })),
     [employeeLookups],
   )
   const [sendingEmployees, setSendingEmployees] = React.useState(false)
@@ -354,7 +354,7 @@ export default function SurveyBuilderPage() {
       if (locationIds.length > 0 || selectedRoleIds.length > 0) {
         const employees = await listAllEmployees({
           locationIds: locationIds.length ? locationIds : undefined,
-          roleIds: selectedRoleIds.length ? selectedRoleIds : undefined,
+          jobTitleIds: selectedRoleIds.length ? selectedRoleIds : undefined,
         })
         employeeIds = employees.map(e => e.id)
         if (employeeIds.length === 0) {
@@ -1004,17 +1004,17 @@ export default function SurveyBuilderPage() {
 
             {!forServiceUsers ? (
               <label className="block space-y-1 text-sm">
-                <span className="font-medium">Job roles</span>
+                <span className="font-medium">Job titles</span>
                 <MultiSelect
                   options={roleOptions}
                   value={selectedRoleIds}
                   onChange={setSelectedRoleIds}
-                  placeholder="All job roles"
-                  searchPlaceholder="Search roles…"
+                  placeholder="All job titles"
+                  searchPlaceholder="Search job titles…"
                 />
                 <span className="text-xs text-muted-foreground">
-                  Leave empty to send to all roles. Otherwise only employees in the selected roles
-                  receive it.
+                  Leave empty to send to all job titles. Otherwise only employees with the selected
+                  job titles (e.g. HR, Manager) receive it.
                 </span>
               </label>
             ) : null}

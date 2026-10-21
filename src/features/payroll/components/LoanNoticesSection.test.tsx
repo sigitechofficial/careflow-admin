@@ -98,8 +98,12 @@ describe('student and postgraduate loan notices on the payroll profile (Gate C14
     expect(await screen.findByRole('alert')).toHaveTextContent('already recorded with different details')
   })
 
-  it('a reader sees the notices and the legacy-settings warning but cannot record a notice', async () => {
-    state.notices = [notice(), notice({ id: 'n-2', noticeType: 'PGL1', studentLoanPlan: null, hmrcReference: null, effectivePayday: '2026-06-30', createdAt: '2026-06-15T10:00:00.000Z' })]
+  it('a reader sees the notices and the legacy-settings warning for plans no in-force notice covers yet, but cannot record a notice', async () => {
+    // Notices dated in the future are not yet in force, so payroll still uses the profile plans until then.
+    state.notices = [
+      notice({ effectivePayday: '2099-05-31' }),
+      notice({ id: 'n-2', noticeType: 'PGL1', studentLoanPlan: null, hmrcReference: null, effectivePayday: '2099-06-30', createdAt: '2026-06-15T10:00:00.000Z' }),
+    ]
     show({ canEdit: false, profile: { studentLoanPlan2: true, postgraduateLoan: true } })
     const rows = (await screen.findByTestId('loan-notice-history')).querySelectorAll('tbody tr')
     expect([...rows].map((r) => r.textContent)).toEqual([
@@ -107,9 +111,29 @@ describe('student and postgraduate loan notices on the payroll profile (Gate C14
       expect.stringContaining('SL1'),
     ])
     expect(screen.getByTestId('loan-notices-legacy')).toHaveTextContent('(Plan 2, postgraduate loan) are not verified HMRC notices')
+    expect(screen.queryByTestId('loan-notices-superseded')).toBeNull()
     expect(screen.queryByTestId('loan-notice-form')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Record notice' })).toBeNull()
     expect(screen.getByTestId('loan-notices')).toHaveTextContent('cannot be edited or deleted here')
+  })
+
+  it('an in-force HMRC notice supersedes the profile plan: the "not verified" warning is hidden and a superseded note shows', async () => {
+    // SL1 Plan 1 in force (effective payday already reached); the profile still has a manual Plan 2.
+    state.notices = [notice({ studentLoanPlan: '1', effectivePayday: '2026-05-31' })]
+    show({ canEdit: false, profile: { studentLoanPlan2: true } })
+    await screen.findByTestId('loan-notice-history')
+    expect(screen.queryByTestId('loan-notices-legacy')).toBeNull()
+    expect(screen.getByTestId('loan-notices-superseded')).toBeInTheDocument()
+  })
+
+  it('warns only about the profile plan an in-force notice does not cover (student notice in force, postgraduate still on the profile)', async () => {
+    state.notices = [notice({ studentLoanPlan: '1', effectivePayday: '2026-05-31' })]
+    show({ canEdit: false, profile: { studentLoanPlan2: true, postgraduateLoan: true } })
+    await screen.findByTestId('loan-notice-history')
+    const warning = screen.getByTestId('loan-notices-legacy')
+    expect(warning).toHaveTextContent('(postgraduate loan) are not verified HMRC notices')
+    expect(warning).not.toHaveTextContent('Plan 2')
+    expect(screen.getByTestId('loan-notices-superseded')).toBeInTheDocument()
   })
 
   it('Gate C15: a manager marks an entry as recorded in error with a reason and evidence and sees it in the history; a reader cannot', async () => {

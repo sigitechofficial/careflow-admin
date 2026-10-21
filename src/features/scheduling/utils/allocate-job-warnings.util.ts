@@ -1,6 +1,6 @@
 import { ApiError } from '@/shared/api/api-client'
 
-export type AllocationWarning = { type: string; message: string; severity: string }
+export type AllocationWarning = { type: string; message: string; severity: string; hardBlock?: boolean }
 
 export function warningsFromAllocateError(e: unknown): AllocationWarning[] {
   if (!(e instanceof ApiError)) return []
@@ -22,10 +22,11 @@ export function allocationWarningsSummary(warnings: AllocationWarning[]): string
   return list.slice(0, 2).join(' · ')
 }
 
-/** True when drag-assign should fail (rota clash, blocked carer, compliance block, missing employee). */
+/** True when drag-assign should fail (rota clash, blocked carer, compliance block, missing employee, "Don't allow" rule). */
 export function isDragAllocationHardBlock(warnings: AllocationWarning[]): boolean {
   return warnings.some((w) => {
     if (w.severity !== 'blocking') return false
+    if (w.hardBlock) return true
     if (w.type === 'TIME_CONFLICT' || w.type === 'BLOCKED_CARER' || w.type === 'COMPLIANCE_BLOCK') {
       return true
     }

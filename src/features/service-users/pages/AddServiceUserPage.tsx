@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { useNavigate } from '@tanstack/react-router'
-import { Info, Loader2, Upload } from 'lucide-react'
+import { useNavigate, useSearch } from '@tanstack/react-router'
+import { ChevronDown, ChevronRight, Info, Loader2, Upload } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 import { useAuthStore } from '@/features/auth/store'
@@ -27,6 +27,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shar
 import { ApiError } from '@/shared/api/api-client'
 import { parseApiFieldErrors } from '@/shared/api/api-error-format'
 import { extractApiErrorMessage, toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
+import { linkEnquiryServiceUser } from '@/features/crm/api/crm.api'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { type EmployeeListRow } from '@/features/employees/types'
 import {
@@ -37,9 +38,23 @@ import { useEmployeeLookups, useEmployees } from '@/features/employees/hooks/use
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useCreateServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
 import {
+  createServiceUserEnterpriseFunding,
   patchServiceUserDomCare,
   uploadServiceUserPhoto,
 } from '@/features/service-users/api/service-users.api'
+import { useCreateChargeCard } from '@/features/billing/hooks/useChargeCards'
+import { serializeChargeCardRulesForApi } from '@/features/billing/utils/billing-card-payload.util'
+import { slugBillingCode } from '@/features/billing/types/billing-cards.types'
+import { useEnterpriseFunders } from '@/features/service-users/hooks/useServiceUserTabs'
+import {
+  AddServiceUserFundingSection,
+  defaultChargeCardName,
+  emptyFundingRates,
+  funderFundingTypeId,
+  fundingRatesHasContent,
+  validateFundingRates,
+  type AddFundingRatesState,
+} from '@/features/service-users/components/AddServiceUserFundingSection'
 import { upsertServiceUserPortalAccount } from '@/features/service-user-portal/api/portal.api'
 import { ServiceUserZoneBranchSelect } from '@/features/service-users/components/ServiceUserZoneBranchSelect'
 import {
@@ -536,7 +551,19 @@ export default function AddServiceUserPage() {
   const navigate = useNavigate()
   const apiConfigured = Boolean(getApiBaseUrl())
   const createMutation = useCreateServiceUser()
-  const [form, setForm] = React.useState<FormState>({ ...emptyForm })
+  // Optional prefill from a CRM enquiry (?firstName=&lastName=&dob=&enquiryId=).
+  const prefill = useSearch({ strict: false }) as {
+    firstName?: string
+    lastName?: string
+    dob?: string
+    enquiryId?: string
+  }
+  const [form, setForm] = React.useState<FormState>(() => ({
+    ...emptyForm,
+    firstName: prefill.firstName ?? emptyForm.firstName,
+    lastName: prefill.lastName ?? emptyForm.lastName,
+    dateOfBirth: prefill.dob ?? emptyForm.dateOfBirth,
+  }))
   const [submitError, setSubmitError] = React.useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({})
   const [photoFile, setPhotoFile] = React.useState<File | null>(null)
@@ -563,6 +590,31 @@ export default function AddServiceUserPage() {
   const createReferralMutation = useCreateReferralFor()
   const [carerPreferences, setCarerPreferences] =
     React.useState<ServiceUserCarerPreferencesState>(emptyCarerPreferences)
+
+  const can = useAuthStore((st) => st.can)
+  const canAddFundingRates =
+    can('billing.charge_cards.manage' as never) &&
+    (can('service_users.funding.create') || can('service_users.update'))
+  const fundersQuery = useEnterpriseFunders(apiConfigured && canAddFundingRates)
+  const funders = fundersQuery.data ?? []
+  const createChargeCardMutation = useCreateChargeCard()
+  const [fundingRates, setFundingRates] = React.useState<AddFundingRatesState>(emptyFundingRates)
+  const [showFundingRates, setShowFundingRates] = React.useState(false)
+
+  // Prefill the funder / hours from the referral section so they aren't entered twice.
+  React.useEffect(() => {
+    const refFunder = referralForm.funderId
+    const refHours = referralForm.requestedHoursPerWeek
+    if (!refFunder && !refHours) return
+    setFundingRates((prev) => {
+      if (prev.funderId || prev.authorisedWeeklyHours) return prev
+      return {
+        ...prev,
+        funderId: refFunder || prev.funderId,
+        authorisedWeeklyHours: refHours || prev.authorisedWeeklyHours,
+      }
+    })
+  }, [referralForm.funderId, referralForm.requestedHoursPerWeek])
 
   React.useEffect(() => {
     const t = window.setTimeout(() => setKwDebounced(kwSearch), 300)
@@ -676,6 +728,16 @@ export default function AddServiceUserPage() {
           return
         }
       }
+      const withFundingRates =
+        canAddFundingRates && showFundingRates && fundingRatesHasContent(fundingRates)
+      if (withFundingRates) {
+        const fundingProblem = validateFundingRates(fundingRates, funders)
+        if (fundingProblem) {
+          setSubmitError(`Funding & charge rates: ${fundingProblem}`)
+          toastError('Cannot create service user', `Funding & charge rates: ${fundingProblem}`)
+          return
+        }
+      }
       const payload = buildPayload(form)
       const created = await createMutation.mutateAsync({
         payload,
@@ -713,6 +775,60 @@ export default function AddServiceUserPage() {
         } catch (refErr) {
           toastApiError(refErr, 'Service user created, but the referral could not be saved — add it on the Referral & Quotes tab')
         }
+      }
+      if (withFundingRates) {
+        try {
+          const funder = funders.find((f) => f.id === fundingRates.funderId)
+          const fundingTypeId = funderFundingTypeId(fundingRates.funderId, funders)
+          if (!funder || !fundingTypeId) throw new Error('Funder funding type missing')
+          const cardName =
+            fundingRates.cardName.trim() ||
+            defaultChargeCardName(funder.name, `${form.firstName} ${form.lastName}`)
+          const effectiveFrom =
+            fundingRates.effectiveFrom ||
+            (payload.serviceStartDate
+              ? payload.serviceStartDate.slice(0, 10)
+              : new Date().toISOString().slice(0, 10))
+          // The funder's per-hour rates live on a charge card attached to the new funding line.
+          const card = await createChargeCardMutation.mutateAsync({
+            name: cardName,
+            code: slugBillingCode(cardName),
+            assignmentLevel: 'FUNDING_CONTRACT',
+            currency: 'GBP',
+            billingFrequency: 'WEEKLY',
+            defaultChargeMethod: 'HOURLY_PRO_RATA',
+            status: 'ACTIVE',
+            effectiveFrom,
+            rules: serializeChargeCardRulesForApi(fundingRates.rules),
+          })
+          await createServiceUserEnterpriseFunding(created.id, {
+            fundingTypeId,
+            funderId: fundingRates.funderId,
+            status: 'ACTIVE',
+            isPrimary: true,
+            startDate: effectiveFrom,
+            authorisedWeeklyHours: fundingRates.authorisedWeeklyHours
+              ? Number(fundingRates.authorisedWeeklyHours)
+              : null,
+            defaultChargeCardId: card.id,
+          })
+        } catch (fundErr) {
+          toastApiError(
+            fundErr,
+            'Service user created, but the charge rates could not be saved — add them on the Funding tab',
+          )
+        }
+      }
+      // Created from a CRM enquiry: link it back (marks the enquiry Won) and return to it.
+      if (prefill.enquiryId) {
+        try {
+          await linkEnquiryServiceUser(prefill.enquiryId, created.id)
+          toastSuccess('Service user created', 'Linked to the enquiry and marked as won.')
+        } catch (linkErr) {
+          toastApiError(linkErr, 'Service user created, but it could not be linked to the enquiry')
+        }
+        await navigate({ to: '/crm/$enquiryId', params: { enquiryId: prefill.enquiryId } })
+        return
       }
       toastSuccess('Service user created', 'Redirecting to the service user list.')
       await navigate({ to: '/service-users/all' })
@@ -1340,6 +1456,36 @@ export default function AddServiceUserPage() {
           </p>
           <ReferralFormFields value={referralForm} onChange={setReferralForm} compact currentUserName={currentUserName} />
         </Section>
+
+        {canAddFundingRates ? (
+          <Section>
+            <SHead>Funding &amp; Charge Rates</SHead>
+            <p className="-mt-2 mb-4 text-xs text-muted-foreground">
+              Optional. Record the funder and the per-hour / visit rates they pay for this person. Saved as a
+              charge card linked to a new funding line — manage or extend it later on the Funding tab.
+            </p>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+              onClick={() => setShowFundingRates((o) => !o)}
+              data-testid="add-funding-rates-toggle"
+            >
+              {showFundingRates ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {showFundingRates ? 'Hide funder charge rates' : 'Add funder charge rates'}
+            </button>
+            {showFundingRates ? (
+              <div className="mt-4">
+                <AddServiceUserFundingSection
+                  value={fundingRates}
+                  onChange={setFundingRates}
+                  funders={funders}
+                  loading={fundersQuery.isLoading}
+                  suName={`${form.firstName} ${form.lastName}`}
+                />
+              </div>
+            ) : null}
+          </Section>
+        ) : null}
 
         <Section>
           <ServiceUserCarerPreferencesSection

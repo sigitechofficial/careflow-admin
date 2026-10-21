@@ -22,7 +22,10 @@ import {
   warningsFromAllocateError,
   type AllocationWarning,
 } from '@/features/scheduling/utils/allocate-job-warnings.util'
-import { buildRotaBookedEmployeeIds } from '@/features/scheduling/utils/schedule-carer-suggest.util'
+import {
+  buildRotaBookedEmployeeIds,
+  buildRuleBlockedEmployeeIds,
+} from '@/features/scheduling/utils/schedule-carer-suggest.util'
 import type { VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
 
 type Props = {
@@ -62,6 +65,11 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
     [suggestCandidates],
   )
 
+  const ruleBlockedEmployeeIds = React.useMemo(
+    () => buildRuleBlockedEmployeeIds(suggestCandidates),
+    [suggestCandidates],
+  )
+
   const blockedEmployeeIds = React.useMemo(
     () =>
       showBlockedCarers
@@ -80,6 +88,7 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
     return employeesQuery.employees
       .filter((row) => !allocatedEmployeeIds.has(row.id))
       .filter((row) => !rotaBookedEmployeeIds.has(row.id))
+      .filter((row) => !ruleBlockedEmployeeIds.has(row.id))
       .filter((row) => !blockedEmployeeIds.has(row.id))
       .filter((row) => {
         if (!q) return true
@@ -99,6 +108,7 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
     employeesQuery.employees,
     preferredEmployeeIds,
     rotaBookedEmployeeIds,
+    ruleBlockedEmployeeIds,
     search,
   ])
 
