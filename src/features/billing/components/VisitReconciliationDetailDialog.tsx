@@ -27,6 +27,7 @@ import {
 } from '@/features/billing/hooks/useVisitReconciliations'
 import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
 import type { VisitReconciliationRateBreakdown } from '@/features/billing/types/visit-reconciliation.types'
+import type { VisitReconciliationDetail } from '@/features/billing/types/visit-reconciliation.types'
 import { toastApiError, toastSuccess, toastWithVariant } from '@/shared/lib/toast'
 import { payTimeEditNotice } from '@/features/billing/utils/pay-time-outcome.util'
 import { useAuthStore } from '@/features/auth/store'
@@ -242,6 +243,64 @@ function parseStoredAmount(value: string | null | undefined): string {
   if (!value?.trim()) return ''
   const n = Number(value.replace(/[^0-9.-]/g, ''))
   return Number.isFinite(n) ? String(n) : ''
+}
+
+const gbp = (amount: number) => `£${amount.toFixed(2)}`
+
+/** Mileage and travel time paid with the visit pay, and what the carer gets for the visit in all. */
+function TravelPayCard({
+  travelPay,
+  visitPay,
+}: {
+  travelPay: NonNullable<VisitReconciliationDetail['travelPay']>
+  visitPay: string | null
+}) {
+  const lines = [
+    travelPay.mileage ? { label: `Mileage (${travelPay.mileage.miles} mi)`, ...travelPay.mileage } : null,
+    travelPay.travel ? { label: `Travel time (${travelPay.travel.minutes} min)`, ...travelPay.travel } : null,
+  ].filter((line): line is NonNullable<typeof line> => line != null)
+  // The visit pay arrives formatted (e.g. "£14.50").
+  const visit = visitPay != null ? Number(visitPay.replace(/[^0-9.-]/g, '')) : null
+  return (
+    <ContentCard className="p-4 space-y-3">
+      <div>
+        <h4 className="flex items-center gap-2 text-sm font-semibold">
+          <PoundSterling className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+          Mileage and travel pay
+        </h4>
+        <p className="text-xs text-muted-foreground">
+          From the carer’s pay card. The visit pay run pays these as their own lines, beside the visit pay.
+        </p>
+      </div>
+      <ul className="space-y-2">
+        {lines.map((line) => (
+          <li key={line.label} className="rounded-md border border-border/80 bg-background px-3 py-2 space-y-1">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="font-medium">{line.label}</span>
+              <span className="tabular-nums font-medium">{gbp(line.amount)}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">{line.explanation}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="space-y-1 border-t border-border pt-3 text-sm">
+        {visit != null && Number.isFinite(visit) ? (
+          <div className="flex justify-between gap-2 text-muted-foreground">
+            <span>Visit pay + mileage + travel</span>
+            <span className="tabular-nums">
+              {gbp(visit)} + {gbp(travelPay.total)}
+            </span>
+          </div>
+        ) : null}
+        <div className="flex justify-between gap-2 font-semibold">
+          <span>Carer total for this visit</span>
+          <span className="tabular-nums">
+            {gbp((visit != null && Number.isFinite(visit) ? visit : 0) + travelPay.total)}
+          </span>
+        </div>
+      </div>
+    </ContentCard>
+  )
 }
 
 function ManualAmountEditor({
@@ -780,7 +839,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     Mileage
                   </h4>
                   <p className="text-xs text-muted-foreground">
-                    Enter approved journey miles between visits. Payroll multiplies this by the carer’s pay card mileage (£/mile) rate.
+                    Filled automatically from the distance between the carer’s previous service user that day and this one (change it if the journey differed). Payroll multiplies this by the carer’s pay card mileage (£/mile) rate.
                   </p>
                 </div>
                 <label className="block max-w-xs space-y-1 text-sm">
@@ -837,6 +896,9 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   isManualOverride={payableManual}
                   icon={<Wallet className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
                 />
+                {detail.travelPay ? (
+                  <TravelPayCard travelPay={detail.travelPay} visitPay={detail.payableAmount} />
+                ) : null}
                 {canManage ? (
                   <ManualAmountEditor
                     title="Set carer pay manually"

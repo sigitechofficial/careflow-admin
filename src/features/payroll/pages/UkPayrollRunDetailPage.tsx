@@ -72,7 +72,7 @@ export default function UkPayrollRunDetailPage() {
   // Closing posts year-to-date figures and reopening reverses them: separate powers from running payroll.
   const canClose = useAuthStore((s) => s.can('payroll.runs.close'))
   const canReopen = useAuthStore((s) => s.can('payroll.runs.reopen'))
-  const currentUserId = useAuthStore((s) => s.user?.id ?? null)
+  const currentUserId = useAuthStore(s => s.makerCheckerUserId())
   const canManagePayouts = useAuthStore((s) => s.can('billing.employee_payouts.manage'))
   const canReadPayouts = useAuthStore((s) => s.can('billing.employee_payouts.read'))
   const { locationId } = useGlobalLocationScope()

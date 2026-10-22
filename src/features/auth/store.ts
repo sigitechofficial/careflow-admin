@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { appendAuditEvent, loadAuditFromStorage } from '@/features/auth/audit'
 import {
-  EXPLICIT_GRANT_PERMISSIONS,
   hasPermission as checkPerm,
   permissionsForRole,
 } from '@/features/auth/roles'
@@ -192,6 +191,11 @@ interface AuthState {
   isAuthenticated: () => boolean
   isServiceUser: () => boolean
   can: (p: Permission | Permission[]) => boolean
+  /**
+   * The id the "a different user must approve" checks compare with. A Super Admin may approve
+   * their own work (the API allows it), so they have none.
+   */
+  makerCheckerUserId: () => string | null
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
   /** API mode only: `POST /auth/login/temporary-inspector` with username + password. */
   loginAsTemporaryInspector: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>
@@ -369,16 +373,16 @@ export const useAuthStore = create<AuthState>()(
       can: (p) => {
         const u = get().user
         if (!u) return false
-        // Pay approval, settlement, payroll close / reopen and data reset are never implied by
-        // Super Admin: the user's role has to list them (the API enforces the same rule).
-        const explicitOnly = (Array.isArray(p) ? p : [p]).some(key =>
-          EXPLICIT_GRANT_PERMISSIONS.includes(key),
-        )
-        if (!explicitOnly) {
-          if (u.role === 'super_admin') return true
-          if (u.backendRoles?.includes('Super Admin')) return true
-        }
+        // Super Admin holds every permission, pay approval and payroll close included (as the API).
+        if (u.role === 'super_admin') return true
+        if (u.backendRoles?.includes('Super Admin')) return true
         return checkPerm(u.permissions, p)
+      },
+
+      makerCheckerUserId: () => {
+        const u = get().user
+        if (!u || u.role === 'super_admin' || u.backendRoles?.includes('Super Admin')) return null
+        return u.id ?? null
       },
 
       appendLocalAudit: e => appendAuditEvent(e),

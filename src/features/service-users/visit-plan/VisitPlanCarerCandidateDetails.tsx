@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, CheckCircle2, Clock, Info, ShieldAlert, Star, UserX } from 'lucide-react'
+import { AlertTriangle, CalendarOff, CheckCircle2, Clock, Info, ShieldAlert, Star, UserX } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import {
   contentBadgeClass,
@@ -15,6 +15,11 @@ import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types
 import { buildCarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/visit-plan-carer-availability-display.util'
 import { VisitPlanCarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/VisitPlanCarerAvailabilityBreakdown'
 import { formatVisitPlanCarerRoleLine } from '@/features/scheduling/utils/schedule-carer-suggest.util'
+
+function formatTimeOffRange(fromIso: string, toIso: string): string {
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  return `${fmt(fromIso)} – ${fmt(toIso)}`
+}
 
 function fitStyles(fit: VisitPlanCarerFit) {
   if (fit === 'good') {
@@ -185,6 +190,46 @@ export function VisitPlanCarerCandidateDetails({
 
   return (
     <div className={cn('min-w-0 flex-1', compact ? 'space-y-2' : 'space-y-3')}>
+      {c.timeOff ? (
+        <div
+          className={cn(
+            'flex items-start gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium',
+            c.timeOff.blocks
+              ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100'
+              : 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100',
+          )}
+        >
+          <CalendarOff className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span>
+            On {c.timeOff.label} {formatTimeOffRange(c.timeOff.from, c.timeOff.to)}
+            {c.timeOff.blocks
+              ? ' — won’t be assigned for visits in this period'
+              : ' — still assignable under your current settings'}
+          </span>
+        </div>
+      ) : null}
+      {(() => {
+        if (slotDaysOfWeek.length === 0) return null
+        const outsideHours =
+          !c.availability.timeWindowOk || c.availability.unavailableDays.length > 0
+        if (!outsideHours) return null
+        const everyDay = c.availability.availableDays.length === 0
+        return (
+          <div
+            className={cn(
+              'flex items-start gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium',
+              'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100',
+            )}
+          >
+            <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span>
+              Visit time is outside this carer’s working hours
+              {everyDay ? ' on every day' : ' on some days'} — won’t be auto-assigned
+              {everyDay ? ' ' : ' on those days '}when the rota respects working patterns
+            </span>
+          </div>
+        )
+      })()}
       {!availabilityOnly ? (
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">

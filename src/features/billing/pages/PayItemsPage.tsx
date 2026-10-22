@@ -52,7 +52,7 @@ function quantityLabel(item: PayItem): string {
 /** Non-visit pay (bonus, adjustment, holiday, sick, on-call, live-in, training) with approval. */
 export default function PayItemsPage() {
   const canManage = useAuthStore(s => s.can('billing.payroll_runs.manage' as never))
-  const currentUserId = useAuthStore(s => s.user?.id ?? null)
+  const currentUserId = useAuthStore(s => s.makerCheckerUserId())
   const [status, setStatus] = React.useState('PENDING_APPROVAL')
   const [wageType, setWageType] = React.useState('')
   const itemsQuery = usePayItems({ ...(status ? { status } : {}), ...(wageType ? { wageTypeCode: wageType } : {}) })

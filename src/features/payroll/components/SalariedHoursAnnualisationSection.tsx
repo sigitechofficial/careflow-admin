@@ -34,7 +34,7 @@ export function salariedHoursMethodLabel(m: Pick<SalariedHoursMethod, 'weeksPerY
 export function SalariedHoursAnnualisationSection() {
   const canEnter = useAuthStore(s => s.can('payroll.settings.manage'))
   const canApprove = useAuthStore(s => s.can('payroll.pay_agreements.approve'))
-  const currentUserId = useAuthStore(s => s.user?.id ?? null)
+  const currentUserId = useAuthStore(s => s.makerCheckerUserId())
   const query = useSalariedHoursMethods()
   const { enter, approve, withdraw } = useSalariedHoursMethodActions()
   const [weeks, setWeeks] = React.useState('')

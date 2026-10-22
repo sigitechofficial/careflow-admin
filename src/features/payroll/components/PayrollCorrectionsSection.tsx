@@ -26,7 +26,7 @@ export function PayrollCorrectionsSection({ employeeId, canPropose }: { employee
   const { data: payslips = [] } = useUkPayrollPayslips(null)
   const actions = useDeductionAdjustmentActions(employeeId)
   const canReview = useAuthStore((s) => s.can('payroll.runs.close'))
-  const currentUserId = useAuthStore((s) => s.user?.id ?? null)
+  const currentUserId = useAuthStore(s => s.makerCheckerUserId())
   const closedRuns = payslips.filter((p) => p.employeeId === employeeId)
   const [kind, setKind] = React.useState<ProposeDeductionAdjustmentInput['kind']>('STUDENT_LOAN')
   const [sourceRunId, setSourceRunId] = React.useState('')

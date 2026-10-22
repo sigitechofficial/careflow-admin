@@ -154,7 +154,7 @@ function RecoveryDetail({
   policyInForce: boolean
   onClose: () => void
 }) {
-  const currentUserId = useAuthStore(s => s.user?.id ?? null)
+  const currentUserId = useAuthStore(s => s.makerCheckerUserId())
   const query = useWageRecovery(id)
   const { approve, reject } = useWageRecoveryActions()
   const [authorityType, setAuthorityType] = React.useState('')

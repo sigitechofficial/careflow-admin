@@ -23,7 +23,7 @@ type Props = {
 
 export function PayrollEpsPreviewPanel({ employmentAllowanceClaimedDefault }: Props) {
   const canManage = useAuthStore((s) => s.can('payroll.settings.manage'))
-  const currentUserId = useAuthStore((s) => s.user?.id ?? null)
+  const currentUserId = useAuthStore(s => s.makerCheckerUserId())
   const { data: taxYears = [] } = usePayrollTaxYears()
   const current = taxYears.find((t) => t.isCurrent) ?? taxYears[0]
   const [taxYearId, setTaxYearId] = React.useState('')

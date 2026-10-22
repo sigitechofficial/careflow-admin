@@ -72,7 +72,7 @@ type Props = {
 export function VisitPayCorrectionsCard({ visitReconciliationId, explainWhenNotSettled = false }: Props) {
   const canRead = useAuthStore(s => s.can('billing.payroll_runs.read' as never))
   const canManage = useAuthStore(s => s.can('billing.payroll_runs.manage' as never))
-  const currentUserId = useAuthStore(s => s.user?.id ?? null)
+  const currentUserId = useAuthStore(s => s.makerCheckerUserId())
   const query = useVisitPayCorrections(visitReconciliationId, canRead)
   const recordMutation = useRecordVisitPayCorrection()
   const approveMutation = useApprovePayItem()

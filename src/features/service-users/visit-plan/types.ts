@@ -205,6 +205,14 @@ export type VisitPlanCarerCandidate = {
   projectedWeeklyHours?: number
   /** True when projected weekly hours exceed allowed (approved override or contracted). */
   exceedsContractedHours?: boolean
+  /** Nearest upcoming leave/holiday overlapping the next 8 weeks. `blocks` = org rule is "Don't allow". */
+  timeOff?: {
+    kind: 'leave' | 'holiday'
+    label: string
+    from: string
+    to: string
+    blocks: boolean
+  } | null
   warnings: string[]
 }
 
