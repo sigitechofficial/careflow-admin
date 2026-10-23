@@ -208,6 +208,13 @@ export type IncidentInvestigation = {
   outstandingEvidence?: string | null
 }
 
+/** The investigation shape shared by incidents and complaints (complaints have no scope fields). */
+export type InvestigationRecord = Omit<
+  IncidentInvestigation,
+  'incidentId' | 'investigationScope' | 'externalType'
+> &
+  Partial<Pick<IncidentInvestigation, 'investigationScope' | 'externalType'>>
+
 export type InvestigationLevel = 'STANDARD' | 'ENHANCED' | 'COMPREHENSIVE'
 export type InvestigatorInvolvement = 'NO' | 'YES' | 'NOT_KNOWN'
 /** COMPLETED is only reached by completing the investigation. */

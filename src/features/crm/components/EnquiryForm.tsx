@@ -3,8 +3,9 @@ import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
 import { Combobox } from '@/shared/ui/combobox'
+import { MultiSelect } from '@/shared/ui/multi-select'
 import { toastApiError } from '@/shared/lib/toast'
-import { useEnquiryFundingTypes, useEnquiryOwners } from '@/features/crm/hooks/useCrm'
+import { useEnquiryCarePlans, useEnquiryFundingTypes, useEnquiryOwners } from '@/features/crm/hooks/useCrm'
 import { useBranchOptions } from '@/features/crm/hooks/useBranchOptions'
 import { DuplicateWarning } from '@/features/crm/components/DuplicateWarning'
 import {
@@ -53,6 +54,7 @@ type FormState = {
   addressLine: string
   postcode: string
   needs: string
+  carePlanFormIds: string[]
   contactName: string
   contactRelationship: string
   contactPhone: string
@@ -90,6 +92,7 @@ function initialState(e?: Enquiry, defaultLocationId?: string | null): FormState
     addressLine: e?.addressLine ?? '',
     postcode: e?.postcode ?? '',
     needs: e?.needs ?? '',
+    carePlanFormIds: e?.carePlanFormIds ?? [],
     contactName: e?.contactName ?? '',
     contactRelationship: e?.contactRelationship ?? '',
     contactPhone: e?.contactPhone ?? '',
@@ -128,6 +131,7 @@ function toPayload(f: FormState): EnquiryWriteInput {
     addressLine: textOrNull(f.addressLine),
     postcode: textOrNull(f.postcode),
     needs: textOrNull(f.needs),
+    carePlanFormIds: f.carePlanFormIds,
     contactName: textOrNull(f.contactName),
     contactRelationship: textOrNull(f.contactRelationship),
     contactPhone: textOrNull(f.contactPhone),
@@ -168,23 +172,37 @@ function Field({
   required,
   wide,
   hint,
+  group,
   children,
 }: {
   label: string
   required?: boolean
   wide?: boolean
   hint?: string
+  /**
+   * Several controls in one field. A <label> passes every click inside it on to its first
+   * input, which would steal focus from (and close) a dropdown that is not that input.
+   */
+  group?: boolean
   children: React.ReactNode
 }) {
-  return (
-    <label className={`flex flex-col gap-1.5 text-sm ${wide ? 'sm:col-span-2' : ''}`}>
+  const className = `flex flex-col gap-1.5 text-sm ${wide ? 'sm:col-span-2' : ''}`
+  const body = (
+    <>
       <span className="font-medium">
         {label}
         {required && <span className="ml-0.5 text-red-600">*</span>}
       </span>
       {children}
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
-    </label>
+    </>
+  )
+  return group ? (
+    <div role="group" aria-label={label} className={className}>
+      {body}
+    </div>
+  ) : (
+    <label className={className}>{body}</label>
   )
 }
 
@@ -234,6 +252,15 @@ export function EnquiryForm({
     isError: fundingError,
     isLoading: fundingLoading,
   } = useEnquiryFundingTypes()
+  const { data: carePlans = [], isError: carePlansError, isLoading: carePlansLoading } = useEnquiryCarePlans()
+  // Keep a chosen care plan that has since been unpublished, so saving does not drop it silently.
+  const carePlanOptions = React.useMemo(() => {
+    const options = carePlans.map(c => ({ value: c.id, label: c.name }))
+    for (const c of initial?.carePlans ?? []) {
+      if (!options.some(o => o.value === c.id)) options.push({ value: c.id, label: c.name })
+    }
+    return options
+  }, [carePlans, initial?.carePlans])
 
   const setValue = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setF(prev => ({ ...prev, [key]: value }))
@@ -296,8 +323,33 @@ export function EnquiryForm({
         <Field label="Address" wide>
           <Input value={f.addressLine} onChange={set('addressLine')} placeholder="House, street, town" />
         </Field>
-        <Field label="Care needs" wide>
-          <textarea className={textareaClass} value={f.needs} onChange={set('needs')} />
+        <Field
+          label="Care needs"
+          wide
+          group
+          hint={
+            carePlansError
+              ? 'Could not load care plans'
+              : 'Care plans from Settings → Care pathway; add any detail in the notes below'
+          }
+        >
+          <div className="flex flex-col gap-2">
+            <MultiSelect
+              options={carePlanOptions}
+              value={f.carePlanFormIds}
+              onChange={v => setValue('carePlanFormIds', v)}
+              placeholder={carePlansLoading ? 'Loading care plans…' : 'Select care plans…'}
+              searchPlaceholder="Search care plans…"
+              disabled={carePlansLoading}
+            />
+            <textarea
+              className={textareaClass}
+              value={f.needs}
+              onChange={set('needs')}
+              placeholder="Notes about the care needed"
+              aria-label="Care needs notes"
+            />
+          </div>
         </Field>
       </Section>
 

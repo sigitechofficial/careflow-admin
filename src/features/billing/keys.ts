@@ -5,6 +5,8 @@ export const billingKeys = {
   payCard: (id: string) => [...billingKeys.all, 'pay-card', id] as const,
   payCardVersions: (id: string) => [...billingKeys.all, 'pay-card-versions', id] as const,
   wageTypes: () => [...billingKeys.all, 'wage-types'] as const,
+  travelGaps: () => [...billingKeys.all, 'travel-gaps'] as const,
+  dayPriority: () => [...billingKeys.all, 'day-priority'] as const,
   payItems: (params?: { status?: string; employeeId?: string; wageTypeCode?: string }) =>
     [...billingKeys.all, 'pay-items', params ?? {}] as const,
   payItemSuggestion: (params: { employeeId: string; wageTypeCode: string; unit: string; date: string }) =>

@@ -9,6 +9,8 @@ import {
 } from '@/features/incidents/components/ContributingFactorDetail'
 import {
   useIncidentInvestigators,
+  usePauseIncidentInvestigation,
+  useResumeIncidentInvestigation,
   useSuspendIncidentCarer,
   useUpsertIncidentInvestigation,
 } from '@/features/incidents/hooks/useIncidents'
@@ -29,7 +31,9 @@ import {
   InvestigationSummaryLine,
   initialSetupValues,
   setupCompletionErrors,
+  type InvestigationPauseControls,
   type InvestigationSetupValues,
+  type InvestigationSubject,
 } from '@/features/incidents/components/IncidentInvestigationSetup'
 import {
   INCIDENT_CONTRIBUTING_FACTOR_DETAIL,
@@ -44,7 +48,9 @@ import {
   type IncidentExternalInvestigationType,
   type IncidentInvestigation,
   type IncidentInvestigationScope,
+  type IncidentInvestigatorOption,
   type IncidentPreventability,
+  type InvestigationRecord,
   type UpsertIncidentInvestigationInput,
 } from '@/features/incidents/types'
 
@@ -57,6 +63,36 @@ const scopeLabel = (v: string) =>
 const externalTypeLabel = (v: string) =>
   INCIDENT_EXTERNAL_INVESTIGATION_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? v
 
+export const preventableLabel = (v: string) =>
+  INCIDENT_PREVENTABILITY_OPTIONS.find((o) => o.value === v)?.label ?? v
+
+/** Saving, lead investigator options and pause / resume for the record being investigated. */
+export type InvestigationApi = {
+  save: { mutateAsync: (input: UpsertIncidentInvestigationInput) => Promise<unknown>; isPending: boolean }
+  investigators: { data?: IncidentInvestigatorOption[]; isLoading: boolean }
+  pauseControls: InvestigationPauseControls
+}
+
+/** Incident-only parts: external bodies and interim carer suspension. */
+type IncidentInvestigationExtras = {
+  incidentId: string
+  carerSuspensions: IncidentCarerSuspension[]
+  externalBodies: IncidentExternalBody[]
+  primaryEmployeeId?: string | null
+  suspend: ReturnType<typeof useSuspendIncidentCarer>
+}
+
+type SharedInvestigationProps = {
+  canEdit: boolean
+  /** People involved — contributing factors and evidence can point at their records. */
+  serviceUsers?: { id: string; name: string | null }[]
+  involvedEmployees?: { id: string; name: string | null }[]
+  /** Higher severity (or a death): suggest a deeper investigation level. */
+  suggestHigherLevel?: boolean
+  /** Filled with "complete the investigation" so the Next step bar can trigger it. */
+  completeRef?: React.Ref<() => void>
+}
+
 export function IncidentInvestigationSection({
   incidentId,
   investigation,
@@ -64,27 +100,54 @@ export function IncidentInvestigationSection({
   externalBodies = [],
   canEdit,
   primaryEmployeeId,
-  serviceUsers = [],
-  involvedEmployees = [],
-  suggestHigherLevel = false,
-  completeRef,
-}: {
+  ...shared
+}: SharedInvestigationProps & {
   incidentId: string
   investigation: IncidentInvestigation | null
   carerSuspensions: IncidentCarerSuspension[]
   externalBodies?: IncidentExternalBody[]
-  canEdit: boolean
   primaryEmployeeId?: string | null
-  /** People involved in the incident — contributing factors can point at their records. */
-  serviceUsers?: { id: string; name: string | null }[]
-  involvedEmployees?: { id: string; name: string | null }[]
-  /** High / Critical severity or a death: suggest a deeper investigation level. */
-  suggestHigherLevel?: boolean
-  /** Filled with "complete the investigation" so the Next step bar can trigger it. */
-  completeRef?: React.Ref<() => void>
 }) {
-  const mutation = useUpsertIncidentInvestigation(incidentId)
+  const save = useUpsertIncidentInvestigation(incidentId)
+  const investigators = useIncidentInvestigators(incidentId, canEdit)
+  const pause = usePauseIncidentInvestigation(incidentId)
+  const resume = useResumeIncidentInvestigation(incidentId)
   const suspend = useSuspendIncidentCarer(incidentId)
+  return (
+    <InvestigationSection
+      {...shared}
+      investigation={investigation}
+      canEdit={canEdit}
+      api={{ save, investigators, pauseControls: { pause, resume } }}
+      incident={{ incidentId, carerSuspensions, externalBodies, primaryEmployeeId, suspend }}
+    />
+  )
+}
+
+/**
+ * The investigation form shared by incidents and complaints: set-up, findings, contributing
+ * factors, evidence, preventability and conclusion (plus the incident-only cards when given).
+ */
+export function InvestigationSection({
+  investigation,
+  api,
+  incident,
+  subject = 'incident',
+  canEdit,
+  serviceUsers = [],
+  involvedEmployees = [],
+  suggestHigherLevel = false,
+  completeRef,
+}: SharedInvestigationProps & {
+  investigation: InvestigationRecord | null
+  api: InvestigationApi
+  incident?: IncidentInvestigationExtras
+  subject?: InvestigationSubject
+}) {
+  const mutation = api.save
+  const suspend = incident?.suspend
+  const carerSuspensions = incident?.carerSuspensions ?? []
+  const externalBodies = incident?.externalBodies ?? []
   const suspensionFormRef = React.useRef<NewSuspensionHandle>(null)
   // "Investigation type" (internal / external) is replaced by "External bodies involved"; values
   // already saved on older investigations are sent back unchanged.
@@ -104,7 +167,7 @@ export function IncidentInvestigationSection({
   )
   const patchSetup = (patch: Partial<InvestigationSetupValues>) =>
     setSetup((prev) => ({ ...prev, ...patch }))
-  const investigatorsQuery = useIncidentInvestigators(incidentId, canEdit)
+  const investigatorsQuery = api.investigators
   const [factors, setFactors] = React.useState<string[]>(investigation?.contributingFactors ?? [])
   const [factorDetails, setFactorDetails] = React.useState<ContributingFactorDetails>(
     investigation?.contributingFactorDetails ?? {},
@@ -206,7 +269,7 @@ export function IncidentInvestigationSection({
       markComplete,
     }
     try {
-      if (newSuspension) {
+      if (newSuspension && suspend) {
         // The API only suspends while an open investigation exists, so save a draft first if
         // there is none, and suspend before the investigation is marked complete.
         if (!investigation) await mutation.mutateAsync({ ...input, markComplete: false })
@@ -231,7 +294,7 @@ export function IncidentInvestigationSection({
       <div className="space-y-3 text-sm">
         {investigation && <InvestigationSummaryLine investigation={investigation} />}
         {investigation && (
-          <InvestigationSetupReadView incidentId={incidentId} investigation={investigation} />
+          <InvestigationSetupReadView investigation={investigation} />
         )}
         {investigation?.investigationScope && (
           <div className="flex flex-wrap items-center gap-1.5">
@@ -257,28 +320,35 @@ export function IncidentInvestigationSection({
           </div>
         )}
         {investigation && <InvestigationEvidenceReadView investigation={investigation} />}
-        {investigation?.preventable && <ReadField label="Preventable" value={investigation.preventable} />}
+        {investigation?.preventable && (
+          <ReadField label="Preventable" value={preventableLabel(investigation.preventable)} />
+        )}
         {investigation?.conclusion && <ReadField label="Conclusion" value={investigation.conclusion} />}
-        <IncidentExternalBodiesCard incidentId={incidentId} bodies={externalBodies} canEdit={false} />
-        <IncidentSuspensionCard
-          incidentId={incidentId}
-          suspensions={carerSuspensions}
-          canEdit={false}
-        />
+        {incident && (
+          <>
+            <IncidentExternalBodiesCard incidentId={incident.incidentId} bodies={externalBodies} canEdit={false} />
+            <IncidentSuspensionCard
+              incidentId={incident.incidentId}
+              suspensions={carerSuspensions}
+              canEdit={false}
+            />
+          </>
+        )}
         {investigation?.completedAt && <Badge variant="success" size="sm">Investigation complete</Badge>}
       </div>
     )
   }
 
   const paused = investigation?.investigationStatus === 'PAUSED'
-  const canAddSuspension = investigation?.investigationStatus !== 'COMPLETED'
+  const canAddSuspension = !!incident && investigation?.investigationStatus !== 'COMPLETED'
   const investigationErrorCount = Object.keys(completeErrors).filter((k) => k !== 'suspension').length
 
   return (
     <div ref={formRef} className="space-y-3">
       {investigation && <InvestigationSummaryLine investigation={investigation} />}
       <InvestigationSetupForm
-        incidentId={incidentId}
+        pauseControls={api.pauseControls}
+        subject={subject}
         investigation={investigation}
         values={setup}
         onChange={patchSetup}
@@ -357,8 +427,8 @@ export function IncidentInvestigationSection({
       </div>
       <TextField label="Conclusion" value={conclusion} onChange={setConclusion} required error={completeErrors.conclusion} />
       <p className="text-xs text-muted-foreground">
-        <span className="text-destructive dark:text-red-400">*</span> Needed for “Complete investigation” (Next
-        step, at the top). “Save draft” keeps your progress without them.
+        <span className="text-destructive dark:text-red-400">*</span> Needed for “Complete investigation”
+        {completeRef ? ' (Next step, at the top)' : ''}. “Save draft” keeps your progress without them.
       </p>
       {paused && (
         <p className="text-xs text-muted-foreground">
@@ -366,7 +436,9 @@ export function IncidentInvestigationSection({
         </p>
       )}
 
-      <IncidentExternalBodiesCard incidentId={incidentId} bodies={externalBodies} canEdit={canEdit} />
+      {incident && (
+        <IncidentExternalBodiesCard incidentId={incident.incidentId} bodies={externalBodies} canEdit={canEdit} />
+      )}
 
       {canAddSuspension && (
         <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted/40">
@@ -381,14 +453,16 @@ export function IncidentInvestigationSection({
             : 'Suspend a carer during the investigation'}
         </label>
       )}
-      <IncidentSuspensionCard
-        incidentId={incidentId}
-        suspensions={carerSuspensions}
-        canEdit={canEdit}
-        showAddForm={canAddSuspension && addSuspension}
-        primaryEmployeeId={primaryEmployeeId}
-        formRef={suspensionFormRef}
-      />
+      {incident && (
+        <IncidentSuspensionCard
+          incidentId={incident.incidentId}
+          suspensions={carerSuspensions}
+          canEdit={canEdit}
+          showAddForm={canAddSuspension && addSuspension}
+          primaryEmployeeId={incident.primaryEmployeeId}
+          formRef={suspensionFormRef}
+        />
+      )}
 
       {Object.keys(completeErrors).length > 0 && (
         <div role="alert" className="space-y-0.5 text-sm text-destructive dark:text-red-400">
@@ -403,15 +477,21 @@ export function IncidentInvestigationSection({
           )}
         </div>
       )}
-      <div className="flex justify-end border-t border-border pt-3">
+      <div className="flex justify-end gap-2 border-t border-border pt-3">
         <Button
           size="sm"
           variant="outline"
-          loading={mutation.isPending || suspend.isPending}
+          loading={mutation.isPending || suspend?.isPending}
           onClick={() => void save(false)}
         >
           Save draft
         </Button>
+        {/* Without a Next step bar (complaints), completing happens here. */}
+        {!completeRef && investigation?.investigationStatus !== 'COMPLETED' && (
+          <Button size="sm" loading={mutation.isPending} disabled={paused} onClick={() => void save(true)}>
+            Complete investigation
+          </Button>
+        )}
       </div>
     </div>
   )

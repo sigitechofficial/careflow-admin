@@ -49,6 +49,9 @@ export type EnquiryDuplicates = {
   serviceUsers: { id: string; name: string; dateOfBirth: string | null }[]
 }
 
+/** A published care plan (Settings → Care pathway) that an enquiry can list under care needs. */
+export type CarePlanOption = { id: string; name: string }
+
 /** Row from the shared funding-type lookup (Settings → Funding types). */
 export type FundingTypeOption = { id: string; name: string; code: string }
 
@@ -76,6 +79,9 @@ export type Enquiry = {
   enquiryType: EnquiryType | null
   urgency: EnquiryUrgency
   needs: string | null
+  carePlanFormIds: string[]
+  /** The chosen care plans that still exist, with their names. */
+  carePlans: CarePlanOption[]
   ownerId: string | null
   ownerName: string | null
   receivedVia: EnquiryReceivedVia | null
@@ -150,6 +156,7 @@ export type EnquiryWriteInput = {
   enquiryType?: EnquiryType | null
   urgency?: EnquiryUrgency
   needs?: string | null
+  carePlanFormIds?: string[]
   receivedVia?: EnquiryReceivedVia | null
   sentAt?: string | null
   receivedAt?: string | null

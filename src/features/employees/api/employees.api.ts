@@ -672,19 +672,37 @@ export type CreateNonCoreActivityPayload = {
   onCallForPeriod?: boolean
   notes?: string
   applyToSchedule?: boolean
+  /** Pay each removed visit at its visit rate (pending pay items) instead of paying the activity. */
+  payRemovedVisits?: boolean
+}
+
+/** A visit the carer was taken off, and the pay item created for it (none when it could not be priced). */
+export type RemovedVisitPay = {
+  scheduledJobId: string
+  jobName: string
+  amount: number | null
+  payItemId: string | null
+  problem?: string
 }
 
 export async function createEmployeeNonCoreActivity(
   employeeId: string,
   body: CreateNonCoreActivityPayload,
-): Promise<{ data: EmployeeNonCoreActivityRow; scheduleImpact?: ScheduleImpactSummary }> {
+): Promise<{
+  data: EmployeeNonCoreActivityRow
+  scheduleImpact?: ScheduleImpactSummary
+  removedVisitPay?: RemovedVisitPay[]
+}> {
   const res = await apiJson<
-    ApiEnvelope<EmployeeNonCoreActivityRow> & { scheduleImpact?: ScheduleImpactSummary }
+    ApiEnvelope<EmployeeNonCoreActivityRow> & {
+      scheduleImpact?: ScheduleImpactSummary
+      removedVisitPay?: RemovedVisitPay[]
+    }
   >(`/employees/${employeeId}/non-core-activities`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
-  return { data: res.data, scheduleImpact: res.scheduleImpact }
+  return { data: res.data, scheduleImpact: res.scheduleImpact, removedVisitPay: res.removedVisitPay }
 }
 
 export async function updateEmployeeNonCoreActivity(

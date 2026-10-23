@@ -8,6 +8,7 @@ import { Badge } from '@/shared/ui/badge'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { useUpdateWageType, useWageTypes } from '@/features/billing/hooks/useWageTypes'
+import { TravelGapSettingsCard } from '@/features/billing/components/TravelGapSettingsCard'
 import {
   CALCULATION_METHOD_LABELS,
   WAGE_TYPE_CATEGORY_LABELS,
@@ -141,6 +142,8 @@ export function WageTypesPanel() {
         title="Wage types"
         description="UK domiciliary care pay components. Codes are fixed; you can rename them or switch them off. 'On pay card' types are set as rates on each pay card."
       />
+
+      <TravelGapSettingsCard canManage={canManage} />
 
       {wageTypesQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading wage types…</p> : null}
       {wageTypesQuery.error ? (

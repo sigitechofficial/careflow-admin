@@ -46,46 +46,156 @@ function initialsOf(e: Enquiry): string {
   return `${e.firstName?.[0] ?? ''}${e.lastName?.[0] ?? ''}`.toUpperCase() || '?'
 }
 
-/* ─── Summary header ──────────────────────────────────────────────────── */
+/* ─── Header (summary + stage stepper) ─────────────────────────────────── */
 
-function SummaryHeader({ enquiry }: { enquiry: Enquiry }) {
+/** When each stage was last entered, from "Moved to X" events (NEW = created). */
+function stageReachedAt(enquiry: Enquiry): Partial<Record<EnquiryStage, string>> {
+  const reached: Partial<Record<EnquiryStage, string>> = { NEW: enquiry.createdAt }
+  for (const ev of enquiry.events) {
+    const stage = /^Moved to (\w+)$/.exec(ev.action)?.[1]
+    if (stage && stage in STAGE_LABELS) reached[stage as EnquiryStage] = ev.at
+  }
+  // Conversion moves to WON without a "Moved to" event; stageChangedAt covers it.
+  reached[enquiry.stage] = enquiry.stageChangedAt
+  return reached
+}
+
+function StageStepper({ enquiry }: { enquiry: Enquiry }) {
+  const steps: EnquiryStage[] = [...OPEN_STAGES, enquiry.stage === 'LOST' ? 'LOST' : 'WON']
+  const currentIndex = steps.indexOf(enquiry.stage)
+  const reached = stageReachedAt(enquiry)
+
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary">
-            {initialsOf(enquiry)}
-          </span>
-          <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold">
-              {enquiry.firstName} {enquiry.lastName}
-            </h2>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-              <span className="font-medium text-muted-foreground">{enquiry.referenceNumber}</span>
-              <span className={`rounded-full px-2.5 py-0.5 font-semibold ${STAGE_CLASS[enquiry.stage]}`}>
-                {STAGE_LABELS[enquiry.stage]}
+    <ol className="flex flex-col gap-4 sm:flex-row sm:gap-0" data-testid="crm-stage-timeline">
+      {steps.map((stage, i) => {
+        const done = i < currentIndex
+        const current = i === currentIndex
+        const final = current && (stage === 'WON' || stage === 'LOST')
+        return (
+          <li key={stage} className="relative flex flex-1 items-start gap-3 sm:flex-col sm:items-center sm:text-center">
+            {i > 0 && (
+              <span
+                className={`absolute hidden h-0.5 sm:left-[-50%] sm:right-1/2 sm:top-3.5 sm:block ${
+                  i <= currentIndex ? 'bg-primary' : 'bg-border'
+                }`}
+                aria-hidden
+              />
+            )}
+            <span
+              className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ring-4 ring-card ${
+                current
+                  ? stage === 'LOST'
+                    ? 'bg-red-600 text-white'
+                    : stage === 'WON'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-primary text-primary-foreground'
+                  : done
+                    ? 'bg-primary/15 text-primary'
+                    : 'bg-muted text-muted-foreground'
+              }`}
+              aria-hidden
+            >
+              {final && stage === 'LOST' ? (
+                <XCircle className="h-4 w-4" />
+              ) : done || final ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : (
+                i + 1
+              )}
+            </span>
+            <div className="flex flex-col gap-0.5 sm:mt-2">
+              <span
+                className={`text-sm ${current ? 'font-semibold text-foreground' : done ? 'font-medium' : 'text-muted-foreground'}`}
+                aria-current={current ? 'step' : undefined}
+              >
+                {STAGE_LABELS[stage]}
               </span>
-              {enquiry.urgency === 'URGENT' && (
-                <span className="rounded-full bg-red-100 px-2.5 py-0.5 font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">
-                  Urgent
+              {current && (
+                <span className={`mx-0 w-fit rounded-full px-2 py-0.5 text-[11px] font-semibold sm:mx-auto ${STAGE_CLASS[stage]}`}>
+                  Current
                 </span>
               )}
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">
-                {SOURCE_LABELS[enquiry.source]}
-              </span>
+              {(done || current) && (
+                <span className="text-xs text-muted-foreground">{fmtDate(reached[stage] ?? null)}</span>
+              )}
+            </div>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+function MetaItem({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="truncate text-sm font-medium">{children}</dd>
+    </div>
+  )
+}
+
+function EnquiryHeader({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean }) {
+  const navigate = useNavigate()
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-5 py-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary">
+              {initialsOf(enquiry)}
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-lg font-semibold">
+                {enquiry.firstName} {enquiry.lastName}
+              </h2>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-medium text-muted-foreground">{enquiry.referenceNumber}</span>
+                <span className={`rounded-full px-2.5 py-0.5 font-semibold ${STAGE_CLASS[enquiry.stage]}`}>
+                  {STAGE_LABELS[enquiry.stage]}
+                </span>
+                {enquiry.urgency === 'URGENT' && (
+                  <span className="rounded-full bg-red-100 px-2.5 py-0.5 font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">
+                    Urgent
+                  </span>
+                )}
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">
+                  {SOURCE_LABELS[enquiry.source]}
+                </span>
+                {enquiry.enquiryType && (
+                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">
+                    {ENQUIRY_TYPE_LABELS[enquiry.enquiryType]}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+          {canManage && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 self-start"
+              onClick={() => navigate({ to: '/crm/$enquiryId/edit', params: { enquiryId: enquiry.id } })}
+            >
+              <Pencil className="mr-1.5 h-4 w-4" aria-hidden />
+              Edit enquiry
+            </Button>
+          )}
         </div>
-        <dl className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm sm:text-right">
-          <dt className="text-muted-foreground">Branch</dt>
-          <dd className="font-medium">{enquiry.locationName || '—'}</dd>
-          <dt className="text-muted-foreground">Owner</dt>
-          <dd className="font-medium">{enquiry.ownerName || 'Unassigned'}</dd>
-          <dt className="text-muted-foreground">Added by</dt>
-          <dd className="font-medium">{enquiry.recordedByName || '—'}</dd>
-          <dt className="text-muted-foreground">Added on</dt>
-          <dd className="font-medium">{fmtDate(enquiry.createdAt)}</dd>
+
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg bg-muted/40 px-4 py-3 sm:grid-cols-4">
+          <MetaItem label="Branch">{enquiry.locationName || 'Not set'}</MetaItem>
+          <MetaItem label="Owner">{enquiry.ownerName || 'Unassigned'}</MetaItem>
+          <MetaItem label="Added">
+            {fmtDate(enquiry.createdAt)}
+            {enquiry.recordedByName ? <span className="font-normal text-muted-foreground"> by {enquiry.recordedByName}</span> : null}
+          </MetaItem>
+          <MetaItem label="In this stage since">{fmtDate(enquiry.stageChangedAt)}</MetaItem>
         </dl>
+
+        <div className="border-t border-border pt-5">
+          <StageStepper enquiry={enquiry} />
+        </div>
       </CardContent>
     </Card>
   )
@@ -93,102 +203,161 @@ function SummaryHeader({ enquiry }: { enquiry: Enquiry }) {
 
 /* ─── Details ─────────────────────────────────────────────────────────── */
 
-function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
-  return (
-    <div className={wide ? 'sm:col-span-2' : undefined}>
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className="mt-1 text-sm">{children}</dd>
-    </div>
-  )
-}
+/** A detail with its value, or null when nothing is recorded. */
+type Detail = { label: string; value: React.ReactNode | null; wide?: boolean }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * Shows only the details that have a value; the empty ones are listed on one muted line
+ * (with a link to add them) instead of a grid of dashes.
+ */
+function DetailSection({
+  title,
+  details,
+  onAdd,
+}: {
+  title: string
+  details: Detail[]
+  onAdd?: () => void
+}) {
+  const filled = details.filter(d => d.value != null && d.value !== '')
+  const missing = details.filter(d => d.value == null || d.value === '')
   return (
     <section className="flex flex-col gap-3">
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">{children}</dl>
+      {filled.length > 0 && (
+        <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+          {filled.map(d => (
+            <div key={d.label} className={d.wide ? 'sm:col-span-2 xl:col-span-3' : undefined}>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{d.label}</dt>
+              <dd className="mt-1 text-sm">{d.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {missing.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Not recorded: {missing.map(d => d.label.toLowerCase()).join(', ')}
+          {onAdd && (
+            <>
+              {' · '}
+              <button type="button" className="font-medium text-primary hover:underline" onClick={onAdd}>
+                Add
+              </button>
+            </>
+          )}
+        </p>
+      )}
     </section>
   )
 }
 
-function DetailsCard({ enquiry }: { enquiry: Enquiry }) {
+const orNull = <T,>(v: T | null | undefined, render: (v: T) => React.ReactNode = x => x as React.ReactNode) =>
+  v == null || v === '' ? null : render(v)
+
+function DetailsCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean }) {
+  const navigate = useNavigate()
+  const onAdd = canManage
+    ? () => navigate({ to: '/crm/$enquiryId/edit', params: { enquiryId: enquiry.id } })
+    : undefined
+  const address = [enquiry.addressLine, enquiry.postcode].filter(Boolean).join(', ')
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Enquiry details</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
-        <Section title="Person">
-          <Field label="Name">
-            {enquiry.firstName} {enquiry.lastName}
-          </Field>
-          <Field label="Date of birth">{fmtDate(enquiry.dateOfBirth)}</Field>
-          <Field label="Address" wide>
-            {[enquiry.addressLine, enquiry.postcode].filter(Boolean).join(', ') || '—'}
-          </Field>
-          <Field label="Needs" wide>
-            <span className="whitespace-pre-wrap">{enquiry.needs || '—'}</span>
-          </Field>
-        </Section>
+        <DetailSection
+          title="Person"
+          onAdd={onAdd}
+          details={[
+            { label: 'Date of birth', value: orNull(enquiry.dateOfBirth, fmtDate) },
+            { label: 'Address', value: address || null, wide: true },
+            {
+              label: 'Care plans',
+              value: enquiry.carePlans?.length ? (
+                <span className="flex flex-wrap gap-1.5">
+                  {enquiry.carePlans.map(c => (
+                    <span key={c.id} className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                      {c.name}
+                    </span>
+                  ))}
+                </span>
+              ) : null,
+              wide: true,
+            },
+            {
+              label: 'Needs',
+              value: orNull(enquiry.needs, v => <span className="whitespace-pre-wrap">{v}</span>),
+              wide: true,
+            },
+          ]}
+        />
 
         <div className="border-t border-border" />
 
-        <Section title="Received from">
-          <Field label="Name">
-            {enquiry.contactName || '—'}
-            {enquiry.contactRelationship ? (
-              <span className="text-muted-foreground"> · {enquiry.contactRelationship}</span>
-            ) : null}
-          </Field>
-          <Field label="Source">{SOURCE_LABELS[enquiry.source]}</Field>
-          <Field label="Phone">
-            {enquiry.contactPhone ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                {enquiry.contactPhone}
-              </span>
-            ) : (
-              '—'
-            )}
-          </Field>
-          <Field label="Email">
-            {enquiry.contactEmail ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                {enquiry.contactEmail}
-              </span>
-            ) : (
-              '—'
-            )}
-          </Field>
-        </Section>
+        <DetailSection
+          title="Received from"
+          onAdd={onAdd}
+          details={[
+            {
+              label: 'Contact',
+              value: orNull(enquiry.contactName, v => (
+                <>
+                  {v}
+                  {enquiry.contactRelationship ? (
+                    <span className="text-muted-foreground"> · {enquiry.contactRelationship}</span>
+                  ) : null}
+                </>
+              )),
+            },
+            {
+              label: 'Phone',
+              value: orNull(enquiry.contactPhone, v => (
+                <a href={`tel:${v}`} className="inline-flex items-center gap-1.5 text-primary hover:underline">
+                  <Phone className="h-3.5 w-3.5" aria-hidden />
+                  {v}
+                </a>
+              )),
+            },
+            {
+              label: 'Email',
+              value: orNull(enquiry.contactEmail, v => (
+                <a href={`mailto:${v}`} className="inline-flex items-center gap-1.5 text-primary hover:underline">
+                  <Mail className="h-3.5 w-3.5" aria-hidden />
+                  {v}
+                </a>
+              )),
+            },
+          ]}
+        />
 
         <div className="border-t border-border" />
 
-        <Section title="Intake">
-          <Field label="How received">
-            {enquiry.receivedVia ? RECEIVED_VIA_LABELS[enquiry.receivedVia] : '—'}
-          </Field>
-          <Field label="Enquiry type">
-            {enquiry.enquiryType ? ENQUIRY_TYPE_LABELS[enquiry.enquiryType] : '—'}
-          </Field>
-          <Field label="Urgency">{URGENCY_LABELS[enquiry.urgency]}</Field>
-          <Field label="Source detail">{enquiry.sourceDetail || '—'}</Field>
-          <Field label="Sent at (by referrer)">{fmtDateTime(enquiry.sentAt)}</Field>
-          <Field label="Received at">{fmtDateTime(enquiry.receivedAt)}</Field>
-          <Field label="Added by">{enquiry.recordedByName || '—'}</Field>
-          <Field label="Added to system">{fmtDateTime(enquiry.createdAt)}</Field>
-        </Section>
+        <DetailSection
+          title="Intake"
+          onAdd={onAdd}
+          details={[
+            { label: 'How received', value: orNull(enquiry.receivedVia, v => RECEIVED_VIA_LABELS[v]) },
+            { label: 'Urgency', value: URGENCY_LABELS[enquiry.urgency] },
+            { label: 'Source detail', value: orNull(enquiry.sourceDetail) },
+            { label: 'Sent by referrer', value: orNull(enquiry.sentAt, fmtDateTime) },
+            { label: 'Received', value: orNull(enquiry.receivedAt, fmtDateTime) },
+          ]}
+        />
 
         <div className="border-t border-border" />
 
-        <Section title="Care requirements & funding">
-          <Field label="Hours per week">{enquiry.hoursPerWeek != null ? `${enquiry.hoursPerWeek} h` : '—'}</Field>
-          <Field label="Visits per day">{enquiry.visitsPerDay ?? '—'}</Field>
-          <Field label="Requested start date">{fmtDate(enquiry.requestedStartDate)}</Field>
-          <Field label="Funding type">{enquiry.fundingTypeName || '—'}</Field>
-          <Field label="Funder" wide>{enquiry.funderName || '—'}</Field>
-        </Section>
+        <DetailSection
+          title="Care requirements & funding"
+          onAdd={onAdd}
+          details={[
+            { label: 'Hours per week', value: orNull(enquiry.hoursPerWeek, v => `${v} h`) },
+            { label: 'Visits per day', value: orNull(enquiry.visitsPerDay) },
+            { label: 'Requested start', value: orNull(enquiry.requestedStartDate, fmtDate) },
+            { label: 'Funding type', value: orNull(enquiry.fundingTypeName) },
+            { label: 'Funder', value: orNull(enquiry.funderName) },
+          ]}
+        />
       </CardContent>
     </Card>
   )
@@ -365,140 +534,150 @@ function ActionsCard({ enquiry }: { enquiry: Enquiry }) {
   )
 }
 
-function FollowUpCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean }) {
-  const navigate = useNavigate()
-  const overdue = isFollowUpOverdue(enquiry)
-  const hasFollowUp = Boolean(enquiry.nextFollowUpAt || enquiry.nextAction)
-  return (
-    <Card className={overdue ? 'border-red-300 dark:border-red-900' : undefined}>
-      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <AlarmClock className={`h-4 w-4 ${overdue ? 'text-red-600' : 'text-muted-foreground'}`} aria-hidden />
-          Next follow-up
-        </CardTitle>
-        {overdue && (
-          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">
-            Overdue
-          </span>
-        )}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2 text-sm">
-        {hasFollowUp ? (
-          <>
-            <p className="font-medium">{enquiry.nextAction || 'Follow up'}</p>
-            <p className={overdue ? 'text-red-700 dark:text-red-300' : 'text-muted-foreground'}>
-              {fmtDateTime(enquiry.nextFollowUpAt)}
-            </p>
-          </>
-        ) : (
-          <p className="text-muted-foreground">No follow-up scheduled.</p>
-        )}
-        {canManage && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-1 w-full"
-            onClick={() => navigate({ to: '/crm/$enquiryId/edit', params: { enquiryId: enquiry.id } })}
-          >
-            {hasFollowUp ? 'Change follow-up' : 'Schedule follow-up'}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
+const money = (n: number | null) =>
+  n == null ? null : new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n)
 
-function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+/** One step of the plan: what is booked (or that nothing is), and a link to change it. */
+function PlanRow({
+  icon,
+  title,
+  badge,
+  empty,
+  lines,
+  note,
+  actionLabel,
+  onAction,
+}: {
+  icon: React.ReactNode
+  title: string
+  badge?: React.ReactNode
+  empty: string
+  lines: (React.ReactNode | null)[]
+  note?: string | null
+  actionLabel: string
+  onAction?: () => void
+}) {
+  const shown = lines.filter(Boolean)
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium">{children}</span>
+    <div className="flex gap-3">
+      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium">{title}</p>
+          {badge}
+        </div>
+        {shown.length ? (
+          <div className="mt-0.5 flex flex-col gap-0.5 text-sm">{shown.map((l, k) => <div key={k}>{l}</div>)}</div>
+        ) : (
+          <p className="mt-0.5 text-sm text-muted-foreground">{empty}</p>
+        )}
+        {note && (
+          <p className="mt-1.5 whitespace-pre-wrap rounded-md bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground">{note}</p>
+        )}
+        {onAction && (
+          <button type="button" className="mt-1 text-xs font-medium text-primary hover:underline" onClick={onAction}>
+            {actionLabel}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
 
-const money = (n: number | null) =>
-  n == null ? '—' : new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n)
-
-function AssessmentCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean }) {
+function PlanCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean }) {
   const navigate = useNavigate()
+  const edit = canManage
+    ? () => navigate({ to: '/crm/$enquiryId/edit', params: { enquiryId: enquiry.id } })
+    : undefined
+  const overdue = isFollowUpOverdue(enquiry)
+  const hasFollowUp = Boolean(enquiry.nextFollowUpAt || enquiry.nextAction)
   const booked = Boolean(enquiry.assessmentAt)
-  const hasAny = booked || Boolean(enquiry.assessorName || enquiry.assessmentLocation)
-  return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <ClipboardCheck className="h-4 w-4 text-muted-foreground" aria-hidden />
-          Assessment
-        </CardTitle>
-        {booked && (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-            Booked
-          </span>
-        )}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2 text-sm">
-        {hasAny ? (
-          <>
-            <InfoRow label="When">{fmtDateTime(enquiry.assessmentAt)}</InfoRow>
-            <InfoRow label="Assessor">{enquiry.assessorName || '—'}</InfoRow>
-            <InfoRow label="Where">{enquiry.assessmentLocation || '—'}</InfoRow>
-          </>
-        ) : (
-          <p className="text-muted-foreground">No assessment booked.</p>
-        )}
-        {canManage && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-1 w-full"
-            onClick={() => navigate({ to: '/crm/$enquiryId/edit', params: { enquiryId: enquiry.id } })}
-          >
-            {booked ? 'Change assessment' : 'Book assessment'}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-function QuoteCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean }) {
-  const navigate = useNavigate()
+  const hasAssessment = booked || Boolean(enquiry.assessorName || enquiry.assessmentLocation)
   const hasQuote =
     enquiry.quoteWeeklyAmount != null || enquiry.quoteHourlyRate != null || Boolean(enquiry.quoteSentAt)
+  const muted = (label: string, value: React.ReactNode) => (
+    <>
+      <span className="text-muted-foreground">{label} </span>
+      {value}
+    </>
+  )
+
   return (
-    <Card>
+    <Card className={overdue ? 'border-red-300 dark:border-red-900' : undefined}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <PoundSterling className="h-4 w-4 text-muted-foreground" aria-hidden />
-          Quote
-        </CardTitle>
+        <CardTitle className="text-base">Plan</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2 text-sm">
-        {hasQuote ? (
-          <>
-            <InfoRow label="Per week">{money(enquiry.quoteWeeklyAmount)}</InfoRow>
-            <InfoRow label="Hourly rate">{money(enquiry.quoteHourlyRate)}</InfoRow>
-            <InfoRow label="Sent on">{fmtDate(enquiry.quoteSentAt)}</InfoRow>
-            {enquiry.quoteNotes && (
-              <p className="mt-1 whitespace-pre-wrap rounded-md bg-muted/50 px-3 py-2 text-muted-foreground">
-                {enquiry.quoteNotes}
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="text-muted-foreground">No quote recorded.</p>
-        )}
-        {canManage && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-1 w-full"
-            onClick={() => navigate({ to: '/crm/$enquiryId/edit', params: { enquiryId: enquiry.id } })}
-          >
-            {hasQuote ? 'Change quote' : 'Record quote'}
-          </Button>
-        )}
+      <CardContent className="flex flex-col gap-4">
+        <PlanRow
+          icon={<AlarmClock className={`h-4 w-4 ${overdue ? 'text-red-600' : ''}`} aria-hidden />}
+          title="Next follow-up"
+          badge={
+            overdue ? (
+              <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">
+                Overdue
+              </span>
+            ) : null
+          }
+          empty="Nothing scheduled"
+          lines={
+            hasFollowUp
+              ? [
+                  enquiry.nextAction || 'Follow up',
+                  enquiry.nextFollowUpAt ? (
+                    <span className={overdue ? 'text-red-700 dark:text-red-300' : 'text-muted-foreground'}>
+                      {fmtDateTime(enquiry.nextFollowUpAt)}
+                    </span>
+                  ) : null,
+                ]
+              : []
+          }
+          actionLabel={hasFollowUp ? 'Change follow-up' : 'Schedule follow-up'}
+          onAction={edit}
+        />
+        <div className="border-t border-border" />
+        <PlanRow
+          icon={<ClipboardCheck className="h-4 w-4" aria-hidden />}
+          title="Assessment"
+          badge={
+            booked ? (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                Booked
+              </span>
+            ) : null
+          }
+          empty="Not booked"
+          lines={
+            hasAssessment
+              ? [
+                  enquiry.assessmentAt ? fmtDateTime(enquiry.assessmentAt) : null,
+                  enquiry.assessorName ? muted('with', enquiry.assessorName) : null,
+                  enquiry.assessmentLocation ? muted('at', enquiry.assessmentLocation) : null,
+                ]
+              : []
+          }
+          actionLabel={booked ? 'Change assessment' : 'Book assessment'}
+          onAction={edit}
+        />
+        <div className="border-t border-border" />
+        <PlanRow
+          icon={<PoundSterling className="h-4 w-4" aria-hidden />}
+          title="Quote"
+          empty="Not recorded"
+          lines={
+            hasQuote
+              ? [
+                  money(enquiry.quoteWeeklyAmount) ? muted('Per week', money(enquiry.quoteWeeklyAmount)) : null,
+                  money(enquiry.quoteHourlyRate) ? muted('Hourly', money(enquiry.quoteHourlyRate)) : null,
+                  enquiry.quoteSentAt ? muted('Sent', fmtDate(enquiry.quoteSentAt)) : null,
+                ]
+              : []
+          }
+          note={hasQuote ? enquiry.quoteNotes : null}
+          actionLabel={hasQuote ? 'Change quote' : 'Record quote'}
+          onAction={edit}
+        />
       </CardContent>
     </Card>
   )
@@ -634,21 +813,11 @@ export default function EnquiryDetailPage() {
   const navigate = useNavigate()
 
   const backButton = (
-    <div className="flex items-center justify-between gap-2">
+    <div>
       <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate({ to: '/crm' })}>
         <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
         Back to enquiries
       </Button>
-      {enquiry && canManage && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate({ to: '/crm/$enquiryId/edit', params: { enquiryId: enquiry.id } })}
-        >
-          <Pencil className="mr-1.5 h-4 w-4" aria-hidden />
-          Edit enquiry
-        </Button>
-      )}
     </div>
   )
 
@@ -683,19 +852,17 @@ export default function EnquiryDetailPage() {
     >
       <div className="flex flex-col gap-4">
         {backButton}
-        <SummaryHeader enquiry={enquiry} />
+        <EnquiryHeader enquiry={enquiry} canManage={canManage} />
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid items-start gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
-            <DetailsCard enquiry={enquiry} />
+            <DetailsCard enquiry={enquiry} canManage={canManage} />
             <ActivityCard enquiry={enquiry} />
           </div>
           <div className="flex flex-col gap-6">
             {canManage && <ActionsCard enquiry={enquiry} />}
-            <FollowUpCard enquiry={enquiry} canManage={canManage} />
-            <AssessmentCard enquiry={enquiry} canManage={canManage} />
-            <QuoteCard enquiry={enquiry} canManage={canManage} />
             <OutcomeCard enquiry={enquiry} />
+            <PlanCard enquiry={enquiry} canManage={canManage} />
           </div>
         </div>
       </div>

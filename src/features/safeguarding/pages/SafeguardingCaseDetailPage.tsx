@@ -7,6 +7,7 @@ import { EmptyState, LoadingSpinner } from '@/shared/ui/page-elements'
 import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { SafeguardingSectionLayout } from '@/features/safeguarding/components/SafeguardingSectionLayout'
+import { SafeguardingInvestigationCard } from '@/features/safeguarding/components/SafeguardingInvestigationCard'
 import {
   AlertList,
   ChecklistCard,
@@ -15,6 +16,7 @@ import {
   MultiAgencyCard,
   VoiceCard,
   scoreClass,
+  useOpenSectionListener,
 } from '@/features/safeguarding/components/SafeguardingSections'
 import {
   useAddSafeguardingNote,
@@ -174,6 +176,10 @@ function ReferralsCard({ caseData }: { caseData: SafeguardingCase }) {
     setRiskLevel(caseData.riskLevel)
   }, [caseData])
 
+  useOpenSectionListener('referrals', () => {
+    if (canManage) setEditing(true)
+  })
+
   const save = () => {
     update.mutate(
       { laReferral, laReference, laReferredAt: laReferredAt || null, cqcNotified, cqcReference, riskLevel },
@@ -188,7 +194,7 @@ function ReferralsCard({ caseData }: { caseData: SafeguardingCase }) {
   }
 
   return (
-    <Card>
+    <Card data-section="referrals" className="scroll-mt-20 transition-shadow">
       <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-base">Risk & referrals</CardTitle>
         {canManage && !editing && (
@@ -446,7 +452,7 @@ export default function SafeguardingCaseDetailPage() {
           <div className="flex flex-col gap-5 lg:col-span-2">
             <ActionPanel caseData={caseData} />
 
-            <Card>
+            <Card data-section="concern" className="scroll-mt-20 transition-shadow">
               <CardHeader>
                 <CardTitle className="text-base">Concern</CardTitle>
               </CardHeader>
@@ -469,12 +475,13 @@ export default function SafeguardingCaseDetailPage() {
             </Card>
 
             <ImmediateSafetyCard caseData={caseData} />
+            <SafeguardingInvestigationCard caseData={caseData} />
             <ReferralsCard caseData={caseData} />
             <MultiAgencyCard caseData={caseData} />
             <VoiceCard caseData={caseData} />
 
             {caseData.outcome && (
-              <Card>
+              <Card data-section="outcome" className="scroll-mt-20 transition-shadow">
                 <CardHeader>
                   <CardTitle className="text-base">Outcome</CardTitle>
                 </CardHeader>

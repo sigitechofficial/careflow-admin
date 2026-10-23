@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Filter, PenLine, Plus, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { type EmployeeNonCoreActivityRow } from '@/features/employees/types'
 import {
@@ -56,6 +56,15 @@ function reasonBadgeVariant(name: string | null): 'destructive' | 'info' {
   return /sickness|sick|ill/i.test(name) ? 'destructive' : 'info'
 }
 
+/** Open the browser's calendar + time picker when the field is clicked, not only its icon. */
+function openNativePicker(e: React.MouseEvent<HTMLInputElement>) {
+  try {
+    e.currentTarget.showPicker?.()
+  } catch {
+    // showPicker throws if the browser blocks it; the field still works by typing.
+  }
+}
+
 export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string }) {
   const apiConfigured = Boolean(getApiBaseUrl())
   const accessToken = useAuthStore(s => s.accessToken)
@@ -86,7 +95,11 @@ export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string })
   const [formDateTo, setFormDateTo] = React.useState('')
   const [formNotes, setFormNotes] = React.useState('')
   const [formApplyToSchedule, setFormApplyToSchedule] = React.useState(true)
+  const [formIncludePayroll, setFormIncludePayroll] = React.useState(false)
+  const [formPayRemovedVisits, setFormPayRemovedVisits] = React.useState(false)
   const [formError, setFormError] = React.useState<string | null>(null)
+  // Paying the removed visits replaces paying the activity, and needs the visits to be removed.
+  const payRemovedVisits = !editingId && formApplyToSchedule && formPayRemovedVisits
   const saving = createMutation.isPending || updateMutation.isPending
 
   const openCreate = () => {
@@ -96,6 +109,8 @@ export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string })
     setFormDateTo('')
     setFormNotes('')
     setFormApplyToSchedule(true)
+    setFormIncludePayroll(false)
+    setFormPayRemovedVisits(false)
     setFormError(null)
     setModalOpen(true)
   }
@@ -106,6 +121,7 @@ export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string })
     setFormDateFrom(toDatetimeLocalValue(row.dateFrom))
     setFormDateTo(toDatetimeLocalValue(row.dateTo))
     setFormNotes(row.notes ?? '')
+    setFormIncludePayroll(row.includeInPayroll)
     setFormError(null)
     setModalOpen(true)
   }
@@ -129,7 +145,7 @@ export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string })
       dateFrom: dateFromIso,
       dateTo: dateToIso,
       notes: formNotes.trim() || undefined,
-      applyToSchedule: formApplyToSchedule,
+      includeInPayroll: payRemovedVisits ? false : formIncludePayroll,
     }
     setFormError(null)
     try {
@@ -137,14 +153,37 @@ export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string })
         await updateMutation.mutateAsync({ activityId: editingId, body })
         toastSuccess('Non-core activity updated', 'Record saved.')
       } else {
-        const result = await createMutation.mutateAsync(body)
+        // Unallocating visits applies on create only (the update endpoint does not take it).
+        const result = await createMutation.mutateAsync({
+          ...body,
+          applyToSchedule: formApplyToSchedule,
+          payRemovedVisits,
+        })
         const unallocated = result.scheduleImpact?.jobsUnallocated ?? 0
+        const paid = (result.removedVisitPay ?? []).filter(v => v.payItemId)
+        const notPriced = (result.removedVisitPay ?? []).filter(v => !v.payItemId)
         toastSuccess(
           'Non-core activity recorded',
-          unallocated > 0
-            ? `${unallocated} scheduled visit${unallocated === 1 ? '' : 's'} unallocated on the rota.`
-            : 'Record saved.',
+          [
+            unallocated > 0
+              ? `${unallocated} scheduled visit${unallocated === 1 ? '' : 's'} unallocated on the rota.`
+              : 'Record saved.',
+            paid.length
+              ? `${paid.length} visit pay item${paid.length === 1 ? '' : 's'} (£${paid
+                  .reduce((sum, v) => sum + (v.amount ?? 0), 0)
+                  .toFixed(2)}) sent for approval in Pay items.`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' '),
         )
+        if (notPriced.length) {
+          toastError(
+            'Some visits could not be priced',
+            notPriced.map(v => `${v.jobName}: ${v.problem ?? 'no pay'}`).join('; ') +
+              ' — add a pay item for these by hand.',
+          )
+        }
       }
       setModalOpen(false)
     } catch (e) {
@@ -280,27 +319,61 @@ export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string })
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground">Date from</label>
-                <Input type="datetime-local" value={formDateFrom} onChange={e => setFormDateFrom(e.target.value)} />
+                <Input type="datetime-local" value={formDateFrom} onChange={e => setFormDateFrom(e.target.value)} onClick={openNativePicker} className="cursor-pointer" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground">Date to</label>
-                <Input type="datetime-local" value={formDateTo} onChange={e => setFormDateTo(e.target.value)} />
+                <Input type="datetime-local" value={formDateTo} onChange={e => setFormDateTo(e.target.value)} onClick={openNativePicker} className="cursor-pointer" />
               </div>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Notes</label>
               <Input value={formNotes} onChange={e => setFormNotes(e.target.value)} />
             </div>
+            <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3">
+              <Checkbox
+                id="nca-include-payroll"
+                checked={payRemovedVisits ? false : formIncludePayroll}
+                disabled={payRemovedVisits}
+                onCheckedChange={(checked) => setFormIncludePayroll(checked === true)}
+              />
+              <Label
+                htmlFor="nca-include-payroll"
+                className={`text-sm leading-snug ${payRemovedVisits ? 'text-muted-foreground' : 'cursor-pointer'}`}
+              >
+                Include in payroll (paid at the training rate on the carer's pay card)
+                {payRemovedVisits ? (
+                  <span className="mt-0.5 block text-xs">Not used — the removed visits are paid instead.</span>
+                ) : null}
+              </Label>
+            </div>
             {!editingId ? (
-              <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3">
-                <Checkbox
-                  id="nca-apply-schedule"
-                  checked={formApplyToSchedule}
-                  onCheckedChange={(checked) => setFormApplyToSchedule(checked === true)}
-                />
-                <Label htmlFor="nca-apply-schedule" className="cursor-pointer text-sm leading-snug">
-                  Unallocate this carer from scheduled visits during this period
-                </Label>
+              <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="nca-apply-schedule"
+                    checked={formApplyToSchedule}
+                    onCheckedChange={(checked) => setFormApplyToSchedule(checked === true)}
+                  />
+                  <Label htmlFor="nca-apply-schedule" className="cursor-pointer text-sm leading-snug">
+                    Unallocate this carer from scheduled visits during this period
+                  </Label>
+                </div>
+                {formApplyToSchedule ? (
+                  <div className="flex items-start gap-2 pl-6">
+                    <Checkbox
+                      id="nca-pay-removed-visits"
+                      checked={formPayRemovedVisits}
+                      onCheckedChange={(checked) => setFormPayRemovedVisits(checked === true)}
+                    />
+                    <Label htmlFor="nca-pay-removed-visits" className="cursor-pointer text-sm leading-snug">
+                      Pay carer for the removed visits
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        Each visit is paid at its visit rate through a pay item that needs approval.
+                      </span>
+                    </Label>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </DialogBody>

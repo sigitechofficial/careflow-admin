@@ -53,6 +53,47 @@ function View({ label, value, wide }: { label: string; value: React.ReactNode; w
   )
 }
 
+const OPEN_SECTION_EVENT = 'safeguarding:open-section'
+
+/** Which case card fixes each records-checklist item. */
+const CHECK_SECTION: Record<string, string> = {
+  logged: 'concern',
+  laDecision: 'referrals',
+  laPrompt: 'referrals',
+  laRef: 'referrals',
+  cqcDecision: 'referrals',
+  cqcRef: 'referrals',
+  lead: 'safeguarding-lead-card',
+  review: 'safeguarding-lead-card',
+  safety: 'safeguarding-safety-card',
+  voice: 'safeguarding-voice-card',
+  closure: 'outcome',
+}
+
+/** Scroll to a case card (`data-section`), flash it, and ask it to open its edit form. */
+export function openSafeguardingSection(section: string) {
+  const el = document.querySelector<HTMLElement>(`[data-section="${section}"]`)
+  if (!el) return
+  // Open the form first: re-rendering it would cut a scroll that is already under way.
+  window.dispatchEvent(new CustomEvent(OPEN_SECTION_EVENT, { detail: section }))
+  window.setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  el.classList.add('ring-2', 'ring-primary')
+  window.setTimeout(() => el.classList.remove('ring-2', 'ring-primary'), 1600)
+}
+
+/** Runs `onOpen` when the checklist asks this card to open. */
+export function useOpenSectionListener(section: string, onOpen: () => void) {
+  const ref = React.useRef(onOpen)
+  ref.current = onOpen
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === section) ref.current()
+    }
+    window.addEventListener(OPEN_SECTION_EVENT, handler)
+    return () => window.removeEventListener(OPEN_SECTION_EVENT, handler)
+  }, [section])
+}
+
 /**
  * A card that shows its fields read-only and switches to a form on "Edit".
  * `toForm` seeds the form from the case; `toInput` turns it into the PATCH body.
@@ -84,6 +125,9 @@ function EditableCard<F>({
     setF(toForm(caseData))
     setEditing(true)
   }
+  useOpenSectionListener(testId, () => {
+    if (canManage && !editing) start()
+  })
   const save = () =>
     update.mutate(toInput(f), {
       onSuccess: () => {
@@ -94,7 +138,7 @@ function EditableCard<F>({
     })
 
   return (
-    <Card data-testid={testId}>
+    <Card data-testid={testId} data-section={testId} className="scroll-mt-20 transition-shadow">
       <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-base">{title}</CardTitle>
         {canManage && !editing && (
@@ -428,10 +472,21 @@ export function ChecklistCard({ caseData }: { caseData: SafeguardingCase }) {
               ) : (
                 <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-label="Missing" />
               )}
-              <span>
-                {c.label}
-                {c.ok === null && ' (not applicable)'}
-              </span>
+              {c.ok === false && CHECK_SECTION[c.key] ? (
+                <button
+                  type="button"
+                  className="text-left underline-offset-2 hover:text-primary hover:underline"
+                  title="Go to the section to fill this in"
+                  onClick={() => openSafeguardingSection(CHECK_SECTION[c.key] ?? '')}
+                >
+                  {c.label}
+                </button>
+              ) : (
+                <span>
+                  {c.label}
+                  {c.ok === null && ' (not applicable)'}
+                </span>
+              )}
             </li>
           ))}
         </ul>

@@ -11,6 +11,8 @@ import {
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
+import { SectionInfoTip } from '@/features/billing/components/SectionInfoTip'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import {
@@ -32,8 +34,6 @@ import { toastApiError, toastSuccess, toastWithVariant } from '@/shared/lib/toas
 import { payTimeEditNotice } from '@/features/billing/utils/pay-time-outcome.util'
 import { useAuthStore } from '@/features/auth/store'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
-import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
-import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
 import { VisitPayCorrectionsCard } from '@/features/billing/components/VisitPayCorrectionsCard'
 import { VisitMileageCorrectionCard } from '@/features/billing/components/VisitMileageCorrectionCard'
@@ -116,13 +116,13 @@ function RateBreakdownCard({
         <h4 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
           {icon}
           {title}
+          <SectionInfoTip label={title}>{subtitle}</SectionInfoTip>
           {manual ? (
             <Badge variant="secondary" className="text-[10px] font-normal">
               Manual override
             </Badge>
           ) : null}
         </h4>
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
         <div>
@@ -267,10 +267,10 @@ function TravelPayCard({
         <h4 className="flex items-center gap-2 text-sm font-semibold">
           <PoundSterling className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
           Mileage and travel pay
+          <SectionInfoTip label="Mileage and travel pay">
+            From the carer’s pay card. The visit pay run pays these as their own lines, beside the visit pay.
+          </SectionInfoTip>
         </h4>
-        <p className="text-xs text-muted-foreground">
-          From the carer’s pay card. The visit pay run pays these as their own lines, beside the visit pay.
-        </p>
       </div>
       <ul className="space-y-2">
         {lines.map((line) => (
@@ -330,8 +330,8 @@ function ManualAmountEditor({
         <h4 className="flex items-center gap-2 text-sm font-semibold">
           <PoundSterling className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
           {title}
+          <SectionInfoTip label={title}>{description}</SectionInfoTip>
         </h4>
-        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1 text-sm">
@@ -372,8 +372,6 @@ function ManualAmountEditor({
 export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Props) {
   const canManage = useAuthStore(s => s.can('billing.visit_reconciliations.manage' as never))
   const { formatDate, timeDisplayFormat } = useOrganisationDisplayFormat()
-  const operationalTimezone = getSyncedOperationalTimeZone()
-  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
   const detailQuery = useVisitReconciliation(open && row ? row.id : undefined)
   const updateMutation = useUpdateVisitReconciliation()
   const setPayableMutation = useSetVisitPayableAmount()
@@ -544,14 +542,15 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-[96vw] max-w-6xl">
+        <TooltipProvider delayDuration={150}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4 text-primary" aria-hidden />
             Visit billing details
           </DialogTitle>
         </DialogHeader>
-        <DialogBody className="max-h-[75vh] space-y-4 overflow-y-auto">
+        <DialogBody className="max-h-[85vh] space-y-4 overflow-y-auto">
           {!row ? null : detailQuery.isLoading ? (
             <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -576,9 +575,6 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     {detail.date ? formatDate(detail.date) : detail.date} · {detail.serviceUserName}
                     {detail.carerName ? ` · ${detail.carerName}` : ''}
                   </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Clock times in {timezoneHint}
-                  </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {detail.nightDuty ? (
@@ -594,12 +590,6 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   <VisitReconStatusBadge status={detail.status} />
                 </div>
               </div>
-
-              {preview?.pricingFrozenNote ? (
-                <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                  {preview.pricingFrozenNote}
-                </p>
-              ) : null}
 
               {decisionBanner ? (
                 <div
@@ -641,46 +631,15 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </p>
               ) : null}
 
-              {detail.approvalNotes?.trim() ? (
-                <ContentCard className="p-4" data-testid="visit-recon-approval-notes">
-                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                    Approval history
-                  </h4>
-                  <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
-                    {parseApprovalNoteEntries(detail.approvalNotes).map((entry, index) => {
-                      const kind = approvalNoteKind(entry)
-                      return (
-                        <li
-                          key={`${index}-${entry.slice(0, 40)}`}
-                          className="flex items-start gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm"
-                        >
-                          {kind === 'payable' ? (
-                            <Badge variant="secondary" className="mt-0.5 shrink-0 text-[10px] font-normal">
-                              Carer pay
-                            </Badge>
-                          ) : kind === 'billable' ? (
-                            <Badge variant="secondary" className="mt-0.5 shrink-0 text-[10px] font-normal">
-                              Client charge
-                            </Badge>
-                          ) : (
-                            <span
-                              className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50"
-                              aria-hidden
-                            />
-                          )}
-                          <span className="min-w-0 leading-snug text-foreground">{entry}</span>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </ContentCard>
-              ) : null}
-
+              {/* The visit: what happened and what was flagged. */}
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">The visit</p>
               <ContentCard className="p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
                   <User className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                   Time worked
+                  <SectionInfoTip label="Time worked">
+                    Planned is the rota time; actual is what was recorded at clock-in and clock-out.
+                  </SectionInfoTip>
                 </h4>
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
                   <div>
@@ -716,12 +675,12 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" aria-hidden />
                       Duration overrun — {detail.overrunMinutes} min
+                      <SectionInfoTip label="Duration overrun">
+                        Until the overrun is acknowledged, carer pay and client charge use the planned
+                        visit length. When acknowledging, choose planned or actual time and which
+                        amount(s) to update.
+                      </SectionInfoTip>
                     </h4>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Until the overrun is acknowledged, carer pay and client charge use the planned
-                      visit length. When acknowledging, choose planned or actual time and which
-                      amount(s) to update.
-                    </p>
                   </div>
                   <div className="rounded-md border border-border bg-background/80 px-3 py-2 text-sm">
                     <p className="text-xs text-muted-foreground">Carer / recorder reason</p>
@@ -830,17 +789,71 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </ContentCard>
               ) : null}
 
-              <VisitPayCorrectionsCard visitReconciliationId={row.id} />
+              {preview?.exceptionDetails && preview.exceptionDetails.length > 0 ? (
+                <ContentCard className="p-4 space-y-2">
+                  <h4 className="flex items-center gap-2 text-sm font-semibold">
+                    Exceptions
+                    <SectionInfoTip label="Exceptions">
+                      Problems found when the visit was checked, such as missing clock times or rates. Blocking ones stop
+                      the visit being approved until they are resolved.
+                    </SectionInfoTip>
+                  </h4>
+                  <ul className="space-y-2">
+                    {preview.exceptionDetails.map(ex => (
+                      <li
+                        key={`${ex.code}-${ex.message}`}
+                        className="flex flex-wrap items-start gap-2 text-sm"
+                      >
+                        <BillingExceptionBadge
+                          code={ex.code}
+                          message={ex.message}
+                          serviceUserId={row.serviceUserId}
+                          employeeId={row.employeeId}
+                          scheduledJobId={row.scheduledJobId}
+                        />
+                        <span className="text-muted-foreground">{ex.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </ContentCard>
+              ) : null}
 
+              {/* Two columns on wide screens: what the carer is paid, what the client is charged. */}
+              <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+              <div className="min-w-0 space-y-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Paid to the carer</p>
+              <div className={cn('space-y-4', carerNotPaid && 'opacity-70')}>
+                {carerNotPaid ? (
+                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+                    Not paid for this visit — £0 to the carer. The amount below is the priced value,
+                    kept for reference only.
+                  </p>
+                ) : null}
+                <RateBreakdownCard
+                  title="Pay carer"
+                  subtitle="Payroll — based on this carer’s approved payable time"
+                  timeRange={formatReconClock(
+                    preview?.timeWindows.approvedPayable ?? row.approvedPayable,
+                    timeDisplayFormat,
+                  )}
+                  hours={preview?.payableHours ?? null}
+                  breakdown={preview?.carerPay ?? null}
+                  fallbackAmount={detail.payableAmount}
+                  isManualOverride={payableManual}
+                  icon={<Wallet className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
+                />
+                {detail.travelPay ? (
+                  <TravelPayCard travelPay={detail.travelPay} visitPay={detail.payableAmount} />
+                ) : null}
               <ContentCard className="p-4 space-y-3">
                 <div>
                   <h4 className="flex items-center gap-2 text-sm font-semibold">
                     <PoundSterling className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                     Mileage
+                    <SectionInfoTip label="Mileage">
+                      Filled automatically from the distance between the carer’s previous service user that day and this one (change it if the journey differed). Payroll multiplies this by the carer’s pay card mileage (£/mile) rate.
+                    </SectionInfoTip>
                   </h4>
-                  <p className="text-xs text-muted-foreground">
-                    Filled automatically from the distance between the carer’s previous service user that day and this one (change it if the journey differed). Payroll multiplies this by the carer’s pay card mileage (£/mile) rate.
-                  </p>
                 </div>
                 <label className="block max-w-xs space-y-1 text-sm">
                   <span className="text-xs text-muted-foreground">Travel distance (miles)</span>
@@ -875,30 +888,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 {paySettled ? <VisitMileageCorrectionCard visitReconciliationId={row.id} /> : null}
                 <VisitTravelTimeCard visitReconciliationId={row.id} visitDate={row.date} />
               </ContentCard>
-
-              <div className={cn('space-y-2', carerNotPaid && 'opacity-70')}>
-                {carerNotPaid ? (
-                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200">
-                    Not paid for this visit — £0 to the carer. The amount below is the priced value,
-                    kept for reference only.
-                  </p>
-                ) : null}
-                <RateBreakdownCard
-                  title="Pay carer"
-                  subtitle="Payroll — based on this carer’s approved payable time"
-                  timeRange={formatReconClock(
-                    preview?.timeWindows.approvedPayable ?? row.approvedPayable,
-                    timeDisplayFormat,
-                  )}
-                  hours={preview?.payableHours ?? null}
-                  breakdown={preview?.carerPay ?? null}
-                  fallbackAmount={detail.payableAmount}
-                  isManualOverride={payableManual}
-                  icon={<Wallet className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
-                />
-                {detail.travelPay ? (
-                  <TravelPayCard travelPay={detail.travelPay} visitPay={detail.payableAmount} />
-                ) : null}
+              <VisitPayCorrectionsCard visitReconciliationId={row.id} />
                 {canManage ? (
                   <ManualAmountEditor
                     title="Set carer pay manually"
@@ -913,7 +903,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   />
                 ) : null}
               </div>
+              </div>
 
+              <div className="min-w-0 space-y-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Charged to the client</p>
               <div className={cn('space-y-4', funderNotCharged && 'opacity-70')}>
                 {funderNotCharged ? (
                   <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200">
@@ -1041,26 +1034,44 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   </p>
                 </ContentCard>
               ) : null}
+              </div>
+              </div>
 
-              {preview?.exceptionDetails && preview.exceptionDetails.length > 0 ? (
-                <ContentCard className="p-4 space-y-2">
-                  <h4 className="text-sm font-semibold">Exceptions</h4>
-                  <ul className="space-y-2">
-                    {preview.exceptionDetails.map(ex => (
-                      <li
-                        key={`${ex.code}-${ex.message}`}
-                        className="flex flex-wrap items-start gap-2 text-sm"
-                      >
-                        <BillingExceptionBadge
-                          code={ex.code}
-                          message={ex.message}
-                          serviceUserId={row.serviceUserId}
-                          employeeId={row.employeeId}
-                          scheduledJobId={row.scheduledJobId}
-                        />
-                        <span className="text-muted-foreground">{ex.message}</span>
-                      </li>
-                    ))}
+              {detail.approvalNotes?.trim() ? (
+                <ContentCard className="p-4" data-testid="visit-recon-approval-notes">
+                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                    Approval history
+                    <SectionInfoTip label="Approval history">
+                      Notes left each time this visit was approved, newest last.
+                    </SectionInfoTip>
+                  </h4>
+                  <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
+                    {parseApprovalNoteEntries(detail.approvalNotes).map((entry, index) => {
+                      const kind = approvalNoteKind(entry)
+                      return (
+                        <li
+                          key={`${index}-${entry.slice(0, 40)}`}
+                          className="flex items-start gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm"
+                        >
+                          {kind === 'payable' ? (
+                            <Badge variant="secondary" className="mt-0.5 shrink-0 text-[10px] font-normal">
+                              Carer pay
+                            </Badge>
+                          ) : kind === 'billable' ? (
+                            <Badge variant="secondary" className="mt-0.5 shrink-0 text-[10px] font-normal">
+                              Client charge
+                            </Badge>
+                          ) : (
+                            <span
+                              className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50"
+                              aria-hidden
+                            />
+                          )}
+                          <span className="min-w-0 leading-snug text-foreground">{entry}</span>
+                        </li>
+                      )
+                    })}
                   </ul>
                 </ContentCard>
               ) : null}
@@ -1072,6 +1083,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
             Close
           </Button>
         </DialogFooter>
+        </TooltipProvider>
       </DialogContent>
     </Dialog>
   )

@@ -8,4 +8,6 @@ export const safeguardingKeys = {
   leads: () => [...safeguardingKeys.all, 'leads'] as const,
   details: () => [...safeguardingKeys.all, 'detail'] as const,
   detail: (id: string) => [...safeguardingKeys.details(), id] as const,
+  investigation: (id: string) => [...safeguardingKeys.all, 'investigation', id] as const,
+  investigators: () => [...safeguardingKeys.all, 'investigators'] as const,
 }

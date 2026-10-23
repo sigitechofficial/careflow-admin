@@ -9,13 +9,20 @@ import {
   listSafeguardingLeads,
   transitionSafeguarding,
   updateSafeguarding,
+  getSafeguardingInvestigation,
+  listSafeguardingInvestigators,
+  pauseSafeguardingInvestigation,
+  resumeSafeguardingInvestigation,
+  upsertSafeguardingInvestigation,
 } from '@/features/safeguarding/api/safeguarding.api'
 import type {
   CreateSafeguardingInput,
   ListSafeguardingParams,
   TransitionInput,
   UpdateSafeguardingInput,
+  UpsertSafeguardingInvestigationInput,
 } from '@/features/safeguarding/types/safeguarding.types'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
 export function useSafeguardingList(params?: ListSafeguardingParams, enabled = true) {
   return useQuery({
@@ -76,6 +83,59 @@ export function useTransitionSafeguarding(id: string) {
   return useMutation({
     mutationFn: (body: TransitionInput) => transitionSafeguarding(id, body),
     onSuccess: invalidate,
+  })
+}
+
+export function useSafeguardingInvestigation(id: string) {
+  return useQuery({
+    queryKey: safeguardingKeys.investigation(id),
+    queryFn: () => getSafeguardingInvestigation(id),
+  })
+}
+
+/** Eligible lead investigators (only fetched while the set-up can be edited). */
+export function useSafeguardingInvestigators(enabled: boolean) {
+  return useQuery({
+    queryKey: safeguardingKeys.investigators(),
+    queryFn: () => listSafeguardingInvestigators(),
+    enabled,
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useUpsertSafeguardingInvestigation(id: string) {
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: (body: UpsertSafeguardingInvestigationInput) => upsertSafeguardingInvestigation(id, body),
+    onSuccess: (_data, body) => {
+      toastSuccess(body.markComplete ? 'Investigation completed' : 'Investigation saved')
+      void invalidate()
+    },
+    onError: e => toastApiError(e),
+  })
+}
+
+export function usePauseSafeguardingInvestigation(id: string) {
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: (body: { reason: string; nextReviewDate: string }) => pauseSafeguardingInvestigation(id, body),
+    onSuccess: () => {
+      toastSuccess('Investigation paused')
+      void invalidate()
+    },
+    onError: e => toastApiError(e),
+  })
+}
+
+export function useResumeSafeguardingInvestigation(id: string) {
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: () => resumeSafeguardingInvestigation(id),
+    onSuccess: () => {
+      toastSuccess('Investigation resumed')
+      void invalidate()
+    },
+    onError: e => toastApiError(e),
   })
 }
 

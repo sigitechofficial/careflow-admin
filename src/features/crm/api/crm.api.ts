@@ -1,5 +1,6 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  CarePlanOption,
   CreateEnquiryInput,
   Enquiry,
   EnquiryDuplicates,
@@ -53,6 +54,10 @@ export async function linkEnquiryServiceUser(enquiryId: string, serviceUserId: s
 
 export async function fetchEnquiryOwners(): Promise<EnquiryOwner[]> {
   return data<EnquiryOwner[]>('/crm/enquiries/owners', { method: 'GET' })
+}
+
+export async function fetchEnquiryCarePlans(): Promise<CarePlanOption[]> {
+  return data<CarePlanOption[]>('/crm/enquiries/care-plans', { method: 'GET' })
 }
 
 export async function fetchEnquiryFundingTypes(): Promise<FundingTypeOption[]> {

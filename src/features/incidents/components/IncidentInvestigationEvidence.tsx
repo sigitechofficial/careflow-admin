@@ -10,7 +10,7 @@ import {
   INVESTIGATION_RECORDS_REVIEWED_OPTIONS,
   type ContributingFactorDetail,
   type ContributingFactorDetails,
-  type IncidentInvestigation,
+  type InvestigationRecord,
 } from '@/features/incidents/types'
 
 export type InvestigationEvidenceValues = {
@@ -21,7 +21,7 @@ export type InvestigationEvidenceValues = {
 }
 
 export function initialEvidenceValues(
-  investigation: IncidentInvestigation | null,
+  investigation: InvestigationRecord | null,
 ): InvestigationEvidenceValues {
   return {
     recordsReviewed: investigation?.recordsReviewed ?? [],
@@ -166,7 +166,7 @@ export function InvestigationEvidenceForm({
 }
 
 /** Read-only evidence. Nothing is shown when no evidence was recorded. */
-export function InvestigationEvidenceReadView({ investigation }: { investigation: IncidentInvestigation }) {
+export function InvestigationEvidenceReadView({ investigation }: { investigation: InvestigationRecord }) {
   const kinds = investigation.recordsReviewed ?? []
   if (!kinds.length && !investigation.evidenceNotes && !investigation.outstandingEvidence) return null
   return (

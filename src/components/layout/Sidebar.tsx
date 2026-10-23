@@ -21,6 +21,7 @@ import {
   ClipboardList,
   UserRoundPlus,
   LayoutGrid,
+  FileSpreadsheet,
   FileText,
   FileSearch,
   List,
@@ -451,6 +452,14 @@ const navItems: NavItem[] = [
         anyPermission: ['employees.read', 'employees.reports.read'],
         navTestId: 'nav-employee-absences',
       },
+      {
+        section: 'Time & absence',
+        label: 'Timesheets',
+        icon: <FileSpreadsheet className="h-4 w-4" />,
+        href: '/employee/timesheets',
+        anyPermission: ['ecm.read', 'ecm.monitor'],
+        navTestId: 'nav-employee-timesheets',
+      },
       planned("Recruitment", "Recruitment", <Briefcase className="h-4 w-4" />, "Vacancies, candidates, interviews and offers."),
       planned("Development", "Supervision & appraisals", <MessagesSquare className="h-4 w-4" />, "One-to-one and group supervision records, appraisals and follow-up actions."),
       // Parental leave is recorded via the employee Absence tracker (Maternity / Paternity types).
@@ -510,21 +519,6 @@ const navItems: NavItem[] = [
   //       },
   //     ],
   //   },
-  {
-    label: 'Safeguarding',
-    icon: <ShieldAlert className="h-5 w-5" />,
-    href: '/safeguarding',
-    children: [
-      {
-        section: 'Safeguarding',
-        label: 'Cases',
-        icon: <ShieldAlert className="h-4 w-4" />,
-        href: '/safeguarding',
-        permission: 'safeguarding.read',
-        navTestId: 'nav-safeguarding-cases',
-      },
-    ],
-  },
   {
     label: 'CRM',
     icon: <Inbox className="h-5 w-5" />,
@@ -641,6 +635,14 @@ const navItems: NavItem[] = [
       { section: 'Incidents', label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
       { section: 'Incidents', label: 'Complaints & Compliments', icon: <MessageSquareWarning className="h-4 w-4" />, href: '/incidents/feedback', permission: 'complaints.read', navTestId: 'nav-complaints-compliments' },
       { section: 'Incidents', label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read', hideForRoles: ['super_admin'] },
+      {
+        section: 'Safeguarding',
+        label: 'Safeguarding cases',
+        icon: <ShieldAlert className="h-4 w-4" />,
+        href: '/safeguarding',
+        permission: 'safeguarding.read',
+        navTestId: 'nav-safeguarding-cases',
+      },
       {
         section: 'Policies & procedures',
         label: 'Policy Library',

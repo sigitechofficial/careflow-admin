@@ -1,3 +1,8 @@
+import type {
+  IncidentInvestigation,
+  UpsertIncidentInvestigationInput,
+} from '@/features/incidents/types'
+
 export type SafeguardingStatus =
   | 'RAISED'
   | 'SCREENING'
@@ -162,3 +167,14 @@ export type TransitionInput = {
   outcome?: string
   lessonsLearned?: string
 }
+
+/** Investigation of a case: same shape as the incident investigation, keyed by the case. */
+export type SafeguardingInvestigation = Omit<
+  IncidentInvestigation,
+  'incidentId' | 'investigationScope' | 'externalType'
+> & { caseId: string }
+
+export type UpsertSafeguardingInvestigationInput = Omit<
+  UpsertIncidentInvestigationInput,
+  'investigationScope' | 'externalType'
+>

@@ -5,6 +5,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
 import { ContentCard } from '@/shared/ui/content-section'
+import { SectionInfoTip } from '@/features/billing/components/SectionInfoTip'
 import {
   Dialog,
   DialogBody,
@@ -167,12 +168,12 @@ export function VisitPayCorrectionsCard({ visitReconciliationId, explainWhenNotS
         <h4 className="flex items-center gap-2 text-sm font-semibold">
           <History className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
           Pay corrections
+          <SectionInfoTip label="Pay corrections">
+            The pay of {data.visit.visitRef} is settled in{' '}
+            {data.visit.settledBy === 'UK_PAYROLL_RUN' ? 'a closed UK payroll run' : 'a locked visit pay run'} and is
+            not edited. A correction is approved by a second person and paid, or recovered, in the next visit pay run.
+          </SectionInfoTip>
         </h4>
-        <p className="text-xs text-muted-foreground">
-          The pay of {data.visit.visitRef} is settled in{' '}
-          {data.visit.settledBy === 'UK_PAYROLL_RUN' ? 'a closed UK payroll run' : 'a locked visit pay run'} and is
-          not edited. A correction is approved by a second person and paid, or recovered, in the next visit pay run.
-        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-border bg-muted/30 px-3 py-2">

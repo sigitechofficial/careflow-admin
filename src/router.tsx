@@ -225,6 +225,7 @@ import ServiceUserHoursPage from '@/features/service-users/pages/ServiceUserHour
 import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
 import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
 import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
+import EmployeeTimesheetsPage from '@/features/employees/pages/EmployeeTimesheetsPage'
 import SpecialVisitsPage from '@/features/special-visits/pages/SpecialVisitsPage'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
 import {
@@ -311,6 +312,7 @@ const pageTitles: Record<string, string> = {
   '/employee/staff-list': 'Employee',
   '/employee/hours': 'Employee hours',
   '/employee/absences': 'Absence tracker',
+  '/employee/timesheets': 'Timesheets',
   '/special-visits': 'Special visits',
   '/employee/compliance': 'Compliance board',
   '/employee/review-status': 'Employee',
@@ -1451,6 +1453,14 @@ const employeeAbsencesRoute = createRoute({
   path: '/employee/absences',
   beforeLoad: requireAnyPermission('employees.read', 'employees.reports.read'),
   component: EmployeeAbsencesPage,
+})
+
+const employeeTimesheetsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/employee/timesheets',
+  // Visit rows come from the ECM visits table.
+  beforeLoad: requireAnyPermission('ecm.read', 'ecm.monitor'),
+  component: EmployeeTimesheetsPage,
 })
 
 const parentalLeaveRoute = createRoute({
@@ -2605,6 +2615,7 @@ const routeTree = rootRoute.addChildren([
     employeeStaffListRoute,
     employeeHoursRoute,
     employeeAbsencesRoute,
+    employeeTimesheetsRoute,
     parentalLeaveRoute,
     specialVisitsRoute,
     employeeComplianceRoute,

@@ -4,6 +4,7 @@ import {
   addEnquiryNote,
   createEnquiry,
   fetchEnquiryDuplicates,
+  fetchEnquiryCarePlans,
   fetchEnquiryFundingTypes,
   fetchEnquiryOwners,
   getEnquiry,
@@ -46,6 +47,14 @@ export function useEnquiryOwners() {
     queryKey: crmKeys.owners(),
     queryFn: () => fetchEnquiryOwners(),
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useEnquiryCarePlans() {
+  return useQuery({
+    queryKey: crmKeys.carePlans(),
+    queryFn: () => fetchEnquiryCarePlans(),
+    staleTime: 10 * 60 * 1000,
   })
 }
 

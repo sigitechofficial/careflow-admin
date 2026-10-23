@@ -14,6 +14,7 @@ export const MODULE_ILLUSTRATION: Record<string, string> = {
   'Care Operations': 'spiral-calendar',
   Medication: 'pill',
   Workforce: 'woman-health-worker',
+  CRM: 'inbox-tray',
   Learning: 'graduation-cap',
   'Quality & Compliance': 'shield',
   Finance: 'money-bag',
@@ -82,6 +83,7 @@ export const PAGE_ILLUSTRATION: Record<string, string> = {
   'Employee hours': 'stopwatch',
   'Hours approvals': 'check-box-with-check',
   'Absence tracker': 'face-with-thermometer',
+  Timesheets: 'tear-off-calendar',
   Recruitment: 'briefcase',
   'Supervision & appraisals': 'handshake',
 

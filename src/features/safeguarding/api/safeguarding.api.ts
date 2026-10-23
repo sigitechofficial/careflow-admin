@@ -3,11 +3,14 @@ import type {
   CreateSafeguardingInput,
   ListSafeguardingParams,
   SafeguardingCase,
+  SafeguardingInvestigation,
   SafeguardingLead,
   SafeguardingSummary,
   TransitionInput,
   UpdateSafeguardingInput,
+  UpsertSafeguardingInvestigationInput,
 } from '@/features/safeguarding/types/safeguarding.types'
+import type { IncidentInvestigatorOption } from '@/features/incidents/types'
 
 function buildQuery(params?: Record<string, string | undefined>): string {
   if (!params) return ''
@@ -57,6 +60,38 @@ export async function transitionSafeguarding(
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+export async function getSafeguardingInvestigation(id: string): Promise<SafeguardingInvestigation | null> {
+  return data<SafeguardingInvestigation | null>(`/safeguarding/${id}/investigation`, { method: 'GET' })
+}
+
+export async function upsertSafeguardingInvestigation(
+  id: string,
+  body: UpsertSafeguardingInvestigationInput,
+): Promise<SafeguardingInvestigation> {
+  return data<SafeguardingInvestigation>(`/safeguarding/${id}/investigation`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function pauseSafeguardingInvestigation(
+  id: string,
+  body: { reason: string; nextReviewDate: string },
+): Promise<SafeguardingInvestigation> {
+  return data<SafeguardingInvestigation>(`/safeguarding/${id}/investigation/pause`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function resumeSafeguardingInvestigation(id: string): Promise<SafeguardingInvestigation> {
+  return data<SafeguardingInvestigation>(`/safeguarding/${id}/investigation/resume`, { method: 'POST' })
+}
+
+export async function listSafeguardingInvestigators(): Promise<IncidentInvestigatorOption[]> {
+  return data<IncidentInvestigatorOption[]>('/safeguarding/investigators', { method: 'GET' })
 }
 
 export async function addSafeguardingNote(id: string, note: string): Promise<SafeguardingCase> {

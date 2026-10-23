@@ -1,4 +1,9 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+import type {
+  IncidentInvestigatorOption,
+  InvestigationRecord,
+  UpsertIncidentInvestigationInput,
+} from '@/features/incidents/types'
 
 export type FeedbackType = 'COMPLAINT' | 'COMPLIMENT'
 export type FeedbackStatus = 'RECEIVED' | 'ACKNOWLEDGED' | 'INVESTIGATING' | 'RESPONDED' | 'CLOSED'
@@ -56,7 +61,13 @@ export type FeedbackEvent = {
   createdAt: string
 }
 
-export type FeedbackDetail = FeedbackRow & { events: FeedbackEvent[] }
+/** Complaint investigation: the same record as an incident investigation. */
+export type FeedbackInvestigation = InvestigationRecord & { feedbackId: string }
+
+export type FeedbackDetail = FeedbackRow & {
+  events: FeedbackEvent[]
+  investigation: FeedbackInvestigation | null
+}
 
 export type FeedbackSummary = {
   openComplaints: number
@@ -156,6 +167,46 @@ export async function addFeedbackNote(id: string, note: string): Promise<Feedbac
   const res = await apiJson<ApiEnvelope<FeedbackDetail>>(`/feedback/${id}/notes`, {
     method: 'POST',
     body: JSON.stringify({ note }),
+  })
+  return res.data
+}
+
+export async function upsertFeedbackInvestigation(
+  id: string,
+  input: UpsertIncidentInvestigationInput,
+): Promise<FeedbackDetail> {
+  const res = await apiJson<ApiEnvelope<FeedbackDetail>>(`/feedback/${id}/investigation`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return res.data
+}
+
+/** Staff who can lead the complaint investigation. */
+export async function fetchFeedbackInvestigators(
+  id: string,
+  opts?: { signal?: AbortSignal },
+): Promise<IncidentInvestigatorOption[]> {
+  const res = await apiJson<ApiEnvelope<IncidentInvestigatorOption[]>>(`/feedback/${id}/investigators`, {
+    signal: opts?.signal,
+  })
+  return res.data
+}
+
+export async function pauseFeedbackInvestigation(
+  id: string,
+  input: { reason: string; nextReviewDate: string },
+): Promise<FeedbackDetail> {
+  const res = await apiJson<ApiEnvelope<FeedbackDetail>>(`/feedback/${id}/investigation/pause`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return res.data
+}
+
+export async function resumeFeedbackInvestigation(id: string): Promise<FeedbackDetail> {
+  const res = await apiJson<ApiEnvelope<FeedbackDetail>>(`/feedback/${id}/investigation/resume`, {
+    method: 'POST',
   })
   return res.data
 }
