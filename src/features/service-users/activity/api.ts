@@ -28,6 +28,19 @@ export type ServiceUserActivityVisit = {
     lastName: string
     preferredName?: string | null
   } | null
+  /** Cancelled / called-off visits only: who, when and why. */
+  cancellation?: {
+    /** CANCELLATION: recorded on the rota or with "Cancel visits"; PLAN_CHANGE: cancelled by a visit plan change. */
+    source: 'CANCELLATION' | 'PLAN_CHANGE'
+    cancelledByName: string | null
+    cancelledAt: string | null
+    cancelledByParty: string | null
+    cancelledByDescription: string | null
+    reasonCode: string | null
+    reasonLabel: string | null
+    reasonNotes: string | null
+    chargeDecision: string | null
+  }
 }
 
 export type ServiceUserActivityVisitListMeta = {
@@ -40,6 +53,10 @@ export type ServiceUserActivityVisitListMeta = {
 export type ServiceUserActivityVisitQuery = {
   page?: number
   limit?: number
+  /** Visit statuses to list (comma-joined for the API). Defaults to completed visits. */
+  statuses?: string[]
+  /** Newest first by default. */
+  sortOrder?: 'asc' | 'desc'
   /** YYYY-MM-DD inclusive start */
   dateFrom?: string
   /** YYYY-MM-DD inclusive end */
@@ -53,15 +70,16 @@ function toApiDateBound(isoDate: string, endOfDay: boolean): string {
   return endOfDay ? `${day}T23:59:59.999Z` : `${day}T00:00:00.000Z`
 }
 
+/** Rota visits of one service user by status (completed by default). */
 export async function fetchServiceUserCompletedVisits(
   serviceUserId: string,
   params?: ServiceUserActivityVisitQuery,
 ) {
   const qs = new URLSearchParams({
     serviceUserId,
-    statuses: 'COMPLETED,PARTIALLY_COMPLETED',
+    statuses: (params?.statuses?.length ? params.statuses : ['COMPLETED', 'PARTIALLY_COMPLETED']).join(','),
     sortBy: 'scheduledStartDateTime',
-    sortOrder: 'desc',
+    sortOrder: params?.sortOrder ?? 'desc',
     page: String(params?.page ?? 1),
     limit: String(params?.limit ?? 50),
   })

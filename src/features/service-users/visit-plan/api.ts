@@ -259,6 +259,24 @@ export type VisitPlanWeeklyHoursResult = {
   /** The service user's approved weekly contracted hours (null when not set). */
   limitWeeklyHours: number | null
   overLimitWeeks: VisitPlanWeekHours[]
+  /**
+   * Settings → Dom Rules: a save over the hours is blocked or only warned. A draft follows the
+   * draft rule, where MANAGER_APPROVAL saves it but activation waits for a manager.
+   */
+  planOverLimit?: 'BLOCK' | 'WARN' | 'MANAGER_APPROVAL'
+  /** Draft on manager approval: its latest weekly-hours request (null when none). */
+  draftApproval?: VisitPlanDraftApproval | null
+}
+
+export type VisitPlanDraftApproval = {
+  id: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  /** Busiest week (minutes) the request was made for. */
+  heaviestMinutes: number
+  requestedAt: string
+  decidedAt: string | null
+  decidedByName: string | null
+  decisionNotes: string | null
 }
 
 /** Weekly hours for an unsaved visit schedule, counted on the server (nothing is saved). */
@@ -522,6 +540,8 @@ export async function generateScheduleFromVisitPlan(
       fromDate: string
       toDate: string
       backfillDays?: number
+      /** Weeks of this run over the service user's weekly contracted hours (Settings → Dom Rules: warning only). */
+      weeklyHoursWarning?: string
     }>
   >(
     `/service-users/${serviceUserId}/visit-plans/${planId}/generate-schedule`,

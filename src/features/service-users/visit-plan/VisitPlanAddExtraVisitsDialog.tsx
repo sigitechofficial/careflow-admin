@@ -317,8 +317,15 @@ export function VisitPlanAddExtraVisitsDialog({
               .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)}`)
               .join(', ')}. They are added only if a manager approves.`
           : null,
+        result.overWeeklyHours?.length
+          ? `Over the weekly hours (allowed by settings): ${result.overWeeklyHours
+              .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)}`)
+              .join(', ')}.`
+          : null,
         result.skipped.length
-          ? `${result.skipped.length} date${result.skipped.length === 1 ? ' was' : 's were'} skipped.`
+          ? `${result.skipped.length} date${result.skipped.length === 1 ? ' was' : 's were'} skipped: ${result.skipped
+              .map((d) => `${formatDate(d.date)} — ${d.message ?? 'not available'}`)
+              .join('; ')}.`
           : null,
         result.created ? 'Created on the rota. Other visits are not affected.' : null,
       ]
@@ -734,12 +741,16 @@ export function VisitPlanAddExtraVisitsDialog({
                         className={cn(
                           !d.ok
                             ? 'text-amber-700 dark:text-amber-300'
-                            : d.needsApproval
+                            : d.needsApproval || d.overWeeklyHours
                               ? 'font-medium text-orange-700 dark:text-orange-300'
                               : 'text-emerald-700 dark:text-emerald-300',
                         )}
                       >
-                        {d.ok && d.needsApproval
+                        {d.ok && d.overWeeklyHours
+                          ? `${isEditing ? 'Can be saved' : 'Will be added'} — over the weekly contracted hours: ${
+                              d.message ?? ''
+                            }`
+                          : d.ok && d.needsApproval
                           ? `Needs manager approval — that week would have ${formatVisitPlanWeeklyHours(
                               d.weekMinutes ?? 0,
                             )} of ${formatVisitPlanWeeklyHours(limitMinutes ?? 0)}`
@@ -748,7 +759,9 @@ export function VisitPlanAddExtraVisitsDialog({
                             ? 'No clash — can be saved'
                             : 'Will be added'
                           : d.overWeeklyHours
-                          ? `Can't be saved — over the weekly contracted hours: ${d.message ?? ''}`
+                          ? `${isEditing ? "Can't be saved" : "Can't be added"} — over the weekly contracted hours: ${
+                              d.message ?? ''
+                            }`
                           : `Skipped: ${d.message ?? 'not available'}${
                               d.clashEmployeeIds.length
                                 ? ` (${d.clashEmployeeIds.map((id) => employeeNameById.get(id) ?? 'Carer').join(', ')})`

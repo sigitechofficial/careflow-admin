@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { schedulingKeys } from '@/features/scheduling/keys'
@@ -137,6 +137,22 @@ export function useVisitPlanDateChanges(serviceUserId: string, planId: string | 
   })
 }
 
+/** Date changes of several plans of one service user (same cache as useVisitPlanDateChanges). */
+export function useVisitPlanDateChangesForPlans(serviceUserId: string, planIds: string[]) {
+  return useQueries({
+    queries: planIds.map(planId => ({
+      queryKey: dateChangeKeys.list(serviceUserId, planId),
+      queryFn: async () => {
+        const res = await apiJson<ApiEnvelope<{ planStatus: VisitPlanStatus; changes: VisitPlanDateChange[] }>>(
+          base(serviceUserId, planId),
+          { method: 'GET' },
+        )
+        return res.data
+      },
+    })),
+  })
+}
+
 export function useCancellableVisits(
   serviceUserId: string,
   planId: string | undefined,
@@ -199,7 +215,7 @@ export type ExtraVisitsPreviewPayload = {
   employeeIds: string[]
   /** When editing: the extra visit being edited, so it is not counted as a clash with itself. */
   editingExceptionId?: string
-  /** A sleeping night is not counted against the weekly hours. */
+  /** Night type of the visit (a sleeping night counts its full hours against the weekly hours too). */
   nightDuty?: VisitPlanNightDuty
 }
 
@@ -229,6 +245,8 @@ export type AddExtraVisitsResult = {
   created: number
   createdDates: string[]
   sentForApproval: Array<{ date: string; weekStart: string; weekMinutes: number; approvalId: string }>
+  /** Added although over the weekly hours (Settings → Dom Rules: warning only). */
+  overWeeklyHours?: Array<{ date: string; weekMinutes: number }>
   skipped: Array<{ date: string; message: string | null }>
 }
 

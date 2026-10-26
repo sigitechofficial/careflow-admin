@@ -71,8 +71,11 @@ export async function fetchSpecialVisitSummary({
   return res.data
 }
 
-export async function createSpecialVisit(body: CreateSpecialVisitBody): Promise<{ id: string }> {
-  const res = await apiJson<ApiEnvelope<{ id: string }>>('/special-visits', {
+/** `weeklyHoursWarning`: the visit takes the service user's week over the weekly contracted hours (Settings → Dom Rules: warning only). */
+export async function createSpecialVisit(
+  body: CreateSpecialVisitBody,
+): Promise<{ id: string; weeklyHoursWarning?: string }> {
+  const res = await apiJson<ApiEnvelope<{ id: string; weeklyHoursWarning?: string }>>('/special-visits', {
     method: 'POST',
     body: JSON.stringify(body),
   })

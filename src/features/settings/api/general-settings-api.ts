@@ -55,6 +55,25 @@ export type DomWeeklyHoursRuleOptions = {
   maxApprovableHours: number
 }
 
+/** Service user weekly contracted hours rules (Settings → Dom Rules). Defaults = original behaviour. */
+export type ServiceUserWeeklyHoursSettings = {
+  changeApproval: 'ALWAYS' | 'INCREASE_ONLY' | 'DECREASE_ONLY' | 'NEVER'
+  decreaseAction: 'KEEP_WARN' | 'CANCEL_LATEST'
+  planOverLimit: 'BLOCK' | 'WARN'
+  extraOverLimit: 'MANAGER_APPROVAL' | 'BLOCK' | 'WARN'
+  extraApproveRecheck: boolean
+  extraRejectReasonRequired: boolean
+  extraEditOverLimit: 'BLOCK' | 'WARN'
+  /** Bulk generate / hourly rolling rota with a plan over the hours. */
+  bulkOverLimit: 'WARN' | 'SKIP_MANUAL' | 'SKIP_ALL'
+  /** Special visits count towards the service user's weekly hours. */
+  specialVisitsCount: boolean
+  specialVisitOverLimit: 'BLOCK' | 'WARN'
+  /** Draft visit plan over the hours: block, manager approval before Activate, or warning only. */
+  draftOverLimit: 'BLOCK' | 'MANAGER_APPROVAL' | 'WARN'
+  checkWeeks: number
+}
+
 export type OptionalAboutMeField = {
   key: string
   label: string
@@ -245,6 +264,7 @@ export type OrganisationGeneralSettings = {
   domLateVisitZoneAlerts: DomLateVisitZoneAlert[]
   domCareShiftDefinitions: DomCareShiftDefinition[]
   domCareAllocationRules: DomCareAllocationRule[]
+  serviceUserWeeklyHoursSettings?: ServiceUserWeeklyHoursSettings
   incidentDetailsEditableMinutes: number
   incidentDisplayHours: number
   incidentDefaultStatus: IncidentDefaultStatus

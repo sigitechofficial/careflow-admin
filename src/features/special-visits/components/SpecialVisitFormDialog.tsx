@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { Label, Textarea } from '@/shared/ui/form-field'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 
 /** datetime-local value (treated as UTC) → ISO string. */
 function localInputToIso(value: string): string | null {
@@ -104,10 +104,14 @@ export function SpecialVisitFormDialog({
 
   const createMutation = useMutation({
     mutationFn: (body: CreateSpecialVisitBody) => createSpecialVisit(body),
-    onSuccess: () => {
+    onSuccess: (result) => {
       void qc.invalidateQueries({ queryKey: specialVisitKeys.list(employeeId, weekStart) })
       void qc.invalidateQueries({ queryKey: specialVisitKeys.summary(employeeId, weekStart) })
-      toastSuccess('Special visit added')
+      if (result.weeklyHoursWarning) {
+        toastWarning('Special visit added — over the weekly hours', `${result.weeklyHoursWarning}.`)
+      } else {
+        toastSuccess('Special visit added')
+      }
       onClose()
     },
     onError: e => toastApiError(e, 'Could not add the special visit'),

@@ -31,6 +31,7 @@ import {
   ruleSupportsMinutes,
 } from '@/features/settings/dom-care/dom-care-allocation-rules-defaults'
 import { useAuthStore } from '@/features/auth/store'
+import { GeneralSettingsServiceUserHoursPanel } from '@/features/settings/components/GeneralSettingsServiceUserHoursPanel'
 import { cn } from '@/shared/lib/utils'
 
 const RULE_ROW_GRID =
@@ -342,6 +343,8 @@ export function GeneralSettingsDomRulesPanel() {
           Save
         </Button>
       </div>
+
+      <GeneralSettingsServiceUserHoursPanel />
     </div>
   )
 }

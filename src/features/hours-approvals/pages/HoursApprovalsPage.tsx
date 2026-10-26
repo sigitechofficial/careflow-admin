@@ -26,6 +26,7 @@ import {
 } from '@/features/hours-approvals/hooks'
 import type {
   ContractedHoursImpact,
+  DraftPlanRequestPayload,
   HoursApproval,
   HoursApprovalStatus,
 } from '@/features/hours-approvals/types'
@@ -33,6 +34,7 @@ import {
   ContractedHoursImpactSummary,
   formatHours,
 } from '@/features/hours-approvals/components/ContractedHoursImpactSummary'
+import { ServiceUserHoursDecreaseImpact } from '@/features/hours-approvals/components/ServiceUserHoursDecreaseImpact'
 
 const TABS: { id: HoursApprovalStatus; label: string }[] = [
   { id: 'PENDING', label: 'Pending' },
@@ -68,6 +70,15 @@ function isServiceUserHoursChange(row: HoursApproval) {
 
 function isExtraVisitRequest(row: HoursApproval) {
   return row.requestType === 'EXTRA_VISIT_OVER_HOURS'
+}
+
+function isDraftPlanRequest(row: HoursApproval) {
+  return row.requestType === 'DRAFT_PLAN_OVER_HOURS'
+}
+
+/** A draft plan request's busiest week (its payload is not an extra visit's). */
+function draftPlanWeek(row: HoursApproval): DraftPlanRequestPayload | null {
+  return isDraftPlanRequest(row) ? ((row.requestPayload as unknown as DraftPlanRequestPayload | null) ?? null) : null
 }
 
 /** 1550 → "25h 50m". */
@@ -125,17 +136,20 @@ export default function HoursApprovalsPage() {
   const [rejectTarget, setRejectTarget] = React.useState<HoursApproval | null>(null)
   const [rejectReason, setRejectReason] = React.useState('')
   /** An extra visit over the weekly hours needs a reason to reject (the requester sees it). */
-  const rejectReasonRequired = rejectTarget != null && isExtraVisitRequest(rejectTarget)
+  const rejectReasonRequired =
+    rejectTarget != null &&
+    (isExtraVisitRequest(rejectTarget) || isDraftPlanRequest(rejectTarget)) &&
+    rejectTarget.rejectReasonRequired !== false
   const [approveContractedTarget, setApproveContractedTarget] = React.useState<HoursApproval | null>(null)
   const [expandedId, setExpandedId] = React.useState<string | null>(null)
 
   const overCapCount = tab === 'PENDING' ? rows.filter(exceedsWeeklyCap).length : 0
   const showActions = canManage && tab === 'PENDING'
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, draftPlan = false) => {
     try {
       await approveMut.mutateAsync({ id })
-      toastSuccess('Extra hours approved')
+      toastSuccess(draftPlan ? 'Draft visit plan approved — it can now be activated' : 'Extra hours approved')
     } catch (e) {
       toastApiError(e, 'Could not approve')
     }
@@ -144,13 +158,17 @@ export default function HoursApprovalsPage() {
   const handleApproveContracted = async () => {
     if (!approveContractedTarget) return
     try {
-      await approveMut.mutateAsync({ id: approveContractedTarget.id })
+      const message = await approveMut.mutateAsync({ id: approveContractedTarget.id })
       toastSuccess(
         isExtraVisitRequest(approveContractedTarget)
           ? 'Extra visit approved and added to the rota'
           : isServiceUserHoursChange(approveContractedTarget)
             ? 'Weekly hours changed'
             : 'Contracted hours changed',
+        // e.g. "3 visits over the new hours cancelled", or why they could not be.
+        isServiceUserHoursChange(approveContractedTarget) && message?.includes('. ')
+          ? message.slice(message.indexOf('. ') + 2)
+          : undefined,
       )
       setApproveContractedTarget(null)
     } catch (e) {
@@ -166,6 +184,8 @@ export default function HoursApprovalsPage() {
       toastSuccess(
         isExtraVisitRequest(rejectTarget)
           ? 'Rejected — the extra visit was not added'
+          : isDraftPlanRequest(rejectTarget)
+          ? "Rejected — the draft stays as it is and can't be activated"
           : isServiceUserHoursChange(rejectTarget)
           ? 'Rejected — weekly hours unchanged'
           : isContractedChange(rejectTarget)
@@ -249,7 +269,7 @@ export default function HoursApprovalsPage() {
             title={`No ${tab.toLowerCase()} requests`}
             description={
               tab === 'PENDING'
-                ? "A request appears here when a carer is assigned beyond their contracted hours, a carer's contracted hours or a service user's weekly hours are changed, or an extra visit would go over a service user's weekly hours."
+                ? "A request appears here when a carer is assigned beyond their contracted hours, a carer's contracted hours or a service user's weekly hours are changed, or an extra visit or a draft visit plan would go over a service user's weekly hours."
                 : undefined
             }
           />
@@ -274,6 +294,9 @@ export default function HoursApprovalsPage() {
                     const overCap = exceedsWeeklyCap(r)
                     const suHours = isServiceUserHoursChange(r)
                     const extraVisit = isExtraVisitRequest(r) ? (r.requestPayload ?? null) : null
+                    const draftWeek = draftPlanWeek(r)
+                    const draftLimitMinutes =
+                      draftWeek?.limitWeeklyHours != null ? Math.round(draftWeek.limitWeeklyHours * 60) : null
                     // Carer or service user hours change: shows previous → new instead of projected.
                     const contracted = isContractedChange(r) || suHours
                     const impact = isContractedChange(r) ? contractedImpact(r) : null
@@ -327,6 +350,28 @@ export default function HoursApprovalsPage() {
                                 </p>
                               ) : null}
                             </div>
+                          ) : isDraftPlanRequest(r) ? (
+                            <div className="mt-1 space-y-0.5">
+                              <Badge variant="outline" size="sm">
+                                Draft visit plan over weekly hours
+                              </Badge>
+                              {draftWeek ? (
+                                <p className="text-xs text-foreground">
+                                  Busiest week {formatDate(draftWeek.heaviestWeekStart)}
+                                  {draftWeek.overWeeks.length > 1
+                                    ? ` · ${draftWeek.overWeeks.length} weeks over`
+                                    : ''}
+                                </p>
+                              ) : null}
+                              <p className="text-xs text-muted-foreground">
+                                Can&apos;t be activated until approved
+                              </p>
+                              {r.status === 'REJECTED' && r.decisionNotes ? (
+                                <p className="text-xs text-red-700 dark:text-red-300">
+                                  Rejected: {r.decisionNotes}
+                                </p>
+                              ) : null}
+                            </div>
                           ) : null}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
@@ -345,7 +390,7 @@ export default function HoursApprovalsPage() {
                         <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
                           {contracted
                             ? formatHours(r.previousContractedWeeklyHours)
-                            : extraVisit
+                            : extraVisit || draftWeek
                               ? formatHours(r.contractedWeeklyHours)
                               : `${r.contractedWeeklyHours ?? '—'}h`}
                         </td>
@@ -358,7 +403,9 @@ export default function HoursApprovalsPage() {
                             <span className={overCap ? 'font-semibold text-destructive' : 'font-medium text-foreground'}>
                               {extraVisit
                                 ? `${formatMinutes(extraVisitWeek(r)?.weekMinutes ?? extraVisit.weekMinutes)} that week`
-                                : `~${r.projectedWeeklyHours ?? '—'}h`}
+                                : draftWeek
+                                  ? `${formatMinutes(draftWeek.heaviestMinutes)} busiest week`
+                                  : `~${r.projectedWeeklyHours ?? '—'}h`}
                             </span>
                           )}
                           {overCap ? (
@@ -376,7 +423,9 @@ export default function HoursApprovalsPage() {
                               ? extraVisitWeek(r)!.weekMinutes > extraVisitWeek(r)!.limitMinutes!
                                 ? `+${formatMinutes(extraVisitWeek(r)!.weekMinutes - extraVisitWeek(r)!.limitMinutes!)}`
                                 : 'Within limit'
-                              : `+${r.extraHours ?? '—'}h`}
+                              : draftWeek && draftLimitMinutes != null
+                                ? `+${formatMinutes(Math.max(0, draftWeek.heaviestMinutes - draftLimitMinutes))}`
+                                : `+${r.extraHours ?? '—'}h`}
                           {contracted && impact ? (
                             <button
                               type="button"
@@ -411,7 +460,7 @@ export default function HoursApprovalsPage() {
                                 onClick={() =>
                                   contracted || isExtraVisitRequest(r)
                                     ? setApproveContractedTarget(r)
-                                    : void handleApprove(r.id)
+                                    : void handleApprove(r.id, isDraftPlanRequest(r))
                                 }
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
@@ -467,6 +516,8 @@ export default function HoursApprovalsPage() {
             <AlertDialogTitle>
               {rejectTarget && isExtraVisitRequest(rejectTarget)
                 ? 'Reject extra visit?'
+                : rejectTarget && isDraftPlanRequest(rejectTarget)
+                ? 'Reject draft visit plan?'
                 : rejectTarget && isServiceUserHoursChange(rejectTarget)
                 ? 'Reject weekly hours change?'
                 : rejectTarget && isContractedChange(rejectTarget)
@@ -482,6 +533,12 @@ export default function HoursApprovalsPage() {
                     ? ` on ${formatDate(rejectTarget.requestPayload.date)}, ${rejectTarget.requestPayload.startTime}–${rejectTarget.requestPayload.endTime},`
                     : ''}{' '}
                   will not be added. The person who asked will see your reason.
+                </>
+              ) : rejectTarget && isDraftPlanRequest(rejectTarget) ? (
+                <>
+                  <span className="font-medium text-foreground">{rejectTarget.serviceUserName}</span>&apos;s draft
+                  visit plan stays as it is and can&apos;t be activated until its visits or the weekly hours are
+                  changed and saved again. The person who asked will see your reason.
                 </>
               ) : rejectTarget && isServiceUserHoursChange(rejectTarget) ? (
                 <>
@@ -514,7 +571,11 @@ export default function HoursApprovalsPage() {
               value={rejectReason}
               onChange={e => setRejectReason(e.target.value)}
               placeholder={
-                rejectReasonRequired ? 'Why the extra visit is not approved' : 'Why this request is rejected'
+                rejectTarget && isDraftPlanRequest(rejectTarget)
+                  ? 'Why the draft visit plan is not approved'
+                  : rejectReasonRequired
+                    ? 'Why the extra visit is not approved'
+                    : 'Why this request is rejected'
               }
             />
           </div>
@@ -590,7 +651,11 @@ export default function HoursApprovalsPage() {
                   <span className="font-medium text-foreground">
                     {formatHours(approveContractedTarget.requestedContractedWeeklyHours)}
                   </span>{' '}
-                  now, in DOM Care and on the visit plan. Visits on the rota are not changed.
+                  now, in DOM Care and on the visit plan.
+                  {(approveContractedTarget.requestedContractedWeeklyHours ?? 0) >=
+                  (approveContractedTarget.previousContractedWeeklyHours ?? 0)
+                    ? ' Visits on the rota are not changed.'
+                    : ''}
                 </>
               ) : approveContractedTarget ? (
                 <>
@@ -603,6 +668,17 @@ export default function HoursApprovalsPage() {
               ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {approveContractedTarget &&
+          isServiceUserHoursChange(approveContractedTarget) &&
+          approveContractedTarget.serviceUserId &&
+          approveContractedTarget.requestedContractedWeeklyHours != null &&
+          approveContractedTarget.previousContractedWeeklyHours != null &&
+          approveContractedTarget.requestedContractedWeeklyHours < approveContractedTarget.previousContractedWeeklyHours ? (
+            <ServiceUserHoursDecreaseImpact
+              serviceUserId={approveContractedTarget.serviceUserId}
+              weeklyHours={approveContractedTarget.requestedContractedWeeklyHours}
+            />
+          ) : null}
           {approveContractedTarget && contractedImpact(approveContractedTarget) ? (
             <div className="max-h-[50vh] overflow-y-auto">
               <ContractedHoursImpactSummary impact={contractedImpact(approveContractedTarget)!} pending />

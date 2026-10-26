@@ -6,6 +6,7 @@ import {
   fetchHoursApprovals,
   fetchPendingContractedHoursChange,
   fetchPendingServiceUserHoursChange,
+  fetchServiceUserHoursImpact,
   rejectHours,
   requestContractedHoursChange,
   requestServiceUserHoursChange,
@@ -83,6 +84,17 @@ export function usePendingServiceUserHoursChange(serviceUserId: string, enabled 
     queryKey: keys.pendingServiceUserHours(serviceUserId),
     queryFn: ({ signal }) => fetchPendingServiceUserHoursChange(serviceUserId, { signal }),
     enabled: enabled && Boolean(serviceUserId),
+    select: d => d.pending,
+  })
+}
+
+/** Settings → Dom Rules: which weekly hours changes need a manager (same request as the pending one). */
+export function useServiceUserHoursChangeApproval(serviceUserId: string, enabled = true) {
+  return useQuery({
+    queryKey: keys.pendingServiceUserHours(serviceUserId),
+    queryFn: ({ signal }) => fetchPendingServiceUserHoursChange(serviceUserId, { signal }),
+    enabled: enabled && Boolean(serviceUserId),
+    select: d => d.changeApproval,
   })
 }
 
@@ -91,5 +103,14 @@ export function useRequestServiceUserHoursChange() {
   return useMutation({
     mutationFn: requestServiceUserHoursChange,
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all() }),
+  })
+}
+
+/** Lower weekly hours: which weeks go over and which visits would be cancelled (nothing is saved). */
+export function useServiceUserHoursImpact(serviceUserId: string, weeklyHours: number | null, enabled = true) {
+  return useQuery({
+    queryKey: [...keys.all(), 'service-user-hours-impact', serviceUserId, weeklyHours] as const,
+    queryFn: ({ signal }) => fetchServiceUserHoursImpact(serviceUserId, weeklyHours ?? 0, { signal }),
+    enabled: enabled && Boolean(serviceUserId) && weeklyHours != null,
   })
 }

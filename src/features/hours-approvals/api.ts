@@ -8,6 +8,7 @@ export type HoursApprovalType =
   | 'CONTRACTED_HOURS_CHANGE'
   | 'SERVICE_USER_WEEKLY_HOURS_CHANGE'
   | 'EXTRA_VISIT_OVER_HOURS'
+  | 'DRAFT_PLAN_OVER_HOURS'
 
 /** Extra visit over a service user's weekly hours: the visit created if a manager approves. */
 export type ExtraVisitRequestPayload = {
@@ -22,6 +23,15 @@ export type ExtraVisitRequestPayload = {
   requiredCarers: number
   reason: string
   notes: string | null
+}
+
+/** Draft visit plan over a service user's weekly hours: activation waits for this approval. */
+export type DraftPlanRequestPayload = {
+  kind: 'DRAFT_PLAN'
+  heaviestWeekStart: string
+  heaviestMinutes: number
+  limitWeeklyHours: number | null
+  overWeeks: Array<{ weekStart: string; minutes: number }>
 }
 
 export type ContractedHoursPlanChange = {
@@ -93,10 +103,12 @@ export type HoursApproval = {
   requestedContractedWeeklyHours: number | null
   /** Contracted requests: the preview when sent (or { requested, applied } once approved). */
   impactSummary: unknown
-  /** Extra visit over hours only. */
+  /** Extra visit over hours (or a draft plan's busiest week for DRAFT_PLAN_OVER_HOURS). */
   requestPayload?: ExtraVisitRequestPayload | null
   /** Pending extra visits only: that week now, with the visit added (it may have changed since the request). */
   currentWeek?: { weekMinutes: number; limitWeeklyHours: number | null } | null
+  /** Extra visits (Settings → Dom Rules) and draft plans (always): Reject needs a reason. */
+  rejectReasonRequired?: boolean
   reason: string | null
   contractedWeeklyHours: number | null
   projectedWeeklyHours: number | null
@@ -118,11 +130,13 @@ export async function fetchHoursApprovals(
   return res.data ?? []
 }
 
-export async function approveHours(id: string, notes?: string): Promise<void> {
-  await apiJson<ApiEnvelope<unknown>>(`/hours-approvals/${id}/approve`, {
+/** Returns the server message (it can say what else happened, e.g. visits cancelled). */
+export async function approveHours(id: string, notes?: string): Promise<string | undefined> {
+  const res = await apiJson<ApiEnvelope<unknown>>(`/hours-approvals/${id}/approve`, {
     method: 'POST',
     body: JSON.stringify(notes ? { notes } : {}),
   })
+  return res.message
 }
 
 export async function rejectHours(id: string, notes?: string): Promise<void> {
@@ -174,25 +188,52 @@ export async function cancelHoursApproval(id: string): Promise<void> {
   })
 }
 
+/** Settings → Dom Rules: which weekly hours changes need a manager. */
+export type ServiceUserHoursChangeApproval = 'ALWAYS' | 'INCREASE_ONLY' | 'DECREASE_ONLY' | 'NEVER'
+
 export async function fetchPendingServiceUserHoursChange(
   serviceUserId: string,
   init?: RequestInit,
-): Promise<PendingServiceUserHoursChange | null> {
+): Promise<{ pending: PendingServiceUserHoursChange | null; changeApproval: ServiceUserHoursChangeApproval }> {
   const q = new URLSearchParams({ serviceUserId })
-  const res = await apiJson<ApiEnvelope<{ pending: PendingServiceUserHoursChange | null }>>(
-    `/hours-approvals/service-user-hours/pending?${q.toString()}`,
-    { method: 'GET', ...init },
-  )
-  return res.data?.pending ?? null
+  const res = await apiJson<
+    ApiEnvelope<{ pending: PendingServiceUserHoursChange | null; changeApproval?: ServiceUserHoursChangeApproval }>
+  >(`/hours-approvals/service-user-hours/pending?${q.toString()}`, { method: 'GET', ...init })
+  return { pending: res.data?.pending ?? null, changeApproval: res.data?.changeApproval ?? 'ALWAYS' }
 }
+
 
 export async function requestServiceUserHoursChange(body: {
   serviceUserId: string
   weeklyContractedHours: number
   reason?: string
-}): Promise<void> {
-  await apiJson<ApiEnvelope<unknown>>('/hours-approvals/service-user-hours', {
+}): Promise<{ applied: boolean; message: string }> {
+  const res = await apiJson<ApiEnvelope<{ id: string | null; applied?: boolean }>>('/hours-approvals/service-user-hours', {
     method: 'POST',
     body: JSON.stringify(body),
   })
+  return { applied: res.data?.applied === true, message: res.message }
+}
+
+/** What lowering a service user's weekly hours would do to their visits (Settings → Dom Rules). */
+export type ServiceUserHoursImpact = {
+  decreaseAction: 'KEEP_WARN' | 'CANCEL_LATEST'
+  limitMinutes: number
+  overWeeks: Array<{ weekStart: string; minutes: number }>
+  visitsToCancel: Array<{ date: string; slotLabel: string; startDateTime: string; endDateTime: string; onRota: boolean }>
+  /** Weeks still over after cancelling (time-critical visits are never cancelled automatically). */
+  stillOverWeeks: Array<{ weekStart: string; minutes: number }>
+}
+
+export async function fetchServiceUserHoursImpact(
+  serviceUserId: string,
+  weeklyHours: number,
+  init?: RequestInit,
+): Promise<ServiceUserHoursImpact> {
+  const q = new URLSearchParams({ serviceUserId, weeklyHours: String(weeklyHours) })
+  const res = await apiJson<ApiEnvelope<ServiceUserHoursImpact>>(
+    `/hours-approvals/service-user-hours/impact?${q.toString()}`,
+    { method: 'GET', ...init },
+  )
+  return res.data
 }

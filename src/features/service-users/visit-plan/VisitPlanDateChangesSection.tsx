@@ -1,7 +1,9 @@
 import * as React from 'react'
-import { CalendarOff, CalendarPlus, CalendarRange, ChevronRight, Pencil, Trash2 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { CalendarOff, CalendarPlus, CalendarRange, ChevronRight, History, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { ContentCard, ContentSectionHeader, contentHelperClass } from '@/shared/ui/content-section'
+import { VisitPlanSectionToggle, useVisitPlanSectionOpen } from '@/features/service-users/visit-plan/VisitPlanSectionToggle'
 import { cn, formatDate } from '@/shared/lib/utils'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import { VISIT_CHARGE_DECISION_OPTIONS } from '@/features/scheduling/utils/visit-cancellation.constants'
@@ -223,15 +225,30 @@ export function VisitPlanDateChangesSection({
   const changesQuery = useVisitPlanDateChanges(serviceUserId, planId)
   const isActive = planStatus === 'ACTIVE'
 
-  const { upcoming, past } = React.useMemo(() => {
+  // Cancelled visits are listed on Activity → Cancelled; here only extra visits and their requests.
+  const { upcoming, past, upcomingCancelled, upcomingRejected } = React.useMemo(() => {
     const today = todayIsoDate()
-    const changes = changesQuery.data?.changes ?? []
+    const all = changesQuery.data?.changes ?? []
+    // A cancelled extra visit keeps its extra row; it is shown with the cancelled visits instead.
+    const cancelledKeys = new Set(
+      all.filter((c) => c.type === 'CANCELLED').map((c) => `${c.date}|${c.plannedStartTime}`),
+    )
+    // Rejected requests were never added; they are listed on Activity → Rejected.
+    const isRejected = (c: VisitPlanDateChange) => c.type === 'EXTRA_REQUEST' && c.approvalStatus === 'REJECTED'
+    const changes = all.filter(
+      (c) =>
+        c.type !== 'CANCELLED' &&
+        !isRejected(c) &&
+        !(c.type === 'EXTRA' && cancelledKeys.has(`${c.date}|${c.plannedStartTime}`)),
+    )
     const byDateThenTime = (a: VisitPlanDateChange, b: VisitPlanDateChange) =>
       a.date.localeCompare(b.date) || a.plannedStartTime.localeCompare(b.plannedStartTime)
     return {
       upcoming: changes.filter((c) => c.date >= today).sort(byDateThenTime),
       // Most recent first, so the latest history is on top.
       past: changes.filter((c) => c.date < today).sort((a, b) => byDateThenTime(b, a)),
+      upcomingCancelled: all.filter((c) => c.type === 'CANCELLED' && c.date >= today).length,
+      upcomingRejected: all.filter((c) => isRejected(c) && c.date >= today).length,
     }
   }, [changesQuery.data])
 
@@ -241,6 +258,8 @@ export function VisitPlanDateChangesSection({
       [changesQuery.data],
     ),
   )
+
+  const [open, toggleOpen] = useVisitPlanSectionOpen('dateChanges')
 
   return (
     <ContentCard className={cn('space-y-4', className)} data-testid="visit-plan-date-changes">
@@ -252,7 +271,7 @@ export function VisitPlanDateChangesSection({
         description={
           <>
             Cancel a planned visit or add an extra one. The regular weekly schedule stays the same. Changes save
-            straight away — not with Save draft or Record amendment.
+            straight away — not with Save draft or Record amendment. Cancelled visits and rejected requests are listed under See history.
           </>
         }
         action={
@@ -280,9 +299,17 @@ export function VisitPlanDateChangesSection({
               <CalendarPlus className="mr-1 h-3.5 w-3.5" />
               Add extra visits
             </Button>
+            <Button type="button" variant="outline" size="sm" asChild>
+              <Link to="/service-users/$serviceUserId/activity" params={{ serviceUserId }} search={{ tab: 'cancelled' }}>
+                <History className="mr-1 h-3.5 w-3.5" />
+                See history
+              </Link>
+            </Button>
+            <VisitPlanSectionToggle open={open} onToggle={toggleOpen} label="changes for specific dates" />
           </div>
         }
       />
+      <div hidden={!open} className="space-y-4">
 
       {!isActive ? (
         <p className={contentHelperClass}>
@@ -293,12 +320,12 @@ export function VisitPlanDateChangesSection({
       <div className="overflow-hidden rounded-xl border border-border">
         <div className="border-b border-border/80 bg-muted/30 px-4 py-2.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Upcoming {upcoming.length > 0 ? `(${upcoming.length})` : ''}
+            Upcoming extra visits {upcoming.length > 0 ? `(${upcoming.length})` : ''}
           </p>
         </div>
         {upcoming.length === 0 ? (
           <p className={cn('px-4 py-4', contentHelperClass)} data-testid="date-changes-upcoming-empty">
-            No upcoming changes. All visits follow the regular schedule.
+            No upcoming extra visits.
           </p>
         ) : (
           <ul className="divide-y divide-border/70" data-testid="date-changes-upcoming">
@@ -321,6 +348,35 @@ export function VisitPlanDateChangesSection({
           </ul>
         )}
       </div>
+
+      {upcomingRejected > 0 ? (
+        <p className={contentHelperClass} data-testid="date-changes-rejected-note">
+          {upcomingRejected} rejected extra visit request{upcomingRejected === 1 ? '' : 's'} —{' '}
+          <Link
+            to="/service-users/$serviceUserId/activity"
+            params={{ serviceUserId }}
+            search={{ tab: 'rejected' }}
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            see them in Activity → Rejected
+          </Link>
+          .
+        </p>
+      ) : null}
+      {upcomingCancelled > 0 ? (
+        <p className={contentHelperClass} data-testid="date-changes-cancelled-note">
+          {upcomingCancelled} upcoming cancelled visit{upcomingCancelled === 1 ? '' : 's'} —{' '}
+          <Link
+            to="/service-users/$serviceUserId/activity"
+            params={{ serviceUserId }}
+            search={{ tab: 'cancelled' }}
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            see them in Activity → Cancelled
+          </Link>
+          .
+        </p>
+      ) : null}
 
       {past.length > 0 ? (
         <details className="group/past overflow-hidden rounded-xl border border-border" data-testid="date-changes-past">
@@ -365,6 +421,7 @@ export function VisitPlanDateChangesSection({
           />
         </>
       ) : null}
+      </div>
     </ContentCard>
   )
 }

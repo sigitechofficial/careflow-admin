@@ -73,6 +73,10 @@ export type GenerateSchedulePreview = {
   /** Highest Max backfill days on enabled calls (from saved plan). */
   maxSlotBackfillDays?: number
   truncated: boolean
+  /** Weeks of this run over the service user's weekly contracted hours, in words (null when none). */
+  weeklyHoursWarning?: string | null
+  /** Settings → Dom Rules refuses generating by hand while the plan is over the hours. */
+  weeklyHoursBlocked?: boolean
 }
 
 export type ActivateImpactPreview = {

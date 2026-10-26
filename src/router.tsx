@@ -1122,6 +1122,14 @@ const serviceUsersVisitPlanRoute = createRoute({
 const serviceUsersActivityRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/activity',
+  validateSearch: (
+    raw: Record<string, unknown>,
+  ): { tab?: 'upcoming' | 'cancelled' | 'rejected' | 'completed' } => ({
+    tab:
+      raw.tab === 'upcoming' || raw.tab === 'cancelled' || raw.tab === 'rejected' || raw.tab === 'completed'
+        ? raw.tab
+        : undefined,
+  }),
   beforeLoad: requireAnyPermission('service_users.read', 'scheduled_visits.read'),
   loader: ({ context: { queryClient: qc }, params: { serviceUserId } }) => {
     prefetchServiceUserProfile(qc, serviceUserId)

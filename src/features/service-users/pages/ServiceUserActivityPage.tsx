@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { Activity, CalendarClock, CheckCircle2, Loader2, ClipboardList } from 'lucide-react'
 import {
   SERVICE_USER_MODULE_CONTENT_WIDE_CLASS,
@@ -9,6 +9,10 @@ import {
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserVisitActivity } from '@/features/service-users/activity/hooks'
+import { ServiceUserCancelledVisits } from '@/features/service-users/activity/ServiceUserCancelledVisits'
+import { ServiceUserRejectedExtraVisits } from '@/features/service-users/activity/ServiceUserRejectedExtraVisits'
+import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs'
+import { addDaysToOperationalIso, operationalTodayIso } from '@/shared/lib/operational-day.util'
 import type { ServiceUserActivityVisit } from '@/features/service-users/activity/api'
 import { getScheduledJob } from '@/features/scheduling/api/scheduling.api'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
@@ -25,21 +29,39 @@ import { toastApiError } from '@/shared/lib/toast'
 function visitStatusLabel(status: string): string {
   if (status === 'PARTIALLY_COMPLETED') return 'Partially completed'
   if (status === 'COMPLETED') return 'Completed'
+  if (status === 'PLANNED') return 'Planned'
+  if (status === 'STARTED') return 'In progress'
+  if (status === 'NEEDS_ATTENTION') return 'Needs attention'
   return status.replace(/_/g, ' ')
+}
+
+type ActivityTab = 'upcoming' | 'cancelled' | 'rejected' | 'completed'
+
+/** Rota visits that have not finished yet. */
+const UPCOMING_STATUSES = ['PLANNED', 'STARTED', 'NEEDS_ATTENTION']
+
+/** Default date range of each tab (organisation days). */
+function defaultRange(tab: ActivityTab): { from: string; to: string; label: string } {
+  const today = operationalTodayIso()
+  if (tab === 'upcoming') return { from: today, to: addDaysToOperationalIso(today, 27), label: 'Next 28 days' }
+  if (tab === 'cancelled' || tab === 'rejected') {
+    return { from: addDaysToOperationalIso(today, -30), to: addDaysToOperationalIso(today, 90), label: 'Last 30 + next 90 days' }
+  }
+  return { from: addDaysToOperationalIso(today, -30), to: today, label: 'Last 30 days' }
+}
+
+const TAB_HELP: Record<ActivityTab, string> = {
+  upcoming: 'Visits on the rota from today that have not finished yet. Open one to see who is going and what is due.',
+  cancelled:
+    'Visits cancelled on the visit plan (with who cancelled, the reason and billing — including dates not on the rota yet) and visits cancelled or called off on the rota.',
+  rejected:
+    'Extra visits a manager rejected because they went over the weekly contracted hours — never added to the rota. Shows who asked, who rejected, when and why.',
+  completed:
+    'Previous completed visits for this service user. Open a visit to see tasks, observations, medication, and body map recorded on that visit.',
 }
 
 function visitDateKey(iso: string): string {
   return iso.slice(0, 10)
-}
-
-function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function daysAgoIsoDate(days: number): string {
-  const d = new Date()
-  d.setUTCDate(d.getUTCDate() - days)
-  return d.toISOString().slice(0, 10)
 }
 
 function VisitActivityRow({
@@ -91,20 +113,32 @@ export default function ServiceUserActivityPage() {
   const apiConfigured = Boolean(getApiBaseUrl())
   const profileQuery = useServiceUser(serviceUserId)
 
-  const defaultFrom = React.useMemo(() => daysAgoIsoDate(30), [])
-  const defaultTo = React.useMemo(() => todayIsoDate(), [])
-  const [dateFrom, setDateFrom] = React.useState(defaultFrom)
-  const [dateTo, setDateTo] = React.useState(defaultTo)
-  const [appliedFrom, setAppliedFrom] = React.useState(defaultFrom)
-  const [appliedTo, setAppliedTo] = React.useState(defaultTo)
+  const search = useSearch({ strict: false }) as { tab?: ActivityTab }
+  const navigate = useNavigate()
+  const tab: ActivityTab = search.tab ?? 'completed'
+  const initial = defaultRange(tab)
+  const [dateFrom, setDateFrom] = React.useState(initial.from)
+  const [dateTo, setDateTo] = React.useState(initial.to)
+  const [appliedFrom, setAppliedFrom] = React.useState(initial.from)
+  const [appliedTo, setAppliedTo] = React.useState(initial.to)
+
+  // Each tab starts on its own range (past for completed, ahead for upcoming).
+  React.useEffect(() => {
+    const r = defaultRange(tab)
+    setDateFrom(r.from)
+    setDateTo(r.to)
+    setAppliedFrom(r.from)
+    setAppliedTo(r.to)
+  }, [tab])
 
   const rangeInvalid = Boolean(dateFrom && dateTo && dateFrom > dateTo)
 
   const activityQuery = useServiceUserVisitActivity(serviceUserId, {
     page: 1,
-    limit: 50,
+    limit: tab === 'upcoming' ? 200 : 50,
     dateFrom: appliedFrom || undefined,
     dateTo: appliedTo || undefined,
+    ...(tab === 'upcoming' ? { statuses: UPCOMING_STATUSES, sortOrder: 'asc' as const } : {}),
   })
 
   const [workspaceJob, setWorkspaceJob] = React.useState<TimelineJob | null>(null)
@@ -124,10 +158,20 @@ export default function ServiceUserActivityPage() {
   }
 
   const resetRange = () => {
-    setDateFrom(defaultFrom)
-    setDateTo(defaultTo)
-    setAppliedFrom(defaultFrom)
-    setAppliedTo(defaultTo)
+    const r = defaultRange(tab)
+    setDateFrom(r.from)
+    setDateTo(r.to)
+    setAppliedFrom(r.from)
+    setAppliedTo(r.to)
+  }
+
+  const setTab = (next: ActivityTab) => {
+    void navigate({
+      to: '/service-users/$serviceUserId/activity',
+      params: { serviceUserId },
+      search: { tab: next },
+      replace: true,
+    })
   }
 
   const openVisit = async (visit: ServiceUserActivityVisit) => {
@@ -176,10 +220,7 @@ export default function ServiceUserActivityPage() {
                 <Activity className="h-5 w-5 text-teal-700 dark:text-teal-300" aria-hidden />
                 Visit activity
               </h2>
-              <p className={cn('mt-1 max-w-2xl', contentHelperClass)}>
-                Previous completed visits for this service user. Open a visit to see tasks, observations,
-                medication, and body map recorded on that visit.
-              </p>
+              <p className={cn('mt-1 max-w-2xl', contentHelperClass)}>{TAB_HELP[tab]}</p>
             </div>
             <Button type="button" variant="outline" size="sm" asChild>
               <Link to="/service-users/$serviceUserId/visit-plan" params={{ serviceUserId }}>
@@ -187,6 +228,15 @@ export default function ServiceUserActivityPage() {
               </Link>
             </Button>
           </div>
+
+          <Tabs value={tab} onValueChange={(v) => setTab(v as ActivityTab)}>
+            <TabsList>
+              <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+              <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+              <TabsTrigger value="rejected">Rejected</TabsTrigger>
+              <TabsTrigger value="completed">Completed</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border/70 bg-muted/15 px-3 py-3">
             <FormField label="From" className="min-w-[10rem]">
@@ -209,7 +259,7 @@ export default function ServiceUserActivityPage() {
               Apply
             </Button>
             <Button type="button" size="sm" variant="ghost" onClick={resetRange}>
-              Last 30 days
+              {defaultRange(tab).label}
             </Button>
             {rangeInvalid ? (
               <p className="w-full text-xs text-destructive">From must be on or before To.</p>
@@ -218,10 +268,20 @@ export default function ServiceUserActivityPage() {
 
           {!apiConfigured ? (
             <p className="text-sm text-muted-foreground">API is not configured.</p>
+          ) : tab === 'rejected' ? (
+            <ServiceUserRejectedExtraVisits serviceUserId={serviceUserId} dateFrom={appliedFrom} dateTo={appliedTo} />
+          ) : tab === 'cancelled' ? (
+            <ServiceUserCancelledVisits
+              serviceUserId={serviceUserId}
+              dateFrom={appliedFrom}
+              dateTo={appliedTo}
+              onOpenVisit={(v) => void openVisit(v)}
+              openingVisitId={openingVisitId}
+            />
           ) : activityQuery.isLoading || activityQuery.isFetching ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading completed visits…
+              {tab === 'upcoming' ? 'Loading upcoming visits…' : 'Loading completed visits…'}
             </div>
           ) : activityQuery.isError ? (
             <p className="text-sm text-destructive">
@@ -232,9 +292,13 @@ export default function ServiceUserActivityPage() {
           ) : visits.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-4 py-8 text-center">
               <CalendarClock className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden />
-              <p className={cn('mt-3 font-medium', contentTitleClass)}>No completed visits in this range</p>
+              <p className={cn('mt-3 font-medium', contentTitleClass)}>
+                {tab === 'upcoming' ? 'No upcoming visits in this range' : 'No completed visits in this range'}
+              </p>
               <p className={cn('mx-auto mt-1 max-w-md', contentHelperClass)}>
-                Try a wider date range, or complete visits will appear here once carers finish them.
+                {tab === 'upcoming'
+                  ? 'Try a wider date range, or generate the rota from the visit plan.'
+                  : 'Try a wider date range, or complete visits will appear here once carers finish them.'}
               </p>
             </div>
           ) : (
@@ -251,7 +315,7 @@ export default function ServiceUserActivityPage() {
             </ul>
           )}
 
-          {activityQuery.data?.meta?.total != null && activityQuery.data.meta.total > visits.length ? (
+          {tab === 'cancelled' || tab === 'rejected' ? null : activityQuery.data?.meta?.total != null && activityQuery.data.meta.total > visits.length ? (
             <p className={contentHelperClass}>
               Showing {visits.length} of {activityQuery.data.meta.total} visits
               {appliedFrom || appliedTo
@@ -262,7 +326,7 @@ export default function ServiceUserActivityPage() {
           ) : visits.length > 0 ? (
             <p className={cn('inline-flex items-center gap-1.5', contentHelperClass)}>
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
-              {visits.length} completed visit{visits.length === 1 ? '' : 's'}
+              {visits.length} {tab === 'upcoming' ? 'upcoming' : 'completed'} visit{visits.length === 1 ? '' : 's'}
               {appliedFrom || appliedTo
                 ? ` · ${appliedFrom || '…'} → ${appliedTo || '…'}`
                 : ''}

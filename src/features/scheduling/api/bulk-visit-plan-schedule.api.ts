@@ -38,6 +38,8 @@ export type BulkVisitPlanScheduleResultItem = {
   rotaConflictWarnings?: string[]
   error?: string
   skipReason?: string
+  /** The plan has weeks over the service user's weekly contracted hours in this run. */
+  weeklyHoursWarning?: string
 }
 
 export type BulkGenerateVisitPlanScheduleResponse = {
@@ -55,6 +57,8 @@ export type BulkGenerateVisitPlanScheduleResponse = {
     visitsWithRotaConflicts: number
     patternWarnings: string[]
     rotaConflictWarnings: string[]
+    /** Plans over a service user's weekly contracted hours (generated or skipped). */
+    weeklyHoursWarnings?: string[]
   }
   results: BulkVisitPlanScheduleResultItem[]
 }

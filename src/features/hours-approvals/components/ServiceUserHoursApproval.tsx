@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/shared/ui/button'
 import { Label, Textarea } from '@/shared/ui/form-field'
 import {
@@ -14,9 +15,14 @@ import {
 } from '@/shared/ui/dialog'
 import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
-import { useRequestServiceUserHoursChange } from '@/features/hours-approvals/hooks'
+import {
+  useRequestServiceUserHoursChange,
+  useServiceUserHoursChangeApproval,
+} from '@/features/hours-approvals/hooks'
+import { serviceUserHoursChangeNeedsApproval } from '@/features/hours-approvals/service-user-hours-approval.util'
 import type { PendingServiceUserHoursChange } from '@/features/hours-approvals/types'
 import { formatHours } from '@/features/hours-approvals/components/ContractedHoursImpactSummary'
+import { ServiceUserHoursDecreaseImpact } from '@/features/hours-approvals/components/ServiceUserHoursDecreaseImpact'
 
 type ReviewDialogProps = {
   open: boolean
@@ -28,8 +34,9 @@ type ReviewDialogProps = {
 }
 
 /**
- * A service user's weekly contracted hours never change straight away: the change goes to a
- * manager on the Hours approvals page. Used on the visit plan and on the DOM Care tab.
+ * A service user's weekly contracted hours change goes to a manager on the Hours approvals page,
+ * unless Settings → Dom Rules says this change doesn't need one (then it applies now). Used on
+ * the visit plan and on the DOM Care tab.
  */
 export function ServiceUserHoursReviewDialog({
   open,
@@ -40,7 +47,14 @@ export function ServiceUserHoursReviewDialog({
 }: ReviewDialogProps) {
   const [reason, setReason] = React.useState('')
   const requestMut = useRequestServiceUserHoursChange()
+  const qc = useQueryClient()
+  const ruleQuery = useServiceUserHoursChangeApproval(serviceUserId, open)
   const from = fromHours != null && fromHours.trim() !== '' ? Number.parseFloat(fromHours) : null
+  const needsApproval = serviceUserHoursChangeNeedsApproval(
+    ruleQuery.data ?? 'ALWAYS',
+    from != null && Number.isFinite(from) ? from : null,
+    toHours,
+  )
 
   React.useEffect(() => {
     if (open) setReason('')
@@ -48,15 +62,23 @@ export function ServiceUserHoursReviewDialog({
 
   const send = async () => {
     try {
-      await requestMut.mutateAsync({
+      const result = await requestMut.mutateAsync({
         serviceUserId,
         weeklyContractedHours: toHours,
         reason: reason.trim() || undefined,
       })
-      toastSuccess(
-        'Sent for manager approval',
-        `Weekly hours stay at ${formatHours(from)} until it is approved.`,
-      )
+      if (result.applied) {
+        // DOM Care and every open visit plan changed: refresh what the screens show.
+        void qc.invalidateQueries()
+        // The message can add what happened to the visits (e.g. "3 visits over the new hours cancelled").
+        const extra = result.message.includes('. ') ? ` ${result.message.slice(result.message.indexOf('. ') + 2)}.` : ''
+        toastSuccess('Weekly hours changed', `Now ${formatHours(toHours)} in DOM Care and on the visit plan.${extra}`)
+      } else {
+        toastSuccess(
+          'Sent for manager approval',
+          `Weekly hours stay at ${formatHours(from)} until it is approved.`,
+        )
+      }
       onClose()
     } catch (e) {
       toastApiError(e, 'Could not send for approval')
@@ -70,12 +92,12 @@ export function ServiceUserHoursReviewDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden />
-            Manager approval needed
+            {needsApproval ? 'Manager approval needed' : 'Change weekly hours?'}
           </DialogTitle>
           <DialogDescription>
-            Changing this service user&apos;s weekly contracted hours needs a manager&apos;s approval.
-            Nothing changes until it is approved, and the hours can&apos;t be edited again while the
-            request is pending.
+            {needsApproval
+              ? "Changing this service user's weekly contracted hours needs a manager's approval. Nothing changes until it is approved, and the hours can't be edited again while the request is pending."
+              : 'This change does not need a manager (Settings → Dom Rules), so it applies straight away.'}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">
@@ -86,9 +108,13 @@ export function ServiceUserHoursReviewDialog({
             </span>
           </p>
           <p className="text-xs text-muted-foreground">
-            Once approved, the new hours apply to the DOM Care tab and the visit plan together.
-            Visits already on the rota are not changed.
+            {needsApproval ? 'Once approved, the' : 'The'} new hours apply to the DOM Care tab and the visit
+            plan together.
+            {from == null || toHours >= from ? ' Visits already on the rota are not changed.' : ''}
           </p>
+          {open && from != null && toHours < from ? (
+            <ServiceUserHoursDecreaseImpact serviceUserId={serviceUserId} weeklyHours={toHours} />
+          ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="service-user-hours-reason">Reason (optional)</Label>
             <Textarea
@@ -105,9 +131,9 @@ export function ServiceUserHoursReviewDialog({
           <Button type="button" variant="outline" onClick={onClose} disabled={sending}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => void send()} disabled={sending}>
+          <Button type="button" onClick={() => void send()} disabled={sending || ruleQuery.isLoading}>
             {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Send for review
+            {needsApproval ? 'Send for review' : 'Save hours'}
           </Button>
         </DialogFooter>
       </DialogContent>
