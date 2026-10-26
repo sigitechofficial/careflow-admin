@@ -18,6 +18,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { listAllEmployees, type EmployeeListRow } from '@/features/employees/api'
 import { employeeKeys } from '@/features/employees/keys'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
+import { useEmployeeLocations } from '@/features/settings/hooks/useLocationManagement'
 import { fetchEcmVisitsTable } from '@/features/ecm/api/ecm.api'
 import { buildEcmVisitsCsv, EcmVisitsTable } from '@/features/ecm/components/EcmVisitsTable'
 import type { EcmLiveVisitRow } from '@/features/ecm/types/ecm.types'
@@ -175,15 +176,49 @@ export default function EmployeeTimesheetsPage() {
   const [range, setRange] = React.useState(currentMonthRange)
   const [employeeId, setEmployeeId] = React.useState('')
   const { locationId: globalLocationId } = useGlobalLocationScope()
+  const [zoneId, setZoneId] = React.useState('')
+  const [branchId, setBranchId] = React.useState('')
 
-  const listParams = { locationIds: globalLocationId ? [globalLocationId] : undefined }
+  const locationsQuery = useEmployeeLocations()
+  const zones = React.useMemo(
+    () => [...(locationsQuery.data?.zones ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [locationsQuery.data?.zones],
+  )
+  const selectedZone = zones.find(z => z.id === zoneId)
+  const zoneOptions = React.useMemo<ComboboxOption[]>(
+    () => [{ value: '', label: 'All zones' }, ...zones.map(z => ({ value: z.id, label: z.name }))],
+    [zones],
+  )
+  // Branches of the chosen zone; every branch while no zone is chosen.
+  const branchOptions = React.useMemo<ComboboxOption[]>(() => {
+    const source = selectedZone ? [selectedZone] : zones
+    const branches = source
+      .flatMap(z => z.branches.map(b => ({ value: b.id, label: b.name, description: selectedZone ? undefined : z.name })))
+      .sort((a, b) => a.label.localeCompare(b.label))
+    return [{ value: '', label: selectedZone ? `All branches in ${selectedZone.name}` : 'All branches' }, ...branches]
+  }, [zones, selectedZone])
+
+  // Zone / branch on the page take precedence over the header location.
+  const scopedLocationIds = branchId
+    ? [branchId]
+    : selectedZone
+      ? selectedZone.branches.map(b => b.id)
+      : globalLocationId
+        ? [globalLocationId]
+        : undefined
+  const zoneHasNoBranches = Boolean(selectedZone && !branchId && selectedZone.branches.length === 0)
+  const listParams = { locationIds: scopedLocationIds }
   const employeesQuery = useQuery({
     queryKey: [...employeeKeys.lists(), 'all', listParams] as const,
     queryFn: () => listAllEmployees(listParams),
+    enabled: !zoneHasNoBranches,
   })
   const employees = React.useMemo(
-    () => [...(employeesQuery.data ?? [])].sort((a, b) => employeeName(a).localeCompare(employeeName(b))),
-    [employeesQuery.data],
+    () =>
+      zoneHasNoBranches
+        ? []
+        : [...(employeesQuery.data ?? [])].sort((a, b) => employeeName(a).localeCompare(employeeName(b))),
+    [employeesQuery.data, zoneHasNoBranches],
   )
   // Drop a selection that is no longer in the (branch-scoped) list.
   React.useEffect(() => {
@@ -258,7 +293,7 @@ export default function EmployeeTimesheetsPage() {
         title="Timesheets"
         description={[
           'Employee visits with planned vs actual times, punctuality and duration. Download as CSV.',
-          globalLocationId ? 'Showing employees for the selected header location.' : null,
+          globalLocationId && !zoneId && !branchId ? 'Showing employees for the selected header location.' : null,
         ]
           .filter(Boolean)
           .join(' ')}
@@ -276,6 +311,39 @@ export default function EmployeeTimesheetsPage() {
 
       <ContentCard className="space-y-3 p-4">
         <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            Zone
+            <Combobox
+              className="w-48"
+              options={zoneOptions}
+              value={zoneId}
+              onChange={next => {
+                setZoneId(next)
+                setBranchId('')
+              }}
+              placeholder="All zones"
+              searchPlaceholder="Search zone…"
+              emptyText="No zones found."
+              loading={locationsQuery.isLoading}
+              disabled={locationsQuery.isLoading}
+              data-testid="timesheets-zone"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            Branch
+            <Combobox
+              className="w-56"
+              options={branchOptions}
+              value={branchId}
+              onChange={setBranchId}
+              placeholder={selectedZone ? `All branches in ${selectedZone.name}` : 'All branches'}
+              searchPlaceholder="Search branch…"
+              emptyText="No branches found."
+              loading={locationsQuery.isLoading}
+              disabled={locationsQuery.isLoading}
+              data-testid="timesheets-branch"
+            />
+          </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             Employee
             <Combobox
