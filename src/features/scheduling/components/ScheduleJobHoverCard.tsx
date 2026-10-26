@@ -36,6 +36,7 @@ import {
   findNextJobInRow,
   findPreviousJobInRow,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
+import { useDrivingTravelVersion } from '@/features/scheduling/utils/driving-travel.store'
 import {
   formatDurationLabel,
   jobBlockTone,
@@ -345,6 +346,8 @@ export function JobHoverPanel({
   liveAlerts = [],
 }: Props) {
   const displayFormat = useScheduleJobsDisplayFormat()
+  // Re-render when Google driving times arrive for the travel lines below.
+  useDrivingTravelVersion()
   const tone = jobBlockTone(job)
   const completed = isScheduleJobCompleted(job)
   const cancelled = isScheduleJobCancelled(job)

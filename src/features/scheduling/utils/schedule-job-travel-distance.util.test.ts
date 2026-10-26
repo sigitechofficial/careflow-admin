@@ -10,8 +10,10 @@ import {
   haversineDistanceKm,
   hasTravelGapConflict,
   jobGeoCoordinates,
+  rowTravelPairs,
   travelConflictFromPreviousJobIds,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
+import { drivingLegKey, useDrivingTravelStore } from '@/features/scheduling/utils/driving-travel.store'
 
 function job(
   id: string,
@@ -152,5 +154,25 @@ describe('schedule-job-travel-distance', () => {
     const legTwo = buildNextVisitTravelDetail(second, [first, second, third])?.distanceKm ?? 0
     expect(totalKm).toBeCloseTo(legOne + legTwo, 5)
     expect(formatTravelDistanceKm(totalKm)).toMatch(/km$/)
+  })
+
+  it('uses the Google driving route once it has arrived, the estimate until then', () => {
+    const first = job('su-1', '2026-06-15T09:00:00.000Z', 51.5074, -0.1278, { firstName: 'Enid', lastName: 'M' }, '2026-06-15T09:30:00.000Z')
+    const second = job('su-2', '2026-06-15T10:00:00.000Z', 51.52, -0.1, { firstName: 'Joan', lastName: 'W' })
+    const rowJobs = [first, second]
+    const from = jobGeoCoordinates(first)!
+    const to = jobGeoCoordinates(second)!
+
+    useDrivingTravelStore.setState({ legs: {}, version: 0 })
+    expect(buildNextVisitTravelDetail(first, rowJobs)?.travelSource).toBe('ESTIMATE')
+    expect(rowTravelPairs(rowJobs)).toEqual([{ from, to }])
+
+    useDrivingTravelStore.setState({
+      legs: { [drivingLegKey(from, to)]: { km: 4.2, minutes: 17, source: 'GOOGLE' } },
+      version: 1,
+    })
+    const detail = buildNextVisitTravelDetail(first, rowJobs)
+    expect(detail).toMatchObject({ distanceKm: 4.2, travelMinutes: 17, travelSource: 'GOOGLE' })
+    useDrivingTravelStore.setState({ legs: {}, version: 0 })
   })
 })

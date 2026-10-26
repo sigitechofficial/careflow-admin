@@ -1,11 +1,10 @@
 import type { EmployeeDayPattern, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
-  estimateTravelMinutesFromStraightLineKm,
   gapMinutesBetweenJobs,
   geoCoordinatesFromLatLng,
-  haversineDistanceKm,
   jobGeoCoordinates,
   sortJobsByStartTime,
+  travelBetween,
   type GeoCoordinates,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import { jobBlockPosition, SCHEDULE_JOBS_DAY_START_HOUR } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
@@ -164,8 +163,7 @@ export function estimateTravelMinutesBetween(
   to: GeoCoordinates | null,
 ): number | null {
   if (!from || !to) return null
-  const distanceKm = haversineDistanceKm(from, to)
-  return estimateTravelMinutesFromStraightLineKm(distanceKm)
+  return travelBetween(from, to).travelMinutes
 }
 
 /** Split a gap before a visit into idle (wait) and travel (drive) portions. */

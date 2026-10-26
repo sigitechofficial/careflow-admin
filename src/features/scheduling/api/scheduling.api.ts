@@ -57,6 +57,18 @@ export async function getJobsDayTimeline(date: string, params: { scheduleBatchId
   return { jobs: res.data?.jobs ?? [], meta: res.meta as PaginationMeta | undefined }
 }
 
+export type TravelLegPoint = { lat: number; lng: number }
+export type TravelLeg = { km: number; minutes: number; source: 'GOOGLE' | 'ESTIMATE' }
+
+/** Driving distance and time of each journey, in the order asked (null = same place). Up to 200 per call. */
+export async function getTravelLegs(pairs: { from: TravelLegPoint; to: TravelLegPoint }[]) {
+  const res = await apiJson<ApiEnvelope<(TravelLeg | null)[]>>('/schedule-timelines/travel-legs', {
+    method: 'POST',
+    body: JSON.stringify({ pairs }),
+  })
+  return res.data ?? []
+}
+
 export async function getServiceUsersWeekTimeline(
   weekStart: string,
   params: { limit?: number } = {},
