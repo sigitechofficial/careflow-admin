@@ -63,6 +63,7 @@ export const billingKeys = {
     search?: string
     status?: string
     hasExceptions?: boolean
+    payOverCharge?: boolean
     serviceUserId?: string
     employeeId?: string
     locationId?: string

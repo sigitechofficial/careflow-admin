@@ -138,6 +138,7 @@ export function BillingVisitReconciliationPanel({
   const [serviceUserId, setServiceUserId] = React.useState(initialServiceUserId ?? '')
   const [employeeId, setEmployeeId] = React.useState(initialEmployeeId ?? '')
   const [exceptionsOnly, setExceptionsOnly] = React.useState(false)
+  const [payOverChargeOnly, setPayOverChargeOnly] = React.useState(false)
   const [nightDuty, setNightDuty] = React.useState<VisitNightDutyFilter | ''>('')
 
   React.useEffect(() => {
@@ -197,6 +198,7 @@ export function BillingVisitReconciliationPanel({
     serviceUserId: serviceUserId || undefined,
     employeeId: employeeId || undefined,
     hasExceptions: exceptionsOnly ? true : undefined,
+    payOverCharge: payOverChargeOnly ? true : undefined,
     nightDuty: nightDuty || undefined,
     locationId: locationId ?? undefined,
     limit: 100,
@@ -221,7 +223,7 @@ export function BillingVisitReconciliationPanel({
   }, [query.data?.rows])
   const filteredTotal = query.data?.meta.total ?? rows.length
   const hasActiveFilters = Boolean(
-    debouncedSearch || serviceUserId || employeeId || exceptionsOnly || nightDuty,
+    debouncedSearch || serviceUserId || employeeId || exceptionsOnly || payOverChargeOnly || nightDuty,
   )
   const isMutating =
     approveMutation.isPending ||
@@ -451,6 +453,17 @@ export function BillingVisitReconciliationPanel({
             onClick={() => setExceptionsOnly(v => !v)}
           >
             {exceptionsOnly ? 'Showing exceptions' : 'Exceptions only'}
+          </Button>
+          <Button
+            variant={payOverChargeOnly ? 'destructive' : 'outline'}
+            size="sm"
+            leftIcon={<AlertTriangle className="h-3.5 w-3.5" />}
+            onClick={() => setPayOverChargeOnly(v => !v)}
+            aria-pressed={payOverChargeOnly}
+            title="Visits where the carers' pay is above the client / funder charge"
+            data-testid="visit-recon-pay-over-charge-filter"
+          >
+            {payOverChargeOnly ? 'Showing pay over charge' : 'Pay over charge'}
           </Button>
           {!query.isLoading && !query.isError ? (
             <span
