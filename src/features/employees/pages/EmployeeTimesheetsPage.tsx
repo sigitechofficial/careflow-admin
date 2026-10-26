@@ -84,18 +84,21 @@ function fileSlug(s: string): string {
 /**
  * Visits for the given employees. The ECM table endpoint takes one employee per request,
  * so requests run a few at a time; a visit shared by two carers is kept once.
+ * `jobIdsByEmployee` keeps each employee's own visits (for the dropdown counts and selection).
  */
 async function fetchVisitsForEmployees(
   employeeIds: string[],
   range: { dateFrom: string; dateTo: string },
-): Promise<{ rows: EcmLiveVisitRow[]; truncated: boolean }> {
+): Promise<{ rows: EcmLiveVisitRow[]; truncated: boolean; jobIdsByEmployee: Record<string, string[]> }> {
   const byJob = new Map<string, EcmLiveVisitRow>()
+  const jobIdsByEmployee: Record<string, string[]> = {}
   let truncated = false
   const queue = [...employeeIds]
   const worker = async () => {
     for (let id = queue.shift(); id; id = queue.shift()) {
       const data = await fetchEcmVisitsTable({ employeeId: id, ...range })
       truncated ||= data.truncated
+      jobIdsByEmployee[id] = data.rows.map(row => row.scheduledJobId)
       for (const row of data.rows) if (!byJob.has(row.scheduledJobId)) byJob.set(row.scheduledJobId, row)
     }
   }
@@ -104,7 +107,7 @@ async function fetchVisitsForEmployees(
     // Latest first.
     (a, b) => new Date(b.plannedStartDateTime).getTime() - new Date(a.plannedStartDateTime).getTime(),
   )
-  return { rows, truncated }
+  return { rows, truncated, jobIdsByEmployee }
 }
 
 type VisitBucket = 'completed' | 'in_progress' | 'missed' | 'not_completed' | 'upcoming'
@@ -227,27 +230,39 @@ export default function EmployeeTimesheetsPage() {
     }
   }, [employeeId, employeesQuery.data])
 
-  const employeeOptions = React.useMemo<ComboboxOption[]>(
-    () => [
-      { value: '', label: `All employees (${employees.length})` },
-      ...employees.map(e => ({
-        value: e.id,
-        label: `${employeeName(e)}${e.isActive ? '' : ' (inactive)'}`,
-        description: e.jobTitle?.name ?? undefined,
-      })),
-    ],
-    [employees],
-  )
-
   const rangeValid = Boolean(range.dateFrom && range.dateTo && range.dateFrom <= range.dateTo)
-  const employeeIds = employeeId ? [employeeId] : employees.map(e => e.id)
+  // Always load every listed employee, so the dropdown can show each one's visit count.
+  const employeeIds = employees.map(e => e.id)
 
   const visitsQuery = useQuery({
     queryKey: ['employee-timesheets', range, employeeIds] as const,
     queryFn: () => fetchVisitsForEmployees(employeeIds, range),
     enabled: rangeValid && employeeIds.length > 0,
   })
-  const allRows = visitsQuery.data?.rows ?? []
+  const jobIdsByEmployee = visitsQuery.data?.jobIdsByEmployee
+
+  const employeeOptions = React.useMemo<ComboboxOption[]>(
+    () => [
+      { value: '', label: `All employees (${employees.length})` },
+      ...employees.map(e => {
+        const count = jobIdsByEmployee?.[e.id]?.length
+        const visits = count == null ? null : `${count} visit${count === 1 ? '' : 's'}`
+        return {
+          value: e.id,
+          label: `${employeeName(e)}${e.isActive ? '' : ' (inactive)'}`,
+          description: [e.jobTitle?.name, visits].filter(Boolean).join(' · ') || undefined,
+        }
+      }),
+    ],
+    [employees, jobIdsByEmployee],
+  )
+
+  const allRows = React.useMemo(() => {
+    const rows = visitsQuery.data?.rows ?? []
+    if (!employeeId) return rows
+    const own = new Set(jobIdsByEmployee?.[employeeId] ?? [])
+    return rows.filter(row => own.has(row.scheduledJobId))
+  }, [visitsQuery.data?.rows, jobIdsByEmployee, employeeId])
   const [cardFilter, setCardFilter] = React.useState<CardFilter>('all')
 
   const today = operationalTodayIso()
