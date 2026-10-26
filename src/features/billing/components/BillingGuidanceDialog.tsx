@@ -66,22 +66,11 @@ const SETUP_STEPS: FlowStep[] = [
       'Funding splits determine how each visit charge is divided across payers.',
     ],
   },
-  {
-    step: 4,
-    title: 'Invoice templates',
-    tab: 'invoice-templates',
-    summary: 'Configure export layouts for each funder type — PDF, Excel, or council upload.',
-    details: [
-      'Use industry presets: Standard, Local authority, NHS, or Private client.',
-      'Map system fields to funder column names and mark required fields.',
-      'Each local authority receives its own separate invoice when runs are generated.',
-    ],
-  },
 ]
 
 const OPERATIONS_STEPS: FlowStep[] = [
   {
-    step: 5,
+    step: 4,
     title: 'Visit reconciliation',
     tab: 'visit-reconciliation',
     summary: 'Review completed visits before they enter payroll or invoicing.',
@@ -95,7 +84,7 @@ const OPERATIONS_STEPS: FlowStep[] = [
 
 const FINANCE_STEPS: FlowStep[] = [
   {
-    step: 6,
+    step: 5,
     title: 'Payroll runs',
     tab: 'payroll-runs',
     summary: 'Batch carer pay for a billing period.',
@@ -106,7 +95,7 @@ const FINANCE_STEPS: FlowStep[] = [
     ],
   },
   {
-    step: 7,
+    step: 6,
     title: 'Invoice runs',
     tab: 'invoice-runs',
     summary: 'Batch client charges and produce funder invoices.',
@@ -117,7 +106,7 @@ const FINANCE_STEPS: FlowStep[] = [
     ],
   },
   {
-    step: 8,
+    step: 7,
     title: 'Invoice audit trail',
     tab: 'invoice-audit-trail',
     summary: 'See who created and actioned each invoice run.',
@@ -127,7 +116,7 @@ const FINANCE_STEPS: FlowStep[] = [
     ],
   },
   {
-    step: 9,
+    step: 8,
     title: 'Payments',
     tab: 'payments',
     summary: 'Record remittances and match them to locked invoice runs.',
@@ -141,7 +130,7 @@ const FINANCE_STEPS: FlowStep[] = [
 
 const COMPLIANCE_STEPS: FlowStep[] = [
   {
-    step: 10,
+    step: 9,
     title: 'Audit & export',
     tab: 'audit-export',
     summary: 'Download audit trails and finance exports for compliance review.',

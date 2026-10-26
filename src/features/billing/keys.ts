@@ -47,18 +47,6 @@ export const billingKeys = {
   }) => [...billingKeys.all, 'funding-contracts', filters ?? {}] as const,
   fundingContractsSummary: (locationId?: string | null) =>
     [...billingKeys.all, 'funding-contracts-summary', locationId ?? 'all'] as const,
-  invoiceTemplates: (filters?: {
-    search?: string
-    status?: string
-    templateType?: string
-    funderId?: string
-  }) => [...billingKeys.all, 'invoice-templates', filters ?? {}] as const,
-  invoiceTemplate: (id: string) => [...billingKeys.all, 'invoice-template', id] as const,
-  invoiceTemplateSystemFields: () => [...billingKeys.all, 'invoice-template-system-fields'] as const,
-  invoiceTemplateLayoutPresets: () => [...billingKeys.all, 'invoice-template-layout-presets'] as const,
-  invoiceTemplatesSummary: () => [...billingKeys.all, 'invoice-templates-summary'] as const,
-  invoiceTemplateResolve: (serviceUserId: string, fundingId?: string) =>
-    [...billingKeys.all, 'invoice-template-resolve', serviceUserId, fundingId ?? ''] as const,
   visitReconciliations: (filters?: {
     search?: string
     status?: string
