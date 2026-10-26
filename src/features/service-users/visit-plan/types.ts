@@ -198,6 +198,8 @@ export type VisitPlanCarerCandidate = {
   allowedWeeklyHours?: number | null
   /** Hours already assigned to this carer across active visit plans. */
   assignedWeeklyHours?: number
+  /** Hours of COMPLETED visits in the current rota week (org timezone, Sunday start). */
+  completedWeeklyHours?: number
   /** assignedWeeklyHours + this visit's weekly hours. */
   projectedWeeklyHours?: number
   /** True when projected weekly hours exceed allowed (approved override or contracted). */

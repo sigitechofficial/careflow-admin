@@ -4,7 +4,10 @@ import { cn } from '@/shared/lib/utils'
 import { contentHelperClass, contentTitleClass } from '@/shared/ui/content-section'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import type { VisitPlanSlot, VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
-import { VisitPlanCarerCandidateDetails } from '@/features/service-users/visit-plan/VisitPlanCarerCandidateDetails'
+import {
+  VisitPlanCarerCandidateDetails,
+  VisitPlanCarerWeeklyHoursLine,
+} from '@/features/service-users/visit-plan/VisitPlanCarerCandidateDetails'
 import { carerAssignmentCoversSlotDays } from '@/features/service-users/visit-plan/visit-plan-carer-availability-warning.util'
 import {
   formatCarerAssignmentDurationLabel,
@@ -49,6 +52,9 @@ export function VisitPlanSlotCarerByDaySummaryList({
 
   if (carerRows.length === 0) return null
 
+  // Lead / support only means something when the visit needs more than one carer.
+  const showRoles = (slot.requiredCarers || 1) > 1
+
   return (
     <ul className={dense ? 'space-y-2' : 'space-y-3'}>
       {carerRows.map(({ group, carer }) => {
@@ -83,12 +89,13 @@ export function VisitPlanSlotCarerByDaySummaryList({
                   ) : (
                     <p className={cn(contentTitleClass, 'text-muted-foreground')}>{name}</p>
                   )}
-                  <VisitPlanCarerRoleBadge role={carer.role} />
+                  {showRoles ? <VisitPlanCarerRoleBadge role={carer.role} /> : null}
                   <span className={contentHelperClass}>· {daysLabel}</span>
                 </div>
                 <p className={contentHelperClass}>
                   {durationLabel} · Visit {visitStart}–{visitEnd}
                 </p>
+                {candidate ? <VisitPlanCarerWeeklyHoursLine candidate={candidate} includesThisVisit /> : null}
                 {candidate ? (
                   <VisitPlanCarerCandidateDetails
                     candidate={candidate}

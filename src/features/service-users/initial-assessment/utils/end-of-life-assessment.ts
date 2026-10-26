@@ -40,103 +40,103 @@ export type EndOfLifeQuestionDef = {
 export const END_OF_LIFE_ASSESSMENT_QUESTIONS: EndOfLifeQuestionDef[] = [
   {
     id: 'endOfLifeCarePlan',
-    label: 'Does client have end of life care plan?',
-    hint: 'Please indicate client end of life status and objective',
+    label: 'Do I have an end of life care plan?',
+    hint: 'Please record my end of life status and what I want to achieve.',
     kind: 'yesNo',
   },
   {
     id: 'awareOfDying',
-    label: 'Is client aware about physical condition that he/she is dying?',
+    label: 'Am I aware that I am approaching the end of my life?',
     kind: 'yesNo',
   },
   {
     id: 'medicationAssessed',
     label:
-      'Has the current medication been assessed and have all none essential discontinued?',
+      'Have my current medicines been reviewed, and have any non-essential medicines been stopped?',
     kind: 'yesNo',
   },
   {
     id: 'medicationAvailable',
-    label: 'Are all Prescribed medication available?',
-    hint: 'Medication is available and is manage daily by my formal carers.',
+    label: 'Are all my prescribed medicines available?',
+    hint: 'My medicines are available and are managed daily by my Care Professionals.',
     kind: 'yesNo',
   },
   {
     id: 'interventionDiscussion',
     label:
-      'Has there been discussion regarding discontinuation of inappropriate intervention e.g. feeding, turning?',
+      'Has there been a discussion with me about stopping interventions that are no longer right for me (e.g. feeding, turning)?',
     kind: 'yesNo',
   },
   {
     id: 'significantBeliefs',
     label:
-      'Please specify any significant belief which needs to be considered. Include details of any religious or spiritual contact.',
+      'My beliefs that need to be considered, including my religious or spiritual contact.',
     kind: 'notesOnly',
   },
   {
     id: 'carersAwareWishes',
-    label: 'Are the carers aware of the clients advance wishes?',
+    label: 'Are my Care Professionals aware of my advance wishes?',
     kind: 'yesNo',
   },
   {
     id: 'capacityEndOfLife',
-    label: 'Does the client have the mental capacity to make end of life decision?',
+    label: 'Do I have the mental capacity to make end of life decisions?',
     kind: 'yesNo',
   },
   {
     id: 'comfortDiscussWishes',
-    label: 'Is the client comfortable to discuss their last wishes and have them recorded?',
+    label: 'Am I comfortable to discuss my last wishes and have them recorded?',
     kind: 'yesNo',
     section: 'lastWishes',
   },
   {
     id: 'medicalAidRecovery',
     label:
-      'Should client experience life threatening experience does their wish medical aid to assist recovery?',
+      'If my life is in danger, do I want medical treatment to help me recover?',
     kind: 'yesNoUnknown',
     section: 'lastWishes',
   },
   {
     id: 'terminalResidence',
-    label: 'Does client experience terminal condition where they wish to reside?',
+    label: 'If I have a terminal condition, do I know where I would like to live and be cared for?',
     kind: 'yesNo',
     section: 'lastWishes',
   },
   {
     id: 'hospiceHospitalTransfer',
     label:
-      "Should the client's condition deteriorate beyond the capacity of the agency/ home to provide the effective, does their wish to provide effective care environment such as Hospice, Hospital etc?",
+      'If my condition gets worse than my care at home can safely manage, would I like to move to another care setting such as a hospice or hospital?',
     kind: 'yesNo',
     section: 'lastWishes',
   },
   {
     id: 'funeralArrangements',
-    label: 'Does the client have funeral arrangement in place? What are the arrangements?',
+    label: 'Do I have funeral arrangements in place? (Please describe them.)',
     kind: 'yesNo',
     section: 'lastWishes',
   },
   {
     id: 'lastWill',
-    label: 'Does the client have last will arrangements?',
+    label: 'Do I have a will in place?',
     kind: 'yesNoUnknown',
     section: 'lastWishes',
   },
   {
     id: 'contactNextOfKin',
     label:
-      'If the client becomes dangerously ill would they like the care provider to contact next of kin?',
+      'If I become seriously ill, would I like you to contact my next of kin?',
     kind: 'yesNo',
     section: 'lastWishes',
   },
   {
     id: 'reviewWishesFuture',
-    label: 'Is client willing to review their last wishes in the future?',
+    label: 'Am I happy to review my last wishes in the future?',
     kind: 'yesNo',
     section: 'lastWishes',
   },
   {
     id: 'capacityLastWishes',
-    label: 'Does the client have mental capacity to make decisions about her last wishes?',
+    label: 'Do I have the mental capacity to make decisions about my last wishes?',
     kind: 'yesNo',
     section: 'lastWishes',
   },
@@ -148,7 +148,7 @@ export const END_OF_LIFE_ASSESSMENT_QUESTIONS: EndOfLifeQuestionDef[] = [
   },
   {
     id: 'consentMethod',
-    label: 'How does client consent to the last wishes?',
+    label: 'How I give consent to my last wishes',
     kind: 'notesOnly',
     section: 'lastWishes',
   },

@@ -217,6 +217,8 @@ import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
 import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
 import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
 import SpecialVisitsPage from '@/features/special-visits/pages/SpecialVisitsPage'
+import OnCallRotaPage from '@/features/on-call/pages/OnCallRotaPage'
+import OutOfHoursCallsPage from '@/features/on-call/pages/OutOfHoursCallsPage'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
 import {
   ROLES_PERMISSIONS_SUB_IDS,
@@ -303,6 +305,8 @@ const pageTitles: Record<string, string> = {
   '/employee/hours': 'Employee hours',
   '/employee/absences': 'Absence tracker',
   '/special-visits': 'Special visits',
+  '/on-call/rota': 'On-call rota',
+  '/on-call/calls': 'Out-of-hours calls',
   '/employee/compliance': 'Compliance board',
   '/employee/review-status': 'Employee',
   '/employee/skills': 'Employee',
@@ -1443,6 +1447,20 @@ const specialVisitsRoute = createRoute({
   component: SpecialVisitsPage,
 })
 
+const onCallRotaRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/on-call/rota',
+  beforeLoad: requireAnyPermission('on_call.read'),
+  component: OnCallRotaPage,
+})
+
+const outOfHoursCallsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/on-call/calls',
+  beforeLoad: requireAnyPermission('on_call.read'),
+  component: OutOfHoursCallsPage,
+})
+
 const employeeComplianceRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/employee/compliance',
@@ -2498,6 +2516,8 @@ const routeTree = rootRoute.addChildren([
     employeeAbsencesRoute,
     parentalLeaveRoute,
     specialVisitsRoute,
+    onCallRotaRoute,
+    outOfHoursCallsRoute,
     employeeComplianceRoute,
     employeeReviewStatusRoute,
     employeeSkillsRoute,

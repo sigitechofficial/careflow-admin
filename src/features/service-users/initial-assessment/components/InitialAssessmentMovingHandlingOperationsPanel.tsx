@@ -36,9 +36,9 @@ type Props = {
 }
 
 const CAPABILITY_OPTIONS: { id: MovingHandlingCapability; label: string }[] = [
-  { id: 'independent', label: 'Independent' },
-  { id: 'supervision', label: 'Supervision only' },
-  { id: 'assistance', label: 'Requires assistance' },
+  { id: 'independent', label: 'I do this myself' },
+  { id: 'supervision', label: 'I need someone to supervise me' },
+  { id: 'assistance', label: 'I need help with this' },
 ]
 
 function YesNoTableCell({
@@ -171,7 +171,7 @@ export function InitialAssessmentMovingHandlingOperationsPanel({
 
           <section className="space-y-3">
             <p className="text-sm font-medium text-foreground">
-              Please tick <strong>one</strong> option only for client capability and method of
+              Please tick <strong>one</strong> option only for what I can do and the method or
               handling aids below.
             </p>
             <HolisticAssessmentTable
@@ -179,7 +179,7 @@ export function InitialAssessmentMovingHandlingOperationsPanel({
                 { key: 'task', header: 'Task', className: 'w-[22%]' },
                 {
                   key: 'capability',
-                  header: 'Client capability (tick as appropriate)',
+                  header: 'What I can do (tick as appropriate)',
                   className: 'w-[34%]',
                 },
                 {
@@ -281,7 +281,7 @@ function CapabilityCell({
         </label>
       ))}
       <label className={cn('flex items-center gap-2', IA_OPTION_LABEL_CLASS)}>
-        <span className="shrink-0">No. of staff</span>
+        <span className="shrink-0">Number of Care Professionals I need</span>
         <Input
           type="number"
           min={0}
@@ -349,7 +349,7 @@ function MethodsCell({
       ))}
       {showBathType ? (
         <div className="space-y-1 border-t border-border/60 pt-2">
-          <p className="text-xs font-medium text-muted-foreground">Which bath?</p>
+          <p className="text-xs font-medium text-muted-foreground">Which bath do I use?</p>
           {(
             [
               { id: 'standard' as const, label: 'Standard' },

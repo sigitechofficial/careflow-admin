@@ -39,7 +39,21 @@ export type DomCareShiftDefinition = {
   sortOrder: number
 }
 
-export type DomAllocationRuleBehavior = 'DONT_ALLOW' | 'ALWAYS_ALLOW' | 'REQUEST_CONFIRMATION'
+export type DomAllocationRuleBehavior =
+  | 'DONT_ALLOW'
+  | 'ALWAYS_ALLOW'
+  | 'REQUEST_CONFIRMATION'
+  | 'MANAGER_APPROVAL'
+
+export type WeeklyHoursLimitBasis = 'CONTRACTED' | 'MAXIMUM' | 'APPROVED_EXTRA'
+
+export type WeeklyHoursRejectAction = 'REMOVE_EXTRA_VISITS' | 'REMOVE_FROM_PLAN'
+
+export type DomWeeklyHoursRuleOptions = {
+  limitBasis: WeeklyHoursLimitBasis
+  rejectAction: WeeklyHoursRejectAction
+  maxApprovableHours: number
+}
 
 export type OptionalAboutMeField = {
   key: string
@@ -142,6 +156,8 @@ export type DomCareAllocationRule = {
   label: string
   behavior: DomAllocationRuleBehavior
   minutes: number | null
+  /** Only on the weekly-hours rule. */
+  weeklyHours?: DomWeeklyHoursRuleOptions
 }
 
 export type RotaHorizonMode = 'FIXED_DAYS' | 'CALENDAR_MONTH'

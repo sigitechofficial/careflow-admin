@@ -23,11 +23,11 @@ export type AdlWorksheetGroup = {
 
 /** Paper / spec score meanings (§12.1). */
 export const ADL_SCORE_LEGEND = [
-  '0 — Performs independently / no support needed',
-  '1 — Requires occasional assistance / performs with difficulty',
-  '2 — Requires assistance of one person',
-  '3 — Requires assistance of two people',
-  '4 — Does not or cannot perform / performed by another person',
+  '0 — I do this myself.',
+  '1 — I find this hard or need help now and then.',
+  '2 — I need one Care Professional to help me.',
+  '3 — I need two Care Professionals to help me.',
+  '4 — I cannot do this; it is done for me.',
 ] as const
 
 export const ADL_SCORE_OPTIONS = ADL_SCORE_LEGEND.map((label, score) => ({ score, label }))
@@ -80,7 +80,7 @@ export const ADL_WORKSHEET_GROUPS: AdlWorksheetGroup[] = [
     paperLabel: 'g. Mobility outside the home',
     title: 'Mobility outside the home',
     activities: [
-      { id: 'enter_leave_home', label: 'Entering / leaving home' },
+      { id: 'enter_leave_home', label: 'Getting in and out of my home' },
       { id: 'public_transport', label: 'Use of public transport' },
       { id: 'short_walks', label: 'Taking short walks' },
       { id: 'long_walks', label: 'Taking longer walks' },

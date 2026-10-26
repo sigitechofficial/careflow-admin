@@ -12,8 +12,10 @@ import {
   fetchWorkingServiceUserVisitPlan,
   generateScheduleFromVisitPlan,
   prefillVisitPlanFromDomCare,
+  previewVisitPlanWeeklyHours,
   suspendServiceUserVisitPlan,
   updateServiceUserVisitPlan,
+  type VisitPlanSlotInput,
 } from '@/features/service-users/visit-plan/api'
 import { fetchAcceptedCarePlans } from '@/features/service-users/initial-assessment/api'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
@@ -138,6 +140,8 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
     void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlans(serviceUserId) })
     void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlanActive(serviceUserId) })
     void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlanWorking(serviceUserId) })
+    // Weekly contracted hours are copied to DOM Care on save.
+    void qc.invalidateQueries({ queryKey: serviceUserKeys.domCare(serviceUserId) })
   }
 
   const create = useMutation({
@@ -236,4 +240,31 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
   })
 
   return { create, update, activate, suspend, end, prefillDomCare, generateSchedule }
+}
+
+/**
+ * Server count of weekly visit hours for the schedule being edited (busiest of the next weeks),
+ * against the service user's weekly contracted hours. Waits a moment after typing stops.
+ */
+export function useVisitPlanWeeklyHoursPreview(
+  serviceUserId: string,
+  planId: string | null | undefined,
+  slots: VisitPlanSlotInput[],
+) {
+  const key = JSON.stringify(slots)
+  const [debouncedKey, setDebouncedKey] = React.useState(key)
+  React.useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedKey(key), 400)
+    return () => window.clearTimeout(t)
+  }, [key])
+  return useQuery({
+    queryKey: [...serviceUserKeys.visitPlans(serviceUserId), 'weekly-hours', planId ?? '', debouncedKey],
+    queryFn: ({ signal }) =>
+      previewVisitPlanWeeklyHours(serviceUserId, planId!, JSON.parse(debouncedKey) as VisitPlanSlotInput[], {
+        signal,
+      }),
+    enabled: Boolean(serviceUserId && planId),
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
+  })
 }

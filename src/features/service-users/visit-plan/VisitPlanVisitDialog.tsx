@@ -54,6 +54,8 @@ type Props = {
   acceptedCarePlans: AcceptedCarePlanItem[]
   employeeNameById: Map<string, string>
   onDone: (visit: VisitPlanSlot) => void
+  /** Live weekly-hours line for the plan as it would be with this visit. */
+  renderHoursCheck?: (draft: VisitPlanSlot) => React.ReactNode
 }
 
 const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0]
@@ -70,6 +72,7 @@ export function VisitPlanVisitDialog({
   acceptedCarePlans,
   employeeNameById,
   onDone,
+  renderHoursCheck,
 }: Props) {
   const [draft, setDraft] = React.useState<VisitPlanSlot | null>(visit)
   const [error, setError] = React.useState<string | null>(null)
@@ -350,6 +353,8 @@ export function VisitPlanVisitDialog({
               <strong className="font-medium text-foreground">More options</strong> below the visit list — tap the
               visit after you press Done.
             </p>
+
+            {renderHoursCheck ? renderHoursCheck(draft) : null}
 
             {error ? (
               <p className="text-sm font-medium text-destructive" role="alert" data-testid="visit-dialog-error">

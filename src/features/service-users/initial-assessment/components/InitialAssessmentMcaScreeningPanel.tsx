@@ -22,13 +22,10 @@ import type {
 import { cn } from '@/shared/lib/utils'
 
 const FUNCTIONAL_ROW_LABELS: Record<(typeof MCA_FUNCTIONAL_FIELD_KEYS)[number], string> = {
-  mcaFunctionalUnderstand:
-    'Can the person understand the provided information relevant to the decision?',
-  mcaFunctionalRetain: 'Can the person retain the information given?',
-  mcaFunctionalWeigh:
-    'Can the person use or weigh the information given as part of their decision making process?',
-  mcaFunctionalCommunicate:
-    'Can the person communicate their decision? (whether by talking or any other means)',
+  mcaFunctionalUnderstand: 'Can I understand the information relevant to the decision?',
+  mcaFunctionalRetain: 'Can I retain that information long enough to make the decision?',
+  mcaFunctionalWeigh: 'Can I use or weigh that information as part of making the decision?',
+  mcaFunctionalCommunicate: 'Can I communicate my decision (by talking or any other means)?',
 }
 
 type Props = {
@@ -54,8 +51,7 @@ export function InitialAssessmentMcaScreeningPanel({ allSections, renderField, d
         {stage1 ? (
           <div className="space-y-1">
             <p className="text-sm font-medium">
-              1. Does the person have an impairment or disturbance in the functioning of the mind or
-              brain?
+              1. Is there an impairment of, or disturbance in, the functioning of my mind or brain?
             </p>
             <p className={IA_HINT_CLASS}>
               (It does not matter whether the impairment or disturbance is temporary or permanent.)
@@ -67,8 +63,8 @@ export function InitialAssessmentMcaScreeningPanel({ allSections, renderField, d
         {stage2 ? (
           <div className="space-y-1">
             <p className="text-sm font-medium">
-              2. Does that impairment or disturbance mean that the person is unable to make the
-              decision in question at the time that it needs to be made?
+              2. Does that impairment or disturbance mean that I am unable to make the decision in
+              question at the time that it needs to be made?
             </p>
             {renderField(stage2, { hideLabel: true })}
           </div>

@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from '@/shared/ui/dialog'
 import { EmptyState, PageHeader } from '@/shared/ui/page-elements'
+import { Label, Textarea } from '@/shared/ui/form-field'
 import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
@@ -23,12 +24,21 @@ import {
   useHoursApprovals,
   useRejectHours,
 } from '@/features/hours-approvals/hooks'
-import type { HoursApproval, HoursApprovalStatus } from '@/features/hours-approvals/api'
+import type {
+  ContractedHoursImpact,
+  HoursApproval,
+  HoursApprovalStatus,
+} from '@/features/hours-approvals/types'
+import {
+  ContractedHoursImpactSummary,
+  formatHours,
+} from '@/features/hours-approvals/components/ContractedHoursImpactSummary'
 
 const TABS: { id: HoursApprovalStatus; label: string }[] = [
   { id: 'PENDING', label: 'Pending' },
   { id: 'APPROVED', label: 'Approved' },
   { id: 'REJECTED', label: 'Rejected' },
+  { id: 'CANCELLED', label: 'Cancelled' },
 ]
 
 /** Hard weekly cap — extra hours above this can never be approved (mirrors backend). */
@@ -38,16 +48,64 @@ const STATUS_BADGE: Record<HoursApprovalStatus, React.ComponentProps<typeof Badg
   PENDING: 'warning',
   APPROVED: 'success',
   REJECTED: 'destructive',
+  CANCELLED: 'secondary',
 }
 
 const STATUS_LABEL: Record<HoursApprovalStatus, string> = {
   PENDING: 'Pending',
   APPROVED: 'Approved',
   REJECTED: 'Rejected',
+  CANCELLED: 'Cancelled',
+}
+
+function isContractedChange(row: HoursApproval) {
+  return row.requestType === 'CONTRACTED_HOURS_CHANGE'
+}
+
+function isServiceUserHoursChange(row: HoursApproval) {
+  return row.requestType === 'SERVICE_USER_WEEKLY_HOURS_CHANGE'
+}
+
+function isExtraVisitRequest(row: HoursApproval) {
+  return row.requestType === 'EXTRA_VISIT_OVER_HOURS'
+}
+
+/** 1550 → "25h 50m". */
+function formatMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = Math.round(minutes % 60)
+  if (h === 0) return `${m}m`
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
+/** An extra visit's week: as it is now for pending requests, else as it was when asked for. */
+function extraVisitWeek(row: HoursApproval): { weekMinutes: number; limitMinutes: number | null } | null {
+  const payload = row.requestPayload
+  if (!payload) return null
+  const week = row.currentWeek ?? payload
+  return {
+    weekMinutes: week.weekMinutes,
+    limitMinutes: week.limitWeeklyHours != null ? Math.round(week.limitWeeklyHours * 60) : null,
+  }
 }
 
 function exceedsWeeklyCap(row: HoursApproval) {
-  return (row.projectedWeeklyHours ?? 0) > MAX_APPROVABLE_WEEKLY_HOURS
+  return row.requestType === 'VISIT_PLAN_OVER_HOURS' && (row.projectedWeeklyHours ?? 0) > MAX_APPROVABLE_WEEKLY_HOURS
+}
+
+/** Pending rows store the preview; decided rows store { requested, applied }. */
+function contractedImpact(row: HoursApproval): ContractedHoursImpact | null {
+  const raw = row.impactSummary as
+    | (ContractedHoursImpact & { applied?: never })
+    | { requested?: ContractedHoursImpact | null; applied?: ContractedHoursImpact | null }
+    | null
+  if (!raw || typeof raw !== 'object') return null
+  if ('applied' in raw || 'requested' in raw) {
+    return (raw as { applied?: ContractedHoursImpact | null }).applied ??
+      (raw as { requested?: ContractedHoursImpact | null }).requested ??
+      null
+  }
+  return raw as ContractedHoursImpact
 }
 
 export default function HoursApprovalsPage() {
@@ -65,6 +123,11 @@ export default function HoursApprovalsPage() {
   const rejectMut = useRejectHours()
 
   const [rejectTarget, setRejectTarget] = React.useState<HoursApproval | null>(null)
+  const [rejectReason, setRejectReason] = React.useState('')
+  /** An extra visit over the weekly hours needs a reason to reject (the requester sees it). */
+  const rejectReasonRequired = rejectTarget != null && isExtraVisitRequest(rejectTarget)
+  const [approveContractedTarget, setApproveContractedTarget] = React.useState<HoursApproval | null>(null)
+  const [expandedId, setExpandedId] = React.useState<string | null>(null)
 
   const overCapCount = tab === 'PENDING' ? rows.filter(exceedsWeeklyCap).length : 0
   const showActions = canManage && tab === 'PENDING'
@@ -78,12 +141,39 @@ export default function HoursApprovalsPage() {
     }
   }
 
+  const handleApproveContracted = async () => {
+    if (!approveContractedTarget) return
+    try {
+      await approveMut.mutateAsync({ id: approveContractedTarget.id })
+      toastSuccess(
+        isExtraVisitRequest(approveContractedTarget)
+          ? 'Extra visit approved and added to the rota'
+          : isServiceUserHoursChange(approveContractedTarget)
+            ? 'Weekly hours changed'
+            : 'Contracted hours changed',
+      )
+      setApproveContractedTarget(null)
+    } catch (e) {
+      toastApiError(e, 'Could not approve')
+    }
+  }
+
   const handleReject = async () => {
     if (!rejectTarget) return
+    if (rejectReasonRequired && !rejectReason.trim()) return
     try {
-      await rejectMut.mutateAsync({ id: rejectTarget.id })
-      toastSuccess('Rejected — carer removed from the plan')
+      await rejectMut.mutateAsync({ id: rejectTarget.id, notes: rejectReason.trim() || undefined })
+      toastSuccess(
+        isExtraVisitRequest(rejectTarget)
+          ? 'Rejected — the extra visit was not added'
+          : isServiceUserHoursChange(rejectTarget)
+          ? 'Rejected — weekly hours unchanged'
+          : isContractedChange(rejectTarget)
+            ? 'Rejected — contracted hours unchanged'
+            : 'Rejected — carer removed from the plan',
+      )
       setRejectTarget(null)
+      setRejectReason('')
     } catch (e) {
       toastApiError(e, 'Could not reject')
     }
@@ -93,7 +183,7 @@ export default function HoursApprovalsPage() {
     <div className="flex w-full flex-col gap-4" data-testid="hours-approvals-page">
       <PageHeader
         title="Hours approvals"
-        description="Review carers assigned beyond their contracted weekly hours. Approve to keep the assignment, or reject to remove them from the visit plan."
+        description="Review carers assigned beyond their contracted weekly hours, changes to a carer's contracted hours or a service user's weekly hours, and extra visits over a service user's weekly hours. Nothing applies until it is approved."
         icon={<Clock className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[
           { label: 'Home', href: '/' },
@@ -135,10 +225,11 @@ export default function HoursApprovalsPage() {
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             <p>
-              If projected weekly hours exceed{' '}
+              Carer over their hours: if projected weekly hours exceed{' '}
               <span className="font-semibold tabular-nums">{MAX_APPROVABLE_WEEKLY_HOURS}h</span>, Approve is
               disabled. Reduce the carer&apos;s assigned hours on the visit plan first — you can still Reject to
-              remove them from the plan.
+              remove them from the plan. Other requests (hours changes, extra visits) apply only when approved;
+              Reject leaves everything as it is.
             </p>
           </div>
         </div>
@@ -158,7 +249,7 @@ export default function HoursApprovalsPage() {
             title={`No ${tab.toLowerCase()} requests`}
             description={
               tab === 'PENDING'
-                ? 'When a carer is assigned beyond their contracted hours on a visit plan, a request will appear here.'
+                ? "A request appears here when a carer is assigned beyond their contracted hours, a carer's contracted hours or a service user's weekly hours are changed, or an extra visit would go over a service user's weekly hours."
                 : undefined
             }
           />
@@ -181,39 +272,95 @@ export default function HoursApprovalsPage() {
                 <tbody>
                   {rows.map(r => {
                     const overCap = exceedsWeeklyCap(r)
+                    const suHours = isServiceUserHoursChange(r)
+                    const extraVisit = isExtraVisitRequest(r) ? (r.requestPayload ?? null) : null
+                    // Carer or service user hours change: shows previous → new instead of projected.
+                    const contracted = isContractedChange(r) || suHours
+                    const impact = isContractedChange(r) ? contractedImpact(r) : null
+                    const change =
+                      contracted && r.previousContractedWeeklyHours != null && r.requestedContractedWeeklyHours != null
+                        ? r.requestedContractedWeeklyHours - r.previousContractedWeeklyHours
+                        : null
                     return (
+                      <React.Fragment key={r.id}>
                       <tr
-                        key={r.id}
                         className={`border-b border-border/70 last:border-0 hover:bg-muted/30 ${
                           overCap ? 'bg-destructive/[0.03]' : ''
                         }`}
                       >
                         <td className="px-4 py-3">
-                          <Link
-                            to="/employee/$employeeId/edit"
-                            params={{ employeeId: r.employeeId }}
-                            search={{ tab: 'employment' }}
-                            className="font-medium text-primary underline-offset-2 hover:underline"
-                          >
-                            {r.employeeName}
-                          </Link>
+                          {r.employeeId ? (
+                            <Link
+                              to="/employee/$employeeId/edit"
+                              params={{ employeeId: r.employeeId }}
+                              search={{ tab: 'employment' }}
+                              className="font-medium text-primary underline-offset-2 hover:underline"
+                            >
+                              {r.employeeName}
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                          {contracted ? (
+                            <div className="mt-1">
+                              <Badge variant="outline" size="sm">
+                                {suHours ? 'Service user weekly hours' : 'Contracted hours change'}
+                              </Badge>
+                            </div>
+                          ) : isExtraVisitRequest(r) ? (
+                            <div className="mt-1 space-y-0.5">
+                              <Badge variant="outline" size="sm">
+                                Extra visit over weekly hours
+                              </Badge>
+                              {extraVisit ? (
+                                <p className="text-xs text-foreground">
+                                  {formatDate(extraVisit.date)} · {extraVisit.startTime}–{extraVisit.endTime} ·{' '}
+                                  {extraVisit.slotLabel}
+                                </p>
+                              ) : null}
+                              {r.reason ? (
+                                <p className="text-xs text-muted-foreground">Reason: {r.reason}</p>
+                              ) : null}
+                              {r.status === 'REJECTED' && r.decisionNotes ? (
+                                <p className="text-xs text-red-700 dark:text-red-300">
+                                  Rejected: {r.decisionNotes}
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
-                          <Link
-                            to="/service-users/$serviceUserId/visit-plan"
-                            params={{ serviceUserId: r.serviceUserId }}
-                            className="text-primary underline-offset-2 hover:underline"
-                          >
-                            {r.serviceUserName}
-                          </Link>
+                          {r.serviceUserId ? (
+                            <Link
+                              to="/service-users/$serviceUserId/visit-plan"
+                              params={{ serviceUserId: r.serviceUserId }}
+                              className="text-primary underline-offset-2 hover:underline"
+                            >
+                              {r.serviceUserName}
+                            </Link>
+                          ) : (
+                            '—'
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                          {r.contractedWeeklyHours ?? '—'}h
+                          {contracted
+                            ? formatHours(r.previousContractedWeeklyHours)
+                            : extraVisit
+                              ? formatHours(r.contractedWeeklyHours)
+                              : `${r.contractedWeeklyHours ?? '—'}h`}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">
-                          <span className={overCap ? 'font-semibold text-destructive' : 'font-medium text-foreground'}>
-                            ~{r.projectedWeeklyHours ?? '—'}h
-                          </span>
+                          {contracted ? (
+                            <span className="font-medium text-foreground">
+                              New {formatHours(r.requestedContractedWeeklyHours)}
+                            </span>
+                          ) : (
+                            <span className={overCap ? 'font-semibold text-destructive' : 'font-medium text-foreground'}>
+                              {extraVisit
+                                ? `${formatMinutes(extraVisitWeek(r)?.weekMinutes ?? extraVisit.weekMinutes)} that week`
+                                : `~${r.projectedWeeklyHours ?? '—'}h`}
+                            </span>
+                          )}
                           {overCap ? (
                             <Badge variant="destructive" size="sm" className="ml-2 align-middle">
                               Over {MAX_APPROVABLE_WEEKLY_HOURS}h
@@ -221,7 +368,24 @@ export default function HoursApprovalsPage() {
                           ) : null}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums font-medium text-amber-700 dark:text-amber-300">
-                          +{r.extraHours ?? '—'}h
+                          {contracted
+                            ? change == null
+                              ? '—'
+                              : `${change > 0 ? '+' : change < 0 ? '−' : ''}${formatHours(Math.abs(change))}`
+                            : extraVisit && extraVisitWeek(r)?.limitMinutes != null
+                              ? extraVisitWeek(r)!.weekMinutes > extraVisitWeek(r)!.limitMinutes!
+                                ? `+${formatMinutes(extraVisitWeek(r)!.weekMinutes - extraVisitWeek(r)!.limitMinutes!)}`
+                                : 'Within limit'
+                              : `+${r.extraHours ?? '—'}h`}
+                          {contracted && impact ? (
+                            <button
+                              type="button"
+                              className="ml-2 text-xs font-normal text-primary underline-offset-2 hover:underline"
+                              onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                            >
+                              {expandedId === r.id ? 'Hide' : 'Details'}
+                            </button>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant={STATUS_BADGE[r.status]} size="sm">
@@ -244,7 +408,11 @@ export default function HoursApprovalsPage() {
                                     ? `Cannot approve — exceeds the ${MAX_APPROVABLE_WEEKLY_HOURS}h weekly maximum. Reduce assigned hours first.`
                                     : undefined
                                 }
-                                onClick={() => void handleApprove(r.id)}
+                                onClick={() =>
+                                  contracted || isExtraVisitRequest(r)
+                                    ? setApproveContractedTarget(r)
+                                    : void handleApprove(r.id)
+                                }
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
                                 Approve
@@ -255,7 +423,10 @@ export default function HoursApprovalsPage() {
                                 variant="outline"
                                 className="gap-1.5 text-destructive hover:text-destructive"
                                 disabled={approveMut.isPending || rejectMut.isPending}
-                                onClick={() => setRejectTarget(r)}
+                                onClick={() => {
+                                  setRejectReason('')
+                                  setRejectTarget(r)
+                                }}
                               >
                                 <XCircle className="h-3.5 w-3.5" aria-hidden />
                                 Reject
@@ -264,6 +435,19 @@ export default function HoursApprovalsPage() {
                           </td>
                         ) : null}
                       </tr>
+                      {contracted && impact && expandedId === r.id ? (
+                        <tr className="border-b border-border/70 bg-muted/20">
+                          <td colSpan={showActions ? 8 : 7} className="px-4 py-3">
+                            {r.reason ? (
+                              <p className="mb-2 text-sm text-foreground">
+                                <span className="text-muted-foreground">Reason:</span> {r.reason}
+                              </p>
+                            ) : null}
+                            <ContractedHoursImpactSummary impact={impact} pending={r.status === 'PENDING'} />
+                          </td>
+                        </tr>
+                      ) : null}
+                      </React.Fragment>
                     )
                   })}
                 </tbody>
@@ -280,9 +464,37 @@ export default function HoursApprovalsPage() {
       <AlertDialog open={rejectTarget != null} onOpenChange={o => !o && setRejectTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject extra hours?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {rejectTarget && isExtraVisitRequest(rejectTarget)
+                ? 'Reject extra visit?'
+                : rejectTarget && isServiceUserHoursChange(rejectTarget)
+                ? 'Reject weekly hours change?'
+                : rejectTarget && isContractedChange(rejectTarget)
+                  ? 'Reject contracted hours change?'
+                  : 'Reject extra hours?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {rejectTarget ? (
+              {rejectTarget && isExtraVisitRequest(rejectTarget) ? (
+                <>
+                  The extra visit for{' '}
+                  <span className="font-medium text-foreground">{rejectTarget.serviceUserName}</span>
+                  {rejectTarget.requestPayload
+                    ? ` on ${formatDate(rejectTarget.requestPayload.date)}, ${rejectTarget.requestPayload.startTime}–${rejectTarget.requestPayload.endTime},`
+                    : ''}{' '}
+                  will not be added. The person who asked will see your reason.
+                </>
+              ) : rejectTarget && isServiceUserHoursChange(rejectTarget) ? (
+                <>
+                  <span className="font-medium text-foreground">{rejectTarget.serviceUserName}</span>&apos;s weekly
+                  contracted hours stay at {formatHours(rejectTarget.previousContractedWeeklyHours)}. Nothing else
+                  changes.
+                </>
+              ) : rejectTarget && isContractedChange(rejectTarget) ? (
+                <>
+                  <span className="font-medium text-foreground">{rejectTarget.employeeName}</span>&apos;s contracted
+                  hours stay at {formatHours(rejectTarget.previousContractedWeeklyHours)}. No visits are changed.
+                </>
+              ) : rejectTarget ? (
                 <>
                   Rejecting will remove <span className="font-medium text-foreground">{rejectTarget.employeeName}</span>{' '}
                   from <span className="font-medium text-foreground">{rejectTarget.serviceUserName}</span>&apos;s visit
@@ -291,17 +503,121 @@ export default function HoursApprovalsPage() {
               ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="hours-reject-reason">
+              Reason{rejectReasonRequired ? ' *' : ' (optional)'}
+            </Label>
+            <Textarea
+              id="hours-reject-reason"
+              rows={2}
+              maxLength={1000}
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder={
+                rejectReasonRequired ? 'Why the extra visit is not approved' : 'Why this request is rejected'
+              }
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={rejectMut.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={rejectMut.isPending}
+              disabled={rejectMut.isPending || (rejectReasonRequired && !rejectReason.trim())}
               onClick={e => {
                 e.preventDefault()
                 void handleReject()
               }}
             >
-              {rejectMut.isPending ? 'Rejecting…' : 'Reject & remove carer'}
+              {rejectMut.isPending
+                ? 'Rejecting…'
+                : rejectTarget && rejectTarget.requestType !== 'VISIT_PLAN_OVER_HOURS'
+                  ? 'Reject'
+                  : 'Reject & remove carer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={approveContractedTarget != null}
+        onOpenChange={o => !o && setApproveContractedTarget(null)}
+      >
+        <AlertDialogContent className="max-w-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {approveContractedTarget && isExtraVisitRequest(approveContractedTarget)
+                ? 'Approve extra visit over weekly hours?'
+                : approveContractedTarget && isServiceUserHoursChange(approveContractedTarget)
+                  ? 'Approve weekly hours change?'
+                  : 'Approve contracted hours change?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {approveContractedTarget && isExtraVisitRequest(approveContractedTarget) ? (
+                <>
+                  The extra visit for{' '}
+                  <span className="font-medium text-foreground">{approveContractedTarget.serviceUserName}</span>
+                  {approveContractedTarget.requestPayload ? (
+                    <>
+                      {' '}
+                      on{' '}
+                      <span className="font-medium text-foreground">
+                        {formatDate(approveContractedTarget.requestPayload.date)},{' '}
+                        {approveContractedTarget.requestPayload.startTime}–
+                        {approveContractedTarget.requestPayload.endTime}
+                      </span>{' '}
+                      ({approveContractedTarget.requestPayload.slotLabel})
+                    </>
+                  ) : null}{' '}
+                  is created now and added to the rota.
+                  {(() => {
+                    const week = extraVisitWeek(approveContractedTarget)
+                    const asked = approveContractedTarget.requestPayload?.weekMinutes
+                    if (!week || week.limitMinutes == null) return ''
+                    const now =
+                      week.weekMinutes > week.limitMinutes
+                        ? ` That week will have ${formatMinutes(week.weekMinutes)} of ${formatMinutes(week.limitMinutes)} weekly contracted hours.`
+                        : ` That week will have ${formatMinutes(week.weekMinutes)} of ${formatMinutes(week.limitMinutes)} — within the weekly contracted hours now.`
+                    return asked != null && asked !== week.weekMinutes
+                      ? `${now} (It was ${formatMinutes(asked)} when this was asked for.)`
+                      : now
+                  })()}
+                </>
+              ) : approveContractedTarget && isServiceUserHoursChange(approveContractedTarget) ? (
+                <>
+                  <span className="font-medium text-foreground">{approveContractedTarget.serviceUserName}</span>&apos;s
+                  weekly contracted hours change from{' '}
+                  {formatHours(approveContractedTarget.previousContractedWeeklyHours)} to{' '}
+                  <span className="font-medium text-foreground">
+                    {formatHours(approveContractedTarget.requestedContractedWeeklyHours)}
+                  </span>{' '}
+                  now, in DOM Care and on the visit plan. Visits on the rota are not changed.
+                </>
+              ) : approveContractedTarget ? (
+                <>
+                  <span className="font-medium text-foreground">{approveContractedTarget.employeeName}</span>&apos;s
+                  contracted hours will change now.
+                  {contractedImpact(approveContractedTarget)?.isDecrease
+                    ? ' The visits below are worked out again at this moment and unassigned; they will show as unassigned on the rota board.'
+                    : ' No visits change.'}
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {approveContractedTarget && contractedImpact(approveContractedTarget) ? (
+            <div className="max-h-[50vh] overflow-y-auto">
+              <ContractedHoursImpactSummary impact={contractedImpact(approveContractedTarget)!} pending />
+            </div>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={approveMut.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={approveMut.isPending}
+              onClick={e => {
+                e.preventDefault()
+                void handleApproveContracted()
+              }}
+            >
+              {approveMut.isPending ? 'Approving…' : 'Approve'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

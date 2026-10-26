@@ -23,6 +23,13 @@ import {
 } from '@/features/employees/hooks/useEmployeeMutations'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { EmployeeEmergencyContactsEditor } from '@/features/employees/components/EmployeeEmergencyContactsEditor'
+import { EmployeeContractedHoursReviewDialog } from '@/features/employees/components/EmployeeContractedHoursReviewDialog'
+import {
+  useContractedHoursPreview,
+  usePendingContractedHoursChange,
+  useRequestContractedHoursChange,
+} from '@/features/hours-approvals/hooks'
+import type { ContractedHoursImpact } from '@/features/hours-approvals/types'
 import { EmployeeDocumentsSection } from '@/features/employees/components/EmployeeDocumentsSection'
 import { EmployeeFortnightPatternEditor } from '@/features/employees/components/EmployeeFortnightPatternEditor'
 import {
@@ -546,16 +553,33 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
   const apiConfigured = Boolean(getApiBaseUrl())
   const accessToken = useAuthStore(s => s.accessToken)
+  const canViewHoursApprovals = useAuthStore(s => s.can('hours_approvals.read'))
   const apiReady = apiConfigured && Boolean(accessToken?.includes('.'))
 
   const createEmployeeMutation = useCreateEmployee()
   const patchPersonalMutation = usePatchPersonalDetailsMutation()
   const patchEmploymentMutation = usePatchEmploymentMutation()
+  const contractedHoursPreviewMutation = useContractedHoursPreview()
+  const requestContractedHoursMutation = useRequestContractedHoursChange()
+  /** Contracted hours change waiting to be sent for manager review. */
+  const [contractedReview, setContractedReview] = React.useState<{
+    body: ReturnType<typeof employmentPayloadFromStep>
+    requestedHours: number
+    impact: ContractedHoursImpact
+  } | null>(null)
+  const [contractedReviewReason, setContractedReviewReason] = React.useState('')
   const uploadPhotoMutation = useUploadEmployeePhoto()
   const createJobTitleMutation = useCreateJobTitle()
 
   const lookupsQuery = useEmployeeLookups(apiReady)
   const employeeQuery = useEmployee(editEmployeeId ?? '', apiReady && Boolean(editEmployeeId))
+  const pendingContractedQuery = usePendingContractedHoursChange(
+    editEmployeeId ?? '',
+    apiReady && Boolean(editEmployeeId),
+  )
+  const pendingContracted = pendingContractedQuery.data ?? null
+  /** Contracted hours as saved — they only change through an approved request. */
+  const savedContractedHours = employeeQuery.data?.employment?.contractedWeeklyHours ?? null
 
   const L: EmployeeLookupsBundle | null = lookupsQuery.data ?? null
   const lookupsLoading = lookupsQuery.isLoading && apiReady
@@ -952,10 +976,67 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
       setBanner({ type: 'error', text: visaErr })
       return
     }
+    const body = employmentPayloadFromStep(parsed.data)
+    const savedHours = savedContractedHours != null ? Number(savedContractedHours) : null
+    if (isEditMode && savedHours != null) {
+      if (pendingContracted) {
+        // Locked while a change waits for approval — keep the saved value.
+        body.contractedWeeklyHours = savedHours
+      } else if (
+        typeof body.contractedWeeklyHours === 'number' &&
+        Math.abs(body.contractedWeeklyHours - savedHours) > 0.001
+      ) {
+        try {
+          const impact = await contractedHoursPreviewMutation.mutateAsync({
+            employeeId: createdEmployeeId,
+            contractedWeeklyHours: body.contractedWeeklyHours,
+          })
+          setContractedReviewReason('')
+          setContractedReview({ body, requestedHours: body.contractedWeeklyHours, impact })
+        } catch (err) {
+          const msg = err instanceof ApiError ? err.message : 'Could not check the hours change.'
+          setBanner({ type: 'error', text: msg })
+        }
+        return
+      }
+    }
+    await saveEmployment(body)
+  }
+
+  /** Save the other employment fields and send the contracted hours change for review. */
+  const sendContractedHoursForReview = async () => {
+    if (!contractedReview || !createdEmployeeId || savedContractedHours == null) return
+    const savedHours = Number(savedContractedHours)
     try {
       await patchEmploymentMutation.mutateAsync({
         employeeId: createdEmployeeId,
-        body: employmentPayloadFromStep(parsed.data),
+        body: { ...contractedReview.body, contractedWeeklyHours: savedHours },
+      })
+      await requestContractedHoursMutation.mutateAsync({
+        employeeId: createdEmployeeId,
+        contractedWeeklyHours: contractedReview.requestedHours,
+        reason: contractedReviewReason.trim() || undefined,
+      })
+      setValue('contractedWeeklyHours', String(savedHours))
+      setEmploymentSaved(true)
+      setBanner({
+        type: 'success',
+        text: `Sent for manager approval. Contracted hours stay at ${savedHours}h until it is approved.`,
+      })
+      setContractedReview(null)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Could not send for approval.'
+      setBanner({ type: 'error', text: msg })
+      setContractedReview(null)
+    }
+  }
+
+  const saveEmployment = async (body: ReturnType<typeof employmentPayloadFromStep>) => {
+    if (!createdEmployeeId) return
+    try {
+      await patchEmploymentMutation.mutateAsync({
+        employeeId: createdEmployeeId,
+        body,
       })
       setEmploymentSaved(true)
       setBanner({
@@ -1840,8 +1921,41 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           id="cw"
                           inputMode="decimal"
                           error={!!errors.contractedWeeklyHours}
+                          disabled={Boolean(pendingContracted)}
                           {...register('contractedWeeklyHours')}
                         />
+                        {pendingContracted ? (
+                          <div
+                            className="mt-2 space-y-1.5 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                            data-testid="contracted-hours-pending"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="inline-flex items-center rounded-full border border-amber-400 bg-amber-100 px-2 py-0.5 font-semibold dark:border-amber-700 dark:bg-amber-900/60">
+                                {pendingContracted.requestedContractedWeeklyHours ?? '—'}h pending approval
+                              </span>
+                              {canViewHoursApprovals ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => void navigate({ to: '/hours-approvals' })}
+                                >
+                                  Go to approval page
+                                </Button>
+                              ) : null}
+                            </div>
+                            <p>
+                              A manager needs to approve this on Hours approvals. Until then the contracted
+                              hours stay at {savedContractedHours ?? '—'}h and can&apos;t be changed, and no
+                              visits are unassigned.
+                            </p>
+                          </div>
+                        ) : isEditMode && savedContractedHours != null ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Changes need a manager&apos;s approval before they apply.
+                          </p>
+                        ) : null}
                       </FormField>
                       <FormField label="Maximum" htmlFor="maxh" error={errors.maximumWeeklyHours?.message}>
                         <Input
@@ -2270,6 +2384,16 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <EmployeeContractedHoursReviewDialog
+        open={contractedReview != null}
+        employeeName={editDisplayName || 'This carer'}
+        impact={contractedReview?.impact ?? null}
+        reason={contractedReviewReason}
+        onReasonChange={setContractedReviewReason}
+        sending={patchEmploymentMutation.isPending || requestContractedHoursMutation.isPending}
+        onSend={() => void sendContractedHoursForReview()}
+        onCancel={() => setContractedReview(null)}
+      />
     </TooltipProvider>
   )
 }

@@ -35,7 +35,7 @@ export function InitialAssessmentAgreedGoalsPanel({ value, disabled, onChange }:
       data-testid="ia-agreed-goals"
     >
       <div>
-        <p className="text-sm font-semibold text-foreground">Agreed goals</p>
+        <p className="text-sm font-semibold text-foreground">My agreed goals</p>
         <p className={cn('mt-1 text-sm', IA_HINT_CLASS)}>
           What the person wants their care to help them achieve, in their own words. At least one goal is
           needed to submit; each one is checked at the review.
@@ -68,7 +68,7 @@ export function InitialAssessmentAgreedGoalsPanel({ value, disabled, onChange }:
 
           <div className="space-y-1">
             <Label htmlFor={`ia-goal-${index}-text`} className={IA_QUESTION_LABEL_CLASS}>
-              Goal (in the person&apos;s words)
+              My goal (in my own words)
             </Label>
             <Textarea
               id={`ia-goal-${index}-text`}
@@ -116,7 +116,7 @@ export function InitialAssessmentAgreedGoalsPanel({ value, disabled, onChange }:
 
           <div className="space-y-1">
             <Label htmlFor={`ia-goal-${index}-measure`} className={IA_QUESTION_LABEL_CLASS}>
-              How we&apos;ll know it&apos;s achieved
+              How I will know I have achieved it
             </Label>
             <Input
               id={`ia-goal-${index}-measure`}

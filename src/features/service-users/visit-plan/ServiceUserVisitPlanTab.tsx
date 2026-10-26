@@ -21,6 +21,7 @@ import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
   useActiveServiceUserVisitPlan,
   useServiceUserVisitPlanMutations,
+  useVisitPlanWeeklyHoursPreview,
   useServiceUserVisitPlans,
 } from '@/features/service-users/visit-plan/hooks'
 import type {
@@ -45,6 +46,7 @@ import { VisitPlanVisitDialog } from '@/features/service-users/visit-plan/VisitP
 import { VisitPlanUnsavedChangesGuard } from '@/features/service-users/visit-plan/components/VisitPlanUnsavedChangesGuard'
 import { useVisitPlanDateChanges } from '@/features/service-users/visit-plan/visit-plan-date-changes.api'
 import { VisitPlanWeeklyHoursPanel } from '@/features/service-users/visit-plan/VisitPlanWeeklyHoursPanel'
+import { VisitPlanVisitHoursCheck } from '@/features/service-users/visit-plan/VisitPlanVisitHoursCheck'
 import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
 import { VisitPlanSlotAdditionalDetailsPanel } from '@/features/service-users/visit-plan/VisitPlanSlotAdditionalDetailsPanel'
 import { VisitPlanSlotDetailsSheet } from '@/features/service-users/visit-plan/VisitPlanSlotDetailsSheet'
@@ -111,6 +113,11 @@ import {
 import { parseWeeklyContractedHours } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import { useServiceUserDomCare } from '@/features/service-users/hooks/useServiceUserTabs'
+import { usePendingServiceUserHoursChange } from '@/features/hours-approvals/hooks'
+import {
+  ServiceUserHoursPendingNotice,
+  ServiceUserHoursReviewDialog,
+} from '@/features/hours-approvals/components/ServiceUserHoursApproval'
 import {
   Select,
   SelectContent,
@@ -235,6 +242,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
   const { data: medicationRounds = [], isLoading: medicationRoundsLoading } = useMedicationRounds()
   const scheduleAreasQuery = useScheduleAreas()
   const domCareQuery = useServiceUserDomCare(serviceUserId)
+  const pendingHoursQuery = usePendingServiceUserHoursChange(serviceUserId)
+  const pendingHours = pendingHoursQuery.data ?? null
   const generalSettingsQuery = useGeneralSettings()
   const rotaHorizonOptions = React.useMemo(
     () => buildGenerateRotaHorizonOptions(generalSettingsQuery.data),
@@ -253,6 +262,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
 
   const [slots, setSlots] = React.useState<VisitPlanSlot[]>([])
   const [weeklyHours, setWeeklyHours] = React.useState('')
+  /** New weekly hours waiting to be sent for manager approval (dialog open). */
+  const [hoursReviewTo, setHoursReviewTo] = React.useState<number | null>(null)
   const [numberOfCarers, setNumberOfCarers] = React.useState(1)
   const [notes, setNotes] = React.useState('')
   const [amendmentReason, setAmendmentReason] = React.useState('')
@@ -341,6 +352,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
   const dateChangeCountBySlotId = React.useMemo(() => {
     const counts = new Map<string, number>()
     for (const change of dateChangesQuery.data?.changes ?? []) {
+      // A waiting or rejected extra-visit request has no visit row yet.
+      if (!change.visitPlanSlotId) continue
       counts.set(change.visitPlanSlotId, (counts.get(change.visitPlanSlotId) ?? 0) + 1)
     }
     return counts
@@ -475,6 +488,37 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
     input.focus({ preventScroll: true })
   }
 
+  const slotsInput = React.useMemo(() => toSlotInput(slots), [slots])
+  const weeklyHoursPreview = useVisitPlanWeeklyHoursPreview(serviceUserId, workingPlan?.id, slotsInput)
+  const savedWeeklyHours = workingPlan?.weeklyContractedHours ?? ''
+  const weeklyHoursDirty =
+    Boolean(workingPlan) && parseWeeklyContractedHours(weeklyHours) !== parseWeeklyContractedHours(savedWeeklyHours)
+
+  /** Weekly hours on a saved plan: a change goes to a manager; matching DOM Care saves straight away. */
+  const handleSaveWeeklyHours = async () => {
+    if (!workingPlan?.id) return
+    const next = parseWeeklyContractedHours(weeklyHours)
+    if (next === null) {
+      toastApiError(new Error('Enter a valid number of hours'), 'Could not save weekly hours')
+      return
+    }
+    const domHours = parseWeeklyContractedHours(domCareQuery.data?.weeklyContractedHours)
+    if (domHours !== null && domHours === next) {
+      try {
+        await update.mutateAsync({
+          planId: workingPlan.id,
+          amendmentReason: 'Weekly contracted hours matched to the DOM Care tab',
+          weeklyContractedHours: weeklyHours.trim(),
+        })
+        toastSuccess('Weekly hours saved', 'Now the same as the DOM Care tab.')
+      } catch (e) {
+        toastApiError(e, 'Could not save weekly hours')
+      }
+      return
+    }
+    setHoursReviewTo(next)
+  }
+
   const handleCreate = async () => {
     if (parseWeeklyContractedHours(weeklyHours) === null) {
       toastApiError(
@@ -523,7 +567,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
     await update.mutateAsync({
       planId,
       amendmentReason: reason,
-      weeklyContractedHours: weeklyHours || null,
+      // Weekly hours change only through the Save button next to the field (manager approval).
+      weeklyContractedHours: workingPlan.weeklyContractedHours ?? null,
       numberOfCarers,
       notes,
       slots: toSlotInput(slots),
@@ -570,7 +615,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
 
   const buildAmendmentPayload = (reason: string) => ({
     amendmentReason: reason,
-    weeklyContractedHours: weeklyHours || null,
+    weeklyContractedHours: workingPlan?.weeklyContractedHours ?? null,
     numberOfCarers,
     notes,
     slots: toSlotInput(slots),
@@ -980,13 +1025,32 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 : undefined
             }
           >
-            <Input
-              ref={weeklyHoursInputRef}
-              value={weeklyHours}
-              onChange={(e) => setWeeklyHours(e.target.value)}
-              placeholder="e.g. 14"
-              required={!workingPlan}
-            />
+            <div className="flex gap-2">
+              <Input
+                ref={weeklyHoursInputRef}
+                value={weeklyHours}
+                onChange={(e) => setWeeklyHours(e.target.value)}
+                placeholder="e.g. 14"
+                required={!workingPlan}
+                disabled={Boolean(workingPlan && pendingHours)}
+              />
+              {workingPlan && !pendingHours ? (
+                <Button
+                  type="button"
+                  disabled={!weeklyHoursDirty || update.isPending}
+                  onClick={() => void handleSaveWeeklyHours()}
+                >
+                  Save
+                </Button>
+              ) : null}
+            </div>
+            {workingPlan && pendingHours ? (
+              <ServiceUserHoursPendingNotice pending={pendingHours} currentHours={savedWeeklyHours} />
+            ) : workingPlan ? (
+              <p className={cn('mt-1', contentHelperClass)}>
+                Changes need a manager&apos;s approval and also update the DOM Care tab.
+              </p>
+            ) : null}
           </FormField>
           <FormField label="Carers per visit (default)">
             <VisitPlanCarersCountInput value={numberOfCarers} onCommit={setNumberOfCarers} />
@@ -1033,8 +1097,19 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
         ) : domCareQuery.isLoading ? (
           <p className={cn('mt-3', contentHelperClass)}>Loading contract profile…</p>
         ) : null}
+        <ServiceUserHoursReviewDialog
+          open={hoursReviewTo != null}
+          serviceUserId={serviceUserId}
+          fromHours={savedWeeklyHours || null}
+          toHours={hoursReviewTo ?? 0}
+          onClose={() => {
+            setHoursReviewTo(null)
+            setWeeklyHours(savedWeeklyHours)
+          }}
+        />
         <VisitPlanWeeklyHoursPanel
           className="mt-4"
+          serverSummary={workingPlan ? (weeklyHoursPreview.data ?? null) : null}
           slots={slots}
           weeklyContractedHours={weeklyHours}
           anchorIso={workingPlan?.effectiveFrom}
@@ -1650,6 +1725,21 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
         acceptedCarePlans={careContext.acceptedCarePlans}
         employeeNameById={employeeNameById}
         onDone={applyVisit}
+        renderHoursCheck={
+          workingPlan?.id
+            ? (draft) => (
+                <VisitPlanVisitHoursCheck
+                  serviceUserId={serviceUserId}
+                  planId={workingPlan.id}
+                  slots={toSlotInput(
+                    slots.some((row) => row.slotCode === draft.slotCode)
+                      ? slots.map((row) => (row.slotCode === draft.slotCode ? { ...draft, isEnabled: true } : row))
+                      : [...slots, { ...draft, isEnabled: true }],
+                  )}
+                />
+              )
+            : undefined
+        }
       />
 
       <VisitPlanSuspendDialog

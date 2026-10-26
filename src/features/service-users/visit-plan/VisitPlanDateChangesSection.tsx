@@ -10,6 +10,7 @@ import { VisitPlanAddExtraVisitsDialog } from '@/features/service-users/visit-pl
 import { VisitPlanCancelVisitsDialog } from '@/features/service-users/visit-plan/VisitPlanCancelVisitsDialog'
 import { VisitPlanDeleteExtraVisitDialog } from '@/features/service-users/visit-plan/VisitPlanDeleteExtraVisitDialog'
 import { todayIsoDate } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
+import { formatVisitPlanWeeklyHours } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
 import {
   useVisitPlanDateChanges,
   visitCancelledByLabel,
@@ -35,10 +36,34 @@ function billingLabel(change: VisitPlanDateChange): string | null {
   return VISIT_CHARGE_DECISION_OPTIONS.find((o) => o.value === change.chargeDecision)?.label ?? null
 }
 
+/** Extra visits over the weekly hours: what the manager decided (or that it is still waiting). */
+function approvalLine(change: VisitPlanDateChange): { text: string; tone: 'pending' | 'approved' | 'rejected' } | null {
+  if (!change.approvalStatus) return null
+  const week =
+    change.weekMinutes != null && change.limitWeeklyHours != null
+      ? `that week would have ${formatVisitPlanWeeklyHours(change.weekMinutes)} of ${formatVisitPlanWeeklyHours(
+          Math.round(change.limitWeeklyHours * 60),
+        )}`
+      : 'over the weekly hours'
+  if (change.approvalStatus === 'PENDING') {
+    return { tone: 'pending', text: `Over the weekly contracted hours (${week}). Sent to a manager — not on the rota yet.` }
+  }
+  const by = [change.decidedByName ?? 'a manager', change.decidedAt ? formatDate(change.decidedAt) : null]
+    .filter(Boolean)
+    .join(' · ')
+  if (change.approvalStatus === 'APPROVED') {
+    return { tone: 'approved', text: `Approved over the weekly hours by ${by}` }
+  }
+  return {
+    tone: 'rejected',
+    text: `Rejected by ${by}${change.decisionNotes ? ` · Reason: ${change.decisionNotes}` : ''} — not added`,
+  }
+}
+
 /** Second line of a change: who and why for a cancellation; reason and carers for an extra visit. */
 function changeDetails(change: VisitPlanDateChange, carerNames: string): string {
   if (change.source === 'ABSENCE') return 'Service user absence'
-  if (change.type === 'EXTRA') {
+  if (change.type === 'EXTRA' || change.type === 'EXTRA_REQUEST') {
     const reason = change.notes.split('\n')[0]?.trim()
     return [reason || null, carerNames ? `Carers: ${carerNames}` : 'No carer chosen'].filter(Boolean).join(' · ')
   }
@@ -68,6 +93,8 @@ function ChangeRow({
   onDelete?: (change: VisitPlanDateChange) => void
 }) {
   const isCancel = change.type === 'CANCELLED'
+  const isRequest = change.type === 'EXTRA_REQUEST'
+  const approval = approvalLine(change)
   const carerNames = change.assignedEmployeeIds.map((id) => employeeNameById.get(id) ?? 'Carer').join(', ')
   return (
     <li className="flex flex-wrap items-start gap-x-5 gap-y-1 px-4 py-3" data-testid="date-change-row">
@@ -86,15 +113,53 @@ function ChangeRow({
               'rounded-full px-2 py-0.5 text-[11px] font-medium',
               isCancel
                 ? 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200'
-                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200',
+                : isRequest && change.approvalStatus === 'PENDING'
+                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-200'
+                  : isRequest
+                    ? 'bg-muted text-muted-foreground line-through'
+                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200',
             )}
           >
             {isCancel ? 'Cancelled' : 'Extra visit'}
           </span>
+          {isRequest ? (
+            <span
+              className={cn(
+                'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                change.approvalStatus === 'PENDING'
+                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-200'
+                  : 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200',
+              )}
+              data-testid="date-change-approval-status"
+            >
+              {change.approvalStatus === 'PENDING' ? 'Waiting for manager approval' : 'Rejected'}
+            </span>
+          ) : change.approvalStatus === 'APPROVED' ? (
+            <span
+              className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200"
+              data-testid="date-change-approval-status"
+            >
+              Approved
+            </span>
+          ) : null}
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground" title={change.notes || undefined}>
           {changeDetails(change, carerNames)}
         </p>
+        {approval ? (
+          <p
+            className={cn(
+              'mt-0.5 text-xs',
+              approval.tone === 'pending'
+                ? 'text-orange-700 dark:text-orange-300'
+                : approval.tone === 'rejected'
+                  ? 'text-red-700 dark:text-red-300'
+                  : 'text-emerald-700 dark:text-emerald-300',
+            )}
+          >
+            {approval.text}
+          </p>
+        ) : null}
       </div>
       {change.type === 'EXTRA' && (change.canEdit || change.canDelete) && (onEdit || onDelete) ? (
         <div className="flex shrink-0 items-center gap-1.5 self-center">
@@ -127,7 +192,11 @@ function ChangeRow({
         </div>
       ) : null}
       <div className="shrink-0 text-right text-xs text-muted-foreground">
-        <p>{change.source === 'ABSENCE' ? 'From absence' : (change.recordedByName ?? '—')}</p>
+        <p>
+          {change.source === 'ABSENCE'
+            ? 'From absence'
+            : `${isRequest ? 'Requested by ' : ''}${change.recordedByName ?? '—'}`}
+        </p>
         <p>{formatDate(change.recordedAt)}</p>
       </div>
     </li>

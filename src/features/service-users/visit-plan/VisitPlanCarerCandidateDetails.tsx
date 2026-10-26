@@ -15,6 +15,35 @@ import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types
 import { buildCarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/visit-plan-carer-availability-display.util'
 import { VisitPlanCarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/VisitPlanCarerAvailabilityBreakdown'
 import { formatVisitPlanCarerRoleLine } from '@/features/scheduling/utils/schedule-carer-suggest.util'
+import { summarizeCarerWeeklyHours } from '@/features/service-users/visit-plan/visit-plan-carer-weekly-hours.util'
+
+/** "This week: Xh assigned · limit Yh · Zh left" — amber at the limit, red when over. */
+export function VisitPlanCarerWeeklyHoursLine({
+  candidate,
+  includesThisVisit,
+  className,
+}: {
+  candidate: VisitPlanCarerCandidate
+  includesThisVisit: boolean
+  className?: string
+}) {
+  const summary = summarizeCarerWeeklyHours(candidate, includesThisVisit)
+  if (!summary) return null
+  const { text, tone } = summary
+  return (
+    <p
+      className={cn(
+        contentHelperClass,
+        tone === 'atLimit' && 'font-medium text-amber-700 dark:text-amber-300',
+        tone === 'over' && 'font-medium text-red-700 dark:text-red-300',
+        className,
+      )}
+      data-testid="carer-weekly-hours-line"
+    >
+      {text}
+    </p>
+  )
+}
 
 function fitStyles(fit: VisitPlanCarerFit) {
   if (fit === 'good') {
@@ -26,13 +55,13 @@ function fitStyles(fit: VisitPlanCarerFit) {
   return 'border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100'
 }
 
-function fitLabel(fit: VisitPlanCarerFit) {
+export function fitLabel(fit: VisitPlanCarerFit) {
   if (fit === 'good') return 'Good match'
   if (fit === 'partial') return 'Partial match'
   return 'Poor match'
 }
 
-function dayChipTone(
+export function dayChipTone(
   day: number,
   availability: VisitPlanCarerCandidate['availability'],
 ): string {
@@ -50,7 +79,7 @@ function dayChipTone(
 }
 
 /** Per-day availability detail shown when hovering a day chip. */
-function dayStatus(
+export function dayStatus(
   day: number,
   availability: VisitPlanCarerCandidate['availability'],
 ): { label: string; detail: string } {
@@ -243,34 +272,10 @@ export function VisitPlanCarerCandidateDetails({
               </span>
             ) : null}
           </div>
-          {(() => {
-            const roleLine = formatVisitPlanCarerRoleLine(c.role, c.jobTitle) || 'Employee'
-            const hoursSet = c.contractedWeeklyHours != null || c.allowedWeeklyHours != null
-            const hoursText = hoursSet
-              ? `Weekly hours: ~${c.projectedWeeklyHours ?? c.assignedWeeklyHours ?? 0}h projected ·${
-                  c.allowedWeeklyHours != null && c.allowedWeeklyHours !== c.contractedWeeklyHours
-                    ? ` approved ${c.allowedWeeklyHours}h`
-                    : ` contracted ${c.contractedWeeklyHours ?? c.allowedWeeklyHours}h`
-                }`
-              : 'Contracted weekly hours not set'
-            const hoursClass = cn(
-              contentHelperClass,
-              hoursSet && c.exceedsContractedHours && 'font-medium text-amber-700 dark:text-amber-300',
-            )
-            if (compact) {
-              return (
-                <p className={contentHelperClass}>
-                  {roleLine} · <span className={hoursClass}>{hoursText}</span>
-                </p>
-              )
-            }
-            return (
-              <>
-                <p className={contentHelperClass}>{roleLine}</p>
-                <p className={hoursClass}>{hoursText}</p>
-              </>
-            )
-          })()}
+          <p className={contentHelperClass}>
+            {formatVisitPlanCarerRoleLine(c.role, c.jobTitle) || 'Employee'}
+          </p>
+          <VisitPlanCarerWeeklyHoursLine candidate={c} includesThisVisit={isAssigned} />
         </div>
       ) : null}
 

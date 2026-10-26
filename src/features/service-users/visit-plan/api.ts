@@ -71,19 +71,27 @@ const SLOT_OPTION_DEFAULTS = {
 function normalizeSlot(slot: VisitPlanSlot): VisitPlanSlot {
   const carerAssignments = Array.isArray(slot.carerAssignments) ? slot.carerAssignments : []
   const exceptions = Array.isArray(slot.exceptions) ? slot.exceptions : []
+  // Default (all-days) carers only: day-specific rows must not become the slot's default
+  // carer, or a later save would give that carer every day of the visit.
   const assignedFromRows = [
-    ...new Set(carerAssignments.map((a) => a.employeeId?.trim()).filter((id): id is string => Boolean(id))),
+    ...new Set(
+      carerAssignments
+        .filter((a) => a.dayOfWeek == null)
+        .map((a) => a.employeeId?.trim())
+        .filter((id): id is string => Boolean(id)),
+    ),
   ]
   return {
     ...SLOT_OPTION_DEFAULTS,
     ...slot,
     daysOfWeek: Array.isArray(slot.daysOfWeek) ? slot.daysOfWeek : [],
     linkedCarePlanFormIds: Array.isArray(slot.linkedCarePlanFormIds) ? slot.linkedCarePlanFormIds : [],
-    assignedEmployeeIds: assignedFromRows.length
-      ? assignedFromRows
-      : Array.isArray(slot.assignedEmployeeIds)
-        ? slot.assignedEmployeeIds
-        : [],
+    assignedEmployeeIds:
+      assignedFromRows.length || carerAssignments.length
+        ? assignedFromRows
+        : Array.isArray(slot.assignedEmployeeIds)
+          ? slot.assignedEmployeeIds
+          : [],
     carerAssignments,
     exceptions,
   }
@@ -232,6 +240,39 @@ export async function updateServiceUserVisitPlan(
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
   return { plan, scheduleImpact: res.scheduleImpact }
+}
+
+export type VisitPlanWeekHours = {
+  /** Monday of the week, YYYY-MM-DD. */
+  weekStart: string
+  /** Visit minutes counted against the weekly contracted hours (double-up per org setting). */
+  minutes: number
+  visits: number
+  /** Sleeping nights in the week — their hours are included in `minutes`. */
+  sleepInNights: number
+}
+
+export type VisitPlanWeeklyHoursResult = {
+  mode: 'COMBINED' | 'FIXED'
+  weeks: VisitPlanWeekHours[]
+  heaviestWeek: VisitPlanWeekHours | null
+  /** The service user's approved weekly contracted hours (null when not set). */
+  limitWeeklyHours: number | null
+  overLimitWeeks: VisitPlanWeekHours[]
+}
+
+/** Weekly hours for an unsaved visit schedule, counted on the server (nothing is saved). */
+export async function previewVisitPlanWeeklyHours(
+  serviceUserId: string,
+  planId: string,
+  slots: VisitPlanSlotInput[],
+  init?: RequestInit,
+): Promise<VisitPlanWeeklyHoursResult> {
+  const res = await apiJson<ApiEnvelope<VisitPlanWeeklyHoursResult>>(
+    `/service-users/${serviceUserId}/visit-plans/${planId}/weekly-hours-preview`,
+    { method: 'POST', body: JSON.stringify({ slots }), ...init },
+  )
+  return res.data
 }
 
 export async function previewVisitPlanAmendmentImpact(

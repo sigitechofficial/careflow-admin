@@ -10,7 +10,7 @@ import {
 } from '@/features/service-users/hooks/useServiceUserMutations'
 import type { ServiceUserDetail, ServiceUserDetailContact } from '@/features/service-users/api'
 import { plainTextFromHtml } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
-import { holisticQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
+import { iaQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import type { InitialAssessmentAnswerInput, InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
 import {
   IA_HINT_CLASS,
@@ -245,7 +245,7 @@ export function InitialAssessmentGpContactField({
     })
   }
 
-  const label = holisticQuestionLabel(question.questionText)
+  const label = iaQuestionLabel(question)
   const gpProfile = draftFromProfile(gpContact)
   const gpLocked = (key: keyof GpContactDraft) => Boolean(gpContact?.id && gpProfile[key].trim())
 

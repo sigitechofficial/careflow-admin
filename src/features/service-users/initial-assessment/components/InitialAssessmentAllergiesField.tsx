@@ -5,7 +5,7 @@ import { useServiceUserLookups } from '@/features/service-users/hooks/useService
 import { useServiceUserAllergies } from '@/features/service-users/hooks/useServiceUserTabs'
 import { ServiceUserAllergiesTab } from '@/features/service-users/components/ServiceUserAllergiesTab'
 import { formatAllergiesAssessmentText } from '@/features/service-users/utils/format-allergies-assessment-text'
-import { holisticQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
+import { iaQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import type { InitialAssessmentAnswerInput, InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
 import {
   IA_HINT_CLASS,
@@ -42,7 +42,7 @@ export function InitialAssessmentAllergiesField({
   const lookupsQuery = useServiceUserLookups()
   const allergiesQuery = useServiceUserAllergies(serviceUserId, Boolean(serviceUserId))
   const simple = variant === 'simple'
-  const label = holisticQuestionLabel(question.questionText)
+  const label = iaQuestionLabel(question)
   const summary = formatAllergiesAssessmentText(allergiesQuery.data ?? [])
   const onChangeRef = React.useRef(onChange)
   onChangeRef.current = onChange

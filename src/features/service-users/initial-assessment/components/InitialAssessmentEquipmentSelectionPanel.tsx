@@ -93,7 +93,7 @@ export function InitialAssessmentEquipmentSelectionPanel({ value, waterlow, disa
             </div>
             <div className="space-y-1 sm:col-span-2">
               <Label htmlFor="equipment-selection-equipment" className={IA_QUESTION_LABEL_CLASS}>
-                Equipment selected / in use
+                Pressure-relieving equipment selected for me / that I use
               </Label>
               <Input
                 id="equipment-selection-equipment"
@@ -108,7 +108,7 @@ export function InitialAssessmentEquipmentSelectionPanel({ value, waterlow, disa
           <div className="grid gap-4 sm:grid-cols-2">
             <YesNoField
               name="equipment-selection-in-place"
-              label="Is the recommended equipment already in place?"
+              label="Is the equipment recommended for me already in place?"
               value={value.equipmentInPlace}
               disabled={disabled}
               onChange={(equipmentInPlace) => patch({ equipmentInPlace })}

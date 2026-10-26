@@ -97,7 +97,7 @@ export function InitialAssessmentPaperSection7AdlBlock({
         </div>
 
         <InitialAssessmentYesNoCardField
-          label="Are mobility aids in use or required?"
+          label="I use or need mobility aids"
           name="paper-adl-mobility-aids"
           value={adlDisplay.mobilityAidsRequired ?? null}
           disabled={disabled}
@@ -114,7 +114,7 @@ export function InitialAssessmentPaperSection7AdlBlock({
         {adlDisplay.mobilityAidsRequired === true ? (
           <InitialAssessmentSection12FieldRow>
             <Label htmlFor="paper-adl-mobility-aids-list" className={IA_QUESTION_LABEL_CLASS}>
-              Please list
+              My mobility aids
             </Label>
             <Input
               id="paper-adl-mobility-aids-list"

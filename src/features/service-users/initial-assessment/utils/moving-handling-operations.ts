@@ -37,28 +37,28 @@ export type MovingHandlingOperationsMetadata = {
 export const MOVING_HANDLING_RISK_FILTER_QUESTIONS = [
   {
     id: 'historyOfFalls',
-    label: 'History of falls before admission over the last 12 months?',
+    label: 'Have I had any falls in the 12 months before my care started?',
   },
   {
     id: 'unsteadyMobilising',
-    label: 'Is the client unsteady when mobilising independently?',
+    label: 'Am I unsteady when I move about on my own?',
   },
   {
     id: 'anxiousAboutFalls',
-    label: 'Are the clients or relatives anxious about falls?',
+    label: 'Am I, or are my relatives, anxious about me falling?',
   },
   {
     id: 'confused',
-    label: 'Is the client confused?',
+    label: 'Am I confused?',
   },
   {
     id: 'aged65PlusFallRiskMeds',
     label:
-      'Is the client aged 65 years or older and on any medications which may lead to an increased risk of falls (see page X). Please use clinical judgement if under 65 years of age as may be at risk of falls.',
+      'Am I aged 65 or older and taking any medicines that may increase my risk of falls? Please use clinical judgement if under 65 years of age as may be at risk of falls.',
   },
   {
     id: 'sensoryOrMotorImpairment',
-    label: 'Does the client have any sensory or motor impairment?',
+    label: 'Do I have any sensory or motor impairment?',
   },
 ] as const
 
@@ -66,7 +66,7 @@ export type MovingHandlingRiskFilterId =
   (typeof MOVING_HANDLING_RISK_FILTER_QUESTIONS)[number]['id']
 
 export const MOVING_HANDLING_LOW_RISK_NOTE =
-  'If the client is totally independent for all tasks and has no risk factors then tick and indicate low risk assessment in evaluation.'
+  'I am totally independent with all tasks and have no risk factors. (Assessor: tick, and record low risk in the evaluation.)'
 
 export const MOVING_HANDLING_TASK_DEFINITIONS: ReadonlyArray<{
   id: MovingHandlingTaskId

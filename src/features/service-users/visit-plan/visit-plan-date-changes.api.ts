@@ -43,11 +43,13 @@ export type CancellableVisit = {
 
 export type VisitPlanDateChange = {
   id: string
-  visitPlanSlotId: string
+  /** Null for an extra-visit request that has no visit yet (waiting or rejected). */
+  visitPlanSlotId: string | null
   slotCode: string
   slotLabel: string
   date: string
-  type: 'CANCELLED' | 'EXTRA'
+  /** EXTRA_REQUEST: extra visit over the weekly hours, waiting for or rejected by a manager. */
+  type: 'CANCELLED' | 'EXTRA' | 'EXTRA_REQUEST'
   plannedStartTime: string
   plannedEndTime: string
   cancelledByParty: VisitCancelledByParty | null
@@ -68,6 +70,14 @@ export type VisitPlanDateChange = {
   source: 'MANUAL' | 'ABSENCE'
   recordedByName: string | null
   recordedAt: string
+  /** Extra visits over the weekly hours: the manager's decision. */
+  approvalId?: string | null
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null
+  decidedByName?: string | null
+  decidedAt?: string | null
+  decisionNotes?: string | null
+  weekMinutes?: number | null
+  limitWeeklyHours?: number | null
 }
 
 export type CancelVisitsPreviewItem = {
@@ -189,6 +199,8 @@ export type ExtraVisitsPreviewPayload = {
   employeeIds: string[]
   /** When editing: the extra visit being edited, so it is not counted as a clash with itself. */
   editingExceptionId?: string
+  /** A sleeping night is not counted against the weekly hours. */
+  nightDuty?: VisitPlanNightDuty
 }
 
 export type ExtraVisitDateCheck = {
@@ -196,6 +208,13 @@ export type ExtraVisitDateCheck = {
   ok: boolean
   message: string | null
   clashEmployeeIds: string[]
+  /** The week would go over the weekly hours: this date is sent to a manager instead. */
+  needsApproval?: boolean
+  weekStart?: string
+  /** Week minutes with this extra visit added. */
+  weekMinutes?: number
+  /** Editing only: the change would take the week over the weekly hours, so it can't be saved. */
+  overWeeklyHours?: boolean
 }
 
 export type ExtraVisitsPreview = {
@@ -203,6 +222,14 @@ export type ExtraVisitsPreview = {
   slotMessage: string | null
   endTime: string
   dates: ExtraVisitDateCheck[]
+  limitWeeklyHours?: number | null
+}
+
+export type AddExtraVisitsResult = {
+  created: number
+  createdDates: string[]
+  sentForApproval: Array<{ date: string; weekStart: string; weekMinutes: number; approvalId: string }>
+  skipped: Array<{ date: string; message: string | null }>
 }
 
 export async function previewExtraVisits(serviceUserId: string, planId: string, payload: ExtraVisitsPreviewPayload) {
@@ -219,14 +246,16 @@ export function useAddExtraVisits(serviceUserId: string, planId: string | undefi
     mutationFn: async (
       payload: ExtraVisitsPreviewPayload & { reason: string; notes?: string; nightDuty?: VisitPlanNightDuty },
     ) => {
-      const res = await apiJson<
-        ApiEnvelope<{ created: number; skipped: Array<{ date: string; message: string | null }> }>
-      >(`${base(serviceUserId, planId!)}/extra`, { method: 'POST', body: JSON.stringify(payload) })
+      const res = await apiJson<ApiEnvelope<AddExtraVisitsResult>>(`${base(serviceUserId, planId!)}/extra`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
       return res.data
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlans(serviceUserId) })
       void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
+      void qc.invalidateQueries({ queryKey: ['hours-approvals'] })
     },
   })
 }

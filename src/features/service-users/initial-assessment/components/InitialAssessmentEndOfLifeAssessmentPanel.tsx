@@ -49,7 +49,7 @@ function YesNoUnknownRow({
   const options: { id: EndOfLifeTriStateAnswer; text: string }[] = [
     { id: 'yes', text: 'Yes' },
     { id: 'no', text: 'No' },
-    { id: 'unknown', text: 'Unknown' },
+    { id: 'unknown', text: 'Not known' },
   ]
 
   return (
@@ -161,7 +161,7 @@ export function InitialAssessmentEndOfLifeAssessmentPanel({ value, disabled, onC
                 {showLastWishesHeader ? (
                   <div className={cn(IA_SUBSECTION_PANEL_HEADER_CLASS, 'mb-4 mt-2')}>
                     <h4 className="text-sm font-semibold uppercase tracking-wide underline">
-                      Last wishes
+                      My last wishes
                     </h4>
                   </div>
                 ) : null}

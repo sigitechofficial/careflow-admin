@@ -26,17 +26,17 @@ export type FallsScreeningMetadata = {
 export const FALLS_SCREENING_HEADER_QUESTIONS = [
   {
     id: 'fallOrConcern',
-    label: 'Has the client had a fall or concern about falling?',
+    label: 'Have I had a fall, or am I worried about falling?',
     kind: 'yesNo' as const,
   },
   {
     id: 'firstScreenSinceLastFall',
-    label: 'Is this the first falls screen since the last fall?',
+    label: 'Is this my first falls screen since my last fall?',
     kind: 'yesNoNa' as const,
   },
   {
     id: 'consentToSixQuestions',
-    label: 'Does the client consent to the falls screen (six questions)?',
+    label: 'I give my consent to the falls screen (six questions).',
     kind: 'yesNo' as const,
   },
 ] as const

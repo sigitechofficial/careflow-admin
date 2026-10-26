@@ -6,20 +6,49 @@ import {
   type VisitPlanWeeklyHoursSummary,
 } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
+import type { VisitPlanWeeklyHoursResult } from '@/features/service-users/visit-plan/api'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 
 type Props = {
   slots: VisitPlanSlot[]
   weeklyContractedHours: string
   anchorIso?: string | null
+  /**
+   * Server count (busiest of the next weeks, double-ups, dates, extra visits). When given it
+   * replaces the quick count from `slots`.
+   */
+  serverSummary?: VisitPlanWeeklyHoursResult | null
   className?: string
 }
 
-function statusMessage(summary: VisitPlanWeeklyHoursSummary): string {
+/** Server count shaped like the quick count, using the busiest week. */
+function fromServer(server: VisitPlanWeeklyHoursResult): VisitPlanWeeklyHoursSummary {
+  const contractedHours = server.limitWeeklyHours
+  const contractedMinutes = contractedHours != null ? Math.round(contractedHours * 60) : null
+  const plannedMinutes = server.heaviestWeek?.minutes ?? 0
+  const excessMinutes =
+    contractedMinutes != null && plannedMinutes > contractedMinutes ? plannedMinutes - contractedMinutes : 0
+  return {
+    contractedHours,
+    contractedMinutes,
+    plannedMinutes,
+    excessMinutes,
+    isOverContract: excessMinutes > 0,
+    isUnderContract: contractedMinutes != null && plannedMinutes < contractedMinutes && plannedMinutes > 0,
+  }
+}
+
+function statusMessage(summary: VisitPlanWeeklyHoursSummary, fromServerCount: boolean): string {
   if (summary.contractedMinutes == null) {
     return `Call pattern totals ${formatVisitPlanWeeklyHours(summary.plannedMinutes)} per week.`
   }
+  if (summary.plannedMinutes <= 0) {
+    return `No visits planned yet — ${formatVisitPlanWeeklyHours(summary.contractedMinutes)} a week available.`
+  }
   if (summary.isOverContract) {
-    return `${formatVisitPlanWeeklyHours(summary.excessMinutes)} over weekly contract — excess visits show amber stripes on Schedule Jobs (rota is not blocked).`
+    return fromServerCount
+      ? `${formatVisitPlanWeeklyHours(summary.excessMinutes)} over the weekly contracted hours. Visits that go over can't be saved — increase the weekly hours first (manager approval).`
+      : `${formatVisitPlanWeeklyHours(summary.excessMinutes)} over weekly contract — excess visits show amber stripes on Schedule Jobs (rota is not blocked).`
   }
   if (summary.isUnderContract) {
     return `Within contract — ${formatVisitPlanWeeklyHours((summary.contractedMinutes ?? 0) - summary.plannedMinutes)} remaining in the package.`
@@ -31,11 +60,19 @@ export function VisitPlanWeeklyHoursPanel({
   slots,
   weeklyContractedHours,
   anchorIso,
+  serverSummary,
   className,
 }: Props) {
-  const summary = summarizeVisitPlanWeeklyHours(slots, weeklyContractedHours, {
-    anchorIso: anchorIso ?? undefined,
-  })
+  const { formatDate } = useOrganisationDisplayFormat()
+  const summary = serverSummary
+    ? fromServer(serverSummary)
+    : summarizeVisitPlanWeeklyHours(slots, weeklyContractedHours, {
+        anchorIso: anchorIso ?? undefined,
+      })
+  const busiestWeek = serverSummary?.heaviestWeek ?? null
+  const sleepInNights = serverSummary
+    ? Math.max(0, ...serverSummary.weeks.map((w) => w.sleepInNights))
+    : 0
 
   if (summary.plannedMinutes <= 0 && summary.contractedMinutes == null) return null
 
@@ -45,7 +82,7 @@ export function VisitPlanWeeklyHoursPanel({
         'rounded-lg border px-4 py-3',
         summary.isOverContract
           ? 'border-amber-300 bg-amber-50/80 dark:border-amber-900 dark:bg-amber-950/30'
-          : summary.contractedMinutes != null && !summary.isUnderContract
+          : summary.contractedMinutes != null && !summary.isUnderContract && summary.plannedMinutes > 0
             ? 'border-emerald-300 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/25'
             : 'border-border bg-muted/20',
         className,
@@ -60,11 +97,15 @@ export function VisitPlanWeeklyHoursPanel({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
             <span>
-              <span className="text-muted-foreground">Planned from call pattern:</span>{' '}
+              <span className="text-muted-foreground">
+                {serverSummary ? 'Planned (busiest week):' : 'Planned from call pattern:'}
+              </span>{' '}
               <strong className="font-semibold text-foreground">
                 {formatVisitPlanWeeklyHours(summary.plannedMinutes)}
               </strong>
-              <span className="text-muted-foreground"> / week</span>
+              <span className="text-muted-foreground">
+                {busiestWeek ? ` · week of ${formatDate(busiestWeek.weekStart)}` : ' / week'}
+              </span>
             </span>
             {summary.contractedHours != null ? (
               <span>
@@ -79,8 +120,14 @@ export function VisitPlanWeeklyHoursPanel({
               summary.isOverContract ? 'text-amber-900 dark:text-amber-100' : 'text-muted-foreground',
             )}
           >
-            {statusMessage(summary)}
+            {statusMessage(summary, Boolean(serverSummary))}
           </p>
+          {sleepInNights > 0 ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Includes up to {sleepInNights} sleep-in night{sleepInNights === 1 ? '' : 's'} a week — their full
+              hours count towards the weekly contracted hours.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>
