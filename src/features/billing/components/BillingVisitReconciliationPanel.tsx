@@ -49,7 +49,7 @@ import { SERVICE_USER_PROFILE_ROUTE } from '@/features/service-users/service-use
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
 import { PayEvaluationFailuresCard } from '@/features/billing/components/PayEvaluationFailuresCard'
-import { formatCurrency, formatDateTime } from '@/shared/lib/utils'
+import { cn, formatCurrency, formatDateTime } from '@/shared/lib/utils'
 
 type VisitReconciliationRecalculateSummary = NonNullable<
   ReturnType<typeof useRecalculateVisitReconciliationAmounts>['data']
@@ -788,7 +788,12 @@ export function BillingVisitReconciliationPanel({
                     <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
                       {formatReconClock(row.actualDeparture || '00:00:00', timeDisplayFormat)}
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums whitespace-nowrap font-medium">
+                    <td
+                      className={cn(
+                        'px-3 py-2.5 tabular-nums whitespace-nowrap font-medium',
+                        row.payOverCharge && 'text-destructive',
+                      )}
+                    >
                       <span className="inline-flex flex-col gap-0.5">
                         <span>{row.payableAmount ?? '—'}</span>
                         {row.payableAmount &&
@@ -811,10 +816,23 @@ export function BillingVisitReconciliationPanel({
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
-                      {row.exceptions.length === 0 && !pendingOverrun && !(row.overrunMinutes && row.overrunDecision) ? (
+                      {row.exceptions.length === 0 &&
+                      !pendingOverrun &&
+                      !(row.overrunMinutes && row.overrunDecision) &&
+                      !row.payOverCharge ? (
                         <span className="text-xs text-muted-foreground">None</span>
                       ) : (
                         <div className="flex flex-wrap gap-1.5">
+                          {row.payOverCharge ? (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive"
+                              title={`Carer pay £${row.payOverCharge.visitPay.toFixed(2)} is above the charge £${row.payOverCharge.visitCharge.toFixed(2)} for this visit (all carers)`}
+                              data-testid="visit-recon-pay-over-charge"
+                            >
+                              <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
+                              Pay over charge −£{row.payOverCharge.shortfall.toFixed(2)}
+                            </span>
+                          ) : null}
                           {(row.overrunMinutes ?? 0) > 0 ? (
                             <span
                               className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"

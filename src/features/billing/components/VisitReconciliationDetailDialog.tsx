@@ -627,6 +627,17 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </div>
               ) : null}
 
+              {detail.payOverCharge ? (
+                <p
+                  className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                  data-testid="visit-recon-pay-over-charge-banner"
+                >
+                  Carer pay is above the charge for this visit: £{detail.payOverCharge.visitPay.toFixed(2)} paid to
+                  carers against £{detail.payOverCharge.visitCharge.toFixed(2)} charged to the client / funders, a loss
+                  of £{detail.payOverCharge.shortfall.toFixed(2)}. Check the pay card and charge card rates.
+                </p>
+              ) : null}
+
               {detail.approval?.evidenceChangedReason ? (
                 <p
                   className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-200"
