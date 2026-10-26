@@ -122,6 +122,8 @@ export type ListSafeguardingParams = {
   aboutServiceUserId?: string
   /** Header branch filter. */
   locationId?: string
+  /** Reference, person or description. */
+  search?: string
 }
 
 export type CreateSafeguardingInput = {

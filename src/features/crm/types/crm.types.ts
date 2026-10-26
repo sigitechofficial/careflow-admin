@@ -135,6 +135,8 @@ export type ListEnquiriesParams = {
   ownerId?: string
   /** Header branch filter. */
   locationId?: string
+  /** Reference, name, contact or postcode. */
+  search?: string
 }
 
 /**
