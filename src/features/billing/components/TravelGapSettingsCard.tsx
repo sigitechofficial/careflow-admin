@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { SectionInfoTip } from '@/features/billing/components/SectionInfoTip'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useSetTravelGapSettings, useTravelGapSettings } from '@/features/billing/hooks/useWageTypes'
 import type { TravelGapSettings, TravelPayBasis } from '@/features/billing/types/wage-types.types'
@@ -127,13 +128,13 @@ export function TravelGapSettingsCard({ canManage }: { canManage: boolean }) {
 
   return (
     <section className="space-y-3 rounded-lg border border-border p-3" data-testid="travel-gap-settings">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">Travel and waiting time between visits</h3>
-        <p className="text-xs text-muted-foreground">
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+        Travel and waiting time between visits
+        <SectionInfoTip label="travel and waiting time between visits">
           How the time and miles between two of a carer’s visits are paid, using the pay card’s travel, waiting and
           mileage rates. Visits already approved or paid keep their amounts.
-        </p>
-      </div>
+        </SectionInfoTip>
+      </h3>
       <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border p-2 text-sm">
         <input
           type="checkbox"
@@ -175,21 +176,25 @@ export function TravelGapSettingsCard({ canManage }: { canManage: boolean }) {
                   <span className="font-medium text-foreground">
                     {o.title}
                     {o.value === current.basis ? ' (in use)' : ''}
+                    <span className="ml-1.5 inline-flex align-middle">
+                      <SectionInfoTip label={`travel ${o.title.toLowerCase()}`}>
+                        <p>{o.description}</p>
+                        {o.value === 'DISTANCE' ? (
+                          <p className="mt-1.5">
+                            Miles and minutes come from the Google Maps driving route, filled on each visit. When
+                            Google gives no route they are estimated from the addresses. A journey is flagged for
+                            review instead of paid when an address has no map location or the trip is over 50 miles.
+                            Two visits to the same person have no journey.
+                          </p>
+                        ) : null}
+                      </SectionInfoTip>
+                    </span>
                   </span>
-                  <span className="block text-xs text-muted-foreground">{o.description}</span>
                 </span>
               </label>
             ))}
           </div>
-          {basis === 'DISTANCE' ? (
-            <p className="text-xs text-muted-foreground">
-              Miles and minutes come from the Google Maps driving route, filled on each visit. When Google gives no
-              route they are estimated from the addresses. A journey is flagged for review instead of paid when an
-              address has no map location or the trip is over 50 miles. Two visits to the same person have no journey.
-            </p>
-          ) : (
-            renderFields(GAP_FIELDS)
-          )}
+          {basis === 'GAP' ? renderFields(GAP_FIELDS) : null}
         </>
       ) : null}
 
