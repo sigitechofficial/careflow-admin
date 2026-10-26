@@ -183,10 +183,21 @@ export default function EmployeeTimesheetsPage() {
   const [branchId, setBranchId] = React.useState('')
 
   const locationsQuery = useEmployeeLocations()
-  const zones = React.useMemo(
-    () => [...(locationsQuery.data?.zones ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
-    [locationsQuery.data?.zones],
-  )
+  const zones = React.useMemo(() => {
+    const all = [...(locationsQuery.data?.zones ?? [])].sort((a, b) => a.name.localeCompare(b.name))
+    if (!globalLocationId) return all
+    // With a header location, offer only that branch and its zone (branch ids are location ids).
+    const limited = all
+      .map(z => ({ ...z, branches: z.branches.filter(b => b.id === globalLocationId) }))
+      .filter(z => z.branches.length > 0)
+    return limited.length > 0 ? limited : all
+  }, [locationsQuery.data?.zones, globalLocationId])
+  // Drop a zone / branch the header location no longer allows.
+  React.useEffect(() => {
+    if (!locationsQuery.data) return
+    if (zoneId && !zones.some(z => z.id === zoneId)) setZoneId('')
+    if (branchId && !zones.some(z => z.branches.some(b => b.id === branchId))) setBranchId('')
+  }, [zones, zoneId, branchId, locationsQuery.data])
   const selectedZone = zones.find(z => z.id === zoneId)
   const zoneOptions = React.useMemo<ComboboxOption[]>(
     () => [{ value: '', label: 'All zones' }, ...zones.map(z => ({ value: z.id, label: z.name }))],
