@@ -825,7 +825,7 @@ export function BillingVisitReconciliationPanel({
                         <div className="flex flex-wrap gap-1.5">
                           {row.payOverCharge ? (
                             <span
-                              className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive"
+                              className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive"
                               title={`Carer pay £${row.payOverCharge.visitPay.toFixed(2)} is above the charge £${row.payOverCharge.visitCharge.toFixed(2)} for this visit (all carers)`}
                               data-testid="visit-recon-pay-over-charge"
                             >
