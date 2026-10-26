@@ -36,6 +36,8 @@ export const billingKeys = {
     [...billingKeys.all, 'charge-card-assignment-preview', id] as const,
   chargeCardResolve: (serviceUserId: string) =>
     [...billingKeys.all, 'charge-card-resolve', serviceUserId] as const,
+  fundingUsage: (serviceUserId: string, params: { period: string; date: string }) =>
+    [...billingKeys.all, 'funding-usage', serviceUserId, params] as const,
   fundingContracts: (filters?: {
     search?: string
     readiness?: string
