@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { ShieldAlert } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
+import { PageIllustration } from '@/components/layout/NavIllustration'
 
 type Props = {
   title: string
@@ -26,8 +27,12 @@ export function SafeguardingSectionLayout({
         title={title}
         description={description}
         icon={
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <ShieldAlert className="h-4 w-4" aria-hidden />
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-muted/60 text-primary">
+            <PageIllustration
+              label="Safeguarding cases"
+              className="h-6 w-6"
+              fallback={<ShieldAlert className="h-4 w-4" aria-hidden />}
+            />
           </span>
         }
         breadcrumb={[

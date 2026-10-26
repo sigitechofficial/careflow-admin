@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { AlertTriangle, Plus, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
+import { illustrationSrc } from '@/components/layout/nav-illustrations'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
@@ -241,13 +242,34 @@ export default function SafeguardingListPage() {
         {summary && (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             {[
-              { label: 'Open cases', value: summary.open, tone: '' },
-              { label: 'High risk (open)', value: summary.highRisk, tone: summary.highRisk ? 'text-red-600' : '' },
-              { label: 'LA referral pending', value: summary.laPending, tone: summary.laPending ? 'text-red-600' : '' },
-              { label: 'CQC decision pending', value: summary.cqcPending, tone: summary.cqcPending ? 'text-red-600' : '' },
-              { label: 'Reviews overdue', value: summary.reviewsOverdue, tone: summary.reviewsOverdue ? 'text-amber-600' : '' },
+              { label: 'Open cases', illustration: 'file-folder', value: summary.open, tone: '' },
+              {
+                label: 'High risk (open)',
+                illustration: 'red-exclamation-mark',
+                value: summary.highRisk,
+                tone: summary.highRisk ? 'text-red-600' : '',
+              },
+              {
+                label: 'LA referral pending',
+                illustration: 'outbox-tray',
+                value: summary.laPending,
+                tone: summary.laPending ? 'text-red-600' : '',
+              },
+              {
+                label: 'CQC decision pending',
+                illustration: 'classical-building',
+                value: summary.cqcPending,
+                tone: summary.cqcPending ? 'text-red-600' : '',
+              },
+              {
+                label: 'Reviews overdue',
+                illustration: 'alarm-clock',
+                value: summary.reviewsOverdue,
+                tone: summary.reviewsOverdue ? 'text-amber-600' : '',
+              },
               {
                 label: 'Records audit',
+                illustration: 'check-mark-button',
                 value: summary.auditPct === null ? '—' : `${summary.auditPct}%`,
                 tone:
                   summary.auditPct === null
@@ -260,9 +282,18 @@ export default function SafeguardingListPage() {
               },
             ].map(k => (
               <Card key={k.label}>
-                <CardContent className="py-4">
-                  <p className="text-xs uppercase text-muted-foreground">{k.label}</p>
-                  <p className={`text-2xl font-semibold ${k.tone}`}>{k.value}</p>
+                <CardContent className="flex items-start justify-between gap-2 py-4">
+                  <div className="min-w-0">
+                    <p className="text-xs uppercase text-muted-foreground">{k.label}</p>
+                    <p className={`text-2xl font-semibold ${k.tone}`}>{k.value}</p>
+                  </div>
+                  <img
+                    src={illustrationSrc(k.illustration)}
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                    className="h-6 w-6 shrink-0 select-none object-contain"
+                  />
                 </CardContent>
               </Card>
             ))}
@@ -273,7 +304,13 @@ export default function SafeguardingListPage() {
           <Card data-testid="safeguarding-attention">
             <CardContent className="flex flex-col gap-2 py-4">
               <p className="flex items-center gap-2 text-sm font-semibold">
-                <AlertTriangle className="h-4 w-4 text-amber-600" aria-hidden />
+                <img
+                  src={illustrationSrc('warning')}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className="h-5 w-5 shrink-0 select-none object-contain"
+                />
                 Needs attention ({alerts.length})
               </p>
               <ul className="flex flex-col divide-y divide-border text-sm">
