@@ -38,6 +38,16 @@ import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-
 import { VisitPayCorrectionsCard } from '@/features/billing/components/VisitPayCorrectionsCard'
 import { VisitMileageCorrectionCard } from '@/features/billing/components/VisitMileageCorrectionCard'
 import { VisitTravelTimeCard } from '@/features/billing/components/VisitTravelTimeCard'
+import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
+
+/** Heading between the modal's sections (the visit, carer pay, client charge). */
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="border-t border-border pt-4 text-base font-semibold text-foreground first:border-t-0 first:pt-0">
+      {children}
+    </h3>
+  )
+}
 
 type Props = {
   open: boolean
@@ -124,7 +134,7 @@ function RateBreakdownCard({
           ) : null}
         </h4>
       </div>
-      <dl className="grid gap-2 text-sm sm:grid-cols-2">
+      <dl className="grid grid-cols-2 gap-3 text-sm">
         <div>
           <dt className="text-xs text-muted-foreground">Approved time</dt>
           <dd className="font-medium">{timeRange}</dd>
@@ -145,7 +155,7 @@ function RateBreakdownCard({
 
           {showAppliedRules ? (
             <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-sm font-semibold text-foreground">
                 Rate used
               </p>
               <ul className="space-y-2">
@@ -162,7 +172,7 @@ function RateBreakdownCard({
                         <span className="tabular-nums text-foreground">{rule.unitRate}</span>
                       ) : null}
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                       {[rule.rateTypeLabel, rule.dayTypeLabel, rule.timeWindow, rule.unitRate]
                         .filter(Boolean)
                         .join(' · ')}
@@ -181,7 +191,7 @@ function RateBreakdownCard({
 
           {!compact ? (
             <div className="border-t border-border pt-3 space-y-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-sm font-semibold text-foreground">
                 How it was calculated
               </p>
               {segments.length > 0 ? (
@@ -200,7 +210,7 @@ function RateBreakdownCard({
                         </span>
                         <span className="tabular-nums font-medium">{seg.amount}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         {seg.ruleLabel?.trim() || 'Hourly rate'}
                         {' · '}
                         <span className="tabular-nums text-foreground">{seg.unitRate}</span>
@@ -213,10 +223,10 @@ function RateBreakdownCard({
                 <p className="text-sm tabular-nums">{breakdown.formula}</p>
               )}
               {segments.length > 1 ? (
-                <p className="text-xs text-muted-foreground">{breakdown.formula}</p>
+                <p className="text-sm text-muted-foreground">{breakdown.formula}</p>
               ) : null}
               {chargedTotalNote ? (
-                <p className="text-xs text-muted-foreground">{chargedTotalNote}</p>
+                <p className="text-sm text-muted-foreground">{chargedTotalNote}</p>
               ) : null}
             </div>
           ) : null}
@@ -279,7 +289,7 @@ function TravelPayCard({
               <span className="font-medium">{line.label}</span>
               <span className="tabular-nums font-medium">{gbp(line.amount)}</span>
             </div>
-            <p className="text-xs text-muted-foreground">{line.explanation}</p>
+            <p className="text-sm text-muted-foreground">{line.explanation}</p>
           </li>
         ))}
       </ul>
@@ -542,7 +552,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[96vw] max-w-6xl">
+      <DialogContent className="w-[96vw] max-w-3xl">
         <TooltipProvider delayDuration={150}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -550,7 +560,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
             Visit billing details
           </DialogTitle>
         </DialogHeader>
-        <DialogBody className="max-h-[85vh] space-y-4 overflow-y-auto">
+        <DialogBody className="max-h-[85vh] space-y-5 overflow-y-auto">
           {!row ? null : detailQuery.isLoading ? (
             <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -562,19 +572,27 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
             <>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Visit reference (EMONITORED)
                   </p>
                   <p
-                    className="font-mono text-sm font-medium"
+                    className="font-mono text-base font-semibold"
                     title="VIS-[BRANCH]-[YYYYMMDD]-[NNNN] — BRANCH from the service user’s branch"
                   >
                     {detail.visitRef}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {detail.date ? formatDate(detail.date) : detail.date} · {detail.serviceUserName}
-                    {detail.carerName ? ` · ${detail.carerName}` : ''}
-                  </p>
+                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                    <dt className="text-muted-foreground">Date</dt>
+                    <dd className="font-medium">{detail.date ? formatDate(detail.date) : '—'}</dd>
+                    <dt className="text-muted-foreground">Service user</dt>
+                    <dd className="font-medium">{detail.serviceUserName}</dd>
+                    {detail.carerName ? (
+                      <>
+                        <dt className="text-muted-foreground">Carer</dt>
+                        <dd className="font-medium">{detail.carerName}</dd>
+                      </>
+                    ) : null}
+                  </dl>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {detail.nightDuty ? (
@@ -594,7 +612,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
               {decisionBanner ? (
                 <div
                   className={cn(
-                    'rounded-md border px-3 py-2 text-xs font-medium',
+                    'rounded-md border px-3 py-2 text-sm font-medium',
                     decisionBanner.tone === 'pay' &&
                       'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200',
                     decisionBanner.tone === 'bill' &&
@@ -611,28 +629,28 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
 
               {detail.approval?.evidenceChangedReason ? (
                 <p
-                  className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-200"
+                  className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-200"
                   data-testid="visit-recon-evidence-changed"
                 >
                   {detail.approval.evidenceChangedReason}
                 </p>
               ) : null}
               {detail.approval?.source ? (
-                <p className="text-xs text-muted-foreground" data-testid="visit-recon-approval-source">
+                <p className="text-sm text-muted-foreground" data-testid="visit-recon-approval-source">
                   {detail.approval.source === 'AUTO_VERIFIED'
                     ? 'Approved automatically: the visit had no exceptions.'
                     : detail.approval.source === 'MANAGER_OVERRIDE'
                       ? 'Approved by a person, overriding an exception.'
                       : 'Approved by a person.'}
                   {detail.approval.approvedAt
-                    ? ` ${formatDate(detail.approval.approvedAt)}.`
+                    ? ` ${formatDate(dayKeyFromInstant(detail.approval.approvedAt) || detail.approval.approvedAt.slice(0, 10))}.`
                     : ''}{' '}
                   New attendance evidence sends the visit back for review.
                 </p>
               ) : null}
 
               {/* The visit: what happened and what was flagged. */}
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">The visit</p>
+              <SectionHeading>The visit</SectionHeading>
               <ContentCard className="p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
                   <User className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
@@ -641,7 +659,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     Planned is the rota time; actual is what was recorded at clock-in and clock-out.
                   </SectionInfoTip>
                 </h4>
-                <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <dl className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <dt className="text-xs text-muted-foreground">Planned</dt>
                     <dd className="font-medium">
@@ -818,13 +836,13 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </ContentCard>
               ) : null}
 
-              {/* Two columns on wide screens: what the carer is paid, what the client is charged. */}
-              <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+              {/* One column: what the carer is paid, then what the client is charged. */}
+              <div className="space-y-5">
               <div className="min-w-0 space-y-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Paid to the carer</p>
+              <SectionHeading>Paid to the carer</SectionHeading>
               <div className={cn('space-y-4', carerNotPaid && 'opacity-70')}>
                 {carerNotPaid ? (
-                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-200">
                     Not paid for this visit — £0 to the carer. The amount below is the priced value,
                     kept for reference only.
                   </p>
@@ -906,10 +924,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
               </div>
 
               <div className="min-w-0 space-y-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Charged to the client</p>
+              <SectionHeading>Charged to the client</SectionHeading>
               <div className={cn('space-y-4', funderNotCharged && 'opacity-70')}>
                 {funderNotCharged ? (
-                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-200">
                     Not billed for this visit — £0 to the client / funders. The amounts below are the
                     priced values, kept for reference only.
                   </p>
