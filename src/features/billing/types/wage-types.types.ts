@@ -121,10 +121,6 @@ export type TravelGapSettings = {
   /** False = gaps are never paid automatically; only travel entered on a visit is paid. */
   enabled: boolean
   basis: TravelPayBasis
-  /** DISTANCE: average driving speed (mph). */
-  averageSpeedMph: number
-  /** DISTANCE: straight-line miles × this. */
-  roadFactor: number
   waitingGapMinutes: number
   breakGapMinutes: number
   wentHomeGapMinutes: number

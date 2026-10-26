@@ -9,7 +9,7 @@ const MIN_REASON_LENGTH = 10
 const MAX_MINUTES = 720
 
 type NumberKey = Exclude<keyof TravelGapSettings, 'enabled' | 'basis'>
-type Field = { key: NumberKey; label: string; unit: string; hint: string; step?: number }
+type Field = { key: NumberKey; label: string; unit: string; hint: string }
 
 const GAP_FIELDS: Field[] = [
   {
@@ -29,22 +29,6 @@ const GAP_FIELDS: Field[] = [
     label: 'Went home from',
     unit: 'minutes',
     hint: 'A gap this long or longer is treated as the carer going home, not paid. Shorter gaps are paid as travel.',
-  },
-]
-
-const DISTANCE_FIELDS: Field[] = [
-  {
-    key: 'averageSpeedMph',
-    label: 'Average driving speed',
-    unit: 'mph',
-    hint: 'Turns the miles into travel minutes. 20 mph suits town driving.',
-  },
-  {
-    key: 'roadFactor',
-    label: 'Road factor',
-    unit: '× straight line',
-    step: 0.1,
-    hint: 'Roads are not straight, so the straight-line distance is increased by this. 1.3 is typical.',
   },
 ]
 
@@ -80,8 +64,6 @@ export function TravelGapSettingsCard({ canManage }: { canManage: boolean }) {
         waitingGapMinutes: String(current.waitingGapMinutes),
         breakGapMinutes: String(current.breakGapMinutes),
         wentHomeGapMinutes: String(current.wentHomeGapMinutes),
-        averageSpeedMph: String(current.averageSpeedMph),
-        roadFactor: String(current.roadFactor),
       })
     }
   }, [current])
@@ -94,8 +76,6 @@ export function TravelGapSettingsCard({ canManage }: { canManage: boolean }) {
     waitingGapMinutes: Number(values.waitingGapMinutes),
     breakGapMinutes: Number(values.breakGapMinutes),
     wentHomeGapMinutes: Number(values.wentHomeGapMinutes),
-    averageSpeedMph: Number(values.averageSpeedMph),
-    roadFactor: Number(values.roadFactor),
   }
   const changed =
     enabled !== current.enabled ||
@@ -108,10 +88,6 @@ export function TravelGapSettingsCard({ canManage }: { canManage: boolean }) {
     }
     if (parsed.waitingGapMinutes >= parsed.breakGapMinutes) return 'Waiting time must be shorter than the break limit.'
     if (parsed.breakGapMinutes > parsed.wentHomeGapMinutes) return 'The break limit can’t be longer than “went home”.'
-    if (!Number.isInteger(parsed.averageSpeedMph) || parsed.averageSpeedMph < 5 || parsed.averageSpeedMph > 70) {
-      return 'The average speed must be a whole number from 5 to 70 mph.'
-    }
-    if (!(parsed.roadFactor >= 1 && parsed.roadFactor <= 3)) return 'The road factor must be from 1.0 to 3.0.'
     return null
   })()
   const reasonOk = reason.trim().length >= MIN_REASON_LENGTH
@@ -134,7 +110,7 @@ export function TravelGapSettingsCard({ canManage }: { canManage: boolean }) {
           <div className="flex items-center gap-2">
             <Input
               type="number"
-              step={f.step ?? 1}
+              step={1}
               className="w-24"
               value={values[f.key]}
               disabled={!canManage || mutation.isPending}
@@ -206,13 +182,11 @@ export function TravelGapSettingsCard({ canManage }: { canManage: boolean }) {
             ))}
           </div>
           {basis === 'DISTANCE' ? (
-            <>
-              {renderFields(DISTANCE_FIELDS)}
-              <p className="text-xs text-muted-foreground">
-                A journey is flagged for review instead of paid when an address has no map location or the trip is over 50
-                miles. Two visits to the same person have no journey.
-              </p>
-            </>
+            <p className="text-xs text-muted-foreground">
+              Miles and minutes come from the Google Maps driving route, filled on each visit. When Google gives no
+              route they are estimated from the addresses. A journey is flagged for review instead of paid when an
+              address has no map location or the trip is over 50 miles. Two visits to the same person have no journey.
+            </p>
           ) : (
             renderFields(GAP_FIELDS)
           )}
