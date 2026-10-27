@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { ArrowLeft, Heart, MessageSquareWarning, PenLine, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, Heart, MessageSquareWarning, PenLine, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
@@ -14,7 +14,7 @@ import {
   useDeleteFeedback,
   useFeedback,
 } from '@/features/complaints/hooks/useComplaints'
-import type { FeedbackAction, FeedbackDetail, FeedbackStatus } from '@/features/complaints/types'
+import type { FeedbackAction, FeedbackDetail, FeedbackEvent, FeedbackStatus } from '@/features/complaints/types'
 import {
   COMPLAINT_OUTCOME_LABEL,
   COMPLAINT_SEVERITY_LABEL,
@@ -27,6 +27,7 @@ import {
 } from '@/features/complaints/feedback-labels'
 import { FeedbackFormDialog, feedbackTextareaClass } from '@/features/complaints/components/FeedbackFormDialog'
 import { FEEDBACK_ACTION_LABEL, FeedbackActionDialog } from '@/features/complaints/components/FeedbackActionDialog'
+import { FeedbackInvestigationCard } from '@/features/complaints/components/FeedbackInvestigationCard'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 
@@ -54,6 +55,32 @@ function Item({ label, children }: { label: string; children: React.ReactNode })
     <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-sm text-foreground">{children || '—'}</dd>
+    </div>
+  )
+}
+
+/** Runs of investigation changes by the same person show as one entry with a list of what changed. */
+type TimelineEntry = FeedbackEvent & { changes: string[] }
+
+function groupTimeline(events: FeedbackEvent[]): TimelineEntry[] {
+  const out: TimelineEntry[] = []
+  for (const e of events) {
+    const prev = out[out.length - 1]
+    if (e.action === 'INVESTIGATION_UPDATED' && prev?.action === e.action && prev.userName === e.userName) {
+      if (e.note) prev.changes.push(e.note)
+      continue
+    }
+    out.push({ ...e, changes: e.action === 'INVESTIGATION_UPDATED' && e.note ? [e.note] : [] })
+  }
+  return out
+}
+
+/** A small titled group inside a card. */
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <dl className="space-y-3">{children}</dl>
     </div>
   )
 }
@@ -188,47 +215,47 @@ export default function FeedbackDetailPage() {
       </div>
 
       {isComplaint ? (
-        <ol className="grid grid-cols-5 gap-1" aria-label="Complaint progress">
-          {COMPLAINT_STEPS.map((s, i) => (
-            <li key={s} className="space-y-1">
-              <div className={cn('h-1.5 rounded-full', i <= stepIndex ? 'bg-primary' : 'bg-muted')} />
-              <div className={cn('text-[11px]', i <= stepIndex ? 'text-foreground' : 'text-muted-foreground')}>
-                {FEEDBACK_STATUS_LABEL[s]}
-              </div>
-            </li>
-          ))}
+        <ol
+          className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 shadow-sm"
+          aria-label="Complaint progress"
+        >
+          {COMPLAINT_STEPS.map((s, i) => {
+            const done = i < stepIndex || r.status === 'CLOSED'
+            const current = i === stepIndex && r.status !== 'CLOSED'
+            return (
+              <li key={s} className="flex flex-1 items-center gap-2" aria-current={current ? 'step' : undefined}>
+                <span
+                  className={cn(
+                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                    done && 'bg-primary text-primary-foreground',
+                    current && 'border-2 border-primary text-primary',
+                    !done && !current && 'border border-border text-muted-foreground',
+                  )}
+                >
+                  {done ? <Check className="h-3.5 w-3.5" /> : i + 1}
+                </span>
+                <span
+                  className={cn(
+                    'hidden text-xs sm:inline',
+                    current ? 'font-semibold text-foreground' : done ? 'text-foreground' : 'text-muted-foreground',
+                  )}
+                >
+                  {FEEDBACK_STATUS_LABEL[s]}
+                </span>
+                {i < COMPLAINT_STEPS.length - 1 ? (
+                  <span className={cn('h-px flex-1', i < stepIndex ? 'bg-primary' : 'bg-border')} />
+                ) : null}
+              </li>
+            )
+          })}
         </ol>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Card title={isComplaint ? 'Complaint' : 'Compliment'}>
-            <dl className="grid gap-3 sm:grid-cols-3">
-              <Item label="Received">{formatOrganisationDateTime(r.receivedAt)}</Item>
-              <Item label="How">{FEEDBACK_CHANNEL_LABEL[r.channel]}</Item>
-              <Item label="Category">{r.category}</Item>
-              <Item label="From">
-                {fromText}
-                <div className="text-xs text-muted-foreground">{FEEDBACK_FROM_LABEL[r.fromKind]}</div>
-              </Item>
-              <Item label="Contact">{r.fromContact}</Item>
-              <Item label="Branch">{r.location?.name}</Item>
-              <Item label="About service user">
-                {r.aboutServiceUser ? (
-                  <Link
-                    to="/service-users/$serviceUserId/profile"
-                    params={{ serviceUserId: r.aboutServiceUser.id }}
-                    className="text-primary hover:underline"
-                  >
-                    {r.aboutServiceUser.name}
-                  </Link>
-                ) : null}
-              </Item>
-              <Item label="About staff">{r.aboutEmployees.map(e => e.name).join(', ')}</Item>
-              {isComplaint ? <Item label="Handled by">{r.handler?.name}</Item> : null}
-            </dl>
-            <div className="mt-4 space-y-3">
-              <Item label="Details">
+            <div className="space-y-3 rounded-lg bg-muted/40 p-3">
+              <Item label="What happened">
                 <p className="whitespace-pre-wrap">{r.details}</p>
               </Item>
               {isComplaint && r.desiredOutcome ? (
@@ -237,7 +264,45 @@ export default function FeedbackDetailPage() {
                 </Item>
               ) : null}
             </div>
+            <div className="mt-4 grid gap-5 sm:grid-cols-3">
+              <Group title="Raised by">
+                <Item label="Name">
+                  {fromText}
+                  <div className="text-xs text-muted-foreground">{FEEDBACK_FROM_LABEL[r.fromKind]}</div>
+                </Item>
+                <Item label="Contact">{r.fromContact}</Item>
+              </Group>
+              <Group title="About">
+                <Item label="Service user">
+                  {r.aboutServiceUser ? (
+                    <Link
+                      to="/service-users/$serviceUserId/profile"
+                      params={{ serviceUserId: r.aboutServiceUser.id }}
+                      className="text-primary hover:underline"
+                    >
+                      {r.aboutServiceUser.name}
+                    </Link>
+                  ) : null}
+                </Item>
+                <Item label="Staff">{r.aboutEmployees.map(e => e.name).join(', ')}</Item>
+                <Item label="Branch">{r.location?.name}</Item>
+              </Group>
+              <Group title="Details">
+                <Item label="Received">
+                  {formatOrganisationDateTime(r.receivedAt)}
+                  <div className="text-xs text-muted-foreground">by {FEEDBACK_CHANNEL_LABEL[r.channel].toLowerCase()}</div>
+                </Item>
+                <Item label="Category">{r.category}</Item>
+                {isComplaint ? <Item label="Handled by">{r.handler?.name}</Item> : null}
+              </Group>
+            </div>
           </Card>
+
+          {isComplaint && (r.status === 'INVESTIGATING' || r.investigation) ? (
+            <Card title="Investigation">
+              <FeedbackInvestigationCard record={r} canEdit={canManage && r.status === 'INVESTIGATING'} />
+            </Card>
+          ) : null}
 
           {isComplaint ? (
             <Card title="Response">
@@ -274,14 +339,22 @@ export default function FeedbackDetailPage() {
 
         <Card title="Timeline">
           <ol className="space-y-3" data-testid="feedback-timeline">
-            {r.events.map(e => (
+            {groupTimeline(r.events).map(e => (
               <li key={e.id} className="border-l-2 border-border pl-3">
                 <div className="text-sm font-medium text-foreground">{FEEDBACK_EVENT_LABEL[e.action] ?? e.action}</div>
                 <div className="text-xs text-muted-foreground">
                   {formatOrganisationDateTime(e.createdAt)}
                   {e.userName ? ` · ${e.userName}` : ''}
                 </div>
-                {e.note ? <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{e.note}</p> : null}
+                {e.changes.length ? (
+                  <ul className="mt-1 list-disc space-y-0.5 pl-4 text-sm text-foreground">
+                    {e.changes.map((c, i) => (
+                      <li key={i}>{c}</li>
+                    ))}
+                  </ul>
+                ) : e.note ? (
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{e.note}</p>
+                ) : null}
               </li>
             ))}
           </ol>

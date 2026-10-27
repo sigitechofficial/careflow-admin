@@ -52,9 +52,9 @@ export function StatusBadge({ status }: { status?: string | null }) {
 
 function Table({ head, children, minWidth = 900 }: { head: string[]; children: React.ReactNode; minWidth?: number }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="max-h-[70vh] overflow-auto rounded-lg border border-border">
       <table className="w-full text-sm" style={{ minWidth }}>
-        <thead className="bg-muted/50 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <thead className="sticky top-0 z-10 bg-muted text-left text-xs font-medium uppercase tracking-wide text-muted-foreground shadow-[inset_0_-1px_0_hsl(var(--border))]">
           <tr>
             {head.map((h) => (
               <th key={h} className="whitespace-nowrap px-3 py-2.5">
@@ -63,7 +63,9 @@ function Table({ head, children, minWidth = 900 }: { head: string[]; children: R
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">{children}</tbody>
+        <tbody className="divide-y divide-border [&>tr:nth-child(even)]:bg-muted/20 [&>tr]:transition-colors [&>tr:hover]:bg-muted/40">
+          {children}
+        </tbody>
       </table>
     </div>
   )
@@ -298,7 +300,7 @@ export const REPORT_VIEWS: Record<string, ReportView> = {
                 </p>
               </header>
               <table className="w-full text-sm">
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border [&>tr]:transition-colors [&>tr:hover]:bg-muted/30">
                   {r.days.map((day) => (
                     <tr key={day.date}>
                       <td className={cn(td, 'w-40 whitespace-nowrap font-medium')}>{formatDate(day.date)}</td>
@@ -358,7 +360,7 @@ export const REPORT_VIEWS: Record<string, ReportView> = {
               </p>
             </header>
             <table className="w-full text-sm">
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border [&>tr]:transition-colors [&>tr:hover]:bg-muted/30">
                 {r.visits.map((v) => (
                   <tr key={v.scheduledVisitId}>
                     <td className={cn(td, 'w-40 whitespace-nowrap')}>{formatDate(dayOf(v.scheduledStartDateTime))}</td>

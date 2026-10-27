@@ -11,10 +11,12 @@ import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { buildCarerRowRotaGapSegments, type RotaGapDisplayMode } from '@/features/scheduling/utils/schedule-job-rota-gap.util'
 import { buildScheduleJobTravelConnectors } from '@/features/scheduling/utils/schedule-job-travel-connector.util'
 import {
+  rowTravelPairs,
   sortJobsByStartTime,
   travelConflictFromPreviousJobIds,
   type GeoCoordinates,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
+import { requestDrivingLegs, useDrivingTravelVersion } from '@/features/scheduling/utils/driving-travel.store'
 import { buildCarerAvailabilitySegments } from '@/features/scheduling/utils/schedule-jobs-availability.util'
 import type { ScheduleJobsRowRef } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import type { JobOverlapLayout } from '@/features/scheduling/utils/schedule-jobs-overlap-lanes.util'
@@ -101,6 +103,11 @@ export const ScheduleJobsGanttTimelineTrack = React.memo(function ScheduleJobsGa
 }: ScheduleJobsGanttTimelineTrackProps) {
   const showRowTravelDetails = sourceRow.kind === 'carer'
   const hours = viewport.hours
+  // Google driving times for this carer's journeys; the figures below are worked out again when they arrive.
+  const drivingTravelVersion = useDrivingTravelVersion()
+  React.useEffect(() => {
+    if (sourceRow.kind === 'carer') requestDrivingLegs(rowTravelPairs(jobs, carerCoordinates))
+  }, [sourceRow.kind, jobs, carerCoordinates])
   const visibleJobs = React.useMemo(
     () => jobs.filter((job) => jobOverlapsViewport(job, viewport)),
     [jobs, viewport],
@@ -117,7 +124,7 @@ export const ScheduleJobsGanttTimelineTrack = React.memo(function ScheduleJobsGa
       showCarerAvailability
         ? travelConflictFromPreviousJobIds(jobs, travelBufferMinutes ?? 0)
         : new Set<string>(),
-    [jobs, travelBufferMinutes, showCarerAvailability],
+    [jobs, travelBufferMinutes, showCarerAvailability, drivingTravelVersion],
   )
   const rotaGapSegments = React.useMemo(
     () =>
@@ -130,7 +137,7 @@ export const ScheduleJobsGanttTimelineTrack = React.memo(function ScheduleJobsGa
             bufferMinutes: travelBufferMinutes,
           })
         : [],
-    [sourceRow.kind, rotaGapDisplay, jobs, dayPattern, carerCoordinates, travelBufferMinutes],
+    [sourceRow.kind, rotaGapDisplay, jobs, dayPattern, carerCoordinates, travelBufferMinutes, drivingTravelVersion],
   )
   const orderedVisibleJobs = React.useMemo(
     () => sortJobsByStartTime(visibleJobs),
@@ -146,7 +153,7 @@ export const ScheduleJobsGanttTimelineTrack = React.memo(function ScheduleJobsGa
             travelBufferMinutes,
           })
         : [],
-    [jobs, viewport, overlapByJobId, jobLaneHeight, rowHeightPx, travelBufferMinutes, sourceRow, rotaGapDisplay],
+    [jobs, viewport, overlapByJobId, jobLaneHeight, rowHeightPx, travelBufferMinutes, sourceRow, rotaGapDisplay, drivingTravelVersion],
   )
   const overlapLaneCount = React.useMemo(() => {
     if (!overlapByJobId?.size) return 1

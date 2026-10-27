@@ -5,6 +5,8 @@ export const billingKeys = {
   payCard: (id: string) => [...billingKeys.all, 'pay-card', id] as const,
   payCardVersions: (id: string) => [...billingKeys.all, 'pay-card-versions', id] as const,
   wageTypes: () => [...billingKeys.all, 'wage-types'] as const,
+  travelGaps: () => [...billingKeys.all, 'travel-gaps'] as const,
+  dayPriority: () => [...billingKeys.all, 'day-priority'] as const,
   payItems: (params?: { status?: string; employeeId?: string; wageTypeCode?: string }) =>
     [...billingKeys.all, 'pay-items', params ?? {}] as const,
   payItemSuggestion: (params: { employeeId: string; wageTypeCode: string; unit: string; date: string }) =>
@@ -34,6 +36,8 @@ export const billingKeys = {
     [...billingKeys.all, 'charge-card-assignment-preview', id] as const,
   chargeCardResolve: (serviceUserId: string) =>
     [...billingKeys.all, 'charge-card-resolve', serviceUserId] as const,
+  fundingUsage: (serviceUserId: string, params: { period: string; date: string }) =>
+    [...billingKeys.all, 'funding-usage', serviceUserId, params] as const,
   fundingContracts: (filters?: {
     search?: string
     readiness?: string
@@ -43,22 +47,11 @@ export const billingKeys = {
   }) => [...billingKeys.all, 'funding-contracts', filters ?? {}] as const,
   fundingContractsSummary: (locationId?: string | null) =>
     [...billingKeys.all, 'funding-contracts-summary', locationId ?? 'all'] as const,
-  invoiceTemplates: (filters?: {
-    search?: string
-    status?: string
-    templateType?: string
-    funderId?: string
-  }) => [...billingKeys.all, 'invoice-templates', filters ?? {}] as const,
-  invoiceTemplate: (id: string) => [...billingKeys.all, 'invoice-template', id] as const,
-  invoiceTemplateSystemFields: () => [...billingKeys.all, 'invoice-template-system-fields'] as const,
-  invoiceTemplateLayoutPresets: () => [...billingKeys.all, 'invoice-template-layout-presets'] as const,
-  invoiceTemplatesSummary: () => [...billingKeys.all, 'invoice-templates-summary'] as const,
-  invoiceTemplateResolve: (serviceUserId: string, fundingId?: string) =>
-    [...billingKeys.all, 'invoice-template-resolve', serviceUserId, fundingId ?? ''] as const,
   visitReconciliations: (filters?: {
     search?: string
     status?: string
     hasExceptions?: boolean
+    payOverCharge?: boolean
     serviceUserId?: string
     employeeId?: string
     locationId?: string

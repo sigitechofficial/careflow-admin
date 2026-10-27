@@ -179,6 +179,7 @@ export function ScheduleJobRotaGapSegments({
               <ScheduleRotaGapHoverTooltip
                 timeRangeLabel={segment.timeRangeLabel}
                 durationLabel={segment.durationLabel}
+                breakdownLabel={segment.breakdownLabel}
                 title={segment.title}
               />
             )}

@@ -21,6 +21,10 @@ vi.mock('@/features/payroll/hooks/usePayroll', () => ({
   useEndEmployeePayAgreement: () => ({ mutate: state.end, isPending: false }),
 }))
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children, className }: { children?: import('react').ReactNode; className?: string }) => <a className={className}>{children}</a>,
+}))
+
 import { PayAgreementsPanel } from './PayAgreementsPanel'
 
 const agreement = (over: Partial<EmployeePayAgreement> = {}): EmployeePayAgreement => ({
@@ -48,7 +52,8 @@ const agreement = (over: Partial<EmployeePayAgreement> = {}): EmployeePayAgreeme
   updatedAt: '2026-01-01T09:00:00.000Z',
   ...over,
 })
-const renderPanel = () => render(<PayAgreementsPanel employeeId="e-1" scheduleId="s-1" defaultPayCardId="c-1" />)
+const renderPanel = (contractedWeeklyHours: number | null = null) =>
+  render(<PayAgreementsPanel employeeId="e-1" scheduleId="s-1" defaultPayCardId="c-1" contractedWeeklyHours={contractedWeeklyHours} />)
 
 describe('pay agreements of an employee (WM-02 / WM-03)', () => {
   beforeEach(() => {
@@ -78,18 +83,43 @@ describe('pay agreements of an employee (WM-02 / WM-03)', () => {
     expect(save).toBeDisabled()
     fireEvent.change(screen.getByLabelText('What the salary pays for'), { target: { value: 'CONTRACTED_HOURS' } })
     expect(save).toBeDisabled() // contracted hours are needed for that choice
-    fireEvent.change(screen.getByLabelText('Contracted weekly hours'), { target: { value: '30' } })
+    expect(screen.getByTestId('pay-agreements-panel')).toHaveTextContent('none of them is assumed')
+  })
+
+  it('takes the contracted weekly hours from the employee record; they are not entered on the agreement', () => {
+    renderPanel(30)
+    fireEvent.change(screen.getByDisplayValue('Hourly care'), { target: { value: 'SALARIED' } })
+    expect(screen.queryByLabelText('Contracted weekly hours')).not.toBeInTheDocument()
+    expect(screen.getByTestId('pay-agreement-contracted-hours')).toHaveTextContent('Contracted weekly hours30Changed on the employee record.')
+    fireEvent.change(screen.getByLabelText('Salary amount'), { target: { value: '2000' } })
+    fireEvent.change(screen.getByLabelText('Salary entered per'), { target: { value: 'MONTHLY' } })
+    fireEvent.change(screen.getByLabelText('How a part period is paid'), { target: { value: 'EQUAL_PERIODS_WORKING_DAYS' } })
+    fireEvent.change(screen.getByLabelText('What the salary pays for'), { target: { value: 'CONTRACTED_HOURS' } })
+    const save = screen.getByRole('button', { name: 'Save for approval' })
     expect(save).toBeEnabled()
     fireEvent.click(save)
     expect(state.create.mock.calls[0][0]).toMatchObject({
       basis: 'SALARIED',
       salaryEntryPeriod: 'MONTHLY',
       salaryEntryAmount: 2000,
-      contractedHours: 30,
       salaryProrationMethod: 'EQUAL_PERIODS_WORKING_DAYS',
       salaryCoverage: 'CONTRACTED_HOURS',
     })
-    expect(screen.getByTestId('pay-agreements-panel')).toHaveTextContent('none of them is assumed')
+    expect(state.create.mock.calls[0][0]).not.toHaveProperty('contractedHours')
+  })
+
+  it('no warning while the salary agreement has the same contracted hours as the employee record', () => {
+    state.agreements = [agreement()]
+    renderPanel(37.5)
+    expect(screen.queryByTestId('pay-agreement-hours-changed')).not.toBeInTheDocument()
+  })
+
+  it('warns when the employee record hours changed after the salary agreement', () => {
+    state.agreements = [agreement()]
+    renderPanel(30)
+    expect(screen.getByTestId('pay-agreement-hours-changed')).toHaveTextContent(
+      'The contracted weekly hours on the employee record (30) differ from the salary agreement in force (37.5).',
+    )
   })
 
   it('shows the history: salary as entered, what it pays for, who entered and who approved', () => {

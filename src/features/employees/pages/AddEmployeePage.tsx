@@ -31,6 +31,7 @@ import {
 } from '@/features/hours-approvals/hooks'
 import type { ContractedHoursImpact } from '@/features/hours-approvals/types'
 import { EmployeeDocumentsSection } from '@/features/employees/components/EmployeeDocumentsSection'
+import { EmployeeEditOverviewPanel } from '@/features/employees/components/EmployeeEditOverviewPanel'
 import { EmployeeFortnightPatternEditor } from '@/features/employees/components/EmployeeFortnightPatternEditor'
 import {
   EditEmployeeTabBar,
@@ -485,7 +486,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   const isEditMode = Boolean(editEmployeeId)
   const [tab, setTab] = React.useState<TabId>('personal')
   const editTab: EditEmployeeTabId = isEditMode
-    ? (parseEditEmployeeTabId(search.tab) ?? 'personal')
+    ? (parseEditEmployeeTabId(search.tab) ?? 'overview')
     : 'personal'
   const setEditTab = React.useCallback(
     (next: EditEmployeeTabId) => {
@@ -2241,6 +2242,14 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                 ) : null}
               </div>
             )}
+
+            {isEditMode && editTab === 'overview' && editEmployeeId ? (
+              <EmployeeEditOverviewPanel
+                employee={employeeQuery.data}
+                loading={employeeBootstrapLoading}
+                onEdit={setEditTab}
+              />
+            ) : null}
 
             {isEditMode && editTab === 'pay-card' && editEmployeeId ? (
               <EmployeeEditPayCardPanel employeeId={editEmployeeId} />

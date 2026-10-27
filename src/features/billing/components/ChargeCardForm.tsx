@@ -235,7 +235,7 @@ export function ChargeCardForm({ card, onSaved, onCancel, formId }: ChargeCardFo
         icon={<FileText className="h-4 w-4" aria-hidden />}
         iconClassName="bg-slate-500/10 text-slate-700 dark:text-slate-300"
         title="Card details"
-        description="Who this rate card applies to. Invoice cadence, VAT, and grouping live on Invoice templates."
+        description="Who this rate card applies to."
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <label className="space-y-1 text-sm sm:col-span-2">

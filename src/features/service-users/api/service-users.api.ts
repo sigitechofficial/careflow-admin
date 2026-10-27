@@ -354,7 +354,6 @@ export type EnterpriseServiceUserFundingRow = {
   billingPostcode: string | null
   invoiceGroupingRule: string | null
   defaultChargeCardId: string | null
-  defaultInvoiceTemplateId: string | null
   isPrimary: boolean
   isActive: boolean
   approvedAt: string | null
@@ -373,14 +372,6 @@ export type EnterpriseServiceUserFundingRow = {
     defaultChargeCard?: { id: string; name: string; code: string; status: string } | null
   } | null
   defaultChargeCard?: { id: string; name: string; code: string; status: string } | null
-  defaultInvoiceTemplate?: {
-    id: string
-    name: string
-    code: string
-    status: string
-    templateType: string
-    version?: string
-  } | null
   approvedBy: { id: string; email: string; firstName: string | null; lastName: string | null } | null
 }
 
@@ -421,7 +412,6 @@ export type UpdateEnterpriseFunderBody = {
   notes?: string | null
   paymentTerms?: string | null
   defaultChargeCardId?: string | null
-  defaultInvoiceTemplateId?: string | null
 }
 
 export async function updateEnterpriseFunder(
@@ -500,7 +490,6 @@ export type CreateEnterpriseServiceUserFundingBody = {
   billingPostcode?: string | null
   invoiceGroupingRule?: string | null
   defaultChargeCardId?: string | null
-  defaultInvoiceTemplateId?: string | null
   isPrimary?: boolean
   reviewDate?: string | null
   notes?: string | null

@@ -60,6 +60,8 @@ export type VisitReconciliationRow = {
   approvedBillable: string
   payableAmount: string | null
   billableAmount: string | null
+  /** Set when the visit's carer pay (all carers) is above what is charged for it. */
+  payOverCharge?: { visitPay: number; visitCharge: number; shortfall: number } | null
   travelMiles: number | null
   travelMinutes: number | null
   currency: string
@@ -237,6 +239,12 @@ export type VisitReconciliationDetail = VisitReconciliationRow & {
     evidenceChangedReason: string | null
     evidenceChangedAt: string | null
   }
+  /** Mileage and travel time the visit pay run pays for this visit, as their own lines. */
+  travelPay?: {
+    mileage: { miles: number; unitRate: number | null; amount: number; explanation: string } | null
+    travel: { minutes: number; unitRate: number | null; amount: number; explanation: string } | null
+    total: number
+  } | null
 }
 
 /** A pay calculation that could not be completed and still needs attention (R-17). */

@@ -5,6 +5,7 @@ import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import {
   Select,
   SelectContent,
@@ -18,6 +19,7 @@ import {
 } from '@/features/billing/hooks/useFundingContracts'
 import type { FundingContractReadiness } from '@/features/billing/api/funding-contracts.api'
 import { BillingStatusBadge } from '@/features/billing/components/BillingStatusBadge'
+import { SectionInfoTip } from '@/features/billing/components/SectionInfoTip'
 import { useAuthStore } from '@/features/auth/store'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 
@@ -86,8 +88,22 @@ export function BillingFundingContractsPanel() {
   return (
     <div className="space-y-6">
       <ContentSectionHeader
-        title="Funding contracts"
-        description="Assign funders, split rules, caps, authorised hours, purchase orders, and billing contacts to service users."
+        title={
+          <TooltipProvider delayDuration={150}>
+            <span className="inline-flex items-center gap-1.5">
+              Funding contracts
+              <SectionInfoTip label="funding contracts">
+                <p>
+                  Assign funders, split rules, caps, authorised hours, purchase orders, and billing contacts to service
+                  users.
+                </p>
+                <p className="mt-1.5">
+                  Funding splits affect invoice lines only — they do not change normal carer pay calculation.
+                </p>
+              </SectionInfoTip>
+            </span>
+          </TooltipProvider>
+        }
       />
 
       {summary ? (
@@ -231,10 +247,6 @@ export function BillingFundingContractsPanel() {
           </table>
         </div>
       )}
-
-      <p className="text-xs text-muted-foreground">
-        Funding splits affect invoice lines only — they do not change normal carer pay calculation.
-      </p>
     </div>
   )
 }

@@ -119,8 +119,6 @@ export type PolicyVersion = {
   contentKind: 'EDITOR' | 'UPLOAD'
   effectiveDate: string | null
   reviewDate: string | null
-  /** Staff in the audience must read and acknowledge this version once it is published. */
-  acknowledgementRequired?: boolean
   publishedAt: string | null
   publishedById: string | null
   archivedAt: string | null
@@ -229,7 +227,6 @@ export type PolicyWriteInput = {
   contentHtml?: string
   effectiveDate?: string
   reviewDate?: string
-  acknowledgementRequired?: boolean
   applicability?: PolicyApplicabilityInput[]
   audiences?: PolicyAudienceInput[]
   links?: PolicyLinkInput[]
@@ -281,61 +278,3 @@ export const POLICY_LINK_MODULE_OPTIONS: Array<{ value: PolicyLinkModuleType; la
 ]
 
 export const POLICY_IN_PROGRESS_STATUSES: PolicyStatus[] = ['DRAFT', 'IN_REVIEW', 'APPROVED']
-
-/* ─── Read and acknowledge ("read and sign") ─────────────────────────────── */
-
-export type PolicyAcknowledgementStatus = 'PENDING' | 'VIEWED' | 'ACKNOWLEDGED'
-
-type PolicyAckVersionSummary = {
-  documentId: string
-  versionId: string
-  reference: string
-  title: string
-  documentType: PolicyDocumentType
-  category: string | null
-  versionLabel: string
-  publishedAt: string | null
-  reviewDate: string | null
-}
-
-/** GET /policy-acknowledgements/mine */
-export type MyPolicyAcknowledgements = {
-  total: number
-  outstanding: number
-  items: Array<PolicyAckVersionSummary & {
-    status: PolicyAcknowledgementStatus
-    viewedAt: string | null
-    acknowledgedAt: string | null
-  }>
-}
-
-/** GET /policy-acknowledgements/documents/:documentId */
-export type PolicyDocumentAcknowledgements =
-  | { required: false; total: 0; acknowledged: 0; viewed: 0; pending: 0; staff: [] }
-  | (PolicyAckVersionSummary & {
-      required: true
-      total: number
-      acknowledged: number
-      viewed: number
-      pending: number
-      staff: Array<{
-        employeeId: string
-        userId: string
-        name: string
-        status: PolicyAcknowledgementStatus
-        viewedAt: string | null
-        acknowledgedAt: string | null
-      }>
-    })
-
-/** GET /policy-acknowledgements/summary */
-export type PolicyAcknowledgementSummary = {
-  policiesRequiringAcknowledgement: number
-  staffInScope: number
-  required: number
-  acknowledged: number
-  pct: number | null
-  staffWithOutstanding: number
-  policies: Array<PolicyAckVersionSummary & { audience: number; acknowledged: number; pct: number | null }>
-  staffOutstanding: Array<{ name: string; employeeId: string; outstanding: number }>
-}

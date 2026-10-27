@@ -1,11 +1,10 @@
 import type { EmployeeDayPattern, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
-  estimateTravelMinutesFromStraightLineKm,
   gapMinutesBetweenJobs,
   geoCoordinatesFromLatLng,
-  haversineDistanceKm,
   jobGeoCoordinates,
   sortJobsByStartTime,
+  travelBetween,
   type GeoCoordinates,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import { jobBlockPosition, SCHEDULE_JOBS_DAY_START_HOUR } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
@@ -38,6 +37,8 @@ export type RotaGapSegment = {
   travelTimingStatus?: TravelTimingStatus
   /** Destination visit for travel / idle-before-visit segments. */
   toJobId?: string
+  /** Travel only: what the block is made of, e.g. `44 min drive + 15 min buffer`. */
+  breakdownLabel?: string
 }
 
 function parseHmToTimelineMinutes(hm: string, dayStartHour: number): number | null {
@@ -126,6 +127,7 @@ function buildGapSegmentFields(options: {
   toJobId?: string
   hasConflict?: boolean
   travelTimingStatus?: TravelTimingStatus
+  breakdownLabel?: string
 }): Omit<RotaGapSegment, 'id'> {
   const { startMin, endMin } = anchorPreVisitGapSegmentPosition({
     visitStartMin: options.visitStartMin,
@@ -145,6 +147,7 @@ function buildGapSegmentFields(options: {
     toJobId: options.toJobId,
     hasConflict: options.travelTimingStatus === 'conflict' || options.hasConflict,
     travelTimingStatus: options.travelTimingStatus,
+    breakdownLabel: options.breakdownLabel,
   }
 }
 
@@ -159,13 +162,19 @@ function pushSegment(
   })
 }
 
+/** Driving time and the time-between-jobs buffer that make up a travel block. */
+export function formatTravelBreakdown(driveMinutes: number, bufferMinutes?: number): string {
+  const drive = `${Math.max(0, Math.round(driveMinutes))} min drive`
+  const buffer = Math.max(0, Math.round(bufferMinutes ?? 0))
+  return buffer > 0 ? `${drive} + ${buffer} min buffer` : drive
+}
+
 export function estimateTravelMinutesBetween(
   from: GeoCoordinates | null,
   to: GeoCoordinates | null,
 ): number | null {
   if (!from || !to) return null
-  const distanceKm = haversineDistanceKm(from, to)
-  return estimateTravelMinutesFromStraightLineKm(distanceKm)
+  return travelBetween(from, to).travelMinutes
 }
 
 /** Split a gap before a visit into idle (wait) and travel (drive) portions. */
@@ -238,6 +247,7 @@ export function buildFirstJobRotaGapSegments(options: {
     title: `Travel to ${toClientLabel} (${formatMinuteRange(departMin, visitStartMin, dayStartHour)})`,
     toJobId: toJob.id,
     travelTimingStatus,
+    breakdownLabel: formatTravelBreakdown(travelMinutes, options.bufferMinutes),
   }))
 
   return segments
@@ -326,6 +336,7 @@ export function buildBetweenJobsRotaGapSegments(options: {
         title: `Travel to ${toClientLabel} (${formatMinuteRange(split.departMin, visitStartMin, dayStartHour)})`,
         toJobId: toJob.id,
         travelTimingStatus,
+        breakdownLabel: formatTravelBreakdown(travelMinutes, options.bufferMinutes),
       }))
     }
   }

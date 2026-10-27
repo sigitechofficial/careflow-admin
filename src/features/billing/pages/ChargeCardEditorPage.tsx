@@ -170,7 +170,7 @@ function ChargeCardEditorHeader({
             </div>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Set who this invoice template is for, then add the charge rates below.
+              Set who this charge card is for, then add the charge rates below.
             </p>
 
             {card ? (

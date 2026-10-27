@@ -196,6 +196,9 @@ export type VisitPlanCarerCandidate = {
   complianceIssues: number
   /** True when org policy is BLOCK and this carer has blocking compliance. */
   complianceBlocksAllocation?: boolean
+  /** An allocation rule in Settings set to "Don't allow" applies: hide from assign lists. */
+  ruleBlocked?: boolean
+  ruleBlockReasons?: string[]
   /** Carer's contracted weekly hours (from employment), null when unset. */
   contractedWeeklyHours?: number | null
   /** The carer's weekly limit: contracted weekly hours. */
@@ -213,6 +216,14 @@ export type VisitPlanCarerCandidate = {
   projectedWeeklyHours?: number
   /** That week goes over the contracted weekly hours (+ grace, Settings → Dom Rules). */
   exceedsContractedHours?: boolean
+  /** Nearest upcoming leave/holiday overlapping the next 8 weeks. `blocks` = org rule is "Don't allow". */
+  timeOff?: {
+    kind: 'leave' | 'holiday'
+    label: string
+    from: string
+    to: string
+    blocks: boolean
+  } | null
   warnings: string[]
 }
 

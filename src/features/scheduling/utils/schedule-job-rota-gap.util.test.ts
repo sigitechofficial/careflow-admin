@@ -6,6 +6,7 @@ import {
   buildFirstJobRotaGapSegments,
   formatGapDurationMinutes,
   formatGapTimeRange,
+  formatTravelBreakdown,
   rotaGapDisplayModeIncludesIdle,
   rotaGapDisplayModeIncludesTravel,
   splitPreVisitGapMinutes,
@@ -123,5 +124,10 @@ describe('schedule-job-rota-gap.util', () => {
     expect(formatGapTimeRange(480, 540)).toBe('08:00–09:00')
     expect(formatGapDurationMinutes(480, 'idle')).toBe('480 min')
     expect(formatGapDurationMinutes(3, 'travel')).toBe('3 min')
+  })
+
+  it('formatTravelBreakdown splits a travel block into drive and buffer', () => {
+    expect(formatTravelBreakdown(44, 15)).toBe('44 min drive + 15 min buffer')
+    expect(formatTravelBreakdown(44)).toBe('44 min drive')
   })
 })

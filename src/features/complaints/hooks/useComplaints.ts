@@ -1,13 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import type { UpsertIncidentInvestigationInput } from '@/features/incidents/types'
 import {
   addFeedbackNote,
   createFeedback,
   deleteFeedback,
   fetchFeedback,
+  fetchFeedbackInvestigators,
   fetchFeedbackList,
   fetchFeedbackSummary,
+  pauseFeedbackInvestigation,
+  resumeFeedbackInvestigation,
   transitionFeedback,
   updateFeedback,
+  upsertFeedbackInvestigation,
   type CreateFeedbackPayload,
   type FeedbackDetail,
   type FeedbackListParams,
@@ -24,8 +30,8 @@ export function useFeedbackList(params: FeedbackListParams, options?: { enabled?
   })
 }
 
-export function useFeedbackSummary() {
-  return useQuery({ queryKey: complaintKeys.summary(), queryFn: fetchFeedbackSummary })
+export function useFeedbackSummary(enabled = true) {
+  return useQuery({ queryKey: complaintKeys.summary(), queryFn: fetchFeedbackSummary, enabled })
 }
 
 export function useFeedback(id: string) {
@@ -79,5 +85,51 @@ export function useDeleteFeedback(id: string) {
   return useMutation({
     mutationFn: (reason: string) => deleteFeedback(id, reason),
     onSuccess: () => onWrite(),
+  })
+}
+
+export function useUpsertFeedbackInvestigation(id: string) {
+  const onWrite = useOnWrite()
+  return useMutation({
+    mutationFn: (input: UpsertIncidentInvestigationInput) => upsertFeedbackInvestigation(id, input),
+    onSuccess: (detail) => {
+      toastSuccess('Investigation saved')
+      onWrite(detail)
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+/** Eligible lead investigators (only fetched while the set-up can be edited). */
+export function useFeedbackInvestigators(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: complaintKeys.investigators(id),
+    queryFn: ({ signal }) => fetchFeedbackInvestigators(id, { signal }),
+    enabled,
+    staleTime: 60 * 1000,
+  })
+}
+
+export function usePauseFeedbackInvestigation(id: string) {
+  const onWrite = useOnWrite()
+  return useMutation({
+    mutationFn: (input: { reason: string; nextReviewDate: string }) => pauseFeedbackInvestigation(id, input),
+    onSuccess: (detail) => {
+      toastSuccess('Investigation paused')
+      onWrite(detail)
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+export function useResumeFeedbackInvestigation(id: string) {
+  const onWrite = useOnWrite()
+  return useMutation({
+    mutationFn: () => resumeFeedbackInvestigation(id),
+    onSuccess: (detail) => {
+      toastSuccess('Investigation resumed')
+      onWrite(detail)
+    },
+    onError: (e) => toastApiError(e),
   })
 }

@@ -118,6 +118,7 @@ export const PAY_ITEM_STATUS_LABELS: Record<PayItemStatus, string> = {
 const SYSTEM_PAY_ITEM_LABELS: Record<string, string> = {
   MILEAGE_CORRECTION: 'Mileage correction',
   DISRUPTION_PAY: 'Cancelled / disrupted visit',
+  NON_CORE_VISIT_PAY: 'Visit pay (taken off for non-core activity)',
 }
 
 export function payItemTypeLabel(code: string): string {

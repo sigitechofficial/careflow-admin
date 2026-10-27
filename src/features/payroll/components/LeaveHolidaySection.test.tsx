@@ -27,6 +27,10 @@ vi.mock('@/features/payroll/hooks/usePayroll', () => ({
   }),
 }))
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children, className }: { children?: import('react').ReactNode; className?: string }) => <a className={className}>{children}</a>,
+}))
+
 import { LeaveHolidaySection } from './LeaveHolidaySection'
 
 const part = (over: Partial<NonNullable<LeavePosition['statutory']>> = {}) => ({
@@ -66,7 +70,8 @@ const withTerms = (): LeavePosition => ({
   contractual: part({ entitlement: 0, taken: 0, balance: 0, fullYearEntitlement: 0 }),
   leaver: null,
 })
-const show = () => render(<LeaveHolidaySection employeeId="e-1" canEdit employmentEndDate={null} annualSalary={null} />)
+const show = (contractedWeeklyHours: number | null = 37.5) =>
+  render(<LeaveHolidaySection employeeId="e-1" canEdit employmentEndDate={null} annualSalary={null} contractedWeeklyHours={contractedWeeklyHours} />)
 const set = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
 
 describe('Leave / Holiday on the payroll profile: simple layout', () => {
@@ -133,16 +138,29 @@ describe('Leave / Holiday on the payroll profile: simple layout', () => {
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
   })
 
-  it('saves new holiday rules with the same fields as before', () => {
-    show()
-    set('Weekly hours', '30')
+  it('regular-hours rules need contracted weekly hours on the employee record', () => {
+    show(null)
+    set('Leave terms effective from', '2027-04-01')
+    expect(screen.getByRole('button', { name: 'Save holiday rules' })).toBeDisabled()
+  })
+
+  it('warns when the rules in force were set on other weekly hours than the employee record has', () => {
+    show(30)
+    expect(screen.getByTestId('leave-hours-changed')).toHaveTextContent(
+      'The contracted weekly hours on the employee record (30) differ from these holiday rules (37.5).',
+    )
+  })
+
+  it('saves new holiday rules; the weekly hours come from the employee record', () => {
+    show(30)
+    expect(screen.queryByLabelText('Weekly hours')).not.toBeInTheDocument()
+    expect(screen.getByTestId('leave-terms-weekly-hours')).toHaveTextContent('30')
     set('Leave terms effective from', '2027-04-01')
     fireEvent.click(screen.getByRole('button', { name: 'Save holiday rules' }))
     expect(state.createTerms).toHaveBeenCalledWith({
       workerCategory: 'REGULAR_HOURS',
       leaveYearStartMonth: 4,
       leaveYearStartDay: 1,
-      weeklyHours: 30,
       contractualExtraHours: null,
       payMethod: 'NORMAL_REMUNERATION_52_WEEKS',
       carryOverMaxHours: null,

@@ -10,6 +10,7 @@ import { LoanNoticesSection } from '@/features/payroll/components/LoanNoticesSec
 import { WorkplacePensionSection, pensionStatusLabel } from '@/features/payroll/components/WorkplacePensionSection'
 import { PensionAutoEnrolmentSection } from '@/features/payroll/components/PensionAutoEnrolmentSection'
 import { LeaveHolidaySection } from '@/features/payroll/components/LeaveHolidaySection'
+import { DirectorStatusSection } from '@/features/payroll/components/DirectorStatusSection'
 import { PayrollCorrectionsSection } from '@/features/payroll/components/PayrollCorrectionsSection'
 import { usePayrollEmployees } from '@/features/payroll/hooks/usePayroll'
 import { useAuthStore } from '@/features/auth/store'
@@ -104,14 +105,16 @@ export default function PayrollEmployeeDetailPage() {
                 ))}
               </TabsList>
 
-              <TabsContent value="tax" className="mt-4">
+              <TabsContent value="tax" className="mt-4 space-y-4">
                 <PayrollProfileTaxForm row={row} canManage={canManage} />
+                <DirectorStatusSection employeeId={row.employeeId} profile={row.profile} canEdit={canManage} />
               </TabsContent>
               <TabsContent value="pay" className="mt-4">
                 <PayAgreementsPanel
                   employeeId={row.employeeId}
                   scheduleId={row.profile?.scheduleId ?? null}
                   defaultPayCardId={row.defaultPayCardId ?? null}
+                  contractedWeeklyHours={row.contractedWeeklyHours ?? null}
                 />
               </TabsContent>
               <TabsContent value="loans" className="mt-4 space-y-4">
@@ -128,6 +131,7 @@ export default function PayrollEmployeeDetailPage() {
                   canEdit={canManage}
                   employmentEndDate={row.employmentEndDate ?? null}
                   annualSalary={row.activeAgreement?.annualSalary ?? null}
+                  contractedWeeklyHours={row.contractedWeeklyHours ?? null}
                 />
               </TabsContent>
               <TabsContent value="corrections" className="mt-4">

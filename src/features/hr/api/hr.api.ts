@@ -105,7 +105,6 @@ export type HrProfilePayload = {
   jobTitleId?: string
   contractTypeId?: string
   careWorkforceCategory?: CareWorkforceCategory
-  contractedHours?: number
   branchTeam?: string
   branchLocationId?: string
   reportingManagerId?: string

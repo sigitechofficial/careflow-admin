@@ -80,7 +80,10 @@ import {
   jobLeadCarer,
 } from '@/features/scheduling/utils/schedule-job-lead-carer.util'
 import { scheduleJobCarerRotaConflictMessage } from '@/features/scheduling/utils/schedule-job-carer-rota-conflict.util'
-import { buildRotaBookedEmployeeIds } from '@/features/scheduling/utils/schedule-carer-suggest.util'
+import {
+  buildRotaBookedEmployeeIds,
+  buildRuleBlockedEmployeeIds,
+} from '@/features/scheduling/utils/schedule-carer-suggest.util'
 import type { VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
 import type { ScheduleJobAllocateDialogPanel } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import {
@@ -369,6 +372,11 @@ export function ScheduleJobAllocateDialog({
     [suggestCandidates],
   )
 
+  const ruleBlockedEmployeeIds = React.useMemo(
+    () => buildRuleBlockedEmployeeIds(suggestCandidates),
+    [suggestCandidates],
+  )
+
   const blockedEmployeeIds = React.useMemo(
     () =>
       showBlockedCarers
@@ -390,6 +398,7 @@ export function ScheduleJobAllocateDialog({
         return !allocatedEmployeeIds.has(row.id)
       })
       .filter((row) => !rotaBookedEmployeeIds.has(row.id))
+      .filter((row) => !ruleBlockedEmployeeIds.has(row.id))
       .filter((row) => !blockedEmployeeIds.has(row.id))
       .filter((row) => {
         if (!q) return true
@@ -408,6 +417,7 @@ export function ScheduleJobAllocateDialog({
     allocatedEmployeeIds,
     replacingEmployeeId,
     rotaBookedEmployeeIds,
+    ruleBlockedEmployeeIds,
     blockedEmployeeIds,
     preferredEmployeeIds,
     search,
@@ -1239,6 +1249,7 @@ export function ScheduleJobAllocateDialog({
             </div>
             {employeesQuery.locationFilterApplied ||
             rotaBookedEmployeeIds.size > 0 ||
+            ruleBlockedEmployeeIds.size > 0 ||
             (!showBlockedCarers && blockedEmployeeIds.size > 0) ? (
               <p className="text-xs text-muted-foreground">
                 {[
@@ -1247,6 +1258,9 @@ export function ScheduleJobAllocateDialog({
                     : null,
                   rotaBookedEmployeeIds.size > 0
                     ? 'Carers already booked at this time are hidden.'
+                    : null,
+                  ruleBlockedEmployeeIds.size > 0
+                    ? 'Carers excluded by your allocation rules in Settings are hidden.'
                     : null,
                   !showBlockedCarers && blockedEmployeeIds.size > 0
                     ? 'Blocked carers for this service user are excluded.'

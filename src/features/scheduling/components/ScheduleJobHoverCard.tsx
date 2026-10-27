@@ -36,6 +36,7 @@ import {
   findNextJobInRow,
   findPreviousJobInRow,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
+import { useDrivingTravelVersion } from '@/features/scheduling/utils/driving-travel.store'
 import {
   formatDurationLabel,
   jobBlockTone,
@@ -345,6 +346,8 @@ export function JobHoverPanel({
   liveAlerts = [],
 }: Props) {
   const displayFormat = useScheduleJobsDisplayFormat()
+  // Re-render when Google driving times arrive for the travel lines below.
+  useDrivingTravelVersion()
   const tone = jobBlockTone(job)
   const completed = isScheduleJobCompleted(job)
   const cancelled = isScheduleJobCancelled(job)
@@ -798,10 +801,12 @@ export function ScheduleJobHoverTooltip(props: Props) {
 export function ScheduleRotaGapHoverTooltip({
   timeRangeLabel,
   durationLabel,
+  breakdownLabel,
   title,
 }: {
   timeRangeLabel: string
   durationLabel: string
+  breakdownLabel?: string
   title: string
 }) {
   return (
@@ -816,6 +821,9 @@ export function ScheduleRotaGapHoverTooltip({
           {durationLabel}
         </span>
       </div>
+      {breakdownLabel ? (
+        <p className="mt-0.5 text-[13px] tabular-nums text-slate-500 dark:text-zinc-400">{breakdownLabel}</p>
+      ) : null}
       <p className="mt-0.5 text-[13px] font-medium text-slate-600 dark:text-zinc-300 sm:text-sm">{title}</p>
     </TooltipContent>
   )

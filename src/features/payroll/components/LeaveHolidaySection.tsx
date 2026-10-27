@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Link } from '@tanstack/react-router'
 
 import { useAuthStore } from '@/features/auth/store'
 import { PayrollFieldLabel } from '@/features/payroll/components/PayrollFieldLabel'
@@ -30,18 +31,21 @@ const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-
  * and then approved by a second person). Leave taken in advance is recovered at annual salary / 260
  * a day through Billing → Wage recoveries once approved. The leaving date is the employment end
  * date (Employees → Employment). Amounts are kept in hours; days are shown when the rules have
- * weekly hours (a day = weekly hours / 5).
+ * weekly hours (a day = weekly hours / 5). The weekly hours are the contracted weekly hours on
+ * Edit employee; new rules keep a copy of them.
  */
 export function LeaveHolidaySection({
   employeeId,
   canEdit,
   employmentEndDate,
   annualSalary,
+  contractedWeeklyHours,
 }: {
   employeeId: string
   canEdit: boolean
   employmentEndDate: string | null
   annualSalary: number | null
+  contractedWeeklyHours: number | null
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const [leaverPreview, setLeaverPreview] = React.useState(employmentEndDate ?? '')
@@ -52,13 +56,12 @@ export function LeaveHolidaySection({
   const { data: entries = [] } = useLeaveEntries(employeeId)
   const actions = useLeaveActions(employeeId)
   const canApprove = useAuthStore((s) => s.can('payroll.pay_agreements.approve'))
-  const currentUserId = useAuthStore((s) => s.user?.id ?? null)
+  const currentUserId = useAuthStore(s => s.makerCheckerUserId())
 
   // Holiday rules form
   const [category, setCategory] = React.useState<LeaveTermsRow['workerCategory']>('REGULAR_HOURS')
   const [yearMonth, setYearMonth] = React.useState('4')
   const [yearDay, setYearDay] = React.useState('1')
-  const [weeklyHours, setWeeklyHours] = React.useState('')
   const [extraHours, setExtraHours] = React.useState('')
   const [payMethod, setPayMethod] = React.useState<LeaveTermsRow['payMethod']>('NORMAL_REMUNERATION_52_WEEKS')
   const [carryOver, setCarryOver] = React.useState('')
@@ -87,7 +90,10 @@ export function LeaveHolidaySection({
     !(Number.isFinite(entryHours) && (signed ? entryHours !== 0 : entryHours > 0)) ? (signed ? 'an amount (not 0)' : 'how many') : null,
     entryNote.trim().length < 3 ? 'a short note' : null,
   ].filter(Boolean)
-  const weekly = weeklyHours.trim() === '' ? null : Number(weeklyHours)
+  const weekly = contractedWeeklyHours
+  // The regular-hours rules in force were set on other weekly hours than the employee's record has now.
+  const hoursChanged =
+    inForce?.workerCategory === 'REGULAR_HOURS' && (inForce.weeklyHours ?? null) !== (contractedWeeklyHours ?? null)
   const termsValid =
     Boolean(effectiveFrom) &&
     (category !== 'REGULAR_HOURS' || (weekly != null && weekly > 0)) &&
@@ -136,6 +142,12 @@ export function LeaveHolidaySection({
               Leave year {position.leaveYear?.start} to {position.leaveYear?.end} · {CATEGORY_LABELS[position.terms.workerCategory]}
               {position.terms.weeklyHours ? ` · ${position.terms.weeklyHours} hours a week (1 day = ${hoursPerDay} hours)` : ''}
             </p>
+            {hoursChanged ? (
+              <p className="text-xs text-amber-700 dark:text-amber-300" data-testid="leave-hours-changed">
+                The contracted weekly hours on the employee record ({contractedWeeklyHours ?? 'not set'}) differ from these holiday
+                rules ({position.terms.weeklyHours ?? 'not set'}). Enter new holiday rules from the date the change applies.
+              </p>
+            ) : null}
             {position.statutory ? balance(hasContractual ? 'Statutory holiday' : 'Holiday', position.statutory) : null}
             {hasContractual && position.contractual ? balance('Contract extra', position.contractual) : null}
             {position.holidayPay ? (
@@ -356,10 +368,17 @@ export function LeaveHolidaySection({
                       ))}
                     </select>
                   </label>
-                  <label className="block space-y-1 text-sm">
-                    <span>Weekly hours{category === 'REGULAR_HOURS' ? ' (required)' : ''}</span>
-                    <Input type="number" step="0.5" value={weeklyHours} onChange={(e) => setWeeklyHours(e.target.value)} aria-label="Weekly hours" />
-                  </label>
+                  <div className="space-y-1 text-sm" data-testid="leave-terms-weekly-hours">
+                    <span className="block">Weekly hours{category === 'REGULAR_HOURS' ? ' (required)' : ''}</span>
+                    <p className="flex h-9 items-center text-foreground">{contractedWeeklyHours ?? 'Not set'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      The contracted weekly hours on the{' '}
+                      <Link to="/employee/$employeeId/edit" params={{ employeeId }} search={{ tab: 'employment' }} className="text-primary hover:underline">
+                        employee record
+                      </Link>
+                      .
+                    </p>
+                  </div>
                   <label className="block space-y-1 text-sm">
                     <span>Applies from</span>
                     <Input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} aria-label="Leave terms effective from" />
@@ -419,7 +438,6 @@ export function LeaveHolidaySection({
                         workerCategory: category,
                         leaveYearStartMonth: Number(yearMonth),
                         leaveYearStartDay: Number(yearDay) || 1,
-                        weeklyHours: weekly,
                         contractualExtraHours: extraHours.trim() === '' ? null : Number(extraHours),
                         payMethod,
                         carryOverMaxHours: carryOver.trim() === '' ? null : Number(carryOver),

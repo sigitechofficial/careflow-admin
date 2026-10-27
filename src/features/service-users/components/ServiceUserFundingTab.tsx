@@ -25,9 +25,7 @@ import {
   useServiceUserEnterpriseFundings,
 } from '@/features/service-users/hooks/useServiceUserTabs'
 import { useChargeCards } from '@/features/billing/hooks/useChargeCards'
-import { useInvoiceTemplates } from '@/features/billing/hooks/useInvoiceTemplates'
 import type { ChargeCard } from '@/features/billing/types/billing-cards.types'
-import type { InvoiceTemplate } from '@/features/billing/types/invoice-templates.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
@@ -118,8 +116,6 @@ const FUNDING_FIELD_TOOLTIPS = {
   authorisedWeeklyHours: 'Maximum care hours per week authorised under this contract.',
   defaultChargeCardId:
     'Rate card used to price visits for this funding line (hourly, fixed, night duty, etc.). Overrides the funder default when set.',
-  defaultInvoiceTemplateId:
-    'Funder export profile for this contract. Used when rendering PDF, Excel, CSV, or API invoice files.',
   billingContactName: 'Person or team named on invoices. Required for billing readiness.',
   billingContactEmail: 'Email address for sending invoices to this funder or appointee.',
   billingContactPhone: 'Phone number for billing queries.',
@@ -225,10 +221,6 @@ function chargeCardOptionLabel(card: ChargeCard): string {
   return `${card.name} (${card.code})`
 }
 
-function invoiceTemplateOptionLabel(template: InvoiceTemplate): string {
-  return `${template.name} (${template.templateType})`
-}
-
 const STATUS_OPTIONS: EnterpriseFundingStatus[] = [
   'PENDING',
   'APPROVED',
@@ -300,7 +292,6 @@ type FundingForm = {
   billingPostcode: string
   invoiceGroupingRule: string
   defaultChargeCardId: string
-  defaultInvoiceTemplateId: string
   isPrimary: boolean
   reviewDate: string
   notes: string
@@ -337,7 +328,6 @@ function emptyForm(): FundingForm {
     billingPostcode: '',
     invoiceGroupingRule: '',
     defaultChargeCardId: '',
-    defaultInvoiceTemplateId: '',
     isPrimary: false,
     reviewDate: '',
     notes: '',
@@ -376,8 +366,6 @@ function rowToForm(row: EnterpriseServiceUserFundingRow): FundingForm {
     billingPostcode: row.billingPostcode ?? '',
     invoiceGroupingRule: row.invoiceGroupingRule ?? '',
     defaultChargeCardId: row.defaultChargeCardId ?? row.defaultChargeCard?.id ?? '',
-    defaultInvoiceTemplateId:
-      row.defaultInvoiceTemplateId ?? row.defaultInvoiceTemplate?.id ?? '',
     isPrimary: row.isPrimary,
     reviewDate: row.reviewDate ? row.reviewDate.slice(0, 10) : '',
     notes: row.notes ?? '',
@@ -444,7 +432,6 @@ function formToBody(f: FundingForm): CreateEnterpriseServiceUserFundingBody {
     billingPostcode: f.billingPostcode || null,
     invoiceGroupingRule: f.invoiceGroupingRule || null,
     defaultChargeCardId: f.defaultChargeCardId || null,
-    defaultInvoiceTemplateId: f.defaultInvoiceTemplateId || null,
     isPrimary: f.isPrimary,
     reviewDate: f.reviewDate || null,
     notes: f.notes || null,
@@ -572,7 +559,6 @@ export function ServiceUserFundingTab({
   const fundingsQuery = useServiceUserEnterpriseFundings(serviceUserId, canRead)
   const fundersQuery = useEnterpriseFunders(canRead)
   const chargeCardsQuery = useChargeCards()
-  const invoiceTemplatesQuery = useInvoiceTemplates()
   const createMutation = useCreateServiceUserEnterpriseFunding(serviceUserId)
   const updateMutation = useUpdateServiceUserEnterpriseFunding(serviceUserId)
   const deleteMutation = useDeleteServiceUserEnterpriseFunding(serviceUserId)
@@ -581,15 +567,10 @@ export function ServiceUserFundingTab({
   const approveMutation = useApproveServiceUserEnterpriseFunding(serviceUserId)
   const endMutation = useEndServiceUserEnterpriseFunding(serviceUserId)
 
-  const loading =
-    fundingsQuery.isLoading ||
-    fundersQuery.isLoading ||
-    chargeCardsQuery.isLoading ||
-    invoiceTemplatesQuery.isLoading
+  const loading = fundingsQuery.isLoading || fundersQuery.isLoading || chargeCardsQuery.isLoading
   const rows = fundingsQuery.data?.rows ?? []
   const funders = fundersQuery.data ?? []
   const chargeCards = chargeCardsQuery.data ?? []
-  const invoiceTemplates = invoiceTemplatesQuery.data ?? []
   const [nhsNumber, setNhsNumber] = React.useState(initialNhsNumber ?? '')
   const [socialRef, setSocialRef] = React.useState(initialSocialServicesRef ?? '')
 
@@ -620,23 +601,6 @@ export function ServiceUserFundingTab({
     }
     return options
   }, [chargeCards, form.defaultChargeCardId, rows])
-
-  const invoiceTemplateOptions = React.useMemo(() => {
-    const options = invoiceTemplates.map(template => ({
-      value: template.id,
-      label: invoiceTemplateOptionLabel(template),
-    }))
-    if (form.defaultInvoiceTemplateId && !options.some(o => o.value === form.defaultInvoiceTemplateId)) {
-      const saved = rows
-        .map(r => r.defaultInvoiceTemplate)
-        .find(t => t?.id === form.defaultInvoiceTemplateId)
-      const label = saved
-        ? invoiceTemplateOptionLabel(saved as InvoiceTemplate)
-        : '(saved invoice template)'
-      return [{ value: form.defaultInvoiceTemplateId, label }, ...options]
-    }
-    return options
-  }, [invoiceTemplates, form.defaultInvoiceTemplateId, rows])
 
   const [endOpen, setEndOpen] = React.useState(false)
   const [endTarget, setEndTarget] = React.useState<EnterpriseServiceUserFundingRow | null>(null)
@@ -1165,11 +1129,6 @@ export function ServiceUserFundingTab({
                     {row.funder?.paymentTerms ? (
                       <p className="text-sm text-muted-foreground">
                         Payment terms: {row.funder.paymentTerms}
-                      </p>
-                    ) : null}
-                    {row.defaultInvoiceTemplate ? (
-                      <p className="text-sm text-muted-foreground">
-                        Invoice template: {row.defaultInvoiceTemplate.name}
                       </p>
                     ) : null}
                     {row.billingContactName ? (
@@ -1760,8 +1719,7 @@ export function ServiceUserFundingTab({
             <div className="space-y-3 border-t border-border pt-4">
               <h4 className="text-sm font-semibold text-foreground">Billing & invoicing</h4>
               <p className="text-xs text-muted-foreground">
-                Purchase orders, charge cards, and invoice templates are used when generating
-                invoice runs.
+                Purchase orders and charge cards are used when generating invoice runs.
                 {isMixedMode
                   ? ' Invoice splits and billing contacts/addresses are set per funder above.'
                   : null}
@@ -1809,20 +1767,6 @@ export function ServiceUserFundingTab({
                   value={form.defaultChargeCardId}
                   onChange={value => setForm(f => ({ ...f, defaultChargeCardId: value }))}
                   placeholder="Select charge card for this contract"
-                  allowDeselect
-                />
-              </div>
-              <div>
-                <FundingFieldLabel
-                  className="mb-1"
-                  label="Invoice template"
-                  tooltip={FUNDING_FIELD_TOOLTIPS.defaultInvoiceTemplateId}
-                />
-                <Combobox
-                  options={invoiceTemplateOptions}
-                  value={form.defaultInvoiceTemplateId}
-                  onChange={value => setForm(f => ({ ...f, defaultInvoiceTemplateId: value }))}
-                  placeholder="Select export template for this contract"
                   allowDeselect
                 />
               </div>

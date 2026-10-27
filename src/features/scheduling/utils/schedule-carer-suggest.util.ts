@@ -24,6 +24,15 @@ export function buildRotaBookedEmployeeIds(
   )
 }
 
+/** Carers a "Don't allow" allocation rule in Settings excludes (hidden from assign lists). */
+export function buildRuleBlockedEmployeeIds(
+  candidates: VisitPlanCarerCandidate[],
+): Set<string> {
+  return new Set(
+    candidates.filter((candidate) => candidate.ruleBlocked).map((candidate) => candidate.employeeId),
+  )
+}
+
 export function sortVisitPlanCarerCandidates(
   a: VisitPlanCarerCandidate,
   b: VisitPlanCarerCandidate,
@@ -47,6 +56,7 @@ export function filterScheduleJobRecommendCarers(
     .filter((candidate) => {
       if (candidate.isBlocked && !options.showBlockedCarers) return false
       if (candidate.hasRotaConflict || candidate.complianceBlocksAllocation) return false
+      if (candidate.ruleBlocked) return false
       if (options.replacingEmployeeId) return candidate.employeeId !== options.replacingEmployeeId
       return !options.allocatedEmployeeIds.has(candidate.employeeId)
     })
@@ -62,7 +72,9 @@ export function filterScheduleRunRecommendCarers(
   return candidates
     .filter((candidate) => {
       if (candidate.isBlocked && !showBlockedCarers) return false
-      return !candidate.hasRotaConflict && !candidate.complianceBlocksAllocation
+      return (
+        !candidate.hasRotaConflict && !candidate.complianceBlocksAllocation && !candidate.ruleBlocked
+      )
     })
     .sort(sortVisitPlanCarerCandidates)
     .slice(0, limit)
@@ -80,6 +92,9 @@ export function scheduleRecommendCarersEmptyMessage(
   }
   if (candidates.some((candidate) => candidate.complianceBlocksAllocation)) {
     return 'No available carers — others cannot be allocated until mandatory compliance is in order.'
+  }
+  if (candidates.some((candidate) => candidate.ruleBlocked)) {
+    return 'No available carers — others are excluded by your allocation rules in Settings.'
   }
   return fallbackMessage
 }

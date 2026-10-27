@@ -281,6 +281,9 @@ export type EmployeeEarningsSummary = {
   salaryAmount?: string
   salaryAmountValue?: number
   salaryVisitCount?: number
+  /** Mileage and travel time the pay run pays beside the visit pay, for the same visits. */
+  mileageEarnings?: { miles: number; amount: string; amountValue: number; visitCount: number }
+  travelTimeEarnings?: { minutes: number; amount: string; amountValue: number; visitCount: number }
   netSalaryAmount?: string
   netSalaryAmountValue?: number
   fineTotal?: string
