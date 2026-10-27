@@ -12,7 +12,6 @@ import {
   usePolicyReviews,
 } from '@/features/home/hooks/useHomeSignals'
 import { useLearningDashboard } from '@/features/learning/hooks/useLearning'
-import { usePolicyAcknowledgementSummary } from '@/features/policies/hooks/usePolicies'
 import { useSafeguardingSummary } from '@/features/safeguarding/hooks/useSafeguarding'
 import { useIncidentStats } from '@/features/incidents/hooks/useIncidents'
 import { useFeedbackSummary } from '@/features/complaints/hooks/useComplaints'
@@ -120,7 +119,6 @@ export default function ComplianceDashboardPage() {
 
   const staff = useComplianceSummary(locationId, canStaff)
   const training = useLearningDashboard(locationId, canTraining)
-  const signed = usePolicyAcknowledgementSummary(canPolicies)
   const reviews = usePolicyReviews(30, canPolicies)
   const sg = useSafeguardingSummary(branch, canSg)
   const inc = useIncidentStats(locationId, canInc)
@@ -187,20 +185,17 @@ export default function ComplianceDashboardPage() {
   }
 
   if (canPolicies) {
-    const s = signed.data
     const r = reviews.data
-    const pct = s?.pct ?? null
     areas.push({
       key: 'policies',
       title: 'Policies',
-      description: 'Read and signed by staff, and kept up to date',
-      to: '/policies/acknowledgements',
-      linkLabel: 'Open read & sign tracking',
-      loading: signed.isLoading || reviews.isLoading,
-      pct,
-      rag: pct === null ? ragFromCounts(n(r?.overdue), n(r?.count)) : ragFromPct(pct),
+      description: 'Kept up to date and reviewed on time',
+      to: '/policies',
+      linkLabel: 'Open policy library',
+      loading: reviews.isLoading,
+      pct: null,
+      rag: ragFromCounts(n(r?.overdue), n(r?.count)),
       stats: [
-        { label: 'Staff with policies to sign', value: n(s?.staffWithOutstanding), tone: s?.staffWithOutstanding ? 'warn' : undefined },
         // Review counts show "—" when the review endpoint returns nothing, rather than a misleading 0.
         { label: 'Reviews overdue', value: r ? n(r.overdue) : '—', tone: r?.overdue ? 'bad' : undefined },
         { label: 'Reviews due (30 days)', value: r ? n(r.count) : '—', tone: r?.count ? 'warn' : undefined },
@@ -208,7 +203,6 @@ export default function ComplianceDashboardPage() {
       ],
       issues: [
         issue('bad', r?.overdue, 'policy review overdue', 'policy reviews overdue', '/policies'),
-        issue('warn', s?.staffWithOutstanding, 'staff member has policies to sign', 'staff have policies to sign', '/policies/acknowledgements'),
         issue('warn', r?.publishedNoReviewDate, 'published policy has no review date', 'published policies have no review date', '/policies'),
       ],
     })

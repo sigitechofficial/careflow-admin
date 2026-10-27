@@ -198,8 +198,6 @@ import PolicyDetailPage from '@/features/policies/pages/PolicyDetailPage'
 import PolicyEditPage from '@/features/policies/pages/PolicyEditPage'
 import PolicyCategoriesPage from '@/features/policies/pages/PolicyCategoriesPage'
 import PolicyTagsPage from '@/features/policies/pages/PolicyTagsPage'
-import MyPoliciesToReadPage from '@/features/policies/pages/MyPoliciesToReadPage'
-import PolicyAcknowledgementsPage from '@/features/policies/pages/PolicyAcknowledgementsPage'
 import ComplianceDashboardPage from '@/features/compliance/pages/ComplianceDashboardPage'
 import { validatePolicyLibrarySearch } from '@/features/policies/policy-routes'
 import {
@@ -409,8 +407,6 @@ const pageTitles: Record<string, string> = {
   '/policies/$policyId/edit': 'Edit policy',
   '/policies/categories': 'Policy categories',
   '/policies/tags': 'Policy tags',
-  '/policies/to-read': 'My policies to read',
-  '/policies/acknowledgements': 'Read and sign tracking',
   '/compliance': 'Compliance dashboard',
   '/medication/exceptions': 'Missed & refused doses',
   '/medication/late': 'Late doses',
@@ -2469,13 +2465,6 @@ const policyTagsRoute = createRoute({
   component: PolicyTagsPage,
 })
 
-const myPoliciesToReadRoute = createRoute({
-  getParentRoute: () => appShellRoute,
-  path: '/policies/to-read',
-  beforeLoad: requirePermission('policies.read'),
-  component: MyPoliciesToReadPage,
-})
-
 /** Unified compliance view; each area card is gated by its own read permission. */
 const COMPLIANCE_DASHBOARD_PERMISSIONS: Permission[] = [
   'employees.compliance.reports.read',
@@ -2493,13 +2482,6 @@ const complianceDashboardRoute = createRoute({
   path: '/compliance',
   beforeLoad: requireAnyPermission(...COMPLIANCE_DASHBOARD_PERMISSIONS),
   component: ComplianceDashboardPage,
-})
-
-const policyAcknowledgementsRoute = createRoute({
-  getParentRoute: () => appShellRoute,
-  path: '/policies/acknowledgements',
-  beforeLoad: requirePermission('policies.read'),
-  component: PolicyAcknowledgementsPage,
 })
 
 const policyDetailRoute = createRoute({
@@ -2726,8 +2708,6 @@ const routeTree = rootRoute.addChildren([
     policyNewRoute,
     policyCategoriesRoute,
     policyTagsRoute,
-    myPoliciesToReadRoute,
-    policyAcknowledgementsRoute,
     complianceDashboardRoute,
     policyDetailRoute,
     policyEditRoute,

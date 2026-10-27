@@ -109,8 +109,6 @@ export const PAGE_ILLUSTRATION: Record<string, string> = {
   'Policy Library': 'ledger',
   'Policy categories': 'card-index',
   'Policy tags': 'label',
-  'My policies to read': 'fountain-pen',
-  'Read and sign tracking': 'check-box-with-check',
   Surveys: 'ballot-box-with-ballot',
   Audits: 'magnifying-glass-tilted-right',
   'Mock CQC inspection': 'glowing-star',

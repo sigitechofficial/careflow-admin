@@ -26,7 +26,6 @@ import { usePayrollOverview } from '@/features/payroll/hooks/usePayroll'
 import { useRecruitmentSummary } from '@/features/hr/recruitment/hooks/useRecruitment'
 import { useSetupChecklist } from '@/features/setup-checklist/hooks'
 import { useMedicationOverview } from '@/features/emar/hooks/useEmar'
-import { usePolicyAcknowledgementSummary } from '@/features/policies/hooks/usePolicies'
 import { usePathwaySummary } from '@/features/specialist-pathways/hooks/useSpecialistPathways'
 import { PATHWAY_META } from '@/features/specialist-pathways/pathway-specs'
 import { useSafeguardingSummary } from '@/features/safeguarding/hooks/useSafeguarding'
@@ -691,8 +690,6 @@ function QualityInsights() {
   const inc = useIncidentStats(locationId ?? undefined, canInc)
   const fb = useFeedbackSummary()
   const policies = usePolicyReviews(30, can('policies.read'))
-  const signed = usePolicyAcknowledgementSummary(can('policies.read'))
-  const sd = signed.data
   const bodyMapAlerts = useBodyMapGovernanceAlerts(can('service_users.read'))
   const canSg = can('safeguarding.read', 'safeguarding.manage')
   const sg = useSafeguardingSummary(locationId ?? undefined, canSg)
@@ -728,8 +725,6 @@ function QualityInsights() {
             <Kpi label="Published policies" value={policies.data ? n0(policies.data.byStatus?.PUBLISHED) : undefined} art="ledger" loading={policies.isLoading} to="/policies" hint={`${n0(policies.data?.byStatus?.DRAFT)} in draft`} />
             <Kpi label="Policies awaiting approval" value={n0(policies.data?.byStatus?.IN_REVIEW) + n0(policies.data?.byStatus?.APPROVED)} art="fountain-pen" tone={attn(n0(policies.data?.byStatus?.IN_REVIEW) + n0(policies.data?.byStatus?.APPROVED), 'warn')} loading={policies.isLoading} to="/policies" hint={`${n0(policies.data?.byStatus?.IN_REVIEW)} in review · ${n0(policies.data?.byStatus?.APPROVED)} approved, not published`} />
             <Kpi label="Policies due for review (30 days)" value={policies.data?.count} art="calendar" tone={attn(policies.data?.overdue, 'bad')} loading={policies.isLoading} to="/policies" hint={`${n0(policies.data?.overdue)} overdue`} />
-            <Kpi label="Policies read and signed" value={sd?.pct === null || sd?.pct === undefined ? (sd ? null : undefined) : `${sd.pct}%`} progress={sd?.pct} art="fountain-pen" tone={sd?.pct === null || sd?.pct === undefined ? 'neutral' : sd.pct >= 95 ? 'good' : sd.pct >= 80 ? 'warn' : 'bad'} loading={signed.isLoading} to="/policies/acknowledgements" hint={sd ? `${sd.acknowledged} of ${sd.required} signatures across ${sd.policiesRequiringAcknowledgement} policies` : undefined} />
-            <Kpi label="Staff with policies to sign" value={sd?.staffWithOutstanding} art="busts-in-silhouette" tone={attn(sd?.staffWithOutstanding, 'warn')} loading={signed.isLoading} to="/policies/acknowledgements" hint={sd ? `Of ${sd.staffInScope} staff with a sign-in` : undefined} />
             <Kpi label="Published without a review date" value={policies.data?.publishedNoReviewDate} art="warning" tone={attn(policies.data?.publishedNoReviewDate, 'warn')} loading={policies.isLoading} to="/policies" hint="Will never come up for review" />
           </>
         ) : null}
