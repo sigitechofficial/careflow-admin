@@ -727,7 +727,11 @@ export async function allocateJob(
     method: 'POST',
     body: JSON.stringify(body),
   })
-  return { message: res.message, data: res.data! }
+  // Carer over their weekly hours (Settings → Dom Rules: manager approval): not allocated yet.
+  if ((res.meta as { approvalRequested?: boolean } | undefined)?.approvalRequested || !res.data) {
+    return { message: res.message, data: null, approvalRequested: true as const }
+  }
+  return { message: res.message, data: res.data, approvalRequested: false as const }
 }
 
 export type TeamCarerCheck = {
@@ -759,10 +763,13 @@ export async function allocateJobTeam(
     requiresConfirmation?: boolean
     leadEmployeeId?: string
     carers?: TeamCarerCheck[]
+    approvalRequests?: Array<{ employeeId: string; name: string; approvalId: string }>
   }
   return {
     message: res.message,
     data: res.data ?? [],
+    /** Carers over their weekly hours sent to a manager (not on the visit yet). */
+    approvalRequests: meta.approvalRequests ?? [],
     requiresConfirmation: Boolean(meta.requiresConfirmation),
     leadEmployeeId: meta.leadEmployeeId ?? body.leadEmployeeId,
   }

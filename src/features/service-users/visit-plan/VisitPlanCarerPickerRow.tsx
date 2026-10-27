@@ -15,6 +15,7 @@ import {
   formatVisitPlanDayList,
 } from '@/features/service-users/visit-plan/visit-plan-carer-availability-display.util'
 import { summarizeCarerWeeklyHours } from '@/features/service-users/visit-plan/visit-plan-carer-weekly-hours.util'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 
 /** Mon → Sun (day numbers are 0 = Sun … 6 = Sat). */
 const WEEK_DAYS_MON_FIRST = [1, 2, 3, 4, 5, 6, 0]
@@ -65,7 +66,12 @@ export function VisitPlanCarerPickerRow({
   const [open, setOpen] = React.useState(false)
   const slotDays = [...slotDaysOfWeek].sort((a, b) => a - b)
   const slotDaySet = new Set(slotDays)
-  const hours = summarizeCarerWeeklyHours(c, isAssigned)
+  const { formatDate } = useOrganisationDisplayFormat()
+  const hours = summarizeCarerWeeklyHours(
+    c,
+    isAssigned,
+    c.weeklyHoursWeekStart ? `Week of ${formatDate(c.weeklyHoursWeekStart)}` : null,
+  )
   const roleLine = formatVisitPlanCarerRoleLine(c.role, c.jobTitle) || 'Employee'
   const availability = availabilityLine(c, slotDays)
   const hasDetails =

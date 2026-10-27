@@ -6,7 +6,6 @@ import {
   type DomCareAllocationRule,
   type DomWeeklyHoursRuleOptions,
   type OrganisationGeneralSettings,
-  type WeeklyHoursLimitBasis,
   type WeeklyHoursRejectAction,
 } from '@/features/settings/types'
 import {
@@ -16,7 +15,7 @@ import {
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
+import { RadioGroup, RadioGroupItem, Switch } from '@/shared/ui/toggle-controls'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { GeneralSettingsCard, SettingsRow } from '@/features/settings/components/GeneralSettingsCard'
 import {
@@ -24,7 +23,6 @@ import {
   DEFAULT_DOM_CARE_ALLOCATION_RULES,
   DEFAULT_WEEKLY_HOURS_RULE_OPTIONS,
   WEEKLY_HOURS_BEHAVIOR_OPTIONS,
-  WEEKLY_HOURS_LIMIT_OPTIONS,
   WEEKLY_HOURS_REJECT_OPTIONS,
   WEEKLY_HOURS_RULE_KEY,
   mergeAllocationRules,
@@ -198,13 +196,17 @@ export function GeneralSettingsDomRulesPanel() {
           >
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
-              Saved only. This rule is not applied to visit plans, the rota or other allocations
-              yet.
+              A carer&apos;s limit is their contracted weekly hours (Monday to Sunday). If a visit plan
+              takes a carer over, a manager must always approve. The choice below is only for the rota
+              board, extra visits and special visits.
             </span>
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm text-foreground">When a carer goes over their weekly hours</p>
+            <p className="text-sm text-foreground">
+              What happens when a visit on the rota, an extra visit or a special visit takes a carer
+              over their weekly hours?
+            </p>
             <RadioGroup
               value={weeklyRule.behavior}
               onValueChange={v =>
@@ -237,30 +239,8 @@ export function GeneralSettingsDomRulesPanel() {
           </div>
 
           <SettingsRow
-            label="Weekly limit to use"
-            hint="Which of the carer's employment hours counts as their weekly limit."
-          >
-            <Select
-              value={weeklyOptions.limitBasis}
-              onValueChange={v => updateWeeklyOptions({ limitBasis: v as WeeklyHoursLimitBasis })}
-              disabled={!canUpdate}
-            >
-              <SelectTrigger className="h-9 w-[22rem] max-w-full" aria-label="Weekly limit to use">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {WEEKLY_HOURS_LIMIT_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </SettingsRow>
-
-          <SettingsRow
-            label="Grace before the rule applies"
-            hint="How far over the limit a carer can go before the rule is triggered."
+            label="Extra minutes allowed before the rule applies"
+            hint="How many minutes a carer can go over their limit before the rule applies. Also used for visit plans."
           >
             <div className="flex items-center gap-1.5">
               <Input
@@ -281,9 +261,24 @@ export function GeneralSettingsDomRulesPanel() {
             </div>
           </SettingsRow>
 
-          {weeklyRule.behavior === 'MANAGER_APPROVAL' ? (
-            <>
-              <SettingsRow label="If the manager rejects">
+          <SettingsRow
+            label="Count called-off visits in the carer's hours"
+            hint="A called-off visit is one where the carer went but the service user turned the visit down. Cancelled visits never count."
+          >
+            <Switch
+              checked={weeklyOptions.countCalledOff ?? true}
+              onCheckedChange={v => updateWeeklyOptions({ countCalledOff: v })}
+              disabled={!canUpdate}
+              aria-label="Count called-off visits in the carer's hours"
+            />
+          </SettingsRow>
+
+          {/* Visit plans always ask a manager, so these apply whatever is chosen above. */}
+          <>
+              <SettingsRow
+                label="When a manager rejects a visit plan request"
+                hint="For the rota, extra visits and special visits, a rejected visit just stays without that carer."
+              >
                 <Select
                   value={weeklyOptions.rejectAction}
                   onValueChange={v =>
@@ -308,8 +303,8 @@ export function GeneralSettingsDomRulesPanel() {
               </SettingsRow>
 
               <SettingsRow
-                label="Highest weekly hours a manager can approve"
-                hint="Requests above this cannot be approved."
+                label="Most weekly hours a manager can approve"
+                hint="If a request would take the carer's week above this, the Approve button is turned off."
               >
                 <div className="flex items-center gap-1.5">
                   <Input
@@ -324,13 +319,12 @@ export function GeneralSettingsDomRulesPanel() {
                         maxApprovableHours: Number.parseInt(e.target.value, 10) || 0,
                       })
                     }
-                    aria-label="Highest weekly hours a manager can approve"
+                    aria-label="Most weekly hours a manager can approve"
                   />
                   <span className="text-sm text-muted-foreground">Hours</span>
                 </div>
               </SettingsRow>
-            </>
-          ) : null}
+          </>
         </GeneralSettingsCard>
       ) : null}
 

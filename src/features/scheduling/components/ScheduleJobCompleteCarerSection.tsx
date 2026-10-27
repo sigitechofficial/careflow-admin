@@ -116,7 +116,9 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
       setPendingEmployeeId(null)
       setSelectedEmployeeId(null)
       setAssignAsLead(false)
-      if (result.data.status === 'PENDING_CONFIRMATION') {
+      if (result.approvalRequested) {
+        toastWarning('Sent to a manager', result.message)
+      } else if (result.data.status === 'PENDING_CONFIRMATION') {
         toastWarning('Confirmation required', result.message)
       } else {
         toastSuccess('Carer allocated', result.message)

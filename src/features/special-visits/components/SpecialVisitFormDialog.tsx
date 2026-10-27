@@ -107,8 +107,15 @@ export function SpecialVisitFormDialog({
     onSuccess: (result) => {
       void qc.invalidateQueries({ queryKey: specialVisitKeys.list(employeeId, weekStart) })
       void qc.invalidateQueries({ queryKey: specialVisitKeys.summary(employeeId, weekStart) })
-      if (result.weeklyHoursWarning) {
-        toastWarning('Special visit added — over the weekly hours', `${result.weeklyHoursWarning}.`)
+      if (result.carerHoursApprovalRequested) {
+        toastWarning('Special visit added — waiting for a manager', result.carerHoursApprovalRequested)
+      } else if (result.carerHoursWarning || result.weeklyHoursWarning) {
+        toastWarning(
+          'Special visit added — over the weekly hours',
+          [result.weeklyHoursWarning ? `${result.weeklyHoursWarning}.` : null, result.carerHoursWarning]
+            .filter(Boolean)
+            .join(' '),
+        )
       } else {
         toastSuccess('Special visit added')
       }

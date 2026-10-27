@@ -20,11 +20,12 @@ function formatHours(hours: number): string {
 
 /**
  * Weekly hours for the carer picker / assigned card.
- * - Booked: hours a week on other visit-plan visits (this visit left out).
+ * - Booked: hours the carer already has in the week shown (this visit left out), counted like
+ *   the hours approvals — rota visits (plan, extra, special) and plan visits not on the rota yet.
  * - Done: hours of COMPLETED visits in the current rota week.
- * - Limit: active approved extra hours, else contracted.
+ * - Limit: contracted weekly hours.
  * `includesThisVisit` — the carer is on this visit, so the full sentence counts it as assigned.
- * Hours come from visit plans only (suggest-carers), not ad-hoc rota allocations.
+ * `weekLabel` — e.g. "Week of 09/11/2026" (the visit's week, or the busiest coming week).
  * Returns null while hours are not loaded yet (placeholder candidates).
  */
 export function summarizeCarerWeeklyHours(
@@ -35,9 +36,12 @@ export function summarizeCarerWeeklyHours(
     | 'assignedWeeklyHours'
     | 'projectedWeeklyHours'
     | 'completedWeeklyHours'
+    | 'exceedsContractedHours'
   >,
   includesThisVisit: boolean,
+  weekLabel?: string | null,
 ): CarerWeeklyHoursSummary | null {
+  const weekPrefix = weekLabel ? `${weekLabel}: ` : ''
   if (c.contractedWeeklyHours === undefined && c.allowedWeeklyHours === undefined) return null
   const otherHours = c.assignedWeeklyHours ?? 0
   const withVisit = c.projectedWeeklyHours ?? otherHours
@@ -51,9 +55,9 @@ export function summarizeCarerWeeklyHours(
   const limit = c.allowedWeeklyHours ?? c.contractedWeeklyHours ?? null
   if (limit == null || limit <= 0) {
     return {
-      text: `This week: ${assignedText} · weekly limit not set`,
+      text: `${weekLabel ? weekPrefix : 'This week: '}${assignedText} · weekly limit not set`,
       tone: 'normal',
-      statsLine: `Booked ${formatHours(otherHours)} · ${doneText} · No limit set`,
+      statsLine: `${weekPrefix}Booked ${formatHours(otherHours)} · ${doneText} · No limit set`,
       visitLine: `This visit +${formatHours(visitHours)}`,
     }
   }
@@ -65,7 +69,7 @@ export function summarizeCarerWeeklyHours(
   const left = limit - assigned
   const leftText =
     left >= -0.01 ? `${formatHours(Math.max(0, left))} left` : `${formatHours(-left)} over`
-  let text = `This week: ${assignedText} · ${limitText} · ${leftText}`
+  let text = `${weekLabel ? weekPrefix : 'This week: '}${assignedText} · ${limitText} · ${leftText}`
 
   if (!includesThisVisit) {
     const overAfter = withVisit - limit
@@ -75,10 +79,11 @@ export function summarizeCarerWeeklyHours(
         : ` · with this visit ${formatHours(withVisit)}`
   }
 
+  // The server decides "over" with the grace in Settings → Dom Rules; within the grace reads as at limit.
   const tone: CarerWeeklyHoursTone =
-    withVisit > limit + 0.01
+    (c.exceedsContractedHours ?? withVisit > limit + 0.01)
       ? 'over'
-      : Math.abs(withVisit - limit) <= 0.01
+      : withVisit >= limit - 0.01
         ? 'atLimit'
         : 'normal'
 
@@ -86,7 +91,7 @@ export function summarizeCarerWeeklyHours(
   return {
     text,
     tone,
-    statsLine: `Booked ${formatHours(otherHours)} · ${doneText} · Limit ${formatHours(limit)}${
+    statsLine: `${weekPrefix}Booked ${formatHours(otherHours)} · ${doneText} · Limit ${formatHours(limit)}${
       isApprovedExtra ? ' (approved extra)' : ''
     }`,
     visitLine:

@@ -9,6 +9,7 @@ export type HoursApprovalType =
   | 'SERVICE_USER_WEEKLY_HOURS_CHANGE'
   | 'EXTRA_VISIT_OVER_HOURS'
   | 'DRAFT_PLAN_OVER_HOURS'
+  | 'ROTA_VISIT_OVER_HOURS'
 
 /** Extra visit over a service user's weekly hours: the visit created if a manager approves. */
 export type ExtraVisitRequestPayload = {
@@ -31,6 +32,25 @@ export type DraftPlanRequestPayload = {
   heaviestWeekStart: string
   heaviestMinutes: number
   limitWeeklyHours: number | null
+  overWeeks: Array<{ weekStart: string; minutes: number }>
+}
+
+/** Rota / extra / special visit that puts a carer over their contracted weekly hours. */
+export type RotaVisitRequestPayload = {
+  kind: 'ROTA_VISIT'
+  source: 'ROTA' | 'EXTRA_VISIT' | 'SPECIAL_VISIT'
+  scheduledJobId: string
+  start: string
+  end: string
+  weekStart: string
+  weekMinutes: number
+}
+
+/** Visit plan putting a carer over their contracted weekly hours: the visits held back. */
+export type VisitPlanRequestPayload = {
+  kind: 'PLAN'
+  heaviestMinutes: number
+  withheld: string[]
   overWeeks: Array<{ weekStart: string; minutes: number }>
 }
 
@@ -116,6 +136,10 @@ export type HoursApproval = {
   requestedAt: string
   decidedAt: string | null
   decisionNotes: string | null
+  /** Carer over weekly hours: Approve is refused above this (Settings → Dom Rules). */
+  maxApprovableHours?: number | null
+  /** Carer over weekly hours on a plan: what Reject does (Settings → Dom Rules). */
+  rejectAction?: 'REMOVE_EXTRA_VISITS' | 'REMOVE_FROM_PLAN' | null
 }
 
 export async function fetchHoursApprovals(

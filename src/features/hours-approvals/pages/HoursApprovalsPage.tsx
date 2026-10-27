@@ -28,6 +28,8 @@ import type {
   ContractedHoursImpact,
   DraftPlanRequestPayload,
   HoursApproval,
+  RotaVisitRequestPayload,
+  VisitPlanRequestPayload,
   HoursApprovalStatus,
 } from '@/features/hours-approvals/types'
 import {
@@ -43,8 +45,12 @@ const TABS: { id: HoursApprovalStatus; label: string }[] = [
   { id: 'CANCELLED', label: 'Cancelled' },
 ]
 
-/** Hard weekly cap — extra hours above this can never be approved (mirrors backend). */
+/** Default weekly cap; each carer row carries the one set in Settings → Dom Rules. */
 const MAX_APPROVABLE_WEEKLY_HOURS = 60
+
+function approvableCap(row: HoursApproval): number {
+  return row.maxApprovableHours ?? MAX_APPROVABLE_WEEKLY_HOURS
+}
 
 const STATUS_BADGE: Record<HoursApprovalStatus, React.ComponentProps<typeof Badge>['variant']> = {
   PENDING: 'warning',
@@ -70,6 +76,26 @@ function isServiceUserHoursChange(row: HoursApproval) {
 
 function isExtraVisitRequest(row: HoursApproval) {
   return row.requestType === 'EXTRA_VISIT_OVER_HOURS'
+}
+
+function isRotaVisitRequest(row: HoursApproval) {
+  return row.requestType === 'ROTA_VISIT_OVER_HOURS'
+}
+
+function rotaVisitPayload(row: HoursApproval): RotaVisitRequestPayload | null {
+  return isRotaVisitRequest(row) ? ((row.requestPayload as unknown as RotaVisitRequestPayload | null) ?? null) : null
+}
+
+const ROTA_SOURCE_LABEL: Record<RotaVisitRequestPayload['source'], string> = {
+  ROTA: 'Rota visit',
+  EXTRA_VISIT: 'Extra visit',
+  SPECIAL_VISIT: 'Special visit',
+}
+
+/** Visits of the plan held back from the carer until approved. */
+function heldVisitCount(row: HoursApproval): number {
+  if (row.requestType !== 'VISIT_PLAN_OVER_HOURS') return 0
+  return ((row.requestPayload as unknown as VisitPlanRequestPayload | null)?.withheld ?? []).length
 }
 
 function isDraftPlanRequest(row: HoursApproval) {
@@ -101,7 +127,10 @@ function extraVisitWeek(row: HoursApproval): { weekMinutes: number; limitMinutes
 }
 
 function exceedsWeeklyCap(row: HoursApproval) {
-  return row.requestType === 'VISIT_PLAN_OVER_HOURS' && (row.projectedWeeklyHours ?? 0) > MAX_APPROVABLE_WEEKLY_HOURS
+  return (
+    (row.requestType === 'VISIT_PLAN_OVER_HOURS' || row.requestType === 'ROTA_VISIT_OVER_HOURS') &&
+    (row.projectedWeeklyHours ?? 0) > approvableCap(row)
+  )
 }
 
 /** Pending rows store the preview; decided rows store { requested, applied }. */
@@ -148,8 +177,8 @@ export default function HoursApprovalsPage() {
 
   const handleApprove = async (id: string, draftPlan = false) => {
     try {
-      await approveMut.mutateAsync({ id })
-      toastSuccess(draftPlan ? 'Draft visit plan approved — it can now be activated' : 'Extra hours approved')
+      const message = await approveMut.mutateAsync({ id })
+      toastSuccess(draftPlan ? 'Draft visit plan approved — it can now be activated' : message || 'Extra hours approved')
     } catch (e) {
       toastApiError(e, 'Could not approve')
     }
@@ -190,7 +219,11 @@ export default function HoursApprovalsPage() {
           ? 'Rejected — weekly hours unchanged'
           : isContractedChange(rejectTarget)
             ? 'Rejected — contracted hours unchanged'
-            : 'Rejected — carer removed from the plan',
+            : isRotaVisitRequest(rejectTarget)
+              ? 'Rejected — the visit stays without this carer'
+              : rejectTarget.rejectAction === 'REMOVE_EXTRA_VISITS'
+                ? 'Rejected — the carer stays off the visits over their hours'
+                : 'Rejected — carer removed from the plan',
       )
       setRejectTarget(null)
       setRejectReason('')
@@ -235,7 +268,7 @@ export default function HoursApprovalsPage() {
 
         {tab === 'PENDING' && overCapCount > 0 ? (
           <p className="text-xs text-muted-foreground tabular-nums">
-            {overCapCount} request{overCapCount === 1 ? '' : 's'} over the {MAX_APPROVABLE_WEEKLY_HOURS}h cap
+            {overCapCount} request{overCapCount === 1 ? '' : 's'} over the weekly cap
           </p>
         ) : null}
       </div>
@@ -245,11 +278,11 @@ export default function HoursApprovalsPage() {
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             <p>
-              Carer over their hours: if projected weekly hours exceed{' '}
-              <span className="font-semibold tabular-nums">{MAX_APPROVABLE_WEEKLY_HOURS}h</span>, Approve is
-              disabled. Reduce the carer&apos;s assigned hours on the visit plan first — you can still Reject to
-              remove them from the plan. Other requests (hours changes, extra visits) apply only when approved;
-              Reject leaves everything as it is.
+              Carer over their contracted weekly hours: the carer is not on those visits until approved. If the
+              week would exceed the highest hours a manager can approve (Settings → Dom Rules, default{' '}
+              <span className="font-semibold tabular-nums">{MAX_APPROVABLE_WEEKLY_HOURS}h</span>), Approve is
+              disabled. Other requests (hours changes, extra visits) apply only when approved; Reject leaves
+              everything as it is.
             </p>
           </div>
         </div>
@@ -350,6 +383,25 @@ export default function HoursApprovalsPage() {
                                 </p>
                               ) : null}
                             </div>
+                          ) : isRotaVisitRequest(r) ? (
+                            <div className="mt-1 space-y-0.5">
+                              <Badge variant="outline" size="sm">
+                                {ROTA_SOURCE_LABEL[rotaVisitPayload(r)?.source ?? 'ROTA']} over carer&apos;s weekly hours
+                              </Badge>
+                              {rotaVisitPayload(r) ? (
+                                <p className="text-xs text-foreground">
+                                  {formatInstant(rotaVisitPayload(r)!.start)}–{formatTime(rotaVisitPayload(r)!.end)}
+                                </p>
+                              ) : null}
+                              <p className="text-xs text-muted-foreground">Carer not on the visit until approved</p>
+                              {r.status === 'REJECTED' && r.decisionNotes ? (
+                                <p className="text-xs text-red-700 dark:text-red-300">Rejected: {r.decisionNotes}</p>
+                              ) : null}
+                            </div>
+                          ) : heldVisitCount(r) > 0 ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {heldVisitCount(r)} visit{heldVisitCount(r) === 1 ? '' : 's'} held back until approved
+                            </p>
                           ) : isDraftPlanRequest(r) ? (
                             <div className="mt-1 space-y-0.5">
                               <Badge variant="outline" size="sm">
@@ -403,14 +455,16 @@ export default function HoursApprovalsPage() {
                             <span className={overCap ? 'font-semibold text-destructive' : 'font-medium text-foreground'}>
                               {extraVisit
                                 ? `${formatMinutes(extraVisitWeek(r)?.weekMinutes ?? extraVisit.weekMinutes)} that week`
-                                : draftWeek
+                                : isRotaVisitRequest(r)
+                                  ? `${r.projectedWeeklyHours ?? '—'}h that week`
+                                  : draftWeek
                                   ? `${formatMinutes(draftWeek.heaviestMinutes)} busiest week`
                                   : `~${r.projectedWeeklyHours ?? '—'}h`}
                             </span>
                           )}
                           {overCap ? (
                             <Badge variant="destructive" size="sm" className="ml-2 align-middle">
-                              Over {MAX_APPROVABLE_WEEKLY_HOURS}h
+                              Over {approvableCap(r)}h
                             </Badge>
                           ) : null}
                         </td>
@@ -454,7 +508,7 @@ export default function HoursApprovalsPage() {
                                 disabled={approveMut.isPending || rejectMut.isPending || overCap}
                                 title={
                                   overCap
-                                    ? `Cannot approve — exceeds the ${MAX_APPROVABLE_WEEKLY_HOURS}h weekly maximum. Reduce assigned hours first.`
+                                    ? `Cannot approve — exceeds the ${approvableCap(r)}h weekly maximum. Reduce assigned hours first.`
                                     : undefined
                                 }
                                 onClick={() =>
@@ -518,6 +572,10 @@ export default function HoursApprovalsPage() {
                 ? 'Reject extra visit?'
                 : rejectTarget && isDraftPlanRequest(rejectTarget)
                 ? 'Reject draft visit plan?'
+                : rejectTarget && isRotaVisitRequest(rejectTarget)
+                ? 'Reject visit over weekly hours?'
+                : rejectTarget && rejectTarget.requestType === 'VISIT_PLAN_OVER_HOURS'
+                ? 'Reject carer over weekly hours?'
                 : rejectTarget && isServiceUserHoursChange(rejectTarget)
                 ? 'Reject weekly hours change?'
                 : rejectTarget && isContractedChange(rejectTarget)
@@ -550,6 +608,19 @@ export default function HoursApprovalsPage() {
                 <>
                   <span className="font-medium text-foreground">{rejectTarget.employeeName}</span>&apos;s contracted
                   hours stay at {formatHours(rejectTarget.previousContractedWeeklyHours)}. No visits are changed.
+                </>
+              ) : rejectTarget && isRotaVisitRequest(rejectTarget) ? (
+                <>
+                  <span className="font-medium text-foreground">{rejectTarget.employeeName}</span> is not put on
+                  the visit; it stays without them so another carer can be chosen.
+                </>
+              ) : rejectTarget && rejectTarget.rejectAction === 'REMOVE_EXTRA_VISITS' ? (
+                <>
+                  <span className="font-medium text-foreground">{rejectTarget.employeeName}</span> stays off the
+                  visits over their weekly hours on{' '}
+                  <span className="font-medium text-foreground">{rejectTarget.serviceUserName}</span>&apos;s plan
+                  — the visits held back and, latest first, any they already have until each week fits (a
+                  weekday taken off every week is taken off them in the plan). Their other visits stay.
                 </>
               ) : rejectTarget ? (
                 <>
@@ -591,7 +662,9 @@ export default function HoursApprovalsPage() {
             >
               {rejectMut.isPending
                 ? 'Rejecting…'
-                : rejectTarget && rejectTarget.requestType !== 'VISIT_PLAN_OVER_HOURS'
+                : rejectTarget &&
+                    (rejectTarget.requestType !== 'VISIT_PLAN_OVER_HOURS' ||
+                      rejectTarget.rejectAction === 'REMOVE_EXTRA_VISITS')
                   ? 'Reject'
                   : 'Reject & remove carer'}
             </AlertDialogAction>

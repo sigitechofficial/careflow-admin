@@ -17,48 +17,51 @@ import { useAuthStore } from '@/features/auth/store'
 type Option<T extends string> = { value: T; label: string }
 
 const CHANGE_APPROVAL_OPTIONS: Option<ServiceUserWeeklyHoursSettings['changeApproval']>[] = [
-  { value: 'ALWAYS', label: 'Always (increase or decrease)' },
+  { value: 'ALWAYS', label: 'Always (up or down)' },
   { value: 'INCREASE_ONLY', label: 'Only when hours go up' },
   { value: 'DECREASE_ONLY', label: 'Only when hours go down' },
-  { value: 'NEVER', label: 'Never — changes apply straight away' },
+  { value: 'NEVER', label: 'Never — the change applies straight away' },
 ]
 
 const DECREASE_OPTIONS: Option<ServiceUserWeeklyHoursSettings['decreaseAction']>[] = [
-  { value: 'KEEP_WARN', label: 'Keep the visits — show a warning' },
-  { value: 'CANCEL_LATEST', label: 'Cancel the latest visits in each week over the hours' },
+  { value: 'KEEP_WARN', label: 'Keep the visits and show a warning' },
+  { value: 'CANCEL_LATEST', label: 'Cancel the last visits of each week until it fits' },
 ]
 
 const PLAN_OVER_OPTIONS: Option<ServiceUserWeeklyHoursSettings['planOverLimit']>[] = [
-  { value: 'BLOCK', label: "Block — the plan can't be saved" },
-  { value: 'WARN', label: 'Allow — show a warning only' },
+  { value: 'BLOCK', label: "Don't allow saving" },
+  { value: 'WARN', label: 'Allow, show a warning only' },
 ]
 
 const DRAFT_OVER_OPTIONS: Option<ServiceUserWeeklyHoursSettings['draftOverLimit']>[] = [
-  { value: 'BLOCK', label: "Block — the draft can't be saved" },
-  { value: 'MANAGER_APPROVAL', label: "Save it — a manager must approve before it's activated" },
-  { value: 'WARN', label: 'Allow — show a warning only' },
+  { value: 'BLOCK', label: "Don't allow saving" },
+  { value: 'MANAGER_APPROVAL', label: 'Save it, but a manager must approve before activating' },
+  { value: 'WARN', label: 'Allow, show a warning only' },
 ]
 
 const EXTRA_OVER_OPTIONS: Option<ServiceUserWeeklyHoursSettings['extraOverLimit']>[] = [
-  { value: 'MANAGER_APPROVAL', label: 'Send to a manager for approval' },
-  { value: 'BLOCK', label: "Block — the extra visit isn't added" },
-  { value: 'WARN', label: 'Add it — show a warning only' },
+  { value: 'MANAGER_APPROVAL', label: 'Send to a manager to approve' },
+  { value: 'BLOCK', label: "Don't add it" },
+  { value: 'WARN', label: 'Add it, show a warning only' },
 ]
 
 const EXTRA_EDIT_OPTIONS: Option<ServiceUserWeeklyHoursSettings['extraEditOverLimit']>[] = [
-  { value: 'BLOCK', label: "Block — the change can't be saved" },
-  { value: 'WARN', label: 'Allow — show a warning only' },
+  { value: 'BLOCK', label: "Don't allow saving" },
+  { value: 'WARN', label: 'Allow, show a warning only' },
 ]
 
 const BULK_OPTIONS: Option<ServiceUserWeeklyHoursSettings['bulkOverLimit']>[] = [
-  { value: 'WARN', label: 'Make the visits — show a warning' },
-  { value: 'SKIP_MANUAL', label: 'Skip the plan when run by hand (hourly rolling rota still makes them)' },
-  { value: 'SKIP_ALL', label: 'Skip the plan everywhere (also the hourly rolling rota)' },
+  { value: 'WARN', label: 'Make the visits and show a warning' },
+  { value: 'SKIP_MANUAL', label: 'Skip the plan when a person runs it (the nightly rolling rota still makes visits)' },
+  {
+    value: 'SKIP_ALL',
+    label: 'Always skip the plan, including the nightly rolling rota (no new visits until the plan or hours are fixed)',
+  },
 ]
 
 const SPECIAL_OVER_OPTIONS: Option<ServiceUserWeeklyHoursSettings['specialVisitOverLimit']>[] = [
-  { value: 'WARN', label: 'Add it — show a warning only' },
-  { value: 'BLOCK', label: "Block — the special visit isn't added" },
+  { value: 'WARN', label: 'Add it, show a warning only' },
+  { value: 'BLOCK', label: "Don't add it" },
 ]
 
 function OptionSelect<T extends string>({
@@ -135,8 +138,8 @@ export function GeneralSettingsServiceUserHoursPanel() {
     <div className="space-y-4" data-testid="general-settings-su-hours-panel">
       <GeneralSettingsCard title="Service user weekly hours">
         <SettingsRow
-          label="Changing the weekly contracted hours needs a manager's approval"
-          hint="In DOM Care and on the visit plan. The first value is always set directly."
+          label="Manager approval to change weekly hours"
+          hint="Applies when weekly hours are changed in DOM Care or on the visit plan. The first hours entered never need approval."
         >
           <OptionSelect
             value={draft.changeApproval}
@@ -148,8 +151,8 @@ export function GeneralSettingsServiceUserHoursPanel() {
         </SettingsRow>
 
         <SettingsRow
-          label="When the hours go down and visits are over the new hours"
-          hint="Applies when the lower hours are saved (after approval, if one is needed). Cancelling only cancels rota visits; the call pattern stays the same."
+          label="Hours reduced, but visits still go over"
+          hint="What happens to visits already on the rota when weekly hours are lowered (after approval, if needed). Only rota visits are cancelled; the weekly plan stays the same."
         >
           <OptionSelect
             value={draft.decreaseAction}
@@ -161,8 +164,8 @@ export function GeneralSettingsServiceUserHoursPanel() {
         </SettingsRow>
 
         <SettingsRow
-          label="Draft visit plan saved with a week over the hours"
-          hint="A new plan stays a draft until it's activated. With manager approval the request goes to Hours approvals; if it's rejected the draft stays as it is and can't be activated."
+          label="Draft plan goes over the weekly hours"
+          hint="A new plan stays a draft until it's activated. With manager approval, the draft is saved and a request goes to Hours approvals. The plan can be activated only after approval; if it's rejected, it can't be activated."
         >
           <OptionSelect
             value={draft.draftOverLimit ?? 'BLOCK'}
@@ -173,7 +176,10 @@ export function GeneralSettingsServiceUserHoursPanel() {
           />
         </SettingsRow>
 
-        <SettingsRow label="Active or suspended visit plan saved with a week over the hours">
+        <SettingsRow
+          label="Active or suspended plan goes over the weekly hours"
+          hint="When a change to a live plan makes any week go over the hours."
+        >
           <OptionSelect
             value={draft.planOverLimit}
             options={PLAN_OVER_OPTIONS}
@@ -183,7 +189,10 @@ export function GeneralSettingsServiceUserHoursPanel() {
           />
         </SettingsRow>
 
-        <SettingsRow label="Extra visit that takes its week over the hours">
+        <SettingsRow
+          label="Extra visit goes over the weekly hours"
+          hint="An extra visit added for one date (Changes for specific dates)."
+        >
           <OptionSelect
             value={draft.extraOverLimit}
             options={EXTRA_OVER_OPTIONS}
@@ -196,8 +205,8 @@ export function GeneralSettingsServiceUserHoursPanel() {
         {draft.extraOverLimit === 'MANAGER_APPROVAL' ? (
           <>
             <SettingsRow
-              label="Check the week again when a manager approves"
-              hint="If the week has more visits than when the extra visit was asked for, Approve is refused."
+              label="Re-check the week when a manager approves"
+              hint="If more visits were added to that week after the request, the approval is blocked."
             >
               <Switch
                 checked={draft.extraApproveRecheck}
@@ -206,7 +215,7 @@ export function GeneralSettingsServiceUserHoursPanel() {
                 aria-label="Check the week again on approve"
               />
             </SettingsRow>
-            <SettingsRow label="A reason is needed to reject an extra visit">
+            <SettingsRow label="Reason required to reject an extra visit">
               <Switch
                 checked={draft.extraRejectReasonRequired}
                 onCheckedChange={v => set('extraRejectReasonRequired', v)}
@@ -217,7 +226,7 @@ export function GeneralSettingsServiceUserHoursPanel() {
           </>
         ) : null}
 
-        <SettingsRow label="Extra visit edited so its week goes over the hours">
+        <SettingsRow label="Edited extra visit goes over the weekly hours">
           <OptionSelect
             value={draft.extraEditOverLimit}
             options={EXTRA_EDIT_OPTIONS}
@@ -228,8 +237,8 @@ export function GeneralSettingsServiceUserHoursPanel() {
         </SettingsRow>
 
         <SettingsRow
-          label="Generating the rota with a plan over the hours"
-          hint="Bulk generate (Scheduling), Regenerate rota and Generate visits on the visit plan, visits on return from absence, and the hourly rolling rota. 'By hand' is everything except the hourly rolling rota; there the plan is refused with a message. Extra visits a manager approved over the hours are not counted, nor are past days (backfill). Skipping everywhere means that client gets no new rota visits until the plan or the hours are fixed."
+          label="Making rota visits from a plan that's over the hours"
+          hint="Covers Bulk generate, Regenerate rota, Generate visits, visits after an absence ends, and the nightly rolling rota. Extra visits a manager approved and past dates are not counted."
         >
           <OptionSelect
             value={draft.bulkOverLimit ?? 'WARN'}
@@ -241,8 +250,8 @@ export function GeneralSettingsServiceUserHoursPanel() {
         </SettingsRow>
 
         <SettingsRow
-          label="Special visits count towards the weekly hours"
-          hint="Special visits (Workforce → Special visits) for this service user are added to their weekly hours. Cancelled ones don't count; called-off ones do."
+          label="Count special visits in the weekly hours"
+          hint="Special visits (Workforce → Special visits) for this service user. Cancelled ones don't count; called-off ones do."
         >
           <Switch
             checked={draft.specialVisitsCount ?? true}
@@ -253,7 +262,7 @@ export function GeneralSettingsServiceUserHoursPanel() {
         </SettingsRow>
 
         {draft.specialVisitsCount ?? true ? (
-          <SettingsRow label="Special visit that takes the service user's week over the hours">
+          <SettingsRow label="Special visit goes over the weekly hours">
             <OptionSelect
               value={draft.specialVisitOverLimit ?? 'WARN'}
               options={SPECIAL_OVER_OPTIONS}
@@ -265,8 +274,8 @@ export function GeneralSettingsServiceUserHoursPanel() {
         ) : null}
 
         <SettingsRow
-          label="Weeks ahead checked"
-          hint="From this week. Every-2-weeks and monthly visits need enough weeks to show up (1–26)."
+          label="How many weeks ahead to check"
+          hint="Counted from this week (1–26). Choose enough weeks for fortnightly and monthly visits to show up."
         >
           <div className="flex items-center gap-1.5">
             <Input
@@ -284,7 +293,7 @@ export function GeneralSettingsServiceUserHoursPanel() {
         </SettingsRow>
 
         <p className="text-xs text-muted-foreground">
-          Always: sleeping nights count their full hours, a double-up counts every carer&apos;s time, and managers
+          Always applies: sleep-in nights count in full, double-up visits count each carer&apos;s time, and managers
           are notified of every request.
         </p>
       </GeneralSettingsCard>

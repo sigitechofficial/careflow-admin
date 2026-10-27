@@ -10,6 +10,7 @@ import {
   contentTitleClass,
 } from '@/shared/ui/content-section'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import type { VisitPlanCarerCandidate, VisitPlanCarerFit } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import { buildCarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/visit-plan-carer-availability-display.util'
@@ -27,7 +28,12 @@ export function VisitPlanCarerWeeklyHoursLine({
   includesThisVisit: boolean
   className?: string
 }) {
-  const summary = summarizeCarerWeeklyHours(candidate, includesThisVisit)
+  const { formatDate } = useOrganisationDisplayFormat()
+  const summary = summarizeCarerWeeklyHours(
+    candidate,
+    includesThisVisit,
+    candidate.weeklyHoursWeekStart ? `Week of ${formatDate(candidate.weeklyHoursWeekStart)}` : null,
+  )
   if (!summary) return null
   const { text, tone } = summary
   return (

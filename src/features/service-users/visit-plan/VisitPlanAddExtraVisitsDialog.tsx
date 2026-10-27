@@ -278,7 +278,7 @@ export function VisitPlanAddExtraVisitsDialog({
     }
     if (editing) {
       try {
-        await editExtra.mutateAsync({
+        const edited = await editExtra.mutateAsync({
           exceptionId: editing.id,
           payload: {
             startTime,
@@ -289,7 +289,11 @@ export function VisitPlanAddExtraVisitsDialog({
             nightDuty: effectiveNightDuty,
           },
         })
-        toastSuccess('Extra visit updated', 'The rota visit has been updated. Other visits are not affected.')
+        if (edited.message?.includes('sent to a manager')) {
+          toastWarning('Extra visit updated', `${edited.message}.`)
+        } else {
+          toastSuccess('Extra visit updated', 'The rota visit has been updated. Other visits are not affected.')
+        }
         onOpenChange(false)
       } catch (error) {
         toastApiError(error, 'Could not update the extra visit')
@@ -322,6 +326,16 @@ export function VisitPlanAddExtraVisitsDialog({
               .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)}`)
               .join(', ')}.`
           : null,
+        result.carerApprovals?.length
+          ? `Carer over their weekly hours — sent to a manager, on the visit once approved: ${result.carerApprovals
+              .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)}`)
+              .join(', ')}.`
+          : null,
+        result.carerWarnings?.length
+          ? `Carer over their weekly hours — on the visit, to be confirmed on the rota: ${result.carerWarnings
+              .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)}`)
+              .join(', ')}.`
+          : null,
         result.skipped.length
           ? `${result.skipped.length} date${result.skipped.length === 1 ? ' was' : 's were'} skipped: ${result.skipped
               .map((d) => `${formatDate(d.date)} — ${d.message ?? 'not available'}`)
@@ -331,7 +345,11 @@ export function VisitPlanAddExtraVisitsDialog({
       ]
         .filter(Boolean)
         .join(' ')
-      toastSuccess(title || 'Nothing added', details)
+      if (result.carerApprovals?.length || result.carerWarnings?.length) {
+        toastWarning(title || 'Nothing added', details)
+      } else {
+        toastSuccess(title || 'Nothing added', details)
+      }
       onOpenChange(false)
     } catch (error) {
       toastApiError(error, 'Could not add extra visits')
@@ -768,6 +786,23 @@ export function VisitPlanAddExtraVisitsDialog({
                                 : ''
                             }`}
                       </span>
+                      {d.ok && d.carerOverHours?.length ? (
+                        <span
+                          className="w-full pl-2 text-xs text-orange-700 dark:text-orange-300"
+                          data-testid="extra-visit-carer-hours"
+                        >
+                          {d.carerOverHours
+                            .map(
+                              (c) =>
+                                `${c.message} — ${
+                                  c.outcome === 'MANAGER_APPROVAL'
+                                    ? 'sent to a manager; not on this visit until approved'
+                                    : 'on the visit, to be confirmed on the rota'
+                                }`,
+                            )
+                            .join('. ')}
+                        </span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

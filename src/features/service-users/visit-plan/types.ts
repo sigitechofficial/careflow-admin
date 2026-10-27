@@ -198,15 +198,20 @@ export type VisitPlanCarerCandidate = {
   complianceBlocksAllocation?: boolean
   /** Carer's contracted weekly hours (from employment), null when unset. */
   contractedWeeklyHours?: number | null
-  /** Active approved extra hours threshold, else contracted. */
+  /** The carer's weekly limit: contracted weekly hours. */
   allowedWeeklyHours?: number | null
-  /** Hours already assigned to this carer across active visit plans. */
+  /**
+   * Hours the carer already has in `weeklyHoursWeekStart` (Monday–Sunday), counted like the hours
+   * approvals: rota visits (plan, extra, special) and plan visits not on the rota yet.
+   */
   assignedWeeklyHours?: number
+  /** The week shown: the visit's own week, or the busiest coming week for a plan visit. */
+  weeklyHoursWeekStart?: string | null
   /** Hours of COMPLETED visits in the current rota week (org timezone, Sunday start). */
   completedWeeklyHours?: number
-  /** assignedWeeklyHours + this visit's weekly hours. */
+  /** assignedWeeklyHours + this visit's hours in that week. */
   projectedWeeklyHours?: number
-  /** True when projected weekly hours exceed allowed (approved override or contracted). */
+  /** That week goes over the contracted weekly hours (+ grace, Settings → Dom Rules). */
   exceedsContractedHours?: boolean
   warnings: string[]
 }

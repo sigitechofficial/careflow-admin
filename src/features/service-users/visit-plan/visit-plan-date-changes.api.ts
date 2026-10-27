@@ -231,6 +231,12 @@ export type ExtraVisitDateCheck = {
   weekMinutes?: number
   /** Editing only: the change would take the week over the weekly hours, so it can't be saved. */
   overWeeklyHours?: boolean
+  /** Carers over their contracted weekly hours with this visit, and what saving does. */
+  carerOverHours?: Array<{
+    employeeId: string
+    message: string
+    outcome: 'MANAGER_APPROVAL' | 'REQUEST_CONFIRMATION'
+  }>
 }
 
 export type ExtraVisitsPreview = {
@@ -247,6 +253,10 @@ export type AddExtraVisitsResult = {
   sentForApproval: Array<{ date: string; weekStart: string; weekMinutes: number; approvalId: string }>
   /** Added although over the weekly hours (Settings → Dom Rules: warning only). */
   overWeeklyHours?: Array<{ date: string; weekMinutes: number }>
+  /** Carers over their contracted weekly hours sent to a manager (not on those visits yet). */
+  carerApprovals?: Array<{ date: string; employeeId: string; approvalId: string }>
+  /** Carers over their contracted weekly hours put on the visit to be confirmed. */
+  carerWarnings?: Array<{ date: string; employeeId: string; message: string }>
   skipped: Array<{ date: string; message: string | null }>
 }
 
@@ -295,7 +305,8 @@ export function useEditExtraVisit(serviceUserId: string, planId: string | undefi
         `${base(serviceUserId, planId!)}/extra/${exceptionId}`,
         { method: 'PATCH', body: JSON.stringify(payload) },
       )
-      return res.data
+      // The message says when a carer over their weekly hours was sent to a manager.
+      return { ...res.data, message: res.message }
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlans(serviceUserId) })

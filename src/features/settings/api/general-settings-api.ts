@@ -45,14 +45,13 @@ export type DomAllocationRuleBehavior =
   | 'REQUEST_CONFIRMATION'
   | 'MANAGER_APPROVAL'
 
-export type WeeklyHoursLimitBasis = 'CONTRACTED' | 'MAXIMUM' | 'APPROVED_EXTRA'
-
 export type WeeklyHoursRejectAction = 'REMOVE_EXTRA_VISITS' | 'REMOVE_FROM_PLAN'
 
 export type DomWeeklyHoursRuleOptions = {
-  limitBasis: WeeklyHoursLimitBasis
   rejectAction: WeeklyHoursRejectAction
   maxApprovableHours: number
+  /** Called-off visits count in the carer's week (default true). */
+  countCalledOff: boolean
 }
 
 /** Service user weekly contracted hours rules (Settings → Dom Rules). Defaults = original behaviour. */

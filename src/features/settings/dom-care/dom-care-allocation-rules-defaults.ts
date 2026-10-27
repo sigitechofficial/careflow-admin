@@ -2,7 +2,6 @@ import type {
   DomAllocationRuleBehavior,
   DomCareAllocationRule,
   DomWeeklyHoursRuleOptions,
-  WeeklyHoursLimitBasis,
   WeeklyHoursRejectAction,
 } from '@/features/settings/types'
 
@@ -15,7 +14,7 @@ export const ALLOCATION_BEHAVIOR_OPTIONS: {
   { value: 'REQUEST_CONFIRMATION', label: 'Request confirmation' },
 ]
 
-/** Settings-only for now — not read by any allocation or visit-plan check yet. */
+/** Carer over their contracted weekly hours (rota board, extra and special visits). */
 export const WEEKLY_HOURS_RULE_KEY = 'carer_over_weekly_hours'
 
 export const WEEKLY_HOURS_BEHAVIOR_OPTIONS: {
@@ -25,44 +24,36 @@ export const WEEKLY_HOURS_BEHAVIOR_OPTIONS: {
 }[] = [
   {
     value: 'DONT_ALLOW',
-    label: "Don't allow allocation",
-    description: 'The carer cannot be given visits beyond the limit.',
+    label: "Don't allow",
+    description: "The carer can't be given the visit.",
   },
   {
     value: 'MANAGER_APPROVAL',
-    label: 'Manager approval required',
-    description: 'A request is raised; the carer gets the visit only after a manager approves.',
+    label: 'Manager must approve',
+    description:
+      'A request goes to Hours approvals. The carer gets the visit only after a manager approves it.',
   },
   {
     value: 'REQUEST_CONFIRMATION',
-    label: 'Request confirmation',
-    description: 'The person allocating sees a warning and can confirm to go ahead.',
+    label: 'Warn and confirm',
+    description: 'The person giving the visit sees a warning and can confirm to go ahead.',
   },
   {
     value: 'ALWAYS_ALLOW',
     label: 'Always allow',
-    description: 'No check on weekly hours.',
-  },
-]
-
-export const WEEKLY_HOURS_LIMIT_OPTIONS: { value: WeeklyHoursLimitBasis; label: string }[] = [
-  { value: 'CONTRACTED', label: 'Contracted weekly hours' },
-  { value: 'MAXIMUM', label: 'Maximum weekly hours (falls back to contracted)' },
-  {
-    value: 'APPROVED_EXTRA',
-    label: 'Approved extra hours when active (then maximum, then contracted)',
+    description: 'Weekly hours are not checked.',
   },
 ]
 
 export const WEEKLY_HOURS_REJECT_OPTIONS: { value: WeeklyHoursRejectAction; label: string }[] = [
-  { value: 'REMOVE_EXTRA_VISITS', label: 'Remove only the extra visits' },
-  { value: 'REMOVE_FROM_PLAN', label: 'Remove the carer from the visit plan' },
+  { value: 'REMOVE_EXTRA_VISITS', label: 'Remove the carer only from the visits that go over their hours' },
+  { value: 'REMOVE_FROM_PLAN', label: 'Remove the carer from the whole visit plan' },
 ]
 
 export const DEFAULT_WEEKLY_HOURS_RULE_OPTIONS: DomWeeklyHoursRuleOptions = {
-  limitBasis: 'CONTRACTED',
-  rejectAction: 'REMOVE_FROM_PLAN',
+  rejectAction: 'REMOVE_EXTRA_VISITS',
   maxApprovableHours: 60,
+  countCalledOff: true,
 }
 
 export const DEFAULT_DOM_CARE_ALLOCATION_RULES: DomCareAllocationRule[] = [
@@ -98,7 +89,7 @@ export const DEFAULT_DOM_CARE_ALLOCATION_RULES: DomCareAllocationRule[] = [
   {
     key: WEEKLY_HOURS_RULE_KEY,
     label: 'Carer over weekly hours',
-    behavior: 'REQUEST_CONFIRMATION',
+    behavior: 'MANAGER_APPROVAL',
     minutes: 0,
     weeklyHours: { ...DEFAULT_WEEKLY_HOURS_RULE_OPTIONS },
   },
