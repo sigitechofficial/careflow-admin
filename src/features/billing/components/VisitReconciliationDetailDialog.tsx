@@ -381,7 +381,7 @@ function ManualAmountEditor({
 
 export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Props) {
   const canManage = useAuthStore(s => s.can('billing.visit_reconciliations.manage' as never))
-  const { formatDate, timeDisplayFormat } = useOrganisationDisplayFormat()
+  const { formatDate, formatTime, timeDisplayFormat } = useOrganisationDisplayFormat()
   const detailQuery = useVisitReconciliation(open && row ? row.id : undefined)
   const updateMutation = useUpdateVisitReconciliation()
   const setPayableMutation = useSetVisitPayableAmount()
@@ -883,6 +883,25 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                       Filled automatically from the distance between the carer’s previous service user that day and this one (change it if the journey differed). Payroll multiplies this by the carer’s pay card mileage (£/mile) rate.
                     </SectionInfoTip>
                   </h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {detail.previousVisit ? (
+                      detail.previousVisit.sameServiceUser ? (
+                        <>Previous visit ({detail.previousVisit.visitRef}, {formatTime(detail.previousVisit.startDateTime)}) was with the same service user, so there is no travel between them.</>
+                      ) : (
+                        <>
+                          From{' '}
+                          <span className="font-medium text-foreground">{detail.previousVisit.serviceUserName}</span>{' '}
+                          ({detail.previousVisit.visitRef}, {formatTime(detail.previousVisit.startDateTime)})
+                          {' · '}
+                          {detail.travelMiles != null ? `${detail.travelMiles} mi` : 'distance not known'}
+                          {' · '}
+                          {detail.travelMinutes != null ? `${detail.travelMinutes} min travel` : 'travel time not known'}
+                        </>
+                      )
+                    ) : (
+                      <>First visit of the carer’s day, so there is no previous service user to travel from.</>
+                    )}
+                  </p>
                 </div>
                 <label className="block max-w-xs space-y-1 text-sm">
                   <span className="text-xs text-muted-foreground">Travel distance (miles)</span>
