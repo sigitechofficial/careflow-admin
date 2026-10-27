@@ -801,10 +801,12 @@ export function ScheduleJobHoverTooltip(props: Props) {
 export function ScheduleRotaGapHoverTooltip({
   timeRangeLabel,
   durationLabel,
+  breakdownLabel,
   title,
 }: {
   timeRangeLabel: string
   durationLabel: string
+  breakdownLabel?: string
   title: string
 }) {
   return (
@@ -819,6 +821,9 @@ export function ScheduleRotaGapHoverTooltip({
           {durationLabel}
         </span>
       </div>
+      {breakdownLabel ? (
+        <p className="mt-0.5 text-[13px] tabular-nums text-slate-500 dark:text-zinc-400">{breakdownLabel}</p>
+      ) : null}
       <p className="mt-0.5 text-[13px] font-medium text-slate-600 dark:text-zinc-300 sm:text-sm">{title}</p>
     </TooltipContent>
   )

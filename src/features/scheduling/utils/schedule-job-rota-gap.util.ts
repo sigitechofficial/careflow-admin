@@ -37,6 +37,8 @@ export type RotaGapSegment = {
   travelTimingStatus?: TravelTimingStatus
   /** Destination visit for travel / idle-before-visit segments. */
   toJobId?: string
+  /** Travel only: what the block is made of, e.g. `44 min drive + 15 min buffer`. */
+  breakdownLabel?: string
 }
 
 function parseHmToTimelineMinutes(hm: string, dayStartHour: number): number | null {
@@ -125,6 +127,7 @@ function buildGapSegmentFields(options: {
   toJobId?: string
   hasConflict?: boolean
   travelTimingStatus?: TravelTimingStatus
+  breakdownLabel?: string
 }): Omit<RotaGapSegment, 'id'> {
   const { startMin, endMin } = anchorPreVisitGapSegmentPosition({
     visitStartMin: options.visitStartMin,
@@ -144,6 +147,7 @@ function buildGapSegmentFields(options: {
     toJobId: options.toJobId,
     hasConflict: options.travelTimingStatus === 'conflict' || options.hasConflict,
     travelTimingStatus: options.travelTimingStatus,
+    breakdownLabel: options.breakdownLabel,
   }
 }
 
@@ -156,6 +160,13 @@ function pushSegment(
     ...segment,
     id: segment.id ?? `${segment.kind}-${segment.startMin}-${segment.endMin}-${segment.toJobId ?? 'row'}`,
   })
+}
+
+/** Driving time and the time-between-jobs buffer that make up a travel block. */
+export function formatTravelBreakdown(driveMinutes: number, bufferMinutes?: number): string {
+  const drive = `${Math.max(0, Math.round(driveMinutes))} min drive`
+  const buffer = Math.max(0, Math.round(bufferMinutes ?? 0))
+  return buffer > 0 ? `${drive} + ${buffer} min buffer` : drive
 }
 
 export function estimateTravelMinutesBetween(
@@ -236,6 +247,7 @@ export function buildFirstJobRotaGapSegments(options: {
     title: `Travel to ${toClientLabel} (${formatMinuteRange(departMin, visitStartMin, dayStartHour)})`,
     toJobId: toJob.id,
     travelTimingStatus,
+    breakdownLabel: formatTravelBreakdown(travelMinutes, options.bufferMinutes),
   }))
 
   return segments
@@ -324,6 +336,7 @@ export function buildBetweenJobsRotaGapSegments(options: {
         title: `Travel to ${toClientLabel} (${formatMinuteRange(split.departMin, visitStartMin, dayStartHour)})`,
         toJobId: toJob.id,
         travelTimingStatus,
+        breakdownLabel: formatTravelBreakdown(travelMinutes, options.bufferMinutes),
       }))
     }
   }
