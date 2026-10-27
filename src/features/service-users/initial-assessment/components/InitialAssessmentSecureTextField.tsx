@@ -58,7 +58,9 @@ export function InitialAssessmentSecureTextField({
       <Input
         id={id}
         type={revealed || !hasStored ? 'text' : 'password'}
-        autoComplete="off"
+        // Not a login: "off" is ignored on password fields, and the browser then fills the saved
+        // login email into the header search box.
+        autoComplete="new-password"
         disabled={disabled || (showMasked && !revealed)}
         className="font-mono"
         placeholder={hasStored ? SECURE_MASK_PLACEHOLDER : 'Enter code…'}
