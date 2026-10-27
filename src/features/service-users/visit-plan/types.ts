@@ -73,6 +73,10 @@ export type GenerateSchedulePreview = {
   /** Highest Max backfill days on enabled calls (from saved plan). */
   maxSlotBackfillDays?: number
   truncated: boolean
+  /** Weeks of this run over the service user's weekly contracted hours, in words (null when none). */
+  weeklyHoursWarning?: string | null
+  /** Settings → Dom Rules refuses generating by hand while the plan is over the hours. */
+  weeklyHoursBlocked?: boolean
 }
 
 export type ActivateImpactPreview = {
@@ -197,13 +201,20 @@ export type VisitPlanCarerCandidate = {
   ruleBlockReasons?: string[]
   /** Carer's contracted weekly hours (from employment), null when unset. */
   contractedWeeklyHours?: number | null
-  /** Active approved extra hours threshold, else contracted. */
+  /** The carer's weekly limit: contracted weekly hours. */
   allowedWeeklyHours?: number | null
-  /** Hours already assigned to this carer across active visit plans. */
+  /**
+   * Hours the carer already has in `weeklyHoursWeekStart` (Monday–Sunday), counted like the hours
+   * approvals: rota visits (plan, extra, special) and plan visits not on the rota yet.
+   */
   assignedWeeklyHours?: number
-  /** assignedWeeklyHours + this visit's weekly hours. */
+  /** The week shown: the visit's own week, or the busiest coming week for a plan visit. */
+  weeklyHoursWeekStart?: string | null
+  /** Hours of COMPLETED visits in the current rota week (org timezone, Sunday start). */
+  completedWeeklyHours?: number
+  /** assignedWeeklyHours + this visit's hours in that week. */
   projectedWeeklyHours?: number
-  /** True when projected weekly hours exceed allowed (approved override or contracted). */
+  /** That week goes over the contracted weekly hours (+ grace, Settings → Dom Rules). */
   exceedsContractedHours?: boolean
   /** Nearest upcoming leave/holiday overlapping the next 8 weeks. `blocks` = org rule is "Don't allow". */
   timeOff?: {

@@ -16,6 +16,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { cn, formatDate } from '@/shared/lib/utils'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
+import { formatVisitPlanWeeklyHours } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import { useMedicationRounds } from '@/features/settings/hooks/useMedicationRounds'
 import { sortMedicationRounds } from '@/features/service-users/medication/medication-time-slots'
@@ -194,9 +195,10 @@ export function VisitPlanAddExtraVisitsDialog({
       durationMinutes: duration ?? 0,
       requiredCarers,
       employeeIds: selectedCarerIds,
+      nightDuty: effectiveNightDuty,
       ...(editing ? { editingExceptionId: editing.id } : {}),
     }),
-    [dates, roundCode, startTime, duration, requiredCarers, selectedCarerIds, editing],
+    [dates, roundCode, startTime, duration, requiredCarers, selectedCarerIds, effectiveNightDuty, editing],
   )
   const previewQuery = useQuery({
     queryKey: ['visit-plan-extra-preview', planId, payload],
@@ -205,6 +207,11 @@ export function VisitPlanAddExtraVisitsDialog({
   })
   const preview = ready ? previewQuery.data : undefined
   const okCount = preview?.dates.filter((d) => d.ok).length ?? 0
+  /** Dates whose week would go over the service user's weekly hours: sent to a manager. */
+  const approvalCount = preview?.dates.filter((d) => d.ok && d.needsApproval).length ?? 0
+  const addCount = okCount - approvalCount
+  const limitMinutes =
+    preview?.limitWeeklyHours != null ? Math.round(preview.limitWeeklyHours * 60) : null
 
   // The carer picker suggests carers for a slot; give it the extra visit's own time and weekdays.
   const pickerSlot = React.useMemo<VisitPlanSlot | null>(() => {
@@ -271,7 +278,7 @@ export function VisitPlanAddExtraVisitsDialog({
     }
     if (editing) {
       try {
-        await editExtra.mutateAsync({
+        const edited = await editExtra.mutateAsync({
           exceptionId: editing.id,
           payload: {
             startTime,
@@ -282,7 +289,11 @@ export function VisitPlanAddExtraVisitsDialog({
             nightDuty: effectiveNightDuty,
           },
         })
-        toastSuccess('Extra visit updated', 'The rota visit has been updated. Other visits are not affected.')
+        if (edited.message?.includes('sent to a manager')) {
+          toastWarning('Extra visit updated', `${edited.message}.`)
+        } else {
+          toastSuccess('Extra visit updated', 'The rota visit has been updated. Other visits are not affected.')
+        }
         onOpenChange(false)
       } catch (error) {
         toastApiError(error, 'Could not update the extra visit')
@@ -297,12 +308,48 @@ export function VisitPlanAddExtraVisitsDialog({
         notes: notes.trim() || undefined,
         nightDuty: effectiveNightDuty,
       })
-      toastSuccess(
-        `${result.created} extra visit${result.created === 1 ? '' : 's'} added`,
+      const sent = result.sentForApproval ?? []
+      const title = [
+        result.created ? `${result.created} extra visit${result.created === 1 ? '' : 's'} added` : null,
+        sent.length ? `${sent.length} sent for manager approval` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+      const details = [
+        sent.length
+          ? `Waiting for approval (over the weekly hours): ${sent
+              .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)}`)
+              .join(', ')}. They are added only if a manager approves.`
+          : null,
+        result.overWeeklyHours?.length
+          ? `Over the weekly hours (allowed by settings): ${result.overWeeklyHours
+              .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)}`)
+              .join(', ')}.`
+          : null,
+        result.carerApprovals?.length
+          ? `Carer over their weekly hours — sent to a manager, on the visit once approved: ${result.carerApprovals
+              .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)}`)
+              .join(', ')}.`
+          : null,
+        result.carerWarnings?.length
+          ? `Carer over their weekly hours — on the visit, to be confirmed on the rota: ${result.carerWarnings
+              .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)}`)
+              .join(', ')}.`
+          : null,
         result.skipped.length
-          ? `${result.skipped.length} date${result.skipped.length === 1 ? ' was' : 's were'} skipped. Other visits are not affected.`
-          : 'Created on the rota. Other visits are not affected.',
-      )
+          ? `${result.skipped.length} date${result.skipped.length === 1 ? ' was' : 's were'} skipped: ${result.skipped
+              .map((d) => `${formatDate(d.date)} — ${d.message ?? 'not available'}`)
+              .join('; ')}.`
+          : null,
+        result.created ? 'Created on the rota. Other visits are not affected.' : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
+      if (result.carerApprovals?.length || result.carerWarnings?.length) {
+        toastWarning(title || 'Nothing added', details)
+      } else {
+        toastSuccess(title || 'Nothing added', details)
+      }
       onOpenChange(false)
     } catch (error) {
       toastApiError(error, 'Could not add extra visits')
@@ -694,26 +741,72 @@ export function VisitPlanAddExtraVisitsDialog({
               ) : previewQuery.isFetching && !preview ? (
                 <p className="mt-2 text-sm text-muted-foreground">Checking…</p>
               ) : preview ? (
+                <>
+                {approvalCount > 0 ? (
+                  <p className="mt-2 rounded-md border border-orange-300 bg-orange-50 px-2.5 py-1.5 text-xs text-orange-900 dark:border-orange-900 dark:bg-orange-950/30 dark:text-orange-100">
+                    Dates marked <strong>Needs manager approval</strong> would take that week over the service
+                    user&apos;s weekly contracted hours. They are sent to a manager and added only if approved. The
+                    other dates are added now.
+                  </p>
+                ) : null}
                 <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-sm">
                   {preview.dates.map((d) => (
                     <li key={d.date} className="flex flex-wrap gap-x-2">
                       <span className="whitespace-nowrap font-medium">
                         {weekdayLabel(d.date)} {formatDate(d.date)}
                       </span>
-                      <span className={cn(d.ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300')}>
-                        {d.ok
+                      <span
+                        className={cn(
+                          !d.ok
+                            ? 'text-amber-700 dark:text-amber-300'
+                            : d.needsApproval || d.overWeeklyHours
+                              ? 'font-medium text-orange-700 dark:text-orange-300'
+                              : 'text-emerald-700 dark:text-emerald-300',
+                        )}
+                      >
+                        {d.ok && d.overWeeklyHours
+                          ? `${isEditing ? 'Can be saved' : 'Will be added'} — over the weekly contracted hours: ${
+                              d.message ?? ''
+                            }`
+                          : d.ok && d.needsApproval
+                          ? `Needs manager approval — that week would have ${formatVisitPlanWeeklyHours(
+                              d.weekMinutes ?? 0,
+                            )} of ${formatVisitPlanWeeklyHours(limitMinutes ?? 0)}`
+                          : d.ok
                           ? isEditing
                             ? 'No clash — can be saved'
                             : 'Will be added'
+                          : d.overWeeklyHours
+                          ? `${isEditing ? "Can't be saved" : "Can't be added"} — over the weekly contracted hours: ${
+                              d.message ?? ''
+                            }`
                           : `Skipped: ${d.message ?? 'not available'}${
                               d.clashEmployeeIds.length
                                 ? ` (${d.clashEmployeeIds.map((id) => employeeNameById.get(id) ?? 'Carer').join(', ')})`
                                 : ''
                             }`}
                       </span>
+                      {d.ok && d.carerOverHours?.length ? (
+                        <span
+                          className="w-full pl-2 text-xs text-orange-700 dark:text-orange-300"
+                          data-testid="extra-visit-carer-hours"
+                        >
+                          {d.carerOverHours
+                            .map(
+                              (c) =>
+                                `${c.message} — ${
+                                  c.outcome === 'MANAGER_APPROVAL'
+                                    ? 'sent to a manager; not on this visit until approved'
+                                    : 'on the visit, to be confirmed on the rota'
+                                }`,
+                            )
+                            .join('. ')}
+                        </span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
+                </>
               ) : null}
             </section>
           </DialogBody>
@@ -728,7 +821,16 @@ export function VisitPlanAddExtraVisitsDialog({
               data-testid="extra-visit-submit"
             >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {isEditing ? 'Save changes' : `Add ${okCount > 0 ? okCount : ''} visit${okCount === 1 ? '' : 's'}`}
+              {isEditing
+                ? 'Save changes'
+                : approvalCount > 0
+                  ? [
+                      addCount > 0 ? `Add ${addCount} visit${addCount === 1 ? '' : 's'}` : null,
+                      `Send ${approvalCount} for approval`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : `Add ${okCount > 0 ? okCount : ''} visit${okCount === 1 ? '' : 's'}`}
             </Button>
           </DialogFooter>
         </DialogContent>

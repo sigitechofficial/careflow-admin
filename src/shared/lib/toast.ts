@@ -5,12 +5,22 @@ export function toastSuccess(title: string, description?: string) {
   useToastStore.getState().push({ title, description, variant: 'success' })
 }
 
+/** Errors and warnings stay long enough to read: 8s, plus time for long messages, up to 20s. */
+function readingDuration(title: string, description?: string): number {
+  const length = title.length + (description?.length ?? 0)
+  return Math.min(20000, Math.max(8000, 3000 + length * 50))
+}
+
 export function toastError(title: string, description?: string) {
-  useToastStore.getState().push({ title, description, variant: 'destructive' })
+  useToastStore
+    .getState()
+    .push({ title, description, variant: 'destructive', duration: readingDuration(title, description) })
 }
 
 export function toastWarning(title: string, description?: string) {
-  useToastStore.getState().push({ title, description, variant: 'warning' })
+  useToastStore
+    .getState()
+    .push({ title, description, variant: 'warning', duration: readingDuration(title, description) })
 }
 
 export function toastInfo(title: string, description?: string) {

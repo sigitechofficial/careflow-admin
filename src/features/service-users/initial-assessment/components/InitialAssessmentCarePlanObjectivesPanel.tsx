@@ -81,8 +81,8 @@ function TaskBlockFields({
   goals: CarePlanGoalOption[]
 }) {
   const fields: { key: 'agreedTask' | 'objectives' | 'outcomes'; label: string; minHeight: string }[] = [
-    { key: 'agreedTask', label: 'Agreed Task', minHeight: 'min-h-[100px]' },
-    { key: 'objectives', label: 'Objectives', minHeight: 'min-h-[80px]' },
+    { key: 'agreedTask', label: 'The support I need at this visit (step by step)', minHeight: 'min-h-[100px]' },
+    { key: 'objectives', label: 'What I want this visit to achieve', minHeight: 'min-h-[80px]' },
     // Outcomes are the agreed goals now; old free text stays visible where it was written.
     ...(hasText(block.outcomes)
       ? [{ key: 'outcomes' as const, label: 'Outcomes (earlier notes)', minHeight: 'min-h-[80px]' }]
@@ -112,7 +112,7 @@ function TaskBlockFields({
         </div>
       ))}
       <fieldset data-testid={`${prefix}-goals`}>
-        <legend className={IA_QUESTION_LABEL_CLASS}>Which goal does this support?</legend>
+        <legend className={IA_QUESTION_LABEL_CLASS}>Which of my goals does this support?</legend>
         {goals.length ? (
           <div className="mt-1 space-y-1.5">
             {goals.map((goal) => (
@@ -198,7 +198,7 @@ export function InitialAssessmentCarePlanObjectivesPanel({
     <div className={cn(IA_SECTION_BODY_CLASS, 'space-y-6')} data-testid="ia-care-plan-objectives-panel">
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader
-          title="Personalised Care/Support Plan"
+          title="My Care and Support Plan"
           subtitle={CARE_PLAN_PLAN_SUBTITLE}
         />
 
@@ -250,12 +250,12 @@ export function InitialAssessmentCarePlanObjectivesPanel({
         <div className="space-y-4 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <section className="overflow-hidden rounded-sm border border-slate-300 dark:border-slate-600">
             <div className={IA_SUBSECTION_PANEL_HEADER_CLASS}>
-              <h4 className="text-sm font-semibold text-foreground">Professional visits</h4>
+              <h4 className="text-sm font-semibold text-foreground">Professionals who visit me</h4>
             </div>
             <div className="space-y-4 p-4">
               <div>
                 <Label htmlFor="care-plan-which-professional-visit" className={IA_QUESTION_LABEL_CLASS}>
-                  Which professional visits, and what for? (e.g. district nurse for dressings, OT)
+                  Which professionals visit me, and what for? (e.g. district nurse for dressings, OT)
                 </Label>
                 <Textarea
                   id="care-plan-which-professional-visit"
@@ -308,7 +308,7 @@ export function InitialAssessmentCarePlanObjectivesPanel({
 
           <section className="overflow-hidden rounded-sm border border-slate-300 dark:border-slate-600">
             <HolisticSectionHeader
-              title="Handling equipment in use"
+              title="Handling equipment I use"
               className="rounded-none border-0"
             />
             <div className="overflow-x-auto p-4 pt-0">
@@ -413,7 +413,7 @@ export function InitialAssessmentCarePlanObjectivesPanel({
 
           <section className="overflow-hidden rounded-sm border border-slate-300 dark:border-slate-600">
             <HolisticSectionHeader
-              title="Other Equipment required (If applicable)"
+              title="Other equipment I need (if applicable)"
               className="rounded-none border-0"
             />
             <div className="p-4 pt-0">

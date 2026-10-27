@@ -468,7 +468,9 @@ export function ScheduleJobAllocateDialog({
       setSelectedEmployeeId(null)
       setReplacingEmployeeId(null)
       setAssignAsLead(false)
-      if (result.data.status === 'PENDING_CONFIRMATION') {
+      if (result.approvalRequested) {
+        toastWarning('Sent to a manager', result.message)
+      } else if (result.data.status === 'PENDING_CONFIRMATION') {
         toastWarning('Confirmation required', result.message)
       } else {
         toastSuccess('Carer allocated', result.message)
@@ -528,7 +530,9 @@ export function ScheduleJobAllocateDialog({
       setSelectedEmployeeId(null)
       setReplacingEmployeeId(null)
       setAssignAsLead(false)
-      if (result.data.status === 'PENDING_CONFIRMATION') {
+      if (result.approvalRequested) {
+        toastWarning('Sent to a manager', result.message)
+      } else if (result.data.status === 'PENDING_CONFIRMATION') {
         toastWarning('Confirmation required', result.message)
       } else {
         toastSuccess('Carer changed', 'The job has been reassigned.')
@@ -611,6 +615,8 @@ export function ScheduleJobAllocateDialog({
       setSearch('')
       if (result.requiresConfirmation) {
         toastWarning('Confirmation required', result.message)
+      } else if (result.approvalRequests.length) {
+        toastWarning('Some carers sent to a manager', result.message)
       } else {
         toastSuccess('Carers allocated', result.message)
       }

@@ -3,7 +3,7 @@ import { cn } from '@/shared/lib/utils'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { plainTextFromHtml } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
-import { holisticQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
+import { iaQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import type { InitialAssessmentAnswerInput, InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
 import {
   IA_LABEL_SECONDARY_CLASS,
@@ -83,7 +83,7 @@ export function InitialAssessmentLpaContactField({
   return (
     <div className={simple ? IA_SIMPLE_FIELD_CLASS : 'space-y-3 p-1'}>
       <Label className={IA_QUESTION_LABEL_CLASS}>
-        {holisticQuestionLabel(question.questionText)}
+        {iaQuestionLabel(question)}
         {question.isRequired ? (
           <span className="text-teal-700 dark:text-teal-400" aria-hidden>
             {' '}

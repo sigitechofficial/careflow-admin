@@ -22,12 +22,20 @@ export function allocationWarningsSummary(warnings: AllocationWarning[]): string
   return list.slice(0, 2).join(' · ')
 }
 
-/** True when drag-assign should fail (rota clash, blocked carer, compliance block, missing employee, "Don't allow" rule). */
+/**
+ * True when drag-assign should fail (rota clash, blocked carer, compliance block, missing employee,
+ * a "Don't allow" rule, or over the carer's weekly hours with Settings → Dom Rules on "Don't allow").
+ */
 export function isDragAllocationHardBlock(warnings: AllocationWarning[]): boolean {
   return warnings.some((w) => {
     if (w.severity !== 'blocking') return false
     if (w.hardBlock) return true
-    if (w.type === 'TIME_CONFLICT' || w.type === 'BLOCKED_CARER' || w.type === 'COMPLIANCE_BLOCK') {
+    if (
+      w.type === 'TIME_CONFLICT' ||
+      w.type === 'BLOCKED_CARER' ||
+      w.type === 'COMPLIANCE_BLOCK' ||
+      w.type === 'CAPACITY_EXCEEDED'
+    ) {
       return true
     }
     if (w.type !== 'EMPLOYEE_NOT_AVAILABLE') return false

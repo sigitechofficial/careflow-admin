@@ -49,11 +49,11 @@ export const CARE_PLAN_VISIT_SECTIONS: {
   title: string
   instruction: string
 }[] = [
-  { id: 'morning', title: 'Morning visit', instruction: '— what carers do and what it should achieve' },
-  { id: 'lunch', title: 'Midday visit', instruction: '— what carers do and what it should achieve' },
-  { id: 'tea', title: 'Afternoon visit', instruction: '— what carers do and what it should achieve' },
-  { id: 'evening', title: 'Evening visit', instruction: '— what carers do and what it should achieve' },
-  { id: 'night', title: 'Night visit', instruction: '— what carers do and what it should achieve' },
+  { id: 'morning', title: 'Morning visit', instruction: '— what I need Care Professionals to do, and what it should achieve' },
+  { id: 'lunch', title: 'Midday visit', instruction: '— what I need Care Professionals to do, and what it should achieve' },
+  { id: 'tea', title: 'Afternoon visit', instruction: '— what I need Care Professionals to do, and what it should achieve' },
+  { id: 'evening', title: 'Evening visit', instruction: '— what I need Care Professionals to do, and what it should achieve' },
+  { id: 'night', title: 'Night visit', instruction: '— what I need Care Professionals to do, and what it should achieve' },
 ]
 
 /** Tab 2 "Preferred visit times" round codes → care-plan visit. */

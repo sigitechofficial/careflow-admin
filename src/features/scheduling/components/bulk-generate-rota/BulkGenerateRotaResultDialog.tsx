@@ -3,6 +3,7 @@ import { ExternalLink } from 'lucide-react'
 import type { BulkGenerateVisitPlanScheduleResponse } from '@/features/scheduling/api/bulk-visit-plan-schedule.api'
 import {
   BulkGenerateRotaResultPatternWarningBanner,
+  BulkGenerateRotaResultWeeklyHoursBanner,
   BulkGenerateRotaResultRotaConflictBanner,
 } from '@/features/scheduling/components/bulk-generate-rota/BulkGenerateRotaResultWarnings'
 import { BulkGenerateRotaResultRowsTable } from '@/features/scheduling/components/bulk-generate-rota/BulkGenerateRotaResultRowsTable'
@@ -47,6 +48,7 @@ export function BulkGenerateRotaResultDialog({ open, onOpenChange, result }: Pro
           <BulkGenerateRotaResultSummaryGrid totals={result.totals} />
           <BulkGenerateRotaResultRotaConflictBanner totals={result.totals} />
           <BulkGenerateRotaResultPatternWarningBanner totals={result.totals} />
+          <BulkGenerateRotaResultWeeklyHoursBanner totals={result.totals} />
           <BulkGenerateRotaResultRowsTable results={result.results} />
         </DialogBody>
 

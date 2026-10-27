@@ -1,10 +1,12 @@
 import * as React from 'react'
-import { Loader2 } from 'lucide-react'
+import { Info, Loader2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import {
   type DomAllocationRuleBehavior,
   type DomCareAllocationRule,
+  type DomWeeklyHoursRuleOptions,
   type OrganisationGeneralSettings,
+  type WeeklyHoursRejectAction,
 } from '@/features/settings/types'
 import {
   useGeneralSettings,
@@ -13,15 +15,21 @@ import {
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
-import { GeneralSettingsCard } from '@/features/settings/components/GeneralSettingsCard'
+import { RadioGroup, RadioGroupItem, Switch } from '@/shared/ui/toggle-controls'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
+import { GeneralSettingsCard, SettingsRow } from '@/features/settings/components/GeneralSettingsCard'
 import {
   ALLOCATION_BEHAVIOR_OPTIONS,
   DEFAULT_DOM_CARE_ALLOCATION_RULES,
+  DEFAULT_WEEKLY_HOURS_RULE_OPTIONS,
+  WEEKLY_HOURS_BEHAVIOR_OPTIONS,
+  WEEKLY_HOURS_REJECT_OPTIONS,
+  WEEKLY_HOURS_RULE_KEY,
   mergeAllocationRules,
   ruleSupportsMinutes,
 } from '@/features/settings/dom-care/dom-care-allocation-rules-defaults'
 import { useAuthStore } from '@/features/auth/store'
+import { GeneralSettingsServiceUserHoursPanel } from '@/features/settings/components/GeneralSettingsServiceUserHoursPanel'
 import { cn } from '@/shared/lib/utils'
 
 const RULE_ROW_GRID =
@@ -59,6 +67,14 @@ export function GeneralSettingsDomRulesPanel() {
     setRules(prev => prev.map(r => (r.key === key ? { ...r, ...patch } : r)))
   }
 
+  const gridRules = rules.filter(r => r.key !== WEEKLY_HOURS_RULE_KEY)
+  const weeklyRule = rules.find(r => r.key === WEEKLY_HOURS_RULE_KEY)
+  const weeklyOptions = weeklyRule?.weeklyHours ?? DEFAULT_WEEKLY_HOURS_RULE_OPTIONS
+
+  function updateWeeklyOptions(patch: Partial<DomWeeklyHoursRuleOptions>) {
+    updateRule(WEEKLY_HOURS_RULE_KEY, { weeklyHours: { ...weeklyOptions, ...patch } })
+  }
+
   async function onSave() {
     if (!canUpdate) return
     try {
@@ -67,6 +83,17 @@ export function GeneralSettingsDomRulesPanel() {
         minutes: ruleSupportsMinutes(r.key)
           ? Math.max(0, Math.min(999, Math.round(r.minutes ?? 0)))
           : null,
+        ...(r.weeklyHours
+          ? {
+              weeklyHours: {
+                ...r.weeklyHours,
+                maxApprovableHours: Math.max(
+                  1,
+                  Math.min(168, Math.round(r.weeklyHours.maxApprovableHours || 0)),
+                ),
+              },
+            }
+          : {}),
       }))
       const updated = await updateMutation.mutateAsync({ domCareAllocationRules: payload })
       const d = toDraft(updated)
@@ -110,7 +137,7 @@ export function GeneralSettingsDomRulesPanel() {
         </div>
 
         <div className="divide-y divide-border">
-          {rules.map((rule, index) => (
+          {gridRules.map((rule, index) => (
             <div
               key={rule.key}
               className={cn(RULE_ROW_GRID, 'py-3', index % 2 === 1 && 'bg-muted/20')}
@@ -161,6 +188,146 @@ export function GeneralSettingsDomRulesPanel() {
         </div>
       </GeneralSettingsCard>
 
+      {weeklyRule ? (
+        <GeneralSettingsCard title="Carer weekly hours limit">
+          <div
+            className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+            data-testid="weekly-hours-rule-not-applied"
+          >
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              A carer&apos;s limit is their contracted weekly hours (Monday to Sunday). If a visit plan
+              takes a carer over, a manager must always approve. The choice below is only for the rota
+              board, extra visits and special visits.
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm text-foreground">
+              What happens when a visit on the rota, an extra visit or a special visit takes a carer
+              over their weekly hours?
+            </p>
+            <RadioGroup
+              value={weeklyRule.behavior}
+              onValueChange={v =>
+                updateRule(WEEKLY_HOURS_RULE_KEY, { behavior: v as DomAllocationRuleBehavior })
+              }
+              disabled={!canUpdate}
+              className="grid gap-2"
+            >
+              {WEEKLY_HOURS_BEHAVIOR_OPTIONS.map(opt => (
+                <label
+                  key={opt.value}
+                  htmlFor={`${WEEKLY_HOURS_RULE_KEY}-${opt.value}`}
+                  className={cn(
+                    'flex cursor-pointer items-start gap-3 rounded-md border border-border px-3 py-2',
+                    weeklyRule.behavior === opt.value && 'border-primary bg-primary/5',
+                  )}
+                >
+                  <RadioGroupItem
+                    value={opt.value}
+                    id={`${WEEKLY_HOURS_RULE_KEY}-${opt.value}`}
+                    className="mt-0.5"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm text-foreground">{opt.label}</span>
+                    <span className="block text-xs text-muted-foreground">{opt.description}</span>
+                  </span>
+                </label>
+              ))}
+            </RadioGroup>
+          </div>
+
+          <SettingsRow
+            label="Extra minutes allowed before the rule applies"
+            hint="How many minutes a carer can go over their limit before the rule applies. Also used for visit plans."
+          >
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                min={0}
+                max={999}
+                className="h-8 w-16 tabular-nums"
+                value={weeklyRule.minutes ?? 0}
+                disabled={!canUpdate}
+                onChange={e =>
+                  updateRule(WEEKLY_HOURS_RULE_KEY, {
+                    minutes: Number.parseInt(e.target.value, 10) || 0,
+                  })
+                }
+                aria-label="Grace minutes"
+              />
+              <span className="text-sm text-muted-foreground">Minutes</span>
+            </div>
+          </SettingsRow>
+
+          <SettingsRow
+            label="Count called-off visits in the carer's hours"
+            hint="A called-off visit is one where the carer went but the service user turned the visit down. Cancelled visits never count."
+          >
+            <Switch
+              checked={weeklyOptions.countCalledOff ?? true}
+              onCheckedChange={v => updateWeeklyOptions({ countCalledOff: v })}
+              disabled={!canUpdate}
+              aria-label="Count called-off visits in the carer's hours"
+            />
+          </SettingsRow>
+
+          {/* Visit plans always ask a manager, so these apply whatever is chosen above. */}
+          <>
+              <SettingsRow
+                label="When a manager rejects a visit plan request"
+                hint="For the rota, extra visits and special visits, a rejected visit just stays without that carer."
+              >
+                <Select
+                  value={weeklyOptions.rejectAction}
+                  onValueChange={v =>
+                    updateWeeklyOptions({ rejectAction: v as WeeklyHoursRejectAction })
+                  }
+                  disabled={!canUpdate}
+                >
+                  <SelectTrigger
+                    className="h-9 w-[22rem] max-w-full"
+                    aria-label="If the manager rejects"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WEEKLY_HOURS_REJECT_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </SettingsRow>
+
+              <SettingsRow
+                label="Most weekly hours a manager can approve"
+                hint="If a request would take the carer's week above this, the Approve button is turned off."
+              >
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={168}
+                    className="h-8 w-16 tabular-nums"
+                    value={weeklyOptions.maxApprovableHours}
+                    disabled={!canUpdate}
+                    onChange={e =>
+                      updateWeeklyOptions({
+                        maxApprovableHours: Number.parseInt(e.target.value, 10) || 0,
+                      })
+                    }
+                    aria-label="Most weekly hours a manager can approve"
+                  />
+                  <span className="text-sm text-muted-foreground">Hours</span>
+                </div>
+              </SettingsRow>
+          </>
+        </GeneralSettingsCard>
+      ) : null}
+
       <div className="flex justify-end gap-2 border-t border-border pt-4">
         <Button type="button" variant="outline" onClick={onReset} disabled={saving}>
           Reset
@@ -170,6 +337,8 @@ export function GeneralSettingsDomRulesPanel() {
           Save
         </Button>
       </div>
+
+      <GeneralSettingsServiceUserHoursPanel />
     </div>
   )
 }

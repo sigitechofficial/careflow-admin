@@ -22,6 +22,7 @@ import {
   IA_OPTION_LABEL_CLASS,
   IA_QUESTION_LABEL_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
+import { iaQuestionDisplayLabelOverride } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 
 type Props = {
   question: InitialAssessmentQuestion
@@ -93,7 +94,7 @@ export function InitialAssessmentPreferredVisitTimesField({
     <div className="space-y-3" data-testid="ia-preferred-visit-times">
       <div>
         <Label className={IA_QUESTION_LABEL_CLASS}>
-          {question.questionText}
+          {iaQuestionDisplayLabelOverride(question) ?? question.questionText}
           {question.isRequired ? (
             <span className="text-teal-700 dark:text-teal-400" aria-hidden>
               {' '}

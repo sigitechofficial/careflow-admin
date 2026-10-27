@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Loader2 } from 'lucide-react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import type { GenerateSchedulePreview } from '@/features/service-users/visit-plan/types'
 import { formatDate } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
@@ -49,7 +49,7 @@ export function VisitPlanGeneratePreviewDialog({
     if (!open) setBackfillAck(false)
   }, [open])
 
-  const canConfirm = !needsBackfillAck || backfillAck
+  const canConfirm = (!needsBackfillAck || backfillAck) && !preview?.weeklyHoursBlocked
 
   const title = isBackfill
     ? 'Backfill past visits'
@@ -127,6 +127,25 @@ export function VisitPlanGeneratePreviewDialog({
                 </li>
               ) : null}
             </ul>
+          ) : null}
+
+          {preview && !loading && preview.weeklyHoursWarning ? (
+            <div
+              className={
+                preview.weeklyHoursBlocked
+                  ? 'flex gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-100'
+                  : 'flex gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100'
+              }
+              data-testid="generate-preview-weekly-hours"
+            >
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <p>
+                {preview.weeklyHoursWarning}.{' '}
+                {preview.weeklyHoursBlocked
+                  ? "Visits can't be generated (Settings → Dom Rules). Fix the visit plan or the weekly contracted hours first."
+                  : 'Visits will still be generated (warning only, Settings → Dom Rules).'}
+              </p>
+            </div>
           ) : null}
 
           {preview && !loading && preview.visitsToCreate === 0 && preview.visitsAlreadyExist > 0 ? (

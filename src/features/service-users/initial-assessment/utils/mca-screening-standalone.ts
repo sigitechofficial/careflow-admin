@@ -9,12 +9,12 @@ export const MCA_SCREENING_OUTCOME_OPTIONS = [
   {
     value: 'has_capacity',
     label:
-      'There is a reasonable belief that the person does have capacity to make informed decision regarding the question being asked.',
+      'There is a reasonable belief that I have capacity to make an informed decision about the question being asked.',
   },
   {
     value: 'lacks_capacity',
     label:
-      'There is reasonable belief that the person does not have capacity to make an informed decision regarding the question being asked.',
+      'There is a reasonable belief that I do not have capacity to make an informed decision about the question being asked.',
   },
 ] as const
 

@@ -14,9 +14,13 @@ import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMa
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import { suggestVisitPlanCarers } from '@/features/service-users/visit-plan/api'
 import { showCarerNotAssignedRotaConflictToast, showCarerNotAssignedComplianceToast } from '@/features/scheduling/utils/schedule-carer-rota-toast.util'
-import { visitPlanCarerCandidateCardClass } from '@/features/service-users/visit-plan/visit-plan-carer-candidate-card.util'
+import { visitPlanCarerPickerRowClass } from '@/features/service-users/visit-plan/visit-plan-carer-candidate-card.util'
 import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
-import type { VisitPlanCarerCandidate, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
+import type {
+  VisitPlanCarerCandidate,
+  VisitPlanCarerFit,
+  VisitPlanSlot,
+} from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import {
   formatRequiredCarersRoleHint,
@@ -25,7 +29,9 @@ import {
   slotAssignedEmployeeIds,
   slotCarerRoleForEmployee,
 } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
-import { VisitPlanCarerCandidateDetails } from '@/features/service-users/visit-plan/VisitPlanCarerCandidateDetails'
+import { fitLabel } from '@/features/service-users/visit-plan/VisitPlanCarerCandidateDetails'
+import { VisitPlanCarerPickerRow } from '@/features/service-users/visit-plan/VisitPlanCarerPickerRow'
+import { visitPlanSlotVisitDurationMinutes } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
 import { VisitPlanCarerRoleBadge } from '@/features/service-users/visit-plan/VisitPlanCarerRoleBadge'
 import { VisitPlanSlotCarerByDaySummaryList } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDaySummaryList'
 import {
@@ -48,7 +54,7 @@ type Props = {
   onChange: (assignedEmployeeIds: string[]) => void
 }
 
-function candidateCardClass(options: {
+function candidateRowClass(options: {
   selected: boolean
   blocked: boolean
   rotaConflict: boolean
@@ -56,7 +62,28 @@ function candidateCardClass(options: {
   atLimit?: boolean
   justAssigned?: boolean
 }) {
-  return visitPlanCarerCandidateCardClass(options)
+  return visitPlanCarerPickerRowClass(options)
+}
+
+const FIT_GROUP_ORDER: VisitPlanCarerFit[] = ['good', 'partial', 'poor']
+
+/** Keeps the API order (preferred first) inside each match group. */
+function groupCandidatesByFit(candidates: VisitPlanCarerCandidate[]) {
+  return FIT_GROUP_ORDER.map((fit) => ({
+    fit,
+    candidates: candidates.filter((c) => c.fit === fit),
+  })).filter((group) => group.candidates.length > 0)
+}
+
+function FitGroupHeader({ fit, count }: { fit: VisitPlanCarerFit; count: number }) {
+  return (
+    <li
+      role="presentation"
+      className="bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground"
+    >
+      {fitLabel(fit)} · {count}
+    </li>
+  )
 }
 
 export function VisitPlanSlotCarerAssignment({
@@ -83,6 +110,11 @@ export function VisitPlanSlotCarerAssignment({
   const hasCarerByDay = slotHasCarerByDayAssignments(slot)
   /** Rows for particular weekdays (set under "Different carers on different days"). */
   const hasDaySpecificCarers = (slot.carerAssignments ?? []).some((row) => row.dayOfWeek != null)
+  /** Per-carer times or duration (split visits) need the detailed by-day card. */
+  const hasCarerOwnTimes = (slot.carerAssignments ?? []).some(
+    (row) => row.durationMinutes != null || Boolean(row.plannedStartTime) || Boolean(row.plannedEndTime),
+  )
+  const useByDayAssignedCard = hasCarerByDay && (hasDaySpecificCarers || hasCarerOwnTimes)
   const nameLookupIds = React.useMemo(() => {
     const ids = new Set(assignedIds)
     for (const row of slot.carerAssignments ?? []) {
@@ -264,6 +296,7 @@ export function VisitPlanSlotCarerAssignment({
 
   const singleSelectValue = maxCarers === 1 ? (assignedIds[0] ?? '') : undefined
   const slotDayLabels = slot.daysOfWeek.map((d) => VISIT_PLAN_DAY_LABELS[d]).join(', ')
+  const slotDurationMinutes = visitPlanSlotVisitDurationMinutes(slot)
 
   return (
     <div
@@ -272,45 +305,31 @@ export function VisitPlanSlotCarerAssignment({
         embedded ? 'p-0' : 'rounded-lg border border-dashed border-border p-4',
       )}
     >
-      <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-2">
-            <p className={contentTitleClass}>Visit slot</p>
-            <div className={cn('flex flex-wrap gap-3', contentHelperClass)}>
-              <span className="inline-flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" aria-hidden />
-                {slot.plannedStartTime}–{slot.plannedEndTime}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5" aria-hidden />
-                {maxCarers} carer{maxCarers === 1 ? '' : 's'} required
-                {showRoles ? ` · ${formatRequiredCarersRoleHint(maxCarers)}` : ''}
-              </span>
-            </div>
+      <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-1.5', contentHelperClass)}>
+            <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+              <Clock className="h-3.5 w-3.5" aria-hidden />
+              {slot.plannedStartTime}–{slot.plannedEndTime}
+              {slotDurationMinutes > 0 ? ` · ${slotDurationMinutes} min` : ''}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" aria-hidden />
+              {maxCarers} carer{maxCarers === 1 ? '' : 's'} required
+              {showRoles ? ` · ${formatRequiredCarersRoleHint(maxCarers)}` : ''}
+            </span>
             {slot.daysOfWeek.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex flex-wrap items-center gap-1">
                 <span className={contentOverlineClass}>Days:</span>
                 {slot.daysOfWeek.map((day) => (
                   <span
                     key={day}
-                    className="rounded-md border border-border bg-background px-2 py-0.5 text-xs font-medium"
+                    className="rounded-md border border-border bg-background px-1.5 py-0.5 text-xs font-medium text-foreground"
                   >
                     {VISIT_PLAN_DAY_LABELS[day]}
                   </span>
                 ))}
-              </div>
-            ) : (
-              <p className={contentHelperClass}>
-                Select weekdays for this visit before assigning carers.
-              </p>
-            )}
-            {requiredSkills.length > 0 ? (
-              <p className={contentHelperClass}>Skills from care plans: {requiredSkills.join(', ')}</p>
-            ) : null}
-            {locationFilterApplied ? (
-              <p className={contentHelperClass}>
-                Showing carers assigned to this service user&apos;s location (including all-zone access).
-              </p>
+              </span>
             ) : null}
           </div>
           <Button
@@ -324,6 +343,17 @@ export function VisitPlanSlotCarerAssignment({
             Refresh
           </Button>
         </div>
+        {slot.daysOfWeek.length === 0 || requiredSkills.length > 0 || locationFilterApplied ? (
+          <div className={cn('mt-1.5 space-y-0.5', contentHelperClass)}>
+            {slot.daysOfWeek.length === 0 ? (
+              <p>Select weekdays for this visit before assigning carers.</p>
+            ) : null}
+            {requiredSkills.length > 0 ? <p>Skills from care plans: {requiredSkills.join(', ')}</p> : null}
+            {locationFilterApplied ? (
+              <p>Showing carers assigned to this service user&apos;s location (including all-zone access).</p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {assignedIds.length > 0 || (hasCarerByDay && groupCarerAssignments(slot.carerAssignments).length > 0) ? (
@@ -344,11 +374,12 @@ export function VisitPlanSlotCarerAssignment({
           </div>
           <div
             className={cn(
-              'rounded-lg border border-sky-200 bg-sky-50/40 px-3 py-3 dark:border-sky-800 dark:bg-sky-950/20',
+              'overflow-hidden rounded-lg border border-sky-200 bg-sky-50/40 dark:border-sky-800 dark:bg-sky-950/20',
+              useByDayAssignedCard && 'px-3 py-3',
               justAssignedIds.size > 0 && 'animate-assign-flash ring-2 ring-sky-300/60 dark:ring-sky-700',
             )}
           >
-            {hasCarerByDay ? (
+            {useByDayAssignedCard ? (
               <VisitPlanSlotCarerByDaySummaryList
                 slot={slot}
                 employeeNameById={employeeNameById}
@@ -359,81 +390,79 @@ export function VisitPlanSlotCarerAssignment({
                 hideTimeMismatch
               />
             ) : (
-              <ul className="space-y-3">
+              <ul className="divide-y divide-sky-200 dark:divide-sky-800">
                 {assignedIds.map((id) => {
                   const candidate = assignedCarerCandidatesByEmployeeId.get(id)
                   const justAssigned = justAssignedIds.has(id)
                   const role = slotCarerRoleForEmployee(slot, id)
+                  const name = resolveEmployeeDisplayName(employeeNameById, id)
+                  const removeButton = !disabled ? (
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-full p-1 text-sky-700 hover:bg-sky-100 dark:text-sky-200 dark:hover:bg-sky-900"
+                      aria-label={`Remove ${name}`}
+                      onClick={() => removeAssigned(id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : null
+                  const roleExtras = showRoles ? (
+                    <>
+                      <VisitPlanCarerRoleBadge role={role} label={formatSlotCarerDisplayRole(slot, id)} />
+                      {role === 'SECONDARY' && !disabled ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => makeLead(id)}
+                        >
+                          Make lead
+                        </Button>
+                      ) : null}
+                    </>
+                  ) : null
                   return (
                     <li
                       key={id}
                       className={cn(
-                        'flex items-start gap-3 rounded-lg border border-sky-200 bg-background px-3 py-3 dark:border-sky-800',
-                        justAssigned &&
-                          'animate-assign-pop border-emerald-300 ring-2 ring-emerald-200/80 dark:border-emerald-700 dark:ring-emerald-900',
+                        'bg-background/70 px-3 py-2.5',
+                        justAssigned && 'animate-assign-pop bg-emerald-50/60 dark:bg-emerald-950/30',
                       )}
                     >
-                      <div className="min-w-0 flex-1 space-y-2">
-                        {showRoles ? (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <VisitPlanCarerRoleBadge
-                              role={role}
-                              label={formatSlotCarerDisplayRole(slot, id)}
-                            />
-                            {role === 'SECONDARY' && !disabled ? (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-2 text-xs"
-                                onClick={() => makeLead(id)}
-                              >
-                                Make lead
-                              </Button>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        {candidate ? (
-                          <VisitPlanCarerCandidateDetails
-                            candidate={candidate}
-                            slotDaysOfWeek={slot.daysOfWeek}
-                            showSkills={false}
-                            isAssigned
-                            justAssigned={justAssigned}
-                            hideTimeMismatch
-                            compact
-                          />
-                        ) : (
-                          <p className="inline-flex flex-wrap items-center gap-2 text-sm font-medium">
-                            {resolveEmployeeDisplayName(employeeNameById, id)}
-                            <span
-                              className={cn(
-                                'inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-100',
-                                justAssigned && 'animate-assign-pop',
-                              )}
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-                              Assigned
-                            </span>
+                      {candidate ? (
+                        <VisitPlanCarerPickerRow
+                          candidate={candidate}
+                          slotDaysOfWeek={slot.daysOfWeek}
+                          isAssigned
+                          blocked={candidate.isBlocked}
+                          control={
+                            <CheckCircle2 className="h-4 w-4 text-sky-600 dark:text-sky-300" aria-hidden />
+                          }
+                          nameExtras={roleExtras}
+                          trailing={removeButton}
+                        />
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <p className="inline-flex flex-1 flex-wrap items-center gap-2 text-sm font-medium">
+                            {name}
+                            {roleExtras}
                           </p>
-                        )}
-                      </div>
-                      {!disabled ? (
-                        <button
-                          type="button"
-                          className="shrink-0 rounded-full p-1 text-sky-700 hover:bg-sky-100 dark:text-sky-200 dark:hover:bg-sky-900"
-                          aria-label={`Remove ${resolveEmployeeDisplayName(employeeNameById, id)}`}
-                          onClick={() => removeAssigned(id)}
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      ) : null}
+                          {removeButton}
+                        </div>
+                      )}
                     </li>
                   )
                 })}
               </ul>
             )}
-            <p className={cn('mt-3 leading-relaxed', contentHelperClass)}>
+            <p
+              className={cn(
+                'leading-relaxed',
+                contentHelperClass,
+                useByDayAssignedCard ? 'mt-3' : 'border-t border-sky-200 px-3 py-2 dark:border-sky-800',
+              )}
+            >
               {hasDaySpecificCarers
                 ? 'Day-specific rules from advanced settings. Availability reflects working pattern and existing rota bookings.'
                 : showRoles
@@ -485,134 +514,149 @@ export function VisitPlanSlotCarerAssignment({
         ) : null}
 
         {/* Inside a dialog the dialog body scrolls; a second scroll box here hid most carers. */}
-        <ul className={cn('space-y-2', !embedded && 'max-h-[min(42vh,22rem)] overflow-y-auto pr-1')}>
-          {searchFilteredCandidates.length === 0 && visibleCandidates.length > 0 && carerSearch.trim() ? (
-            <li className="px-2 py-6 text-center text-sm text-muted-foreground">No carers match your search.</li>
-          ) : null}
-          {maxCarers === 1 ? (
-            <RadioGroup
-              value={singleSelectValue}
-              onValueChange={(employeeId) => {
-                if (disabled) return
-                const candidate = searchFilteredCandidates.find((c) => c.employeeId === employeeId)
-                if (candidate?.isBlocked) return
-                if (candidate?.hasRotaConflict) {
-                  notifyRotaConflict()
-                  return
-                }
-                if (candidate?.complianceBlocksAllocation) {
-                  notifyComplianceBlock()
-                  return
-                }
-                applyAssignment(employeeId ? [employeeId] : [])
-              }}
-              className="space-y-2"
-            >
-              {searchFilteredCandidates.map((c) => {
-                const blocked = c.isBlocked
-                const rotaConflict = Boolean(c.hasRotaConflict)
-                const complianceBlocked = Boolean(c.complianceBlocksAllocation)
-                const isSelected = singleSelectValue === c.employeeId
-                const justAssigned = justAssignedIds.has(c.employeeId)
-                const selectable = !disabled && !blocked && !rotaConflict && !complianceBlocked
-                return (
-                  <li
-                    key={c.employeeId}
-                    className={candidateCardClass({
-                      selected: isSelected,
-                      blocked,
-                      rotaConflict,
-                      complianceBlocked,
-                      justAssigned,
+        {visibleCandidates.length > 0 ? (
+          <ul
+            className={cn(
+              'overflow-hidden rounded-lg border border-border',
+              maxCarers > 1 && 'divide-y divide-border',
+              !embedded && 'max-h-[min(42vh,22rem)] overflow-y-auto',
+            )}
+          >
+            {searchFilteredCandidates.length === 0 && carerSearch.trim() ? (
+              <li className="px-2 py-6 text-center text-sm text-muted-foreground">No carers match your search.</li>
+            ) : null}
+            {maxCarers === 1 ? (
+              <RadioGroup
+                value={singleSelectValue}
+                onValueChange={(employeeId) => {
+                  if (disabled) return
+                  const candidate = searchFilteredCandidates.find((c) => c.employeeId === employeeId)
+                  if (candidate?.isBlocked) return
+                  if (candidate?.hasRotaConflict) {
+                    notifyRotaConflict()
+                    return
+                  }
+                  if (candidate?.complianceBlocksAllocation) {
+                    notifyComplianceBlock()
+                    return
+                  }
+                  applyAssignment(employeeId ? [employeeId] : [])
+                }}
+                className="gap-0 divide-y divide-border"
+              >
+                {groupCandidatesByFit(searchFilteredCandidates).map((group) => (
+                  <React.Fragment key={group.fit}>
+                    <FitGroupHeader fit={group.fit} count={group.candidates.length} />
+                    {group.candidates.map((c) => {
+                      const blocked = c.isBlocked
+                      const rotaConflict = Boolean(c.hasRotaConflict)
+                      const complianceBlocked = Boolean(c.complianceBlocksAllocation)
+                      const isSelected = singleSelectValue === c.employeeId
+                      const justAssigned = justAssignedIds.has(c.employeeId)
+                      const selectable = !disabled && !blocked && !rotaConflict && !complianceBlocked
+                      return (
+                        <li
+                          key={c.employeeId}
+                          className={candidateRowClass({
+                            selected: isSelected,
+                            blocked,
+                            rotaConflict,
+                            complianceBlocked,
+                            justAssigned,
+                          })}
+                          onClick={() => {
+                            if (!selectable) {
+                              if (rotaConflict) notifyRotaConflict()
+                              else if (complianceBlocked) notifyComplianceBlock()
+                              return
+                            }
+                            applyAssignment(isSelected ? [] : [c.employeeId])
+                          }}
+                        >
+                          <VisitPlanCarerPickerRow
+                            candidate={c}
+                            slotDaysOfWeek={slot.daysOfWeek}
+                            isAssigned={isSelected}
+                            blocked={blocked}
+                            control={
+                              <RadioGroupItem
+                                value={c.employeeId}
+                                disabled={disabled || blocked || rotaConflict || complianceBlocked}
+                                className="shrink-0 border-foreground/50"
+                                aria-label={`Assign ${c.displayName}`}
+                                onClick={(event) => event.stopPropagation()}
+                              />
+                            }
+                          />
+                        </li>
+                      )
                     })}
-                    onClick={() => {
-                      if (!selectable) {
-                        if (rotaConflict) notifyRotaConflict()
-                        else if (complianceBlocked) notifyComplianceBlock()
-                        return
-                      }
-                      applyAssignment(isSelected ? [] : [c.employeeId])
-                    }}
-                  >
-                    <div className="flex items-start gap-3">
-                      <RadioGroupItem
-                        value={c.employeeId}
-                        disabled={disabled || blocked || rotaConflict || complianceBlocked}
-                        className="mt-1.5 shrink-0 border-foreground/50"
-                        aria-label={`Assign ${c.displayName}`}
-                        onClick={(event) => event.stopPropagation()}
-                      />
-                      <VisitPlanCarerCandidateDetails
-                        candidate={c}
-                        slotDaysOfWeek={slot.daysOfWeek}
-                        blocked={blocked}
-                        isAssigned={isSelected}
-                        justAssigned={justAssigned}
-                        hideTimeMismatch
-                        compact
-                      />
-                    </div>
-                  </li>
-                )
-              })}
-            </RadioGroup>
-          ) : (
-            searchFilteredCandidates.map((c) => {
-              const checked = selected.has(c.employeeId)
-              const blocked = c.isBlocked
-              const rotaConflict = Boolean(c.hasRotaConflict)
-              const complianceBlocked = Boolean(c.complianceBlocksAllocation)
-              const atLimit = !checked && selected.size >= maxCarers
-              const justAssigned = justAssignedIds.has(c.employeeId)
-              const selectable = !disabled && !blocked && !rotaConflict && !complianceBlocked && !atLimit
-              return (
-                <li
-                  key={c.employeeId}
-                  className={candidateCardClass({
-                    selected: checked,
-                    blocked,
-                    rotaConflict,
-                    complianceBlocked,
-                    atLimit,
-                    justAssigned,
+                  </React.Fragment>
+                ))}
+              </RadioGroup>
+            ) : (
+              groupCandidatesByFit(searchFilteredCandidates).map((group) => (
+                <React.Fragment key={group.fit}>
+                  <FitGroupHeader fit={group.fit} count={group.candidates.length} />
+                  {group.candidates.map((c) => {
+                    const checked = selected.has(c.employeeId)
+                    const blocked = c.isBlocked
+                    const rotaConflict = Boolean(c.hasRotaConflict)
+                    const complianceBlocked = Boolean(c.complianceBlocksAllocation)
+                    const atLimit = !checked && selected.size >= maxCarers
+                    const justAssigned = justAssignedIds.has(c.employeeId)
+                    const selectable =
+                      !disabled && !blocked && !rotaConflict && !complianceBlocked && !atLimit
+                    return (
+                      <li
+                        key={c.employeeId}
+                        className={candidateRowClass({
+                          selected: checked,
+                          blocked,
+                          rotaConflict,
+                          complianceBlocked,
+                          atLimit,
+                          justAssigned,
+                        })}
+                        onClick={() => {
+                          if (checked) {
+                            toggle(c.employeeId, blocked, rotaConflict, complianceBlocked)
+                            return
+                          }
+                          if (!selectable) {
+                            if (rotaConflict) notifyRotaConflict()
+                            else if (complianceBlocked) notifyComplianceBlock()
+                            return
+                          }
+                          toggle(c.employeeId, blocked, rotaConflict, complianceBlocked)
+                        }}
+                      >
+                        <VisitPlanCarerPickerRow
+                          candidate={c}
+                          slotDaysOfWeek={slot.daysOfWeek}
+                          isAssigned={checked}
+                          blocked={blocked}
+                          control={
+                            <Checkbox
+                              checked={checked}
+                              disabled={disabled || blocked || rotaConflict || complianceBlocked || atLimit}
+                              onCheckedChange={() =>
+                                toggle(c.employeeId, blocked, rotaConflict, complianceBlocked)
+                              }
+                              className="shrink-0 border-foreground/50"
+                              aria-label={`Assign ${c.displayName}`}
+                              onClick={(event) => event.stopPropagation()}
+                            />
+                          }
+                        />
+                      </li>
+                    )
                   })}
-                  onClick={() => {
-                    if (checked) {
-                      toggle(c.employeeId, blocked, rotaConflict, complianceBlocked)
-                      return
-                    }
-                    if (!selectable) {
-                      if (rotaConflict) notifyRotaConflict()
-                      else if (complianceBlocked) notifyComplianceBlock()
-                      return
-                    }
-                    toggle(c.employeeId, blocked, rotaConflict, complianceBlocked)
-                  }}
-                >
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      checked={checked}
-                      disabled={disabled || blocked || rotaConflict || complianceBlocked || atLimit}
-                      onCheckedChange={() => toggle(c.employeeId, blocked, rotaConflict, complianceBlocked)}
-                      className="mt-1.5 shrink-0 border-foreground/50"
-                      aria-label={`Assign ${c.displayName}`}
-                      onClick={(event) => event.stopPropagation()}
-                    />
-                    <VisitPlanCarerCandidateDetails
-                      candidate={c}
-                      slotDaysOfWeek={slot.daysOfWeek}
-                      blocked={blocked}
-                      isAssigned={checked}
-                      justAssigned={justAssigned}
-                      hideTimeMismatch
-                      compact
-                    />
-                  </div>
-                </li>
-              )
-            })
-          )}
-        </ul>
+                </React.Fragment>
+              ))
+            )}
+          </ul>
+        ) : null}
       </section>
 
       <footer className={cn('border-t border-border pt-3', contentHelperClass)}>

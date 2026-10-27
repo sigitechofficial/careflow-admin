@@ -57,6 +57,7 @@ import {
   usesLegacyCapacityScreening,
   type CapacityDecisionRecord,
 } from '@/features/service-users/initial-assessment/utils/capacity-decisions'
+import { iaQuestionDisplayLabelOverride } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 
 export type ValidationIssue = {
   message: string
@@ -364,7 +365,7 @@ export function getSubmitValidationIssues(params: {
       const q = findQuestionByFieldKey(sections, fieldKey)
       if (q && !isAnsweredForValidation(q, draftAnswers[q.id])) {
         blocks.push({
-          message: `Assessor sign-off required: ${q.questionText}`,
+          message: `Assessor sign-off required: ${iaQuestionDisplayLabelOverride(q) ?? q.questionText}`,
           sectionNumber: sections.find((s) => s.questions.some((x) => x.id === q.id))?.sectionNumber ?? 14,
           blocking: true,
         })
@@ -401,7 +402,7 @@ export function getSubmitValidationIssues(params: {
       if (!shouldShowQuestion(q, sections, draftAnswers)) continue
       if (isAnsweredForValidation(q, draftAnswers[q.id])) continue
       blocks.push({
-        message: `Required: ${q.questionText}`,
+        message: `Required: ${iaQuestionDisplayLabelOverride(q) ?? q.questionText}`,
         sectionNumber: sec.sectionNumber,
         blocking: true,
       })

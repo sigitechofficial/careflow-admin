@@ -13,6 +13,13 @@ import {
   useUploadServiceUserDomCareContract,
 } from '@/features/service-users/hooks/useServiceUserMutations'
 import { useServiceUserDomCare } from '@/features/service-users/hooks/useServiceUserTabs'
+import { useActiveServiceUserVisitPlan } from '@/features/service-users/visit-plan/hooks'
+import { parseWeeklyContractedHours } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
+import { usePendingServiceUserHoursChange } from '@/features/hours-approvals/hooks'
+import {
+  ServiceUserHoursPendingNotice,
+  ServiceUserHoursReviewDialog,
+} from '@/features/hours-approvals/components/ServiceUserHoursApproval'
 import { useAuthStore } from '@/features/auth/store'
 import type { ServiceUserDetail } from '@/features/service-users/types'
 import { ServiceUserHomeAndAccessSection } from '@/features/service-users/components/ServiceUserHomeAndAccessSection'
@@ -212,6 +219,11 @@ export function ServiceUserDomCareTab({
   const canUpdate = can('service_users.dom_care.update') || can('service_users.update')
 
   const domCareQuery = useServiceUserDomCare(serviceUserId, canRead)
+  const activePlanQuery = useActiveServiceUserVisitPlan(serviceUserId)
+  const pendingHoursQuery = usePendingServiceUserHoursChange(serviceUserId, canRead)
+  const pendingHours = pendingHoursQuery.data ?? null
+  /** New weekly hours waiting to be sent for manager approval (dialog open). */
+  const [hoursReviewTo, setHoursReviewTo] = React.useState<number | null>(null)
   const patchMutation = usePatchServiceUserDomCare(serviceUserId)
   const uploadMutation = useUploadServiceUserDomCareContract(serviceUserId)
 
@@ -255,13 +267,25 @@ export function ServiceUserDomCareTab({
       toastError('Cannot save', 'Number of carers must be between 1 and 99.')
       return
     }
+    // Once weekly hours are set (here or on the visit plan), a change goes to a manager instead.
+    const savedHours = domCareQuery.data?.weeklyContractedHours ?? null
+    const currentHours = savedHours?.trim() || activePlanQuery.data?.weeklyContractedHours?.trim() || null
+    const nextHours = parseWeeklyContractedHours(data.weeklyContractedHours)
+    const needsApproval =
+      currentHours != null &&
+      parseWeeklyContractedHours(data.weeklyContractedHours) !== parseWeeklyContractedHours(currentHours) &&
+      parseWeeklyContractedHours(data.weeklyContractedHours) !== parseWeeklyContractedHours(savedHours)
+    if (needsApproval && nextHours === null) {
+      toastError('Cannot save', 'Weekly contracted hours must be a number.')
+      return
+    }
     try {
       const d = await patchMutation.mutateAsync({
         accessInstruction: data.accessInstruction,
         accessRisks: data.accessRisks,
         doorCode: data.doorCode,
         careInstructions: data.careInstructions,
-        weeklyContractedHours: data.weeklyContractedHours,
+        weeklyContractedHours: needsApproval ? savedHours : data.weeklyContractedHours,
         numberOfCarers: n,
         staffGenderPreference: data.staffGenderPreference,
         accommodationType: data.accommodationType,
@@ -270,7 +294,11 @@ export function ServiceUserDomCareTab({
       })
       setData(d)
       setCarerMap((m) => mergeCarerMap(m, [...d.preferredCarers, ...d.blockedCarers]))
-      toastSuccess('DOM care saved', 'Your changes have been saved.')
+      if (needsApproval && nextHours !== null) {
+        setHoursReviewTo(nextHours)
+      } else {
+        toastSuccess('DOM care saved', 'Your changes have been saved.')
+      }
     } catch (e) {
       toastApiError(e, 'Save failed')
     }
@@ -400,12 +428,40 @@ export function ServiceUserDomCareTab({
           </div>
           <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(140px,200px)_1fr] md:gap-x-6">
             <label className="pt-2 text-sm text-muted-foreground">Weekly Contracted Hours</label>
-            <Input
-              className="max-w-xs"
-              value={data.weeklyContractedHours ?? ''}
-              onChange={(e) => setField('weeklyContractedHours', e.target.value === '' ? null : e.target.value)}
-              disabled={!canUpdate}
-              placeholder="e.g. 10"
+            <div>
+              <Input
+                className="max-w-xs"
+                value={data.weeklyContractedHours ?? ''}
+                onChange={(e) => setField('weeklyContractedHours', e.target.value === '' ? null : e.target.value)}
+                disabled={!canUpdate || Boolean(pendingHours)}
+                placeholder="e.g. 10"
+              />
+              {pendingHours ? (
+                <div className="max-w-md">
+                  <ServiceUserHoursPendingNotice
+                    pending={pendingHours}
+                    currentHours={domCareQuery.data?.weeklyContractedHours ?? null}
+                  />
+                </div>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Also used by the visit plan. Once set, changes need a manager&apos;s approval.
+                </p>
+              )}
+            </div>
+            <ServiceUserHoursReviewDialog
+              open={hoursReviewTo != null}
+              serviceUserId={serviceUserId}
+              fromHours={
+                domCareQuery.data?.weeklyContractedHours?.trim() ||
+                activePlanQuery.data?.weeklyContractedHours?.trim() ||
+                null
+              }
+              toHours={hoursReviewTo ?? 0}
+              onClose={() => {
+                setHoursReviewTo(null)
+                setField('weeklyContractedHours', domCareQuery.data?.weeklyContractedHours ?? null)
+              }}
             />
           </div>
           <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(140px,200px)_1fr] md:gap-x-6">

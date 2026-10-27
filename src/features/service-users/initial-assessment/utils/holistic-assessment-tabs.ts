@@ -114,9 +114,9 @@ const HOLISTIC_ASSESSMENT_TAB_DEFS: HolisticAssessmentTab[] = [
     kind: 'multi-section',
     enterpriseSection: 1,
     multiSections: [
-      { sectionNumber: 1, specRefs: ['1.1'], groupHeading: 'About the person and contacts' },
+      { sectionNumber: 1, specRefs: ['1.1'], groupHeading: 'About me and my contacts' },
       { sectionNumber: 1, specRefs: ['1.2'] },
-      { sectionNumber: 1, aboutMeEmbed: true, groupHeading: 'What matters to the person' },
+      { sectionNumber: 1, aboutMeEmbed: true, groupHeading: 'What matters to me' },
       { sectionNumber: 1, specRefs: ['1.3'] },
       { sectionNumber: 1, specRefs: ['1.4'] },
       { sectionNumber: 1, specRefs: ['1.5'] },

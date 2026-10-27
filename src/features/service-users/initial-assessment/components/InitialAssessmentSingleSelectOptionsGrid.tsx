@@ -2,7 +2,7 @@ import {
   InitialAssessmentControlTooltip,
   iaQuestionTooltipText,
 } from '@/features/service-users/initial-assessment/components/InitialAssessmentControlTooltip'
-import { holisticQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
+import { iaQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import { cn } from '@/shared/lib/utils'
 import {
   IA_CHECKBOX_CLASS,
@@ -50,7 +50,7 @@ export function InitialAssessmentSingleSelectOptionsGrid({
       {hideLabel ? null : (
         <div>
           <p className={IA_QUESTION_LABEL_CLASS}>
-            {holisticQuestionLabel(question.questionText)}
+            {iaQuestionLabel(question)}
             {question.isRequired ? (
               <span className="text-teal-700 dark:text-teal-400" aria-hidden>
                 {' '}

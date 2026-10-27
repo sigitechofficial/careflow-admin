@@ -87,6 +87,8 @@ import {
   AlertTriangle,
   Shield,
   Sparkles,
+  PhoneCall,
+  PhoneIncoming,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -377,6 +379,22 @@ const navItems: NavItem[] = [
       planned("Visits", "Voice notes to text", <Mic className="h-4 w-4" />, "Turn carers' voice notes into written visit notes."),
       { section: 'Visits', label: 'Employee Operation Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/in-progress', ready: false },
       { section: 'Visits', label: 'Service Overview', icon: <Eye className="h-4 w-4" />, href: '/in-progress', ready: false },
+      {
+        section: 'On-call',
+        label: 'On-call rota',
+        icon: <PhoneCall className="h-4 w-4" />,
+        href: '/on-call/rota',
+        permission: 'on_call.read',
+        navTestId: 'nav-on-call-rota',
+      },
+      {
+        section: 'On-call',
+        label: 'Out-of-hours calls',
+        icon: <PhoneIncoming className="h-4 w-4" />,
+        href: '/on-call/calls',
+        permission: 'on_call.read',
+        navTestId: 'nav-on-call-calls',
+      },
     ],
   },
   {

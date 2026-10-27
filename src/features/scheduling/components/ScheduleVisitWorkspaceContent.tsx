@@ -57,7 +57,6 @@ import {
 import {
   employeesLabel,
   formatJobTimeRange,
-  jobStatusLabel,
   serviceUserLabel,
 } from '@/features/scheduling/utils/scheduling-format'
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
@@ -611,7 +610,7 @@ export function ScheduleVisitWorkspaceContent({
             <p className="text-base font-semibold text-foreground">{serviceUserLabel(job.serviceUser)}</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {visitSlot ? `${visitSlot} · ` : ''}
-              {formatJobTimeRange(job)} · {jobStatusLabel(job.status)}
+              {formatJobTimeRange(job)}
             </p>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
               {!multiCarer ? (

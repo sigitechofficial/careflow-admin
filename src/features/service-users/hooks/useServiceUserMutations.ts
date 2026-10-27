@@ -410,6 +410,10 @@ export function usePatchServiceUserDomCare(serviceUserId: string) {
       patchServiceUserDomCare(serviceUserId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.domCare(serviceUserId) })
+      // Weekly contracted hours are copied to the open visit plans on save.
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlans(serviceUserId) })
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlanActive(serviceUserId) })
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlanWorking(serviceUserId) })
     },
   })
 }

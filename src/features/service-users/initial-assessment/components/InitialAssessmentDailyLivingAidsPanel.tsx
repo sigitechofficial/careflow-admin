@@ -36,7 +36,7 @@ export function InitialAssessmentDailyLivingAidsPanel({
   const patch = (partial: Partial<DailyLivingAidsMetadata>) => onChange({ ...value, ...partial })
 
   const furtherEquipmentLabel = paperSection7
-    ? 'Does the client require any further equipment to be ordered?'
+    ? 'I need further equipment to be ordered'
     : 'Does the client require any further daily-living equipment to be ordered?'
 
   const showAids = part === 'all' || part === 'aids'
@@ -47,7 +47,11 @@ export function InitialAssessmentDailyLivingAidsPanel({
       {showAids ? (
         <>
       <InitialAssessmentYesNoCardField
-        label="Are aids to support daily living activities in use or required?"
+        label={
+          paperSection7
+            ? 'I use or need aids for daily living'
+            : 'Are aids to support daily living activities in use or required?'
+        }
         name="daily-living-aids-required"
         value={value.aidsInUseOrRequired ?? null}
         disabled={disabled}
@@ -63,7 +67,7 @@ export function InitialAssessmentDailyLivingAidsPanel({
       {value.aidsInUseOrRequired === true ? (
         <InitialAssessmentSection12FieldRow>
           <Label htmlFor="daily-living-aids-list" className={IA_QUESTION_LABEL_CLASS}>
-            Please list
+            {paperSection7 ? 'My daily living aids' : 'Please list'}
           </Label>
           <Textarea
             id="daily-living-aids-list"
@@ -96,7 +100,7 @@ export function InitialAssessmentDailyLivingAidsPanel({
       {value.furtherEquipmentRequired === true ? (
         <InitialAssessmentSection12FieldRow>
           <Label htmlFor="daily-living-further-details" className={IA_QUESTION_LABEL_CLASS}>
-            {paperSection7 ? 'If YES provide further details' : 'If yes, provide further details'}
+            {paperSection7 ? 'The equipment I need' : 'If yes, provide further details'}
           </Label>
           <Textarea
             id="daily-living-further-details"

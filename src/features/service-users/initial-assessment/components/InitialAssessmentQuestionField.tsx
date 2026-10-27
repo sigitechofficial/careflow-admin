@@ -35,7 +35,11 @@ import type {
 } from '@/features/service-users/initial-assessment/types'
 import { InitialAssessmentYesNoCardField } from '@/features/service-users/initial-assessment/components/InitialAssessmentYesNoCardField'
 import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
-import { holisticQuestionLabel, holisticSimpleTextareaPlaceholder } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
+import {
+  holisticQuestionLabel,
+  holisticSimpleTextareaPlaceholder,
+  iaQuestionDisplayLabelOverride,
+} from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import {
   IA_META_BADGE_CLASS,
   IA_QUESTION_LABEL_CLASS,
@@ -188,9 +192,9 @@ export function InitialAssessmentQuestionField({
     </span>
   ) : null
 
-  const displayText = useHolisticLabels
-    ? holisticQuestionLabel(question.questionText)
-    : question.questionText
+  const displayText =
+    iaQuestionDisplayLabelOverride(question) ??
+    (useHolisticLabels ? holisticQuestionLabel(question.questionText) : question.questionText)
 
   const questionLabel = hideLabel ? null : (
     <>
@@ -297,7 +301,7 @@ export function InitialAssessmentQuestionField({
             { className: 'inline-flex shrink-0' },
           )}
           <span>
-            {questionLabel ?? question.questionText}
+            {questionLabel ?? displayText}
             {fieldMetaFooter}
           </span>
         </label>
@@ -435,7 +439,7 @@ export function InitialAssessmentQuestionField({
     return (
       <fieldset className="space-y-2 p-1">
         <legend className={IA_LEGEND_CLASS}>
-          {question.questionText}
+          {displayText}
           {requiredMark}
           {metaChips}
         </legend>
@@ -502,7 +506,7 @@ export function InitialAssessmentQuestionField({
         <div className="py-0.5">
           <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_9.5rem] sm:items-center sm:gap-4">
             <Label htmlFor={id} className={cn(IA_QUESTION_LABEL_CLASS, 'sm:pe-2')}>
-              {question.questionText.replace(/\s*\([^)]+\)\s*$/, '')}
+              {displayText.replace(/\s*\([^)]+\)\s*$/, '')}
               {requiredMark}
               {metaChips}
             </Label>
@@ -513,7 +517,7 @@ export function InitialAssessmentQuestionField({
                   id={id}
                   type="number"
                   inputMode="decimal"
-                  aria-label={question.questionText}
+                  aria-label={displayText}
                   aria-describedby={describedBy}
                   className="h-10 w-full tabular-nums text-base sm:w-[5.5rem]"
                   disabled={disabled}
@@ -595,7 +599,7 @@ export function InitialAssessmentQuestionField({
     return (
       <div className="space-y-1 p-1">
         <Label htmlFor={id} className={IA_QUESTION_LABEL_CLASS}>
-          {question.questionText}
+          {displayText}
           {requiredMark}
           {metaChips}
         </Label>

@@ -225,6 +225,8 @@ import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
 import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
 import EmployeeTimesheetsPage from '@/features/employees/pages/EmployeeTimesheetsPage'
 import SpecialVisitsPage from '@/features/special-visits/pages/SpecialVisitsPage'
+import OnCallRotaPage from '@/features/on-call/pages/OnCallRotaPage'
+import OutOfHoursCallsPage from '@/features/on-call/pages/OutOfHoursCallsPage'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
 import {
   ROLES_PERMISSIONS_SUB_IDS,
@@ -312,6 +314,8 @@ const pageTitles: Record<string, string> = {
   '/employee/absences': 'Absence tracker',
   '/employee/timesheets': 'Timesheets',
   '/special-visits': 'Special visits',
+  '/on-call/rota': 'On-call rota',
+  '/on-call/calls': 'Out-of-hours calls',
   '/employee/compliance': 'Compliance board',
   '/employee/review-status': 'Employee',
   '/employee/skills': 'Employee',
@@ -1142,6 +1146,14 @@ const serviceUsersVisitPlanRoute = createRoute({
 const serviceUsersActivityRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/activity',
+  validateSearch: (
+    raw: Record<string, unknown>,
+  ): { tab?: 'upcoming' | 'cancelled' | 'rejected' | 'completed' } => ({
+    tab:
+      raw.tab === 'upcoming' || raw.tab === 'cancelled' || raw.tab === 'rejected' || raw.tab === 'completed'
+        ? raw.tab
+        : undefined,
+  }),
   beforeLoad: requireAnyPermission('service_users.read', 'scheduled_visits.read'),
   loader: ({ context: { queryClient: qc }, params: { serviceUserId } }) => {
     prefetchServiceUserProfile(qc, serviceUserId)
@@ -1473,6 +1485,20 @@ const specialVisitsRoute = createRoute({
   path: '/special-visits',
   beforeLoad: requireAnyPermission('employees.read', 'employees.reports.read'),
   component: SpecialVisitsPage,
+})
+
+const onCallRotaRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/on-call/rota',
+  beforeLoad: requireAnyPermission('on_call.read'),
+  component: OnCallRotaPage,
+})
+
+const outOfHoursCallsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/on-call/calls',
+  beforeLoad: requireAnyPermission('on_call.read'),
+  component: OutOfHoursCallsPage,
 })
 
 const employeeComplianceRoute = createRoute({
@@ -2600,6 +2626,8 @@ const routeTree = rootRoute.addChildren([
     employeeTimesheetsRoute,
     parentalLeaveRoute,
     specialVisitsRoute,
+    onCallRotaRoute,
+    outOfHoursCallsRoute,
     employeeComplianceRoute,
     employeeReviewStatusRoute,
     employeeSkillsRoute,

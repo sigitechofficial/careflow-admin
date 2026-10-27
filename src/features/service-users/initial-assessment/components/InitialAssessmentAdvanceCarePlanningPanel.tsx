@@ -246,11 +246,11 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <section className="space-y-3 rounded-sm border border-slate-300 p-4 dark:border-slate-600">
             <p className="text-sm font-medium text-foreground">
-              Family members involved in Advance Care Planning discussions:
+              The family members involved in my Advance Care Planning discussions:
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <FieldLabel htmlFor="acp-family-name">Name</FieldLabel>
+                <FieldLabel htmlFor="acp-family-name">Their name</FieldLabel>
                 <Input
                   id="acp-family-name"
                   className="mt-1 h-10"
@@ -260,7 +260,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-family-tel">Contact tel</FieldLabel>
+                <FieldLabel htmlFor="acp-family-tel">Their contact number</FieldLabel>
                 <Input
                   id="acp-family-tel"
                   className="mt-1 h-10"
@@ -274,7 +274,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <section className="space-y-3 rounded-sm border border-slate-300 p-4 dark:border-slate-600">
             <p className="text-sm font-medium text-foreground">
-              Name of homecare professional involved in Advance Care Planning discussions:
+              The Care Professional involved in my Advance Care Planning discussions:
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
@@ -382,7 +382,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
         <div className="space-y-6 p-4">
           <div>
             <FieldLabel htmlFor="acp-personal-values">
-              1. At this time in your life what is it that makes you happy or you feel is important to you?
+              1. At this time in my life, what makes me happy or is important to me:
             </FieldLabel>
             <Textarea
               id="acp-personal-values"
@@ -395,7 +395,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div>
             <FieldLabel htmlFor="acp-care-preferences">
-              2. What elements of care are important to you and what would you like to happen in future?
+              2. The parts of my care that are important to me, and what I would like to happen in future:
             </FieldLabel>
             <Textarea
               id="acp-care-preferences"
@@ -408,7 +408,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div>
             <FieldLabel htmlFor="acp-concerns">
-              3. What would you NOT want to happen? Is there anything that you worry about or fear happening?
+              3. What I would NOT want to happen, and anything I worry about or fear happening:
             </FieldLabel>
             <Textarea
               id="acp-concerns"
@@ -422,7 +422,9 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
           <div className="space-y-3 rounded-sm border border-slate-300 p-4 dark:border-slate-600">
             <InitialAssessmentYesNoCardField
               name="acp-legal-adrt"
-              label="4. Do you have a Legal Advance Decision to Refuse Treatment document? (This is in keeping with the Mental Capacity Act (2005) and enables people to make decisions that will be useful if at some future stage they can no longer express their views themselves)"
+              label="4. Do I have a legal Advance Decision to Refuse Treatment (ADRT)? (This is in keeping with the Mental Capacity Act (2005) and enables people to make decisions that will be useful if at some future stage they can no longer express their views themselves)"
+              yesText="Yes – I have an Advance Decision to Refuse Treatment"
+              noText="No – I do not have an Advance Decision to Refuse Treatment"
               value={value.legalAdvanceDecision ?? null}
               disabled={disabled}
               showDivider={false}
@@ -436,7 +438,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
             {value.legalAdvanceDecision === true ? (
               <div>
                 <FieldLabel htmlFor="acp-adrt-details">
-                  If yes please give details (eg who has a copy?)
+                  Details of my Advance Decision and who has a copy
                 </FieldLabel>
                 <Input
                   id="acp-adrt-details"
@@ -451,9 +453,8 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div className="space-y-4">
             <p className={IA_QUESTION_LABEL_CLASS}>
-              5. Who else would you like to be involved if it ever becomes difficult for you to make
-              decisions or if there was an emergency? Do they have official Lasting Power of Attorney
-              (LPA)?
+              5. Who I would like to be involved if it becomes difficult for me to make decisions, or in
+              an emergency, and whether they have a Lasting Power of Attorney (LPA):
             </p>
             {([1, 2] as const).map((index) => (
               <div
@@ -494,7 +495,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div className="space-y-3">
             <FieldLabel>
-              6. If your condition deteriorates where would you most like to be cared for?
+              6. If my condition gets worse, where I would most like to be cared for:
             </FieldLabel>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -532,7 +533,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div>
             <FieldLabel htmlFor="acp-special-requests">
-              7. Do you have any special requests, preferences, or other comments?
+              7. Any special requests, preferences or other comments I have:
             </FieldLabel>
             <Textarea
               id="acp-special-requests"
@@ -545,7 +546,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div>
             <FieldLabel htmlFor="acp-third-party">
-              8. Are there any comments or additions from other people you are close to? (Please name)
+              8. Comments or additions from people I am close to (please name them):
             </FieldLabel>
             <Textarea
               id="acp-third-party"

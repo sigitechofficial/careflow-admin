@@ -372,7 +372,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({
               </div>
               <div className="space-y-1">
                 <Label htmlFor="mca-checklist-rep-relationship" className={IA_QUESTION_LABEL_CLASS}>
-                  Relationship to client
+                  Relationship to me
                 </Label>
                 <Input
                   id="mca-checklist-rep-relationship"
