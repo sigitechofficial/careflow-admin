@@ -43,8 +43,10 @@ function job(
 }
 
 describe('schedule-job-travel-distance', () => {
-  it('formats sub-kilometre distances in metres', () => {
-    expect(formatTravelDistanceKm(0.042)).toBe('42 m')
+  it('formats distances in miles', () => {
+    expect(formatTravelDistanceKm(0.042)).toBe('< 0.1 mi')
+    expect(formatTravelDistanceKm(10)).toBe('6.2 mi')
+    expect(formatTravelDistanceKm(32)).toBe('20 mi')
   })
 
   it('computes London sample distance (~4.5 km)', () => {
@@ -68,7 +70,7 @@ describe('schedule-job-travel-distance', () => {
     const detail = buildNextVisitTravelDetail(first, [first, second])
     expect(detail?.nextClientLabel).toBe('Margaret Hughes')
     expect(detail?.nextVisitTimeLabel).toBe('11:00')
-    expect(detail?.distanceLabel).toMatch(/km$/)
+    expect(detail?.distanceLabel).toMatch(/mi$/)
     expect(detail?.travelMinutes).toBeGreaterThan(0)
     expect(detail?.travelLabel).toMatch(/^~\d+ min$/)
   })
@@ -153,7 +155,7 @@ describe('schedule-job-travel-distance', () => {
     const legOne = buildNextVisitTravelDetail(first, [first, second, third])?.distanceKm ?? 0
     const legTwo = buildNextVisitTravelDetail(second, [first, second, third])?.distanceKm ?? 0
     expect(totalKm).toBeCloseTo(legOne + legTwo, 5)
-    expect(formatTravelDistanceKm(totalKm)).toMatch(/km$/)
+    expect(formatTravelDistanceKm(totalKm)).toMatch(/mi$/)
   })
 
   it('uses the Google driving route once it has arrived, the estimate until then', () => {
