@@ -164,6 +164,7 @@ export function ScheduleJobAllocateDialog({
   const employeesQuery = useScheduleEmployeesCatalog({
     enabled: open,
     locationIds: serviceUserLocationIds,
+    activeOnly: true,
   })
 
   React.useEffect(() => {
@@ -552,7 +553,7 @@ export function ScheduleJobAllocateDialog({
   }
 
   const employeeDisplayName = (employeeId: string): string => {
-    const row = employeesQuery.employees.find((e) => e.id === employeeId)
+    const row = employeesQuery.allEmployees.find((e) => e.id === employeeId)
     if (row) return employeeListRowDisplayName(row)
     const candidate = suggestCandidates.find((c) => c.employeeId === employeeId)
     if (candidate?.displayName) return candidate.displayName

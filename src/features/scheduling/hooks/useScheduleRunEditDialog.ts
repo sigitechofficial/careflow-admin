@@ -42,6 +42,7 @@ export function useScheduleRunEditDialog({
   const employeesQuery = useScheduleEmployeesCatalog({
     locationIds: serviceUserLocationIds,
     includeEmployeeIds: editEmployeeId ? [editEmployeeId] : [],
+    activeOnly: true,
   })
 
   const carerComboboxOptions = React.useMemo(
