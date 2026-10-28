@@ -109,6 +109,19 @@ export type PendingServiceUserHoursChange = {
   requestedAt: string
 }
 
+/** One thing a carer-hours request waits on: a plan visit held back, a plan visit's new time, or an extra visit's change. */
+export type HoursRequestChange = {
+  kind: 'HELD_VISIT' | 'TIME_CHANGE' | 'EXTRA_EDIT'
+  date?: string
+  slotLabel: string
+  startTime?: string
+  endTime?: string
+  fromStart?: string
+  fromEnd?: string
+  toStart?: string
+  toEnd?: string
+}
+
 export type HoursApproval = {
   id: string
   /** Null for service user weekly hours requests. */
@@ -125,6 +138,8 @@ export type HoursApproval = {
   impactSummary: unknown
   /** Extra visit over hours (or a draft plan's busiest week for DRAFT_PLAN_OVER_HOURS). */
   requestPayload?: ExtraVisitRequestPayload | null
+  /** Carer over their hours: what waits for the manager. */
+  changes?: HoursRequestChange[]
   /** Pending extra visits only: that week now, with the visit added (it may have changed since the request). */
   currentWeek?: { weekMinutes: number; limitWeeklyHours: number | null } | null
   /** Extra visits (Settings → Dom Rules) and draft plans (always): Reject needs a reason. */

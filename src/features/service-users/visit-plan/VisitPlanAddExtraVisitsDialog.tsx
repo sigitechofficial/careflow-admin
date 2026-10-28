@@ -289,7 +289,9 @@ export function VisitPlanAddExtraVisitsDialog({
             nightDuty: effectiveNightDuty,
           },
         })
-        if (edited.message?.includes('sent to a manager')) {
+        if (edited.message?.startsWith('Not changed yet')) {
+          toastWarning('Extra visit not changed yet', `${edited.message}.`)
+        } else if (edited.message?.includes('sent to a manager')) {
           toastWarning('Extra visit updated', `${edited.message}.`)
         } else {
           toastSuccess('Extra visit updated', 'The rota visit has been updated. Other visits are not affected.')
@@ -796,7 +798,9 @@ export function VisitPlanAddExtraVisitsDialog({
                               (c) =>
                                 `${c.message} — ${
                                   c.outcome === 'MANAGER_APPROVAL'
-                                    ? 'sent to a manager; not on this visit until approved'
+                                    ? editing
+                                      ? 'sent to a manager; the visit keeps its current time and carers until approved'
+                                      : 'sent to a manager; not on this visit until approved'
                                     : 'on the visit, to be confirmed on the rota'
                                 }`,
                             )

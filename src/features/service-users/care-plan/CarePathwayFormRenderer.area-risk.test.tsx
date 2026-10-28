@@ -79,7 +79,7 @@ describe('CarePathwayFormRenderer area-risk follow-ups', () => {
     const { rerender } = render(
       <CarePathwayFormRenderer form={eatingForm} values={{}} onChange={() => undefined} />,
     )
-    expect(screen.getByText('Is there a risk associated with this area of care?')).toBeInTheDocument()
+    expect(screen.getByText('Is there a risk associated with this area of my care?')).toBeInTheDocument()
     expect(screen.queryByText('Identify the risk?')).not.toBeInTheDocument()
     expect(screen.queryByText('Who might be harmed?')).not.toBeInTheDocument()
 

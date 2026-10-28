@@ -38,6 +38,7 @@ import {
   formatHours,
 } from '@/features/hours-approvals/components/ContractedHoursImpactSummary'
 import { ServiceUserHoursDecreaseImpact } from '@/features/hours-approvals/components/ServiceUserHoursDecreaseImpact'
+import { HoursRequestChanges } from '@/features/hours-approvals/components/HoursRequestChanges'
 
 const TABS: { id: HoursApprovalStatus; label: string }[] = [
   { id: 'PENDING', label: 'Pending' },
@@ -232,7 +233,9 @@ export default function HoursApprovalsPage() {
           ? 'Rejected — weekly hours unchanged'
           : isContractedChange(rejectTarget)
             ? 'Rejected — contracted hours unchanged'
-            : isRotaVisitRequest(rejectTarget)
+            : isRotaVisitRequest(rejectTarget) && rejectTarget.changes?.some((c) => c.kind === 'EXTRA_EDIT')
+              ? 'Rejected — the extra visit keeps its current time and carers'
+              : isRotaVisitRequest(rejectTarget)
               ? 'Rejected — the visit stays without this carer'
               : rejectTarget.rejectAction === 'REMOVE_EXTRA_VISITS'
                 ? 'Rejected — the carer stays off the visits over their hours'
@@ -421,15 +424,24 @@ export default function HoursApprovalsPage() {
                                   {formatInstant(rotaVisitPayload(r)!.start)}–{formatTime(rotaVisitPayload(r)!.end)}
                                 </p>
                               ) : null}
-                              <p className="text-xs text-muted-foreground">Carer not on the visit until approved</p>
+                              {r.changes?.some((c) => c.kind === 'EXTRA_EDIT') ? (
+                                <HoursRequestChanges changes={r.changes} />
+                              ) : (
+                                <p className="text-xs text-muted-foreground">Carer not on the visit until approved</p>
+                              )}
                               {r.status === 'REJECTED' && r.decisionNotes ? (
                                 <p className="text-xs text-red-700 dark:text-red-300">Rejected: {r.decisionNotes}</p>
                               ) : null}
                             </div>
-                          ) : heldVisitCount(r) > 0 ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {heldVisitCount(r)} visit{heldVisitCount(r) === 1 ? '' : 's'} held back until approved
-                            </p>
+                          ) : heldVisitCount(r) > 0 || r.changes?.length ? (
+                            <div className="mt-1">
+                              {heldVisitCount(r) > 0 ? (
+                                <p className="text-xs text-muted-foreground">
+                                  {heldVisitCount(r)} visit{heldVisitCount(r) === 1 ? '' : 's'} held back until approved
+                                </p>
+                              ) : null}
+                              <HoursRequestChanges changes={r.changes ?? []} />
+                            </div>
                           ) : isDraftPlanRequest(r) ? (
                             <div className="mt-1 space-y-0.5">
                               <Badge variant="outline" size="sm">
@@ -507,7 +519,9 @@ export default function HoursApprovalsPage() {
                                 : 'Within limit'
                               : draftWeek && draftLimitMinutes != null
                                 ? `+${formatMinutes(Math.max(0, draftWeek.heaviestMinutes - draftLimitMinutes))}`
-                                : `+${r.extraHours ?? '—'}h`}
+                                : r.extraHours != null && r.extraHours <= 0
+                                  ? 'Within limit'
+                                  : `+${r.extraHours ?? '—'}h`}
                           {contracted && impact ? (
                             <button
                               type="button"
@@ -665,6 +679,11 @@ export default function HoursApprovalsPage() {
                   <span className="font-medium text-foreground">{rejectTarget.employeeName}</span>&apos;s contracted
                   hours stay at {formatHours(rejectTarget.previousContractedWeeklyHours)}. No visits are changed.
                 </>
+              ) : rejectTarget && isRotaVisitRequest(rejectTarget) && rejectTarget.changes?.some((c) => c.kind === 'EXTRA_EDIT') ? (
+                <>
+                  The extra visit change is not made: the visit keeps its current time and carers (for every
+                  carer this change waited on).
+                </>
               ) : rejectTarget && isRotaVisitRequest(rejectTarget) ? (
                 <>
                   <span className="font-medium text-foreground">{rejectTarget.employeeName}</span> is not put on
@@ -687,6 +706,15 @@ export default function HoursApprovalsPage() {
               ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {rejectTarget?.changes?.length ? (
+            <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+              <p className="text-xs font-medium text-muted-foreground">What this request waits on</p>
+              <HoursRequestChanges changes={rejectTarget.changes} />
+              {rejectTarget.changes.some((c) => c.kind === 'TIME_CHANGE') ? (
+                <p className="mt-1 text-xs text-muted-foreground">Rejecting keeps the current visit time.</p>
+              ) : null}
+            </div>
+          ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="hours-reject-reason">
               Reason{rejectReasonRequired ? ' *' : ' (optional)'}

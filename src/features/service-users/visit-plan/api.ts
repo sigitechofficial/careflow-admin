@@ -232,14 +232,27 @@ export async function updateServiceUserVisitPlan(
   },
 ) {
   const res = await apiJson<
-    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: ScheduleImpactSummary }
+    ApiEnvelope<ServiceUserVisitPlan> & {
+      scheduleImpact?: ScheduleImpactSummary
+      heldTimeChanges?: VisitPlanHeldTimeChange[]
+    }
   >(`/service-users/${serviceUserId}/visit-plans/${planId}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   })
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
-  return { plan, scheduleImpact: res.scheduleImpact }
+  return { plan, scheduleImpact: res.scheduleImpact, heldTimeChanges: res.heldTimeChanges ?? [], message: res.message }
+}
+
+/** A longer visit that keeps its current time until a manager approves the new one. */
+export type VisitPlanHeldTimeChange = {
+  slotId: string
+  slotLabel: string
+  fromStart: string
+  fromEnd: string
+  toStart: string
+  toEnd: string
 }
 
 export type VisitPlanWeekHours = {
