@@ -46,7 +46,8 @@ describe('schedule-job-travel-distance', () => {
   it('formats distances in miles', () => {
     expect(formatTravelDistanceKm(0.042)).toBe('< 0.1 mi')
     expect(formatTravelDistanceKm(10)).toBe('6.2 mi')
-    expect(formatTravelDistanceKm(32)).toBe('20 mi')
+    expect(formatTravelDistanceKm(32)).toBe('19.9 mi')
+    expect(formatTravelDistanceKm(28.51)).toBe('17.7 mi')
   })
 
   it('computes London sample distance (~4.5 km)', () => {
