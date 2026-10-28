@@ -1,7 +1,16 @@
 import * as React from 'react'
-import { AlertTriangle, CheckCircle2, CircleSlash, XCircle } from 'lucide-react'
+import {
+  AlertTriangle,
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  CircleSlash,
+  MessageSquare,
+  PenLine,
+  ShieldCheck,
+  XCircle,
+} from 'lucide-react'
 import { Button } from '@/shared/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
 import { Combobox } from '@/shared/ui/combobox'
 import { useAuthStore } from '@/features/auth/store'
@@ -44,12 +53,94 @@ function Field({ label, children, wide }: { label: string; children: React.React
   )
 }
 
-function View({ label, value, wide }: { label: string; value: React.ReactNode; wide?: boolean }) {
+export function View({ label, value, wide }: { label: string; value: React.ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? 'sm:col-span-2' : undefined}>
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="whitespace-pre-wrap">{value || '—'}</dd>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="mt-1 whitespace-pre-wrap text-sm font-medium text-foreground">
+        {value || <span className="font-normal italic text-muted-foreground/70">Not recorded</span>}
+      </dd>
     </div>
+  )
+}
+
+const CHIP_CLASS = {
+  good: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  bad: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+  neutral: 'bg-muted text-foreground',
+}
+
+function Chip({ tone, children }: { tone: keyof typeof CHIP_CLASS; children: React.ReactNode }) {
+  return <span className={`inline-flex rounded-md px-2 py-0.5 text-sm font-medium ${CHIP_CLASS[tone]}`}>{children}</span>
+}
+
+export const TONE_CLASS = {
+  amber: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
+  sky: 'bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400',
+  violet: 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400',
+  rose: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400',
+  indigo: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400',
+  pink: 'bg-pink-50 text-pink-600 dark:bg-pink-950/40 dark:text-pink-400',
+  emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
+}
+
+export function initials(name: string | null | undefined) {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean)
+  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '')).toUpperCase() || '?'
+}
+
+/**
+ * The case page's card shell: an icon and title over a bordered body.
+ * `compact` is the narrower side-rail style (no icon, no header rule).
+ */
+export function SectionCard({
+  title,
+  icon: Icon,
+  tone,
+  action,
+  section,
+  testId,
+  compact,
+  children,
+}: {
+  title: string
+  icon?: React.ComponentType<{ className?: string }>
+  tone?: keyof typeof TONE_CLASS
+  action?: React.ReactNode
+  section?: string
+  testId?: string
+  compact?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <section
+      data-section={section}
+      data-testid={testId}
+      className="scroll-mt-20 rounded-2xl border border-border bg-card shadow-sm transition-shadow"
+    >
+      {compact ? (
+        <div className="p-5">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+            {action}
+          </div>
+          <div className="mt-4">{children}</div>
+        </div>
+      ) : (
+        <>
+          <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
+            {Icon ? (
+              <span className={`grid h-8 w-8 place-items-center rounded-lg ${tone ? TONE_CLASS[tone] : 'bg-muted'}`}>
+                <Icon className="h-4 w-4" />
+              </span>
+            ) : null}
+            <h2 className="text-base font-semibold text-foreground">{title}</h2>
+            {action ? <div className="ml-auto flex items-center gap-2">{action}</div> : null}
+          </header>
+          <div className="p-6">{children}</div>
+        </>
+      )}
+    </section>
   )
 }
 
@@ -100,6 +191,9 @@ export function useOpenSectionListener(section: string, onOpen: () => void) {
  */
 function EditableCard<F>({
   title,
+  icon,
+  tone,
+  compact,
   caseData,
   toForm,
   toInput,
@@ -108,6 +202,10 @@ function EditableCard<F>({
   testId,
 }: {
   title: string
+  icon?: React.ComponentType<{ className?: string }>
+  tone?: keyof typeof TONE_CLASS
+  /** Side-rail card: single column, and `view` is laid out by the caller. */
+  compact?: boolean
   caseData: SafeguardingCase
   toForm: (c: SafeguardingCase) => F
   toInput: (f: F) => UpdateSafeguardingInput
@@ -138,33 +236,39 @@ function EditableCard<F>({
     })
 
   return (
-    <Card data-testid={testId} data-section={testId} className="scroll-mt-20 transition-shadow">
-      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-base">{title}</CardTitle>
-        {canManage && !editing && (
-          <Button size="sm" variant="outline" onClick={start}>
+    <SectionCard
+      title={title}
+      icon={icon}
+      tone={tone}
+      compact={compact}
+      section={testId}
+      testId={testId}
+      action={
+        canManage && !editing ? (
+          <Button size="sm" variant="outline" leftIcon={<PenLine className="h-3.5 w-3.5" />} onClick={start}>
             Edit
           </Button>
-        )}
-      </CardHeader>
-      <CardContent className="text-sm">
-        {editing ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {form(f, set)}
-            <div className="flex gap-2 sm:col-span-2">
-              <Button size="sm" onClick={save} disabled={update.isPending}>
-                {update.isPending ? 'Saving…' : 'Save'}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
-                Cancel
-              </Button>
-            </div>
+        ) : null
+      }
+    >
+      {editing ? (
+        <div className={`grid gap-3 text-sm ${compact ? '' : 'sm:grid-cols-2'}`}>
+          {form(f, set)}
+          <div className={`flex gap-2 ${compact ? '' : 'sm:col-span-2'}`}>
+            <Button size="sm" onClick={save} disabled={update.isPending}>
+              {update.isPending ? 'Saving…' : 'Save'}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
           </div>
-        ) : (
-          <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">{view}</dl>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      ) : compact ? (
+        view
+      ) : (
+        <dl className="grid gap-5 sm:grid-cols-2">{view}</dl>
+      )}
+    </SectionCard>
   )
 }
 
@@ -176,26 +280,38 @@ export function LeadReviewCard({ caseData }: { caseData: SafeguardingCase }) {
     <EditableCard
       title="Case lead & review"
       testId="safeguarding-lead-card"
+      compact
       caseData={caseData}
       toForm={c => ({ leadUserId: c.leadUserId ?? '', reviewDate: toDate(c.reviewDate) })}
       toInput={f => ({ leadUserId: f.leadUserId || null, reviewDate: f.reviewDate || null })}
       view={
-        <>
-          <View label="Case lead" value={caseData.leadName ?? <span className="text-amber-700">Not allocated</span>} />
-          <View
-            label="Next review"
-            value={
-              caseData.reviewDate ? (
-                <span className={caseData.reviewOverdue ? 'font-semibold text-red-600' : undefined}>
-                  {fmtDate(caseData.reviewDate)}
-                  {caseData.reviewOverdue && ' · Overdue'}
-                </span>
-              ) : (
-                <span className="text-amber-700">Not set</span>
-              )
-            }
-          />
-        </>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+              {caseData.leadName ? initials(caseData.leadName) : '?'}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {caseData.leadName ?? <span className="text-amber-700">Not allocated</span>}
+              </p>
+              <p className="text-xs text-muted-foreground">Case lead</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3">
+            <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CalendarDays className="h-4 w-4" aria-hidden />
+              Next review
+            </span>
+            {caseData.reviewDate ? (
+              <span className={`text-sm font-semibold ${caseData.reviewOverdue ? 'text-red-600' : 'text-foreground'}`}>
+                {fmtDate(caseData.reviewDate)}
+                {caseData.reviewOverdue && ' · Overdue'}
+              </span>
+            ) : (
+              <span className="text-sm font-semibold text-amber-700">Not set</span>
+            )}
+          </div>
+        </div>
       }
       form={(f, set) => (
         <>
@@ -226,6 +342,8 @@ export function ImmediateSafetyCard({ caseData }: { caseData: SafeguardingCase }
   return (
     <EditableCard
       title="Immediate safety"
+      icon={ShieldCheck}
+      tone="sky"
       testId="safeguarding-safety-card"
       caseData={caseData}
       toForm={c => ({
@@ -243,7 +361,16 @@ export function ImmediateSafetyCard({ caseData }: { caseData: SafeguardingCase }
       view={
         <>
           <View label="Reported to manager" value={caseData.reportedToManagerAt ? fmtDateTime(caseData.reportedToManagerAt) : null} />
-          <View label="Was the person safe straight away?" value={caseData.personSafe ? PERSON_SAFE_LABELS[caseData.personSafe] : null} />
+          <View
+            label="Was the person safe straight away?"
+            value={
+              caseData.personSafe ? (
+                <Chip tone={caseData.personSafe === 'YES' ? 'good' : caseData.personSafe === 'NO' ? 'bad' : 'neutral'}>
+                  {PERSON_SAFE_LABELS[caseData.personSafe]}
+                </Chip>
+              ) : null
+            }
+          />
           <View label="Immediate action taken" value={caseData.immediateAction} wide />
           <View label="What was done to keep them safe" value={caseData.safetyMeasures} wide />
         </>
@@ -291,6 +418,8 @@ export function MultiAgencyCard({ caseData }: { caseData: SafeguardingCase }) {
   return (
     <EditableCard
       title="Multi-agency involvement"
+      icon={Building2}
+      tone="indigo"
       testId="safeguarding-agency-card"
       caseData={caseData}
       toForm={c => ({
@@ -371,6 +500,8 @@ export function VoiceCard({ caseData }: { caseData: SafeguardingCase }) {
   return (
     <EditableCard
       title="Voice of the person"
+      icon={MessageSquare}
+      tone="pink"
       testId="safeguarding-voice-card"
       caseData={caseData}
       toForm={c => ({
@@ -387,10 +518,28 @@ export function VoiceCard({ caseData }: { caseData: SafeguardingCase }) {
       })}
       view={
         <>
+          {caseData.personWords ? (
+            <figure className="rounded-xl border-l-4 border-pink-300 bg-pink-50/50 p-4 sm:col-span-2 dark:border-pink-800 dark:bg-pink-950/20">
+              <figcaption className="text-xs font-medium uppercase tracking-wide text-pink-700 dark:text-pink-300">
+                In their own words
+              </figcaption>
+              <blockquote className="mt-1.5 whitespace-pre-wrap text-sm italic text-foreground">
+                “{caseData.personWords}”
+              </blockquote>
+            </figure>
+          ) : (
+            <View label="What they said (in their own words)" value={null} wide />
+          )}
           <View label="What does the person want to happen?" value={caseData.personWants} wide />
-          <View label="Capacity to make decisions about their safety" value={caseData.capacity ? CAPACITY_LABELS[caseData.capacity] : null} />
-          <View label="What they said (in their own words)" value={caseData.personWords} wide />
-          <View label="Evidence (physical / documents)" value={caseData.evidence} wide />
+          <View
+            label="Capacity to make decisions about their safety"
+            value={
+              caseData.capacity ? (
+                <Chip tone={caseData.capacity === 'YES' ? 'good' : 'neutral'}>{CAPACITY_LABELS[caseData.capacity]}</Chip>
+              ) : null
+            }
+          />
+          <View label="Evidence (physical / documents)" value={caseData.evidence} />
         </>
       }
       form={(f, set) => (
@@ -453,20 +602,27 @@ export function scoreClass(pct: number | null) {
 
 export function ChecklistCard({ caseData }: { caseData: SafeguardingCase }) {
   const { passed, of, pct } = caseData.checkScore
+  const barClass = pct === null ? 'bg-muted-foreground/40' : pct >= 90 ? 'bg-emerald-500' : pct >= 70 ? 'bg-amber-500' : 'bg-red-500'
   return (
-    <Card data-testid="safeguarding-checklist-card">
-      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-base">CQC records checklist</CardTitle>
-        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${scoreClass(pct)}`}>
-          {pct === null ? '—' : `${pct}%`} · {passed}/{of}
+    <SectionCard
+      title="CQC records checklist"
+      compact
+      section="checklist"
+      testId="safeguarding-checklist-card"
+      action={
+        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${scoreClass(pct)}`}>
+          {passed} / {of}
         </span>
-      </CardHeader>
-      <CardContent>
-        <ul className="flex flex-col gap-1.5 text-sm">
+      }
+    >
+      <div className="-mt-1 h-2 overflow-hidden rounded-full bg-muted">
+        <div className={`h-full rounded-full ${barClass}`} style={{ width: `${pct ?? 0}%` }} />
+      </div>
+      <ul className="mt-4 flex flex-col gap-2.5 text-sm">
           {caseData.checks.map(c => (
-            <li key={c.key} className={`flex items-start gap-2 ${c.ok === null ? 'text-muted-foreground' : ''}`}>
+            <li key={c.key} className={`flex items-start gap-2.5 ${c.ok === null ? 'text-muted-foreground' : 'text-foreground'}`}>
               {c.ok === null ? (
-                <CircleSlash className="mt-0.5 h-4 w-4 shrink-0" aria-label="Not applicable" />
+                <CircleSlash className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/60" aria-label="Not applicable" />
               ) : c.ok ? (
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-label="Done" />
               ) : (
@@ -489,8 +645,7 @@ export function ChecklistCard({ caseData }: { caseData: SafeguardingCase }) {
               )}
             </li>
           ))}
-        </ul>
-      </CardContent>
-    </Card>
+      </ul>
+    </SectionCard>
   )
 }

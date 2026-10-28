@@ -1,8 +1,8 @@
 import * as React from 'react'
+import { Search } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Textarea } from '@/shared/ui/form-field'
 import { Badge } from '@/shared/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { useAuthStore } from '@/features/auth/store'
 import { useContributingFactorOptions } from '@/features/incidents/hooks/useContributingFactorOptions'
 import {
@@ -36,6 +36,7 @@ import {
   setupCompletionErrors,
   type InvestigationSetupValues,
 } from '@/features/safeguarding/components/SafeguardingInvestigationSetup'
+import { SectionCard } from '@/features/safeguarding/components/SafeguardingSections'
 import type {
   SafeguardingCase,
   SafeguardingInvestigation,
@@ -71,16 +72,20 @@ export function SafeguardingInvestigationCard({ caseData }: { caseData: Safeguar
   const canEdit = canManage && caseData.status !== 'CLOSED'
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-base">Investigation</CardTitle>
-        {investigation?.completedAt && (
+    <SectionCard
+      title="Investigation"
+      icon={Search}
+      tone="violet"
+      section="investigation"
+      action={
+        investigation?.completedAt ? (
           <Badge variant="success" size="sm">
             Investigation complete
           </Badge>
-        )}
-      </CardHeader>
-      <CardContent className="text-sm">
+        ) : null
+      }
+    >
+      <div className="text-sm">
         {canEdit ? (
           <InvestigationForm
             key={investigation?.id ?? 'new'}
@@ -90,8 +95,8 @@ export function SafeguardingInvestigationCard({ caseData }: { caseData: Safeguar
         ) : (
           <InvestigationReadView caseId={caseData.id} investigation={investigation} />
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </SectionCard>
   )
 }
 
