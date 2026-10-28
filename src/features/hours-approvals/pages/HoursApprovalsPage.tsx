@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { AlertTriangle, CheckCircle2, Clock, Loader2, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, Loader2, Trash2, XCircle } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
@@ -21,6 +21,7 @@ import { useOrganisationDisplayFormat } from '@/shared/context/organisation-disp
 import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import {
   useApproveHours,
+  useDeleteAllHoursApprovals,
   useHoursApprovals,
   useRejectHours,
 } from '@/features/hours-approvals/hooks'
@@ -161,6 +162,8 @@ export default function HoursApprovalsPage() {
   const { data: rows = [], isLoading, isError } = useHoursApprovals(tab)
   const approveMut = useApproveHours()
   const rejectMut = useRejectHours()
+  const deleteAllMut = useDeleteAllHoursApprovals()
+  const [deleteAllOpen, setDeleteAllOpen] = React.useState(false)
 
   const [rejectTarget, setRejectTarget] = React.useState<HoursApproval | null>(null)
   const [rejectReason, setRejectReason] = React.useState('')
@@ -202,6 +205,16 @@ export default function HoursApprovalsPage() {
       setApproveContractedTarget(null)
     } catch (e) {
       toastApiError(e, 'Could not approve')
+    }
+  }
+
+  const handleDeleteAll = async () => {
+    try {
+      const count = await deleteAllMut.mutateAsync(tab)
+      toastSuccess(`${count} request${count === 1 ? '' : 's'} deleted`)
+      setDeleteAllOpen(false)
+    } catch (e) {
+      toastApiError(e, 'Could not delete')
     }
   }
 
@@ -266,11 +279,26 @@ export default function HoursApprovalsPage() {
           ))}
         </div>
 
-        {tab === 'PENDING' && overCapCount > 0 ? (
-          <p className="text-xs text-muted-foreground tabular-nums">
-            {overCapCount} request{overCapCount === 1 ? '' : 's'} over the weekly cap
-          </p>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {tab === 'PENDING' && overCapCount > 0 ? (
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {overCapCount} request{overCapCount === 1 ? '' : 's'} over the weekly cap
+            </p>
+          ) : null}
+          {canManage && rows.length > 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-destructive hover:text-destructive"
+              disabled={deleteAllMut.isPending}
+              onClick={() => setDeleteAllOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              Delete All
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {tab === 'PENDING' ? (
@@ -563,6 +591,31 @@ export default function HoursApprovalsPage() {
           </>
         )}
       </div>
+
+      <AlertDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all {STATUS_LABEL[tab].toLowerCase()} requests?</AlertDialogTitle>
+            <AlertDialogDescription>
+              All {rows.length} {STATUS_LABEL[tab].toLowerCase()} request{rows.length === 1 ? '' : 's'} will be
+              deleted permanently. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteAllMut.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteAllMut.isPending}
+              onClick={e => {
+                e.preventDefault()
+                void handleDeleteAll()
+              }}
+            >
+              {deleteAllMut.isPending ? 'Deleting…' : 'Delete All'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={rejectTarget != null} onOpenChange={o => !o && setRejectTarget(null)}>
         <AlertDialogContent>

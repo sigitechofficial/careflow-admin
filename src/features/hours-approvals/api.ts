@@ -170,6 +170,14 @@ export async function rejectHours(id: string, notes?: string): Promise<void> {
   })
 }
 
+/** Deletes every request with this status; returns how many. */
+export async function deleteAllHoursApprovals(status: HoursApprovalStatus): Promise<number> {
+  const res = await apiJson<ApiEnvelope<{ count: number }>>(`/hours-approvals?status=${status}`, {
+    method: 'DELETE',
+  })
+  return res.data?.count ?? 0
+}
+
 export async function fetchContractedHoursPreview(
   employeeId: string,
   contractedWeeklyHours: number,
