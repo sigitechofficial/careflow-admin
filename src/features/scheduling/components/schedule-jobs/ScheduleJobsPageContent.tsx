@@ -269,7 +269,7 @@ export function ScheduleJobsPageContent() {
             acceptedCarePlansByServiceUser={board.acceptedCarePlansByServiceUser}
             travelBufferMinutes={board.travelBufferMinutes}
             liveAlertsByJobId={liveOfficeAlerts.alertsByJobId}
-            onJobClick={actions.openAllocate}
+            onJobClick={actions.openVisitWorkspace}
             onJobAction={actions.handleJobAction}
             onOpenRun={runEdit.openEditRunById}
             onReassignRun={runReassign.openForRunId}

@@ -95,7 +95,7 @@ export function ScheduleJobsGanttLegend() {
         </Button>
         <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <Clock className="h-3 w-3 shrink-0" aria-hidden />
-          Click job to assign · drag job to move · double-click period to zoom · Esc for full day
+          Click job to open visit workspace · right-click for more actions · drag job to move · double-click period to zoom · Esc for full day
         </span>
       </div>
 
