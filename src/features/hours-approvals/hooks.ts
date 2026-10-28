@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   approveHours,
   cancelHoursApproval,
+  deleteAllHoursApprovals,
   fetchContractedHoursPreview,
   fetchHoursApprovals,
   fetchPendingContractedHoursChange,
@@ -41,6 +42,14 @@ export function useRejectHours() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (args: { id: string; notes?: string }) => rejectHours(args.id, args.notes),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.all() }),
+  })
+}
+
+export function useDeleteAllHoursApprovals() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (status: HoursApprovalStatus) => deleteAllHoursApprovals(status),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all() }),
   })
 }

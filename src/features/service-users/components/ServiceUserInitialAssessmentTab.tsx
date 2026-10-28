@@ -227,7 +227,9 @@ export function ServiceUserInitialAssessmentTab({ serviceUserId, displayName, da
             </div>
             <Input
               type={doorVisible ? 'text' : 'password'}
-              autoComplete="off"
+              // Not a login: "off" is ignored on password fields, and the browser then fills the saved
+              // login email into the header search box.
+              autoComplete="new-password"
               className="max-w-md"
               disabled={!canUpdate}
               value={data.doorCode ?? ''}

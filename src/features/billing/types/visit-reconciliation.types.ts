@@ -239,6 +239,13 @@ export type VisitReconciliationDetail = VisitReconciliationRow & {
     evidenceChangedReason: string | null
     evidenceChangedAt: string | null
   }
+  /** The carer's visit before this one that day: the service user the travel is measured from. */
+  previousVisit?: {
+    visitRef: string
+    serviceUserName: string
+    startDateTime: string
+    sameServiceUser: boolean
+  } | null
   /** Mileage and travel time the visit pay run pays for this visit, as their own lines. */
   travelPay?: {
     mileage: { miles: number; unitRate: number | null; amount: number; explanation: string } | null

@@ -67,11 +67,13 @@ export function haversineDistanceKm(from: GeoCoordinates, to: GeoCoordinates): n
   return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+/** Shown in miles (UK); distances are kept in km internally. */
 export function formatTravelDistanceKm(distanceKm: number): string {
   if (!Number.isFinite(distanceKm) || distanceKm < 0) return '—'
-  if (distanceKm < 0.1) return `${Math.round(distanceKm * 1000)} m`
-  if (distanceKm < 10) return `${distanceKm.toFixed(1)} km`
-  return `${Math.round(distanceKm)} km`
+  const miles = distanceKm * 0.621371
+  if (miles < 0.1) return '< 0.1 mi'
+  if (miles < 10) return `${miles.toFixed(1)} mi`
+  return `${Math.round(miles)} mi`
 }
 
 /** Estimates driving time from straight-line (haversine) distance. */

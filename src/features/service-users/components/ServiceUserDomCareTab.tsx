@@ -394,7 +394,9 @@ export function ServiceUserDomCareTab({
             <div className="space-y-1.5">
               <Input
                 type={doorVisible ? 'text' : 'password'}
-                autoComplete="off"
+                // Not a login: "off" is ignored on password fields, and the browser then fills the saved
+                // login email into the header search box.
+                autoComplete="new-password"
                 value={data.doorCode ?? ''}
                 onChange={(e) => setField('doorCode', e.target.value === '' ? null : e.target.value)}
                 disabled={!canUpdate}
