@@ -13,6 +13,7 @@ import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.
 import type { CarePlanConditionFactsheet } from '@/features/service-users/care-plans/types'
 import type { CarePlanDraftValues } from '@/features/service-users/care-plan/care-plan-draft-storage'
 import { toastSuccess } from '@/shared/lib/toast'
+import { carePlanFieldLabel } from '@/features/service-users/care-plan/care-plan-first-person-labels'
 
 function fieldKey(sectionId: string, fieldId: string) {
   return `${sectionId}:${fieldId}`
@@ -26,7 +27,7 @@ function insertableFields(form: CareFormDetail) {
       if (!types.has(field.fieldType)) continue
       rows.push({
         key: fieldKey(section.id, field.id),
-        label: `${section.title} — ${field.label}`,
+        label: `${section.title} — ${carePlanFieldLabel(field.label)}`,
       })
     }
   }

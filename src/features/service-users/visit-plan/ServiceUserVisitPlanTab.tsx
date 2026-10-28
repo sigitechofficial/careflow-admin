@@ -85,6 +85,7 @@ import { VisitPlanActivateDialog } from '@/features/service-users/visit-plan/Vis
 import { VisitPlanGeneratePreviewDialog } from '@/features/service-users/visit-plan/VisitPlanGeneratePreviewDialog'
 import { VisitPlanWorkingPatternSyncDialog } from '@/features/service-users/visit-plan/VisitPlanWorkingPatternSyncDialog'
 import { VisitPlanConfirmGate } from '@/features/service-users/visit-plan/components/VisitPlanConfirmGate'
+import { describeAmendmentImpactAction } from '@/features/service-users/visit-plan/visit-plan-amendment-impact.util'
 import {
   previewVisitPlanAmendmentImpact,
   previewVisitPlanCarerSyncPattern,
@@ -703,6 +704,16 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
       const parts: string[] = []
       if (impact?.jobsCancelled) parts.push(`${impact.jobsCancelled} cancelled`)
       if (impact?.jobsRescheduled) parts.push(`${impact.jobsRescheduled} rescheduled`)
+      if (result.heldTimeChanges.length) {
+        // A longer visit that takes a carer over their weekly hours keeps its time until approved.
+        toastWarning(
+          'Amendment recorded — new time waits for a manager',
+          `${result.heldTimeChanges
+            .map((c) => `${c.slotLabel} ${c.fromStart}–${c.fromEnd} → ${c.toStart}–${c.toEnd}`)
+            .join(', ')}: a carer would go over their weekly hours. The visit keeps its current time until a manager approves it in Hours approvals.${parts.length ? ` Rota updated: ${parts.join(', ')}.` : ''}`,
+        )
+        return
+      }
       toastSuccess(
         'Amendment recorded',
         parts.length ? `Rota updated: ${parts.join(', ')}.` : 'Change saved for CQC audit.',
@@ -1890,12 +1901,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
         onConfirm={handleConfirmAmendmentImpact}
       >
         {pendingAmendmentPreview?.actions.length ? (
-          <ul className="space-y-1 text-sm text-muted-foreground">
+          <ul className="space-y-1 px-3 text-sm text-muted-foreground">
             {pendingAmendmentPreview.actions.map((action, i) => (
-              <li key={i}>
-                {action.slotLabel}: {action.type.replace(/_/g, ' ')}
-                {action.jobCount != null ? ` (${action.jobCount})` : ''}
-              </li>
+              <li key={i}>{describeAmendmentImpactAction(action)}</li>
             ))}
           </ul>
         ) : null}

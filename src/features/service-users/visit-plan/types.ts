@@ -31,6 +31,9 @@ export type AmendmentImpactAction = {
   type: string
   visitPlanSlotId: string
   slotLabel: string
+  /** The visit's time before the change (HH:MM). */
+  startTime?: string
+  endTime?: string
   removedWeekdays?: number[]
   newStartTime?: string
   newEndTime?: string

@@ -10,6 +10,7 @@ import {
 import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
 import type { CarePlanComposeGap } from '@/features/service-users/care-plans/types'
+import { carePlanFieldLabel } from '@/features/service-users/care-plan/care-plan-first-person-labels'
 
 type Props = {
   open: boolean
@@ -108,7 +109,7 @@ export function CarePlanPublishDialog({
                       : 'border-amber-500/40 bg-amber-50 dark:bg-amber-950/20',
                   )}
                 >
-                  <p className="font-medium text-foreground">{gap.label}</p>
+                  <p className="font-medium text-foreground">{carePlanFieldLabel(gap.label)}</p>
                 </li>
               ))}
             </ul>

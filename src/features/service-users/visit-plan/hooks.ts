@@ -168,6 +168,7 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
       }
       invalidate()
       void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
+      void qc.invalidateQueries({ queryKey: ['hours-approvals'] })
     },
   })
 
