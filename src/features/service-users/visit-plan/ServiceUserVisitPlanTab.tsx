@@ -253,6 +253,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
   const [backfillOpen, toggleBackfill] = useVisitPlanSectionOpen('backfill')
   const [amendmentHistoryOpen, toggleAmendmentHistory] = useVisitPlanSectionOpen('amendmentHistory', false)
   const pendingHours = pendingHoursQuery.data ?? null
+  // Once the DOM Care tab has weekly hours, the plan shows them read-only; they change only there.
+  const domWeeklyHours = domCareQuery.data?.weeklyContractedHours ?? ''
+  const hoursFromDomCare = parseWeeklyContractedHours(domWeeklyHours) !== null
   const generalSettingsQuery = useGeneralSettings()
   const rotaHorizonOptions = React.useMemo(
     () => buildGenerateRotaHorizonOptions(generalSettingsQuery.data),
@@ -394,6 +397,10 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
     setNumberOfCarers(workingPlan.numberOfCarers)
     setNotes(workingPlan.notes ?? '')
   }, [workingPlan?.id, workingPlan?.updatedAt, medicationRounds, careContext.loneWorkerTwoCarerRequired])
+
+  React.useEffect(() => {
+    if (hoursFromDomCare) setWeeklyHours(domWeeklyHours)
+  }, [hoursFromDomCare, domWeeklyHours, workingPlan?.id, workingPlan?.updatedAt, medicationRounds])
 
   React.useEffect(() => {
     if (!slots.length) return
@@ -1053,9 +1060,10 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 onChange={(e) => setWeeklyHours(e.target.value)}
                 placeholder="e.g. 14"
                 required={!workingPlan}
-                disabled={Boolean(workingPlan && pendingHours)}
+                readOnly={hoursFromDomCare}
+                disabled={!hoursFromDomCare && Boolean(workingPlan && pendingHours)}
               />
-              {workingPlan && !pendingHours ? (
+              {workingPlan && !pendingHours && !hoursFromDomCare ? (
                 <Button
                   type="button"
                   disabled={!weeklyHoursDirty || update.isPending}
@@ -1067,7 +1075,24 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
             </div>
             {workingPlan && pendingHours ? (
               <ServiceUserHoursPendingNotice pending={pendingHours} currentHours={savedWeeklyHours} />
-            ) : workingPlan ? (
+            ) : null}
+            {hoursFromDomCare ? (
+              <p className={cn('mt-1 flex items-start gap-1.5', contentHelperClass)} data-testid="visit-plan-hours-from-dom">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>
+                  From the service user&apos;s profile. To change contracted hours, go to the{' '}
+                  <Link
+                    to="/service-users/$serviceUserId"
+                    params={{ serviceUserId }}
+                    search={{ tab: 'dom' }}
+                    className="font-medium text-sky-700 underline underline-offset-2 dark:text-sky-400"
+                  >
+                    DOM Care tab
+                  </Link>
+                  .
+                </span>
+              </p>
+            ) : workingPlan && !pendingHours ? (
               <p className={cn('mt-1', contentHelperClass)}>
                 Changes need a manager&apos;s approval and also update the DOM Care tab.
               </p>

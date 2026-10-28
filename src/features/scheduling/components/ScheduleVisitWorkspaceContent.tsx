@@ -68,7 +68,13 @@ import {
 import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/VisitDeliveryStatusPanel'
 import { VisitCareConsentSection } from '@/features/scheduling/components/VisitCareConsentSection'
-import { useEcmVisitSos } from '@/features/ecm/hooks/useEcm'
+import {
+  useAcknowledgeEcmException,
+  useCloseSosEcmException,
+  useEcmVisitSos,
+} from '@/features/ecm/hooks/useEcm'
+import { CloseSosDialog } from '@/features/ecm/components/CloseSosDialog'
+import { useAuthStore } from '@/features/auth/store'
 import type { CarerSosAlertDto } from '@/features/ecm/types/ecm.types'
 import { sosActionLabel, sosOutcomeLabel } from '@/features/ecm/utils/sos-outcome.util'
 
@@ -94,6 +100,13 @@ function VisitWorkspaceSosAlerts({
   /** Carer SOS voice notes for this visit (not matchable to a single alert row). */
   voiceNotes?: VisitVoiceNote[]
 }) {
+  const canAcknowledge = useAuthStore(s => s.can('ecm.exceptions.manage'))
+  const acknowledge = useAcknowledgeEcmException()
+  const closeSos = useCloseSosEcmException()
+  const [closeRow, setCloseRow] = React.useState<CarerSosAlertDto | null>(null)
+  const pendingAckIds = alerts
+    .filter(row => !row.acknowledgedAt && row.lifecycle !== 'CLOSED')
+    .map(row => row.id)
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(
     () => new Set(alerts.filter(row => row.lifecycle !== 'CLOSED').map(row => row.id)),
   )
@@ -144,6 +157,19 @@ function VisitWorkspaceSosAlerts({
           <span className="ml-1.5 font-medium text-muted-foreground">· {alerts.length}</span>
         ) : null}
       </p>
+      {canAcknowledge && pendingAckIds.length > 1 ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          className="mt-2"
+          disabled={acknowledge.isPending}
+          onClick={() => void acknowledge.acknowledgeAll(pendingAckIds)}
+          data-testid="visit-workspace-sos-acknowledge-all"
+        >
+          {acknowledge.isPending ? 'Acknowledging…' : `Acknowledge all SOS (${pendingAckIds.length})`}
+        </Button>
+      ) : null}
       <ul className="mt-2 space-y-2">
         {alerts.map(row => {
           const expanded = expandedIds.has(row.id)
@@ -152,6 +178,7 @@ function VisitWorkspaceSosAlerts({
             row.latitude != null && row.longitude != null && !row.locationUnavailable
               ? `https://maps.google.com/?q=${row.latitude},${row.longitude}`
               : null
+          const needsAck = !row.acknowledgedAt && row.lifecycle !== 'CLOSED'
           const action = row.actionLabel || sosActionLabel(row.actionCode) || null
           const outcome = row.outcomeLabel || sosOutcomeLabel(row.outcomeCode) || null
           const closed = row.lifecycle === 'CLOSED'
@@ -189,6 +216,30 @@ function VisitWorkspaceSosAlerts({
               {expanded ? (
                 <div id={detailsId} className="space-y-2 border-t border-border/60 px-3 py-2 text-sm">
                   <p className="text-muted-foreground">{row.message?.trim() || 'No message'}</p>
+                  {canAcknowledge && needsAck ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      disabled={acknowledge.isPending}
+                      onClick={() => void acknowledge.acknowledgeAll([row.id])}
+                      data-testid="visit-workspace-sos-acknowledge"
+                    >
+                      {acknowledge.isPending ? 'Acknowledging…' : 'Acknowledge SOS'}
+                    </Button>
+                  ) : null}
+                  {canAcknowledge && row.acknowledgedAt && !closed ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={closeSos.isPending}
+                      onClick={() => setCloseRow(row)}
+                      data-testid="visit-workspace-sos-close"
+                    >
+                      Close SOS
+                    </Button>
+                  ) : null}
                   {mapsHref ? (
                     <a
                       href={mapsHref}
@@ -248,6 +299,23 @@ function VisitWorkspaceSosAlerts({
           {` · ${formatOpsClockTime(ackSummary.acknowledgedAt)}`}
         </p>
       ) : null}
+      <CloseSosDialog
+        open={Boolean(closeRow)}
+        onOpenChange={open => {
+          if (!open) setCloseRow(null)
+        }}
+        busy={closeSos.isPending}
+        sentAtLabel={closeRow ? formatOpsClockTime(closeRow.createdAt) : null}
+        onConfirm={async payload => {
+          await closeSos.mutateAsync({
+            id: closeRow!.id,
+            actionCode: payload.actionCode,
+            outcomeCode: payload.outcomeCode,
+            actionNote: payload.actionNote,
+            note: payload.note,
+          })
+        }}
+      />
     </section>
   )
 }
