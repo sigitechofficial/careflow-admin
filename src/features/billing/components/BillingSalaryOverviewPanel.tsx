@@ -23,6 +23,8 @@ import { useEmployeeSalaries } from '@/features/billing/hooks/usePayrollRuns'
 import { useEmployeePayoutBatches } from '@/features/billing/hooks/useEmployeePayouts'
 import { EmployeePayoutBatchDetailDialog } from '@/features/billing/components/EmployeePayoutBatchDetailDialog'
 import { BillingStatusBadge } from '@/features/billing/components/BillingStatusBadge'
+import { SectionInfoTip } from '@/features/billing/components/SectionInfoTip'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import type { EmployeePayoutBatchRow } from '@/features/billing/api/employee-payouts.api'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import type { SalaryCalculationBasis } from '@/features/settings/types'
@@ -178,15 +180,28 @@ export function BillingSalaryOverviewPanel() {
             <Wallet className="h-5 w-5" aria-hidden />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">Visit salary overview</p>
+            <TooltipProvider delayDuration={150}>
+              <div className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                Visit salary overview
+                <SectionInfoTip label="the visit salary overview">
+                  <p>Care visit earnings for the selected {periodNoun}, before UK PAYE / NI.</p>
+                  <p className="mt-1.5">
+                    <span className="font-medium">Remaining</span> is visit pay not yet in a visit-pay run or UK
+                    payroll run.
+                  </p>
+                  <p className="mt-1.5">
+                    Payment recorded / Outstanding track <span className="font-medium">UK net</span> disbursed via
+                    Employee payouts (after W1/M1 tax &amp; NI) — not visit-pay net.
+                  </p>
+                  <p className="mt-1.5">
+                    Auto-payout on the <span className="font-medium">4th</span> uses the previous month’s statutory
+                    UK run when one exists.
+                  </p>
+                </SectionInfoTip>
+              </div>
+            </TooltipProvider>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Care visit earnings for the selected {periodNoun}, before UK PAYE / NI.
-              <span className="font-medium text-foreground"> Remaining</span> is visit pay
-              not yet in a visit-pay run or UK payroll run.
-              Payment recorded / Outstanding track <span className="font-medium text-foreground">UK net</span>{' '}
-              disbursed via Employee payouts (after W1/M1 tax &amp; NI) — not visit-pay net.
-              Auto-payout on the <span className="font-medium text-foreground">4th</span> uses the
-              previous month’s statutory UK run when one exists.
+              Care visit earnings for the selected {periodNoun}.
             </p>
           </div>
         </div>
@@ -334,7 +349,14 @@ export function BillingSalaryOverviewPanel() {
         <ContentCard className="space-y-3 p-4" data-testid="billing-salary-payout-batches">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-medium text-foreground">Payout batches this period</p>
+              <TooltipProvider delayDuration={150}>
+                <div className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                  Payout batches this period
+                  <SectionInfoTip label="payout batches">
+                    Auto-runs on the 4th from a closed/statutory UK run when eligible.
+                  </SectionInfoTip>
+                </div>
+              </TooltipProvider>
               <p className="text-xs text-muted-foreground">
                 Period {period} — full history is on{' '}
                 <Link
@@ -343,7 +365,7 @@ export function BillingSalaryOverviewPanel() {
                 >
                   Employee payouts
                 </Link>
-                . Auto-runs on the 4th from a closed/statutory UK run when eligible.
+                .
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
