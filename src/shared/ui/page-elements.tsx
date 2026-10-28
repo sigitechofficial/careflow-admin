@@ -1,5 +1,5 @@
 ﻿import * as React from 'react'
-import { Filter, Loader2 } from 'lucide-react'
+import { Filter, Info, Loader2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import {
   contentBodyClass,
@@ -9,6 +9,7 @@ import {
   contentTitleDisplayClass,
 } from '@/shared/ui/content-typography'
 import { Button, type ButtonProps } from './button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip'
 
 /* â”€â”€â”€ PageHeader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 interface PageAction {
@@ -21,6 +22,8 @@ interface PageAction {
 interface PageHeaderProps {
   title: string
   description?: string
+  /** Longer explanation, shown from an ⓘ beside the title on hover or focus. */
+  info?: React.ReactNode
   actions?: PageAction[]
   breadcrumb?: { label: string; href?: string }[]
   /** Shown before the title; defaults to a filter icon (matches schedule-style page headers). */
@@ -29,7 +32,7 @@ interface PageHeaderProps {
   className?: string
 }
 
-function PageHeader({ title, description, actions, breadcrumb, icon, children, className }: PageHeaderProps) {
+function PageHeader({ title, description, info, actions, breadcrumb, icon, children, className }: PageHeaderProps) {
   const leadingIcon = icon ?? <Filter className="h-4 w-4 text-muted-foreground" aria-hidden />
 
   return (
@@ -58,6 +61,24 @@ function PageHeader({ title, description, actions, breadcrumb, icon, children, c
             <h1 className={cn('flex items-center gap-2 tracking-tight', contentTitleClass)}>
               <span className="shrink-0 [&_svg]:h-4 [&_svg]:w-4">{leadingIcon}</span>
               <span className="truncate">{title}</span>
+              {info ? (
+                <TooltipProvider delayDuration={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                        aria-label={`About ${title}`}
+                      >
+                        <Info className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-sm text-left text-xs font-normal leading-snug">
+                      {info}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : null}
             </h1>
             {description && (
               <p className={contentBodyClass}>{description}</p>

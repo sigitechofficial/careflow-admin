@@ -9,6 +9,7 @@ import {
   CircleHelp,
   Download,
   ExternalLink,
+  Info,
   Loader2,
   Pencil,
   Search,
@@ -42,6 +43,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { Label, Textarea } from '@/shared/ui/form-field'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
 import {
   getSyncedOperationalTimeZone,
@@ -669,11 +671,26 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
         )}
       </ContentCard>
 
-      <p className="text-xs text-muted-foreground">
-        * manually overridden value. SMS reporting is auto-flagged for sponsored workers when a
-        completed week is over the weekly cap or under{' '}
-        {Math.round((data?.smsUnderHoursRatio ?? 0.8) * 100)}% of CoS weekly hours.
-      </p>
+      <TooltipProvider delayDuration={150}>
+        <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          * manually overridden value.
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="About SMS reporting"
+              >
+                <Info className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-sm text-left text-xs font-normal leading-snug">
+              SMS reporting is auto-flagged for sponsored workers when a completed week is over the weekly cap
+              or under {Math.round((data?.smsUnderHoursRatio ?? 0.8) * 100)}% of CoS weekly hours.
+            </TooltipContent>
+          </Tooltip>
+        </p>
+      </TooltipProvider>
 
       {/* Review edit dialog */}
       <Dialog open={editing != null} onOpenChange={open => !open && setEditing(null)}>
