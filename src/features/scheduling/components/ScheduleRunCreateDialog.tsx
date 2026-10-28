@@ -75,6 +75,7 @@ export function ScheduleRunCreateDialog({
     enabled: open,
     locationIds: serviceUserLocationIds,
     includeEmployeeIds: employeeId ? [employeeId] : [],
+    activeOnly: true,
   })
 
   const carerOptions = React.useMemo(
@@ -120,11 +121,30 @@ export function ScheduleRunCreateDialog({
         description: notes.trim() || undefined,
         visitIds: sortedJobs.map((j) => j.id),
       })
+      // The run's carer only reaches the visits once they are allocated; a visit someone
+      // else already holds moves to the run carer.
+      const synced = employeeId
+        ? await mutations.syncCarer.mutateAsync({
+            id: created.id,
+            payload: { force: true, replaceExisting: true },
+          })
+        : null
       await mutations.update.mutateAsync({
         id: created.id,
         payload: { status: 'PUBLISHED' },
       })
-      toastSuccess('Run published', `${sortedJobs.length} visits added to ${name.trim()}.`)
+      const warningCount = synced?.warnings?.length ?? 0
+      if (warningCount > 0) {
+        toastWarning(
+          'Run published with warnings',
+          `${sortedJobs.length - warningCount} of ${sortedJobs.length} visits allocated to the carer · ${warningCount} could not be. Review the run for details.`,
+        )
+      } else {
+        toastSuccess(
+          'Run published',
+          `${sortedJobs.length} visits added to ${name.trim()}${employeeId ? ' and allocated to the carer' : ''}.`,
+        )
+      }
       onOpenChange(false)
       onCreated?.()
     } catch (error) {
@@ -132,7 +152,7 @@ export function ScheduleRunCreateDialog({
     }
   }
 
-  const busy = mutations.create.isPending || mutations.update.isPending
+  const busy = mutations.create.isPending || mutations.update.isPending || mutations.syncCarer.isPending
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

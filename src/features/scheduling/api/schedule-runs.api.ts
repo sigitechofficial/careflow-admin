@@ -124,6 +124,8 @@ export async function deleteScheduleRun(id: string, init?: RequestInit) {
 export type SyncScheduleRunCarerPayload = {
   force?: boolean
   unallocateEmployeeId?: string
+  /** On single-carer visits, take off whoever holds the visit so the run carer gets it. */
+  replaceExisting?: boolean
 }
 
 export type SyncScheduleRunCarerResult = {
