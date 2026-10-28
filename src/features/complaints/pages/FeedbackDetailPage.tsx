@@ -59,6 +59,14 @@ function Item({ label, children }: { label: string; children: React.ReactNode })
   )
 }
 
+function EmployeeLink({ person }: { person: { id: string; name: string } }) {
+  return (
+    <Link to="/hr/employees/$employeeId" params={{ employeeId: person.id }} className="text-primary hover:underline">
+      {person.name}
+    </Link>
+  )
+}
+
 /** Runs of investigation changes by the same person show as one entry with a list of what changed. */
 type TimelineEntry = FeedbackEvent & { changes: string[] }
 
@@ -284,7 +292,14 @@ export default function FeedbackDetailPage() {
                     </Link>
                   ) : null}
                 </Item>
-                <Item label="Staff">{r.aboutEmployees.map(e => e.name).join(', ')}</Item>
+                <Item label="Staff">
+                  {r.aboutEmployees.map((e, i) => (
+                    <React.Fragment key={e.id}>
+                      {i > 0 ? ', ' : null}
+                      <EmployeeLink person={e} />
+                    </React.Fragment>
+                  ))}
+                </Item>
                 <Item label="Branch">{r.location?.name}</Item>
               </Group>
               <Group title="Details">
@@ -293,7 +308,9 @@ export default function FeedbackDetailPage() {
                   <div className="text-xs text-muted-foreground">by {FEEDBACK_CHANNEL_LABEL[r.channel].toLowerCase()}</div>
                 </Item>
                 <Item label="Category">{r.category}</Item>
-                {isComplaint ? <Item label="Handled by">{r.handler?.name}</Item> : null}
+                {isComplaint ? (
+                  <Item label="Handled by">{r.handler ? <EmployeeLink person={r.handler} /> : null}</Item>
+                ) : null}
               </Group>
             </div>
           </Card>
