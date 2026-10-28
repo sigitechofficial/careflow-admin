@@ -599,6 +599,9 @@ export default function HoursApprovalsPage() {
             <AlertDialogDescription>
               All {rows.length} {STATUS_LABEL[tab].toLowerCase()} request{rows.length === 1 ? '' : 's'} will be
               deleted permanently. This cannot be undone.
+              {tab === 'PENDING'
+                ? ' Visits held back for a carer over their hours are no longer held; the next plan save asks again if the carer is still over.'
+                : ''}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
