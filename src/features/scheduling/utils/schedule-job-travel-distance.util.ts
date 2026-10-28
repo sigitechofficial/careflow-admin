@@ -67,13 +67,12 @@ export function haversineDistanceKm(from: GeoCoordinates, to: GeoCoordinates): n
   return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-/** Shown in miles (UK); distances are kept in km internally. */
+/** Shown in miles (UK), one decimal like visit reconciliation; distances are kept in km internally. */
 export function formatTravelDistanceKm(distanceKm: number): string {
   if (!Number.isFinite(distanceKm) || distanceKm < 0) return '—'
   const miles = distanceKm * 0.621371
   if (miles < 0.1) return '< 0.1 mi'
-  if (miles < 10) return `${miles.toFixed(1)} mi`
-  return `${Math.round(miles)} mi`
+  return `${miles.toFixed(1)} mi`
 }
 
 /** Estimates driving time from straight-line (haversine) distance. */
@@ -97,10 +96,11 @@ export function travelBetween(
   if (leg?.source === 'GOOGLE') {
     return { distanceKm: leg.km, travelMinutes: leg.minutes, travelSource: 'GOOGLE' }
   }
-  const distanceKm = haversineDistanceKm(from, to)
+  const straightLineKm = haversineDistanceKm(from, to)
+  // Road distance, the same estimate the API uses for visit pay (its minutes come from it too).
   return {
-    distanceKm,
-    travelMinutes: estimateTravelMinutesFromStraightLineKm(distanceKm),
+    distanceKm: straightLineKm * ROAD_DISTANCE_FACTOR,
+    travelMinutes: estimateTravelMinutesFromStraightLineKm(straightLineKm),
     travelSource: 'ESTIMATE',
   }
 }
