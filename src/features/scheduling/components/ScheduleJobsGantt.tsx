@@ -66,7 +66,7 @@ export function ScheduleJobsGantt({
   onJobClick,
   onJobAction,
   onJobDrop,
-  onJobsSelectedForRun,
+  onJobsSelected,
   onOpenRun,
   onReassignRun,
 }: ScheduleJobsGanttProps) {
@@ -152,10 +152,10 @@ export function ScheduleJobsGantt({
   }, [byServiceUser, employeeRows, serviceUserRows, unassignedJobs, cancelledJobs])
 
   const handleSelectionComplete = React.useCallback(
-    (jobs: TimelineJob[]) => {
-      onJobsSelectedForRun?.(jobs)
+    (jobs: TimelineJob[], point: { x: number; y: number }) => {
+      onJobsSelected?.(jobs, point)
     },
-    [onJobsSelectedForRun],
+    [onJobsSelected],
   )
 
   const marquee = useScheduleJobsMarqueeSelect({
