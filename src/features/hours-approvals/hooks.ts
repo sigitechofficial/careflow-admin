@@ -1,13 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   approveHours,
+  cancelExtraWeeklyHours,
   cancelHoursApproval,
+  checkHoursRequestsWithinLimit,
   deleteAllHoursApprovals,
   fetchContractedHoursPreview,
+  fetchExtraWeeklyHours,
   fetchHoursApprovals,
   fetchPendingContractedHoursChange,
   fetchPendingServiceUserHoursChange,
   fetchServiceUserHoursImpact,
+  grantExtraWeeklyHours,
+  previewExtraWeeklyHours,
   rejectHours,
   requestContractedHoursChange,
   requestServiceUserHoursChange,
@@ -21,6 +26,7 @@ const keys = {
     [...keys.all(), 'contracted-pending', employeeId] as const,
   pendingServiceUserHours: (serviceUserId: string) =>
     [...keys.all(), 'service-user-hours-pending', serviceUserId] as const,
+  extraHours: (employeeId: string) => [...keys.all(), 'extra-hours', employeeId] as const,
 }
 
 export function useHoursApprovals(status?: HoursApprovalStatus) {
@@ -121,5 +127,57 @@ export function useServiceUserHoursImpact(serviceUserId: string, weeklyHours: nu
     queryKey: [...keys.all(), 'service-user-hours-impact', serviceUserId, weeklyHours] as const,
     queryFn: ({ signal }) => fetchServiceUserHoursImpact(serviceUserId, weeklyHours ?? 0, { signal }),
     enabled: enabled && Boolean(serviceUserId) && weeklyHours != null,
+  })
+}
+
+/** The carer's extra weekly hours, newest first (cancelled ones included). */
+export function useExtraWeeklyHours(employeeId: string, enabled = true) {
+  return useQuery({
+    queryKey: keys.extraHours(employeeId),
+    queryFn: ({ signal }) => fetchExtraWeeklyHours(employeeId, { signal }),
+    enabled: enabled && Boolean(employeeId),
+  })
+}
+
+/** Add extra weekly hours; waiting requests that now fit are approved (lists and rota refresh). */
+export function useGrantExtraWeeklyHours() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: grantExtraWeeklyHours,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.all() })
+      void qc.invalidateQueries({ queryKey: ['scheduling'] })
+    },
+  })
+}
+
+export function useCancelExtraWeeklyHours() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (args: { id: string; reason?: string }) => cancelExtraWeeklyHours(args.id, args.reason),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.all() }),
+  })
+}
+
+/** Live preview while filling Add extra hours (null input = nothing to preview yet). */
+export function useExtraWeeklyHoursPreview(input: Parameters<typeof previewExtraWeeklyHours>[0] | null) {
+  return useQuery({
+    queryKey: [...keys.all(), 'extra-hours-preview', input] as const,
+    queryFn: ({ signal }) => previewExtraWeeklyHours(input!, { signal }),
+    enabled: input != null,
+    staleTime: 0,
+  })
+}
+
+/** Approves carer requests back within the weekly hours; the lists and rota refresh after. */
+export function useCheckHoursRequestsWithinLimit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: checkHoursRequestsWithinLimit,
+    onSuccess: res => {
+      if (!res.approved.length) return
+      void qc.invalidateQueries({ queryKey: keys.all() })
+      void qc.invalidateQueries({ queryKey: ['scheduling'] })
+    },
   })
 }

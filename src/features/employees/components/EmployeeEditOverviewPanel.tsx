@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { Award, CalendarDays, FileText, Pencil, ShieldCheck, UserCircle } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
+import { AddExtraHoursButton } from '@/features/hours-approvals/components/CarerExtraHours'
 import type { EmployeeDetail } from '@/features/employees/types'
 import type { EditEmployeeTabId } from '@/features/employees/components/EditEmployeeTabBar'
 import { matchesComplianceStatusFilter } from '@/features/employees/compliance/compliance-document-filters'
@@ -44,11 +46,14 @@ function Section({
   editTab,
   onEdit,
   rows,
+  footer,
 }: {
   title: string
   editTab?: EditEmployeeTabId
   onEdit: (tab: EditEmployeeTabId) => void
   rows: [label: string, value: string][]
+  /** Shown under the rows (e.g. an action for this section). */
+  footer?: ReactNode
 }) {
   return (
     <section className="rounded-lg border border-border">
@@ -73,6 +78,7 @@ function Section({
           </div>
         ))}
       </dl>
+      {footer ? <div className="border-t border-border px-4 py-2">{footer}</div> : null}
     </section>
   )
 }
@@ -367,6 +373,15 @@ export function EmployeeEditOverviewPanel({
           ['Override reason', text(e.weeklyHoursCapOverrideReason)],
           ['Override expires', date(e.weeklyHoursCapOverrideExpiresAt)],
         ]}
+        footer={
+          e.contractedWeeklyHours != null ? (
+            <AddExtraHoursButton
+              employeeId={employee.id}
+              employeeName={fullName || null}
+              contractedHours={Number(e.contractedWeeklyHours)}
+            />
+          ) : null
+        }
       />
 
       <Section

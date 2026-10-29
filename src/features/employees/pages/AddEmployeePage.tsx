@@ -30,6 +30,10 @@ import {
   useRequestContractedHoursChange,
 } from '@/features/hours-approvals/hooks'
 import type { ContractedHoursImpact } from '@/features/hours-approvals/types'
+import {
+  AddExtraHoursButton,
+  ExtraHoursHistory,
+} from '@/features/hours-approvals/components/CarerExtraHours'
 import { EmployeeDocumentsSection } from '@/features/employees/components/EmployeeDocumentsSection'
 import { EmployeeEditOverviewPanel } from '@/features/employees/components/EmployeeEditOverviewPanel'
 import { EmployeeFortnightPatternEditor } from '@/features/employees/components/EmployeeFortnightPatternEditor'
@@ -1957,7 +1961,28 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                             Changes need a manager&apos;s approval before they apply.
                           </p>
                         ) : null}
+                        {isEditMode && createdEmployeeId && savedContractedHours != null ? (
+                          <div className="mt-2">
+                            <AddExtraHoursButton
+                              employeeId={createdEmployeeId}
+                              contractedHours={Number(savedContractedHours)}
+                            />
+                          </div>
+                        ) : null}
                       </FormField>
+                      {isEditMode && createdEmployeeId ? (
+                        <div className="md:col-span-2 space-y-2 rounded-lg border border-border/80 bg-muted/20 p-4">
+                          <div>
+                            <h4 className="text-sm font-semibold text-foreground">Extra weekly hours</h4>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Extra hours on top of the contracted weekly hours for a day, a week or a date
+                              range. They raise that week&apos;s limit for visit plans, the rota and Hours
+                              approvals.
+                            </p>
+                          </div>
+                          <ExtraHoursHistory employeeId={createdEmployeeId} />
+                        </div>
+                      ) : null}
                       <FormField label="Maximum" htmlFor="maxh" error={errors.maximumWeeklyHours?.message}>
                         <Input
                           id="maxh"
