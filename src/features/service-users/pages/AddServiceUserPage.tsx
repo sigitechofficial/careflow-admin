@@ -28,6 +28,7 @@ import { ApiError } from '@/shared/api/api-client'
 import { parseApiFieldErrors } from '@/shared/api/api-error-format'
 import { extractApiErrorMessage, toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
 import { linkEnquiryServiceUser } from '@/features/crm/api/crm.api'
+import { useEnquiry } from '@/features/crm/hooks/useCrm'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { type EmployeeListRow } from '@/features/employees/types'
 import {
@@ -564,6 +565,20 @@ export default function AddServiceUserPage() {
     lastName: prefill.lastName ?? emptyForm.lastName,
     dateOfBirth: prefill.dob ?? emptyForm.dateOfBirth,
   }))
+  // With only ?enquiryId= (no personal data in the URL), fill the name and date of birth from the enquiry once.
+  const enquiryQuery = useEnquiry(prefill.enquiryId && !prefill.firstName ? prefill.enquiryId : undefined)
+  const enquiryPrefilled = React.useRef(false)
+  React.useEffect(() => {
+    const e = enquiryQuery.data
+    if (!e || enquiryPrefilled.current) return
+    enquiryPrefilled.current = true
+    setForm(f => ({
+      ...f,
+      firstName: f.firstName || e.firstName,
+      lastName: f.lastName || e.lastName,
+      dateOfBirth: f.dateOfBirth || (e.dateOfBirth ? e.dateOfBirth.slice(0, 10) : ''),
+    }))
+  }, [enquiryQuery.data])
   const [submitError, setSubmitError] = React.useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({})
   const [photoFile, setPhotoFile] = React.useState<File | null>(null)

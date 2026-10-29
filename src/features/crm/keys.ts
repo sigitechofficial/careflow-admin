@@ -11,4 +11,7 @@ export const crmKeys = {
   carePlans: () => [...crmKeys.all, 'care-plans'] as const,
   details: () => [...crmKeys.all, 'detail'] as const,
   detail: (id: string) => [...crmKeys.details(), id] as const,
+  quotations: (enquiryId: string) => [...crmKeys.all, 'quotations', enquiryId] as const,
+  quoteVersion: (enquiryId: string, versionId: string) =>
+    [...crmKeys.quotations(enquiryId), 'version', versionId] as const,
 }

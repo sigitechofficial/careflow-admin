@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Pencil,
-  PoundSterling,
   Mail,
   MessageSquarePlus,
   Phone,
@@ -20,6 +19,7 @@ import { EmptyState, LoadingSpinner } from '@/shared/ui/page-elements'
 import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { CrmSectionLayout } from '@/features/crm/components/CrmSectionLayout'
+import { QuoteSummary } from '@/features/crm/components/QuoteSummaryCard'
 import {
   useAddEnquiryNote,
   useEnquiry,
@@ -184,7 +184,22 @@ function EnquiryHeader({ enquiry, canManage }: { enquiry: Enquiry; canManage: bo
         </div>
 
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg bg-muted/40 px-4 py-3 sm:grid-cols-4">
-          <MetaItem label="Branch">{enquiry.locationName || 'Not set'}</MetaItem>
+          <MetaItem label="Branch">
+            {enquiry.locationName || (
+              <span className="text-amber-700 dark:text-amber-300">
+                Not set
+                {canManage && (
+                  <button
+                    type="button"
+                    className="ml-1.5 font-medium text-primary hover:underline"
+                    onClick={() => navigate({ to: '/crm/$enquiryId/edit', params: { enquiryId: enquiry.id } })}
+                  >
+                    Set branch
+                  </button>
+                )}
+              </span>
+            )}
+          </MetaItem>
           <MetaItem label="Owner">{enquiry.ownerName || 'Unassigned'}</MetaItem>
           <MetaItem label="Added">
             {fmtDate(enquiry.createdAt)}
@@ -405,12 +420,8 @@ function ActionsCard({ enquiry }: { enquiry: Enquiry }) {
   const createServiceUser = () =>
     navigate({
       to: '/service-users/add',
-      search: {
-        firstName: enquiry.firstName,
-        lastName: enquiry.lastName,
-        dob: enquiry.dateOfBirth ? enquiry.dateOfBirth.slice(0, 10) : undefined,
-        enquiryId: enquiry.id,
-      },
+      // Only the enquiry id goes in the URL; the add page fills the name and date of birth from it.
+      search: { enquiryId: enquiry.id },
     })
 
   const stageOptions = OPEN_STAGES.filter(s => s !== enquiry.stage)
@@ -534,9 +545,6 @@ function ActionsCard({ enquiry }: { enquiry: Enquiry }) {
   )
 }
 
-const money = (n: number | null) =>
-  n == null ? null : new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n)
-
 /** One step of the plan: what is booked (or that nothing is), and a link to change it. */
 function PlanRow({
   icon,
@@ -595,8 +603,8 @@ function PlanCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean
   const hasFollowUp = Boolean(enquiry.nextFollowUpAt || enquiry.nextAction)
   const booked = Boolean(enquiry.assessmentAt)
   const hasAssessment = booked || Boolean(enquiry.assessorName || enquiry.assessmentLocation)
-  const hasQuote =
-    enquiry.quoteWeeklyAmount != null || enquiry.quoteHourlyRate != null || Boolean(enquiry.quoteSentAt)
+  // The Assessment stage on the board is separate from an assessment actually booked.
+  const stageReached = ['ASSESSMENT', 'OFFER', 'WON'].includes(enquiry.stage)
   const muted = (label: string, value: React.ReactNode) => (
     <>
       <span className="text-muted-foreground">{label} </span>
@@ -647,7 +655,7 @@ function PlanCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean
               </span>
             ) : null
           }
-          empty="Not booked"
+          empty={stageReached ? 'Assessment stage reached — no assessment booked yet' : 'Not booked'}
           lines={
             hasAssessment
               ? [
@@ -661,23 +669,7 @@ function PlanCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean
           onAction={edit}
         />
         <div className="border-t border-border" />
-        <PlanRow
-          icon={<PoundSterling className="h-4 w-4" aria-hidden />}
-          title="Quote"
-          empty="Not recorded"
-          lines={
-            hasQuote
-              ? [
-                  money(enquiry.quoteWeeklyAmount) ? muted('Per week', money(enquiry.quoteWeeklyAmount)) : null,
-                  money(enquiry.quoteHourlyRate) ? muted('Hourly', money(enquiry.quoteHourlyRate)) : null,
-                  enquiry.quoteSentAt ? muted('Sent', fmtDate(enquiry.quoteSentAt)) : null,
-                ]
-              : []
-          }
-          note={hasQuote ? enquiry.quoteNotes : null}
-          actionLabel={hasQuote ? 'Change quote' : 'Record quote'}
-          onAction={edit}
-        />
+        <QuoteSummary enquiry={enquiry} canManage={canManage} />
       </CardContent>
     </Card>
   )

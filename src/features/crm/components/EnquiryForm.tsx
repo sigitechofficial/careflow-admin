@@ -245,7 +245,10 @@ export function EnquiryForm({
 }: Props) {
   const [f, setF] = React.useState<FormState>(() => initialState(initial, defaultLocationId))
   const { options: branchOptions } = useBranchOptions()
-  const branchRequired = branchOptions.length > 1
+  // Every enquiry belongs to the branch that received it; with only one branch it is chosen for you.
+  React.useEffect(() => {
+    if (branchOptions.length === 1 && !f.locationId) setF(prev => ({ ...prev, locationId: branchOptions[0]!.id }))
+  }, [branchOptions, f.locationId])
   const { data: owners = [], isError: ownersError, isLoading: ownersLoading } = useEnquiryOwners()
   const {
     data: fundingTypes = [],
@@ -276,8 +279,8 @@ export function EnquiryForm({
       toastApiError(null, 'First and last name are required')
       return
     }
-    if (branchRequired && !f.locationId) {
-      toastApiError(null, 'Choose the branch this enquiry belongs to')
+    if (!f.locationId) {
+      toastApiError(null, 'Choose the branch that received this enquiry')
       return
     }
     onSubmit(toPayload(f))
@@ -295,7 +298,7 @@ export function EnquiryForm({
         <Field label="Date of birth">
           <Input type="date" value={f.dateOfBirth} onChange={set('dateOfBirth')} />
         </Field>
-        <Field label="Branch" required={branchRequired}>
+        <Field label="Receiving branch" required hint="The branch that received the enquiry. Its staff will see and manage it.">
           {branchOptions.length > 6 ? (
             <Combobox
               options={branchOptions.map(o => ({ value: o.id, label: o.label }))}
@@ -307,8 +310,8 @@ export function EnquiryForm({
               aria-label="Branch"
             />
           ) : (
-            <select className={selectClass} value={f.locationId} onChange={set('locationId')}>
-              <option value="">—</option>
+            <select className={selectClass} value={f.locationId} onChange={set('locationId')} aria-label="Receiving branch">
+              <option value="">Select branch…</option>
               {branchOptions.map(o => (
                 <option key={o.id} value={o.id}>
                   {o.label}

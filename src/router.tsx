@@ -136,6 +136,7 @@ import EnquiryBoardPage from '@/features/crm/pages/EnquiryBoardPage'
 import EnquiryDetailPage from '@/features/crm/pages/EnquiryDetailPage'
 import EnquiryNewPage from '@/features/crm/pages/EnquiryNewPage'
 import EnquiryEditPage from '@/features/crm/pages/EnquiryEditPage'
+import QuotationEditorPage from '@/features/crm/pages/QuotationEditorPage'
 import HoursApprovalsPage from '@/features/hours-approvals/pages/HoursApprovalsPage'
 import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
 import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
@@ -394,6 +395,8 @@ const pageTitles: Record<string, string> = {
   '/crm/$enquiryId': 'Enquiry',
   '/crm/new': 'New enquiry',
   '/crm/$enquiryId/edit': 'Edit enquiry',
+  '/crm/$enquiryId/quotes/new': 'New quotation',
+  '/crm/$enquiryId/quotes/$quotationId/$versionId': 'Quotation',
   '/learning/dashboard': 'Learning dashboard',
   '/learning/courses': 'Learning courses',
   '/learning/courses/new': 'New course',
@@ -2462,6 +2465,23 @@ const crmEditEnquiryRoute = createRoute({
   component: EnquiryEditPage,
 })
 
+const crmNewQuotationRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/$enquiryId/quotes/new',
+  beforeLoad: requirePermission('crm.manage'),
+  component: QuotationEditorPage,
+})
+
+const crmQuotationRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/$enquiryId/quotes/$quotationId/$versionId',
+  validateSearch: (search: Record<string, unknown>): { section?: string } => ({
+    section: typeof search.section === 'string' ? search.section : undefined,
+  }),
+  beforeLoad: requirePermission('crm.read'),
+  component: QuotationEditorPage,
+})
+
 const policiesLibraryRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/policies',
@@ -2732,6 +2752,8 @@ const routeTree = rootRoute.addChildren([
     crmNewEnquiryRoute,
     crmEnquiryRoute,
     crmEditEnquiryRoute,
+    crmNewQuotationRoute,
+    crmQuotationRoute,
     policiesLibraryRoute,
     policyNewRoute,
     policyCategoriesRoute,
