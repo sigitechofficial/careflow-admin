@@ -5,6 +5,7 @@ import type { JobsDayRunsResponse } from '@/features/scheduling/types/scheduling
 import { collectJobServiceUserLocationIds } from '@/features/scheduling/utils/employee-branch-scope.util'
 import { scheduleRunCarerLabelFromJobs } from '@/features/scheduling/components/ScheduleRunReassignDialog'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
+import { runCarerOutcomeText } from '@/features/scheduling/components/RunCarerPreviewPanel'
 
 type HookOptions = {
   date: string
@@ -89,14 +90,9 @@ export function useScheduleRunReassignDialog({
           unallocateEmployeeId: previousEmployeeId ?? undefined,
         },
       })
-      if (result.warnings?.length) {
-        toastWarning(
-          'Run reassigned with warnings',
-          `${result.warnings.length} visit(s) could not be fully allocated. Open the run to review.`,
-        )
-      } else {
-        toastSuccess('Run reassigned', `${bundle.jobs.length} visit(s) moved to the new carer.`)
-      }
+      const outcome = runCarerOutcomeText(result)
+      if (outcome.tone === 'warning') toastWarning('Run reassigned', outcome.text)
+      else toastSuccess('Run reassigned', outcome.text)
       close()
       onChanged?.()
     } catch (error) {

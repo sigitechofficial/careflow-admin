@@ -9,6 +9,7 @@ import type { ScheduleRunRow } from '@/features/scheduling/types/scheduling.type
 import { collectJobServiceUserLocationIds } from '@/features/scheduling/utils/employee-branch-scope.util'
 import { computeScheduleRunStats } from '@/features/scheduling/utils/schedule-run-stats.util'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
+import { runCarerOutcomeText } from '@/features/scheduling/components/RunCarerPreviewPanel'
 
 type Options = {
   date: string
@@ -136,19 +137,25 @@ export function useScheduleRunEditDialog({
           description: editNotes.trim() || undefined,
         },
       })
-      if (editEmployeeId) {
-        await mutations.syncCarer.mutateAsync({
-          id: editRun.id,
-          payload: {
-            force: true,
-            unallocateEmployeeId: previousEmployeeIdRef.current ?? undefined,
-          },
-        })
-      }
+      const synced = editEmployeeId
+        ? await mutations.syncCarer.mutateAsync({
+            id: editRun.id,
+            payload: {
+              force: true,
+              unallocateEmployeeId: previousEmployeeIdRef.current ?? undefined,
+            },
+          })
+        : null
       if (editRun.status === 'DRAFT') {
         await mutations.update.mutateAsync({ id: editRun.id, payload: { status: 'PUBLISHED' } })
       }
-      toastSuccess('Run saved and schedule updated')
+      if (synced) {
+        const outcome = runCarerOutcomeText(synced)
+        if (outcome.tone === 'warning') toastWarning('Run saved', outcome.text)
+        else toastSuccess('Run saved and schedule updated', outcome.text)
+      } else {
+        toastSuccess('Run saved and schedule updated')
+      }
       closeEditRun()
       onChanged?.()
     } catch (error) {

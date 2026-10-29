@@ -44,6 +44,8 @@ export type RotaVisitRequestPayload = {
   end: string
   weekStart: string
   weekMinutes: number
+  /** A run carer taking over the visit: these carers stay on it until approved, then come off. */
+  replaceEmployeeNames?: string[]
 }
 
 /** Visit plan putting a carer over their contracted weekly hours: the visits held back. */

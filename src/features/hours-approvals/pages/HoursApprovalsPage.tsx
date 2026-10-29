@@ -531,7 +531,11 @@ export default function HoursApprovalsPage() {
                               {r.changes?.some((c) => c.kind === 'EXTRA_EDIT') ? (
                                 <HoursRequestChanges changes={r.changes} />
                               ) : r.status === 'PENDING' ? (
-                                <p className="text-xs text-muted-foreground">Carer not on the visit until approved</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {rotaVisitPayload(r)?.replaceEmployeeNames?.length
+                                    ? `${rotaVisitPayload(r)!.replaceEmployeeNames!.join(', ')} stays on the visit until this is approved; approving moves the visit to this carer`
+                                    : 'Carer not on the visit until approved'}
+                                </p>
                               ) : null}
                               {r.status === 'REJECTED' && r.decisionNotes ? (
                                 <p className="text-xs text-red-700 dark:text-red-300">Rejected: {r.decisionNotes}</p>
