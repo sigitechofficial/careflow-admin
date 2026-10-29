@@ -142,7 +142,7 @@ export const END_OF_LIFE_ASSESSMENT_QUESTIONS: EndOfLifeQuestionDef[] = [
   },
   {
     id: 'dnrInPlace',
-    label: 'Resuscitation statement in place DNR?',
+    label: 'Do I have a resuscitation statement (DNR) in place?',
     kind: 'yesNo',
     section: 'lastWishes',
   },

@@ -44,50 +44,50 @@ export const ACP_FIVE_STEPS = [
   {
     number: 1,
     title: 'Think',
-    text: 'about the future - what is important to you, what you want to happen or not to happen if you became unwell',
+    text: 'about my future - what is important to me, and what I want to happen or not to happen if I become unwell',
   },
   {
     number: 2,
     title: 'Talk',
-    text: 'with family and friends, and ask someone to be your proxy spokesperson or Lasting Power of Attorney (LPA) if you could no longer speak for yourself',
+    text: 'with my family and friends, and ask someone to be my proxy spokesperson or Lasting Power of Attorney (LPA) if I can no longer speak for myself',
   },
   {
     number: 3,
     title: 'Record',
-    text: 'write down your thoughts as your own ACP, including your spokesperson and store this safely.',
+    text: 'write down my thoughts as my own ACP, including who my spokesperson is, and keep it safe.',
   },
   {
     number: 4,
     title: 'Discuss',
-    text: 'your plans with your doctor, nurses or carers, and this might include a further discussion about resuscitation (DNAR or Respect) or refusing further treatment (ADRT)',
+    text: 'my plans with my doctor, nurses or Care Professionals; this might include a further discussion about resuscitation (DNAR or ReSPECT) or refusing further treatment (ADRT)',
   },
   {
     number: 5,
     title: 'Share',
-    text: 'this information with others who need to know about you, through your health records or other means, and review it regularly.',
+    text: 'this information with others who need to know about me, through my health records or other means, and review it regularly.',
   },
 ] as const
 
 export const ACP_DISCUSSION_BRANCHES = [
   {
-    title: 'What you do want to happen',
+    title: 'What I do want to happen',
     content: 'AS-Statement of wishes and preferences',
   },
   {
-    title: 'What you do not want to happen',
+    title: 'What I do not want to happen',
     content: 'ADRT-Advance Decisions to refuse treatment',
   },
   {
-    title: 'Who will speak for you',
+    title: 'Who will speak for me',
     content: 'Proxy or LPA- Lasting power of Attorney',
   },
 ] as const
 
 export const THINKING_AHEAD_INTRO_PARAGRAPHS = [
-  'The goal is to provide the best care by understanding patient and family needs and preferences for the future.',
-  'The aim of an Advance Care Planning Discussion is to record priorities and needs. The philosophy is "hoping for the best but preparing for the worst."',
-  'This is an Advance Statement (what the patient DOES WISH to happen), which is different from a legally binding Advance Decision (ADRT — what a patient DOES NOT wish to happen), in line with the Mental Capacity Act (2005).',
-  'This is a dynamic document that should be discussed early and can be reviewed and adapted as needed.',
+  'The goal is to give me the best care by understanding my needs and preferences, and those of my family, for the future.',
+  'The aim of my Advance Care Planning discussion is to record my priorities and needs. The philosophy is "hoping for the best but preparing for the worst."',
+  'This is my Advance Statement (what I DO WISH to happen), which is different from a legally binding Advance Decision (ADRT — what I DO NOT wish to happen), in line with the Mental Capacity Act (2005).',
+  'This is a living document: I can discuss it early, and review and change it as my needs change.',
 ] as const
 
 export function boolAnswered(value: boolean | null | undefined): boolean {

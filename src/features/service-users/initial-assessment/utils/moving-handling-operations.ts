@@ -54,7 +54,7 @@ export const MOVING_HANDLING_RISK_FILTER_QUESTIONS = [
   {
     id: 'aged65PlusFallRiskMeds',
     label:
-      'Am I aged 65 or older and taking any medicines that may increase my risk of falls? Please use clinical judgement if under 65 years of age as may be at risk of falls.',
+      'Am I aged 65 or older and taking any medicines that may increase my risk of falls? If I am under 65, please use clinical judgement, as I may still be at risk of falls.',
   },
   {
     id: 'sensoryOrMotorImpairment',
@@ -127,8 +127,8 @@ export const MOVING_HANDLING_TASK_DEFINITIONS: ReadonlyArray<{
 ]
 
 export const MOVING_HANDLING_FOOTER_NOTES = [
-  'Client Handling Assessment to be reviewed 6 monthly or if there is a change to client’s condition.',
-  'Re-assess if there is a significant change in client’s condition.',
+  'Please review my Client Handling Assessment every 6 months, or sooner if my condition changes.',
+  'Please re-assess me if there is a significant change in my condition.',
 ] as const
 
 const RISK_FILTER_FIELD_MAP: Record<

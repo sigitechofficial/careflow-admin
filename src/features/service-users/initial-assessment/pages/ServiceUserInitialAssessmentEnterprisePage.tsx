@@ -60,6 +60,7 @@ import { InitialAssessmentRiskRecordsPanel } from '@/features/service-users/init
 import { InitialAssessmentActionsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentActionsPanel'
 import { InitialAssessmentCarePlanRecommendationsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCarePlanRecommendationsPanel'
 import { InitialAssessmentAttachmentsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentAttachmentsPanel'
+import { InitialAssessmentTranscriptionPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTranscriptionPanel'
 import { InitialAssessmentSchedulePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSchedulePanel'
 import { InitialAssessmentSectionComment } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionComment'
 import { InitialAssessmentBlockingBanner } from '@/features/service-users/initial-assessment/components/InitialAssessmentBlockingBanner'
@@ -1441,6 +1442,14 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     () => demoFillQuestionsForDocumentTab(currentHolisticTab, sections),
     [currentHolisticTab, sections],
   )
+
+  // Fill-from-transcript scope: every question on the open tab, including follow-ups that only
+  // show once their gate is answered (the transcript may answer both at once).
+  const transcriptFillQuestions = React.useMemo(() => {
+    const allBySection = new Map(sections.map((s) => [s.sectionNumber, s.questions] as const))
+    const tabQuestions = questionsForDocumentTab(currentHolisticTab, sections, allBySection)
+    return excludeQuestionIds.size ? tabQuestions.filter((q) => !excludeQuestionIds.has(q.id)) : tabQuestions
+  }, [currentHolisticTab, sections, excludeQuestionIds])
 
   // QA Demo Data: does the ACTIVE tab already hold answers or worksheet data?
   // Drives the overwrite confirm; only ever inspects the current tab, never other sections.
@@ -3363,6 +3372,21 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 activeSection={currentHolisticTab.enterpriseSection}
                 canUpdate={canUpdate}
                 editable={editable}
+              />
+
+              <InitialAssessmentTranscriptionPanel
+                serviceUserId={selectedId}
+                submissionId={submissionId}
+                canUpdate={canUpdate}
+                fillTarget={{
+                  tabTitle: currentHolisticTab.title,
+                  questions: transcriptFillQuestions,
+                  answers: draftAnswers,
+                  editable,
+                  onApply: (answers) => {
+                    for (const a of answers) onAnswerChange(a.questionId, a)
+                  },
+                }}
               />
 
               <div

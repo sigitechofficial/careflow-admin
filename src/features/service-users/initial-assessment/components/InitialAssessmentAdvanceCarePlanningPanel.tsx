@@ -165,7 +165,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
           <div className="space-y-4">
             <div className="space-y-4">
               <div>
-                <FieldLabel htmlFor="acp-patient-name">Name</FieldLabel>
+                <FieldLabel htmlFor="acp-patient-name">My name</FieldLabel>
                 <Input
                   id="acp-patient-name"
                   className="mt-1 h-10"
@@ -175,7 +175,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-address">Address</FieldLabel>
+                <FieldLabel htmlFor="acp-address">My address</FieldLabel>
                 <Textarea
                   id="acp-address"
                   className={cn('mt-1 min-h-[80px]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
@@ -186,7 +186,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <FieldLabel htmlFor="acp-dob">DOB</FieldLabel>
+                  <FieldLabel htmlFor="acp-dob">My date of birth</FieldLabel>
                   <Input
                     id="acp-dob"
                     type="date"
@@ -197,7 +197,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                   />
                 </div>
                 <div>
-                  <FieldLabel htmlFor="acp-nhs">Hosp / NHS no</FieldLabel>
+                  <FieldLabel htmlFor="acp-nhs">My hospital or NHS number</FieldLabel>
                   <Input
                     id="acp-nhs"
                     className="mt-1 h-10"
@@ -222,7 +222,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-gp">GP Details</FieldLabel>
+                <FieldLabel htmlFor="acp-gp">My GP details</FieldLabel>
                 <Textarea
                   id="acp-gp"
                   className={cn('mt-1 min-h-[80px]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
@@ -232,7 +232,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-hospital-contact">Hospital contact</FieldLabel>
+                <FieldLabel htmlFor="acp-hospital-contact">My hospital contact</FieldLabel>
                 <Input
                   id="acp-hospital-contact"
                   className="mt-1 h-10"
@@ -278,7 +278,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <FieldLabel htmlFor="acp-professional-name">Name</FieldLabel>
+                <FieldLabel htmlFor="acp-professional-name">Their name</FieldLabel>
                 <Input
                   id="acp-professional-name"
                   className="mt-1 h-10"
@@ -288,7 +288,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-professional-role">Role</FieldLabel>
+                <FieldLabel htmlFor="acp-professional-role">Their role</FieldLabel>
                 <Input
                   id="acp-professional-role"
                   className="mt-1 h-10"
@@ -298,7 +298,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-professional-tel">Contact tel</FieldLabel>
+                <FieldLabel htmlFor="acp-professional-tel">Their contact number</FieldLabel>
                 <Input
                   id="acp-professional-tel"
                   className="mt-1 h-10"
@@ -318,17 +318,17 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                     {
                       sigKey: 'patientSignature' as const,
                       dateKey: 'patientSignatureDate' as const,
-                      label: 'Patient signature',
+                      label: 'My signature',
                     },
                     {
                       sigKey: 'nextOfKinSignature' as const,
                       dateKey: 'nextOfKinSignatureDate' as const,
-                      label: 'Next of kin / carer signature (if present)',
+                      label: "My next of kin's or carer's signature (if present)",
                     },
                     {
                       sigKey: 'homecareProfessionalSignature' as const,
                       dateKey: 'homecareProfessionalSignatureDate' as const,
-                      label: 'Homecare professional signature',
+                      label: "Care Professional's signature",
                     },
                   ] as const
                 ).map((row) => (
@@ -462,7 +462,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 className="grid gap-3 rounded-sm border border-slate-300 p-4 sm:grid-cols-[1fr_1fr_auto] dark:border-slate-600"
               >
                 <div>
-                  <FieldLabel htmlFor={`acp-proxy-${index}-name`}>Name</FieldLabel>
+                  <FieldLabel htmlFor={`acp-proxy-${index}-name`}>Their name</FieldLabel>
                   <Input
                     id={`acp-proxy-${index}-name`}
                     className="mt-1 h-10"
@@ -472,7 +472,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                   />
                 </div>
                 <div>
-                  <FieldLabel htmlFor={`acp-proxy-${index}-tel`}>Tel</FieldLabel>
+                  <FieldLabel htmlFor={`acp-proxy-${index}-tel`}>Their contact number</FieldLabel>
                   <Input
                     id={`acp-proxy-${index}-tel`}
                     className="mt-1 h-10"
@@ -499,7 +499,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
             </FieldLabel>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <FieldLabel htmlFor="acp-place-1">1st choice</FieldLabel>
+                <FieldLabel htmlFor="acp-place-1">My 1st choice</FieldLabel>
                 <Input
                   id="acp-place-1"
                   className="mt-1 h-10"
@@ -509,7 +509,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-place-2">2nd choice</FieldLabel>
+                <FieldLabel htmlFor="acp-place-2">My 2nd choice</FieldLabel>
                 <Input
                   id="acp-place-2"
                   className="mt-1 h-10"
@@ -520,7 +520,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
               </div>
             </div>
             <div>
-              <FieldLabel htmlFor="acp-place-comments">Comments</FieldLabel>
+              <FieldLabel htmlFor="acp-place-comments">My comments</FieldLabel>
               <Textarea
                 id="acp-place-comments"
                 className={cn('mt-1 min-h-[80px]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
@@ -558,7 +558,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
           </div>
 
           <p className={cn('text-sm', IA_HINT_CLASS)}>
-            NB See also any separate DNACPR/AND or ADRT documents.
+            Please also check for any separate DNACPR/AND or ADRT documents I have.
           </p>
         </div>
       </div>

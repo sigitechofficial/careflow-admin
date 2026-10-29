@@ -24,6 +24,9 @@ import {
   fetchInitialAssessmentAttachments,
   uploadInitialAssessmentAttachment,
   deleteInitialAssessmentAttachment,
+  startInitialAssessmentTranscription,
+  fetchInitialAssessmentTranscription,
+  suggestInitialAssessmentAnswersFromTranscript,
   fetchInitialAssessmentRiskRecords,
   createInitialAssessmentRiskRecord,
   updateInitialAssessmentRiskRecord,
@@ -313,6 +316,39 @@ export function useUploadInitialAssessmentAttachment(serviceUserId: string, subm
       void qc.invalidateQueries({
         queryKey: initialAssessmentKeys.attachments(serviceUserId, submissionId),
       })
+    },
+  })
+}
+
+export function useStartInitialAssessmentTranscription(serviceUserId: string, submissionId: string) {
+  return useMutation({
+    mutationFn: ({ file, fileName }: { file: Blob; fileName: string }) =>
+      startInitialAssessmentTranscription(serviceUserId, submissionId, file, fileName),
+  })
+}
+
+/** AI reads the transcript and suggests answers; nothing is saved until they are applied to the form. */
+export function useSuggestInitialAssessmentAnswers(serviceUserId: string, submissionId: string) {
+  return useMutation({
+    mutationFn: (body: Parameters<typeof suggestInitialAssessmentAnswersFromTranscript>[2]) =>
+      suggestInitialAssessmentAnswersFromTranscript(serviceUserId, submissionId, body),
+  })
+}
+
+/** Polls every 2s until Whisper has finished (or failed). */
+export function useInitialAssessmentTranscription(
+  serviceUserId: string,
+  submissionId: string,
+  jobId: string | null,
+) {
+  return useQuery({
+    queryKey: initialAssessmentKeys.transcription(serviceUserId, submissionId, jobId ?? ''),
+    queryFn: ({ signal }) =>
+      fetchInitialAssessmentTranscription(serviceUserId, submissionId, jobId!, { signal }),
+    enabled: Boolean(serviceUserId && submissionId && jobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'DONE' || status === 'FAILED' || query.state.error ? false : 2000
     },
   })
 }

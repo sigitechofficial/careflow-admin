@@ -101,8 +101,8 @@ export function InitialAssessmentMcaScreeningPanel({ allSections, renderField, d
         </HolisticAssessmentTable>
 
         <p className={cn(IA_CALLOUT_NEUTRAL_CLASS, 'mt-3 text-sm')}>
-          <strong>NB:</strong> If a person is not able to provide a yes response to one or more of
-          the above, they are unable to make an informed decision.
+          <strong>NB:</strong> If I am not able to give a yes response to one or more of the above,
+          I am unable to make an informed decision.
         </p>
       </InitialAssessmentSection12PanelShell>
 
@@ -117,9 +117,9 @@ export function InitialAssessmentMcaScreeningPanel({ allSections, renderField, d
       ) : null}
 
       <div className={cn(IA_CALLOUT_NEUTRAL_CLASS, 'text-sm')}>
-        If it has been established that the person lacks mental capacity for the required decision,
-        the Decision Maker should now consider what would be in the person&apos;s best interests.
-        Refer for Assessment of Mental Capacity and Best Interests Decision for Adults That Lack
+        If it has been established that I lack mental capacity for the required decision,
+        the Decision Maker should now consider what would be in my best interests.
+        Please refer for the Assessment of Mental Capacity and Best Interests Decision for Adults That Lack
         Capacity Document.
       </div>
 

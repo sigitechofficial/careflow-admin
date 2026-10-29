@@ -369,3 +369,57 @@ export type InitialAssessmentRiskRecord = {
   updatedAt: string
   responsiblePerson?: { id: string; email: string; firstName: string | null; lastName: string | null } | null
 }
+
+export type InitialAssessmentTranscriptionStatus = 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED'
+
+/** Speech-to-text job (Whisper on the API server). Kept in memory for 2 hours, not saved. */
+export type InitialAssessmentTranscription = {
+  id: string
+  fileName: string
+  status: InitialAssessmentTranscriptionStatus
+  /** Seconds of audio processed so far / total audio length. */
+  done: number
+  duration: number | null
+  /** Place in the queue while QUEUED (1 = next). */
+  position: number
+  text: string | null
+  language: string | null
+  segments: { start: number; end: number; text: string }[]
+  error: string | null
+}
+
+/** An answer suggested by AI from a conversation transcript; applied to the form only after review. */
+export type InitialAssessmentAiFillSuggestion = {
+  questionId: string
+  questionText: string
+  questionType: InitialAssessmentQuestionType
+  answer: InitialAssessmentAnswerInput
+  /** Readable answer (option labels, dd/mm/yyyy dates). */
+  display: string
+  /** Quote from the transcript the answer is based on. */
+  evidence: string
+}
+
+/** Tokens and estimated cost (USD) of one AI fill request. */
+export type InitialAssessmentAiFillUsage = {
+  model: string
+  inputTokens: number
+  outputTokens: number
+  costUsd: number
+}
+
+/** AI fill usage on the API since it last started. */
+export type InitialAssessmentAiFillUsageTotals = {
+  requests: number
+  inputTokens: number
+  outputTokens: number
+  costUsd: number
+  since: string
+}
+
+export type InitialAssessmentAiFillResult = {
+  suggestions: InitialAssessmentAiFillSuggestion[]
+  questionCount: number
+  usage: InitialAssessmentAiFillUsage
+  totals: InitialAssessmentAiFillUsageTotals
+}

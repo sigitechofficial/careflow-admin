@@ -20,6 +20,8 @@ import type {
   InitialAssessmentRiskStatus,
   InitialAssessmentRiskType,
   InitialAssessmentReviewQueueItem,
+  InitialAssessmentTranscription,
+  InitialAssessmentAiFillResult,
 } from '@/features/service-users/initial-assessment/types'
 import type { VitalAcceptedRangeLookupRow } from '@/features/service-users/initial-assessment/utils/vital-accepted-ranges.lookup'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
@@ -302,6 +304,69 @@ export async function uploadInitialAssessmentAttachment(
     throw new ApiError(msg || 'Upload failed', res.status, bodyJson)
   }
   return (bodyJson as ApiEnvelope<InitialAssessmentAttachment>).data
+}
+
+export async function startInitialAssessmentTranscription(
+  serviceUserId: string,
+  submissionId: string,
+  file: Blob,
+  fileName: string,
+): Promise<InitialAssessmentTranscription> {
+  const base = getApiBaseUrl()
+  if (!base) {
+    throw new ApiError('API base URL is not configured (set VITE_API_BASE_URL).', 0)
+  }
+  const url = `${base}/service-users/${serviceUserId}/initial-assessments/${submissionId}/transcriptions`
+  const token = useAuthStore.getState().accessToken
+  const headers = new Headers()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const form = new FormData()
+  form.append('file', file, fileName)
+  const res = await fetch(url, { method: 'POST', headers, body: form })
+  const text = await res.text()
+  let bodyJson: unknown = null
+  try {
+    bodyJson = text ? JSON.parse(text) : null
+  } catch {
+    bodyJson = text
+  }
+  if (!res.ok) {
+    const msg =
+      typeof bodyJson === 'object' && bodyJson !== null && 'message' in bodyJson
+        ? String((bodyJson as { message: unknown }).message)
+        : res.statusText
+    throw new ApiError(msg || 'Upload failed', res.status, bodyJson)
+  }
+  return (bodyJson as ApiEnvelope<InitialAssessmentTranscription>).data
+}
+
+export async function fetchInitialAssessmentTranscription(
+  serviceUserId: string,
+  submissionId: string,
+  jobId: string,
+  init?: RequestInit,
+): Promise<InitialAssessmentTranscription> {
+  const res = await apiJson<ApiEnvelope<InitialAssessmentTranscription>>(
+    `/service-users/${serviceUserId}/initial-assessments/${submissionId}/transcriptions/${jobId}`,
+    { method: 'GET', ...init },
+  )
+  return res.data
+}
+
+const AI_FILL_TIMEOUT_MS = 180_000
+
+export async function suggestInitialAssessmentAnswersFromTranscript(
+  serviceUserId: string,
+  submissionId: string,
+  body: { transcript: string; questions: { id: string; options?: { value: string; label: string }[] }[] },
+): Promise<InitialAssessmentAiFillResult> {
+  const res = await apiJson<ApiEnvelope<InitialAssessmentAiFillResult>>(
+    `/service-users/${serviceUserId}/initial-assessments/${submissionId}/ai-fill`,
+    { method: 'POST', body: JSON.stringify(body) },
+    // AI reads the whole transcript: a full section takes 40–90s, longer than the 30s default.
+    { timeoutMs: AI_FILL_TIMEOUT_MS, retry: { maxRetries: 0 } },
+  )
+  return res.data
 }
 
 export async function deleteInitialAssessmentAttachment(

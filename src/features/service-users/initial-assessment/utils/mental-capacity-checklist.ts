@@ -102,7 +102,7 @@ export const MENTAL_CAPACITY_CHECKLIST_ROWS: MentalCapacityChecklistRow[] = [
   {
     kind: 'instruction',
     label:
-      "If the answers to 1 and 2 are 'NO' then the client has appropriate mental capacity and no further assessment is required. Sign and date this form in the spaces provided in section C of this Form. If the answer to either question is 'YES' proceed with the assessment below.",
+      "If the answers to 1 and 2 are 'NO' then I have appropriate mental capacity and no further assessment is required. Please sign and date this form in the spaces provided in section C of this Form. If the answer to either question is 'YES', please proceed with the assessment below.",
   },
   {
     kind: 'legalNote',

@@ -4,8 +4,8 @@
 // WATERLOW_EQUIPMENT_CATALOG (single source) — no second, contradicting table here.
 
 export const EQUIPMENT_SELECTION_ADVISORY_NOTES = [
-  'Consider postural alignment, distribution of weight, balance, stability, and pressure risk adjustment when positioning or selecting equipment.',
-  'Consider environmental danger when positioning bed/mattress e.g. working radiators.',
+  'Please consider my postural alignment, weight distribution, balance, stability and pressure risk when positioning me or selecting my equipment.',
+  'Please consider any hazards in my home when positioning my bed or mattress, e.g. working radiators.',
 ] as const
 
 export type EquipmentProductGuideRow = {
