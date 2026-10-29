@@ -8,6 +8,7 @@ import type { ScheduleRunStats } from '@/features/scheduling/utils/schedule-run-
 import { sortJobsByStartTime } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import { activeJobAllocationCount, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
+import { RunCarerPreviewPanel } from '@/features/scheduling/components/RunCarerPreviewPanel'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import {
@@ -202,6 +203,15 @@ export function ScheduleRunEditDialog({
                 open={recommendOpen}
                 onOpenChange={setRecommendOpen}
               />
+
+              {editEmployeeId && sortedJobs.length ? (
+                <RunCarerPreviewPanel
+                  employeeId={editEmployeeId}
+                  employeeName={carerOptions.find((o) => o.value === editEmployeeId)?.label ?? null}
+                  jobs={sortedJobs}
+                  releaseEmployeeId={run?.employeeId && run.employeeId !== editEmployeeId ? run.employeeId : null}
+                />
+              ) : null}
 
               <FormField label="Run" htmlFor="edit-run-picker" required>
                 <Combobox

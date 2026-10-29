@@ -44,6 +44,8 @@ export type RotaVisitRequestPayload = {
   end: string
   weekStart: string
   weekMinutes: number
+  /** A run carer taking over the visit: these carers stay on it until approved, then come off. */
+  replaceEmployeeNames?: string[]
 }
 
 /** Visit plan putting a carer over their contracted weekly hours: the visits held back. */
@@ -151,6 +153,19 @@ export type HoursApproval = {
   requestedAt: string
   decidedAt: string | null
   decisionNotes: string | null
+  /**
+   * Pending carer requests: the week furthest over its own limit now — limit = contracted +
+   * extra weekly hours given for it; shortHours 0 = it fits now.
+   */
+  weekNow?: {
+    weekStart: string
+    weekHours: number
+    limitHours: number | null
+    extraHours: number
+    shortHours: number
+    /** Within the hours, but another rota check stops the approval (why). */
+    blockedReason?: string | null
+  } | null
   /** Carer over weekly hours: Approve is refused above this (Settings → Dom Rules). */
   maxApprovableHours?: number | null
   /** Carer over weekly hours on a plan: what Reject does (Settings → Dom Rules). */
@@ -283,4 +298,101 @@ export async function fetchServiceUserHoursImpact(
     { method: 'GET', ...init },
   )
   return res.data
+}
+
+// ── Extra weekly hours (Add extra hours on the carer profile / Hours approvals) ──
+
+export type ExtraHoursPeriod = 'DAY' | 'WEEK' | 'RANGE'
+
+/** What adding extra hours did to the carer's requests waiting for a manager. */
+export type ExtraHoursOutcome = {
+  approved: Array<{ approvalId: string; label: string }>
+  stillOver: Array<{ approvalId: string; label: string; shortHours: number; weekStart: string }>
+  failed: Array<{ approvalId: string; label: string; message: string }>
+}
+
+export type ExtraWeeklyHours = {
+  id: string
+  employeeId: string
+  periodType: ExtraHoursPeriod
+  startDate: string
+  endDate: string
+  extraHours: number
+  reason: string | null
+  grantedById: string | null
+  grantedByName: string | null
+  grantedAt: string
+  outcome: ExtraHoursOutcome | null
+  cancelledById: string | null
+  cancelledByName: string | null
+  cancelledAt: string | null
+  cancelReason: string | null
+}
+
+export async function fetchExtraWeeklyHours(
+  employeeId: string,
+  init?: RequestInit,
+): Promise<ExtraWeeklyHours[]> {
+  const q = new URLSearchParams({ employeeId })
+  const res = await apiJson<ApiEnvelope<ExtraWeeklyHours[]>>(`/hours-approvals/extra-hours?${q.toString()}`, {
+    method: 'GET',
+    ...init,
+  })
+  return res.data ?? []
+}
+
+export async function grantExtraWeeklyHours(body: {
+  employeeId: string
+  periodType: ExtraHoursPeriod
+  startDate: string
+  endDate?: string
+  extraHours: number
+  reason?: string
+}): Promise<{ message: string; outcome: ExtraHoursOutcome }> {
+  const res = await apiJson<
+    ApiEnvelope<{ id: string; startDate: string; endDate: string; extraHours: number; outcome: ExtraHoursOutcome }>
+  >('/hours-approvals/extra-hours', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return { message: res.message ?? 'Extra hours added', outcome: res.data.outcome }
+}
+
+export async function cancelExtraWeeklyHours(id: string, reason?: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/hours-approvals/extra-hours/${id}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify(reason ? { reason } : {}),
+  })
+}
+
+/** What adding extra hours would do (nothing saved). blockedMessage: it would be refused. */
+export type ExtraHoursPreview = {
+  blockedMessage: string | null
+  willApprove: Array<{ approvalId: string; label: string }>
+  stillOver: Array<{ approvalId: string; label: string; shortHours: number; weekStart: string }>
+  /** Fit the hours, but another rota check (blocked carer, clash…) would stop the approval. */
+  wontApprove: Array<{ approvalId: string; label: string; message: string }>
+}
+
+export async function previewExtraWeeklyHours(
+  body: Parameters<typeof grantExtraWeeklyHours>[0],
+  init?: RequestInit,
+): Promise<ExtraHoursPreview> {
+  const res = await apiJson<ApiEnvelope<ExtraHoursPreview>>('/hours-approvals/extra-hours/preview', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    ...init,
+  })
+  return res.data
+}
+
+/** Approve carer requests that are back within the weekly hours (runs when Hours approvals opens). */
+export async function checkHoursRequestsWithinLimit(): Promise<{
+  approved: Array<{ approvalId: string; label: string }>
+}> {
+  const res = await apiJson<ApiEnvelope<{ approved: Array<{ approvalId: string; label: string }> }>>(
+    '/hours-approvals/check-within-limit',
+    { method: 'POST', body: JSON.stringify({}) },
+  )
+  return res.data ?? { approved: [] }
 }

@@ -8,6 +8,10 @@ import { computeScheduleRunStats } from '@/features/scheduling/utils/schedule-ru
 import { sortJobsByStartTime } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import { activeJobAllocationCount, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
+import {
+  RunCarerPreviewPanel,
+  runCarerOutcomeText,
+} from '@/features/scheduling/components/RunCarerPreviewPanel'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import {
@@ -133,17 +137,12 @@ export function ScheduleRunCreateDialog({
         id: created.id,
         payload: { status: 'PUBLISHED' },
       })
-      const warningCount = synced?.warnings?.length ?? 0
-      if (warningCount > 0) {
-        toastWarning(
-          'Run published with warnings',
-          `${sortedJobs.length - warningCount} of ${sortedJobs.length} visits allocated to the carer · ${warningCount} could not be. Review the run for details.`,
-        )
+      if (synced) {
+        const outcome = runCarerOutcomeText(synced)
+        if (outcome.tone === 'warning') toastWarning('Run published', outcome.text)
+        else toastSuccess('Run published', `${sortedJobs.length} visits added to ${name.trim()} · ${outcome.text}`)
       } else {
-        toastSuccess(
-          'Run published',
-          `${sortedJobs.length} visits added to ${name.trim()}${employeeId ? ' and allocated to the carer' : ''}.`,
-        )
+        toastSuccess('Run published', `${sortedJobs.length} visits added to ${name.trim()}.`)
       }
       onOpenChange(false)
       onCreated?.()
@@ -188,6 +187,15 @@ export function ScheduleRunCreateDialog({
               className="w-full"
             />
           </FormField>
+
+          {employeeId ? (
+            <RunCarerPreviewPanel
+              employeeId={employeeId}
+              employeeName={carerOptions.find((o) => o.value === employeeId)?.label ?? null}
+              jobs={sortedJobs}
+              replaceExisting
+            />
+          ) : null}
 
           <div className="rounded-lg border border-border">
             <p className="border-b border-border bg-muted/30 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

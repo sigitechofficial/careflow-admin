@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { AlertTriangle, CheckCircle2, Clock, Loader2, Trash2, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, Loader2, PlusCircle, Trash2, XCircle } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
@@ -21,6 +21,7 @@ import { useOrganisationDisplayFormat } from '@/shared/context/organisation-disp
 import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import {
   useApproveHours,
+  useCheckHoursRequestsWithinLimit,
   useDeleteAllHoursApprovals,
   useHoursApprovals,
   useRejectHours,
@@ -39,6 +40,10 @@ import {
 } from '@/features/hours-approvals/components/ContractedHoursImpactSummary'
 import { ServiceUserHoursDecreaseImpact } from '@/features/hours-approvals/components/ServiceUserHoursDecreaseImpact'
 import { HoursRequestChanges } from '@/features/hours-approvals/components/HoursRequestChanges'
+import {
+  AddExtraHoursDialog,
+  EXTRA_HOURS_PERMISSION,
+} from '@/features/hours-approvals/components/CarerExtraHours'
 
 const TABS: { id: HoursApprovalStatus; label: string }[] = [
   { id: 'PENDING', label: 'Pending' },
@@ -100,6 +105,11 @@ function heldVisitCount(row: HoursApproval): number {
   return ((row.requestPayload as unknown as VisitPlanRequestPayload | null)?.withheld ?? []).length
 }
 
+/** A carer over their weekly hours (rota / extra / special visit, or a visit plan): extra hours can settle it. */
+function isCarerHoursRequest(row: HoursApproval) {
+  return row.requestType === 'ROTA_VISIT_OVER_HOURS' || row.requestType === 'VISIT_PLAN_OVER_HOURS'
+}
+
 function isDraftPlanRequest(row: HoursApproval) {
   return row.requestType === 'DRAFT_PLAN_OVER_HOURS'
 }
@@ -150,6 +160,53 @@ function contractedImpact(row: HoursApproval): ContractedHoursImpact | null {
   return raw as ContractedHoursImpact
 }
 
+/** Plain-words note on where a request stands against the weekly hours now. */
+function WithinLimitNote({ row }: { row: HoursApproval }) {
+  if (row.status === 'APPROVED' && row.decisionNotes?.startsWith('Approved automatically')) {
+    return (
+      <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+        {row.decisionNotes}. No manager action was needed.
+      </p>
+    )
+  }
+  if (row.status !== 'PENDING') return null
+  const week = row.weekNow
+  if (week && (row.requestType === 'ROTA_VISIT_OVER_HOURS' || row.requestType === 'VISIT_PLAN_OVER_HOURS')) {
+    if (week.shortHours > 0) {
+      return (
+        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+          Still {formatHours(week.shortHours)} over the carer&apos;s weekly limit of {formatHours(week.limitHours)}.
+        </p>
+      )
+    }
+    if (week.blockedReason) {
+      return (
+        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+          The carer is back within their weekly hours, but this can&apos;t be approved automatically:{' '}
+          {week.blockedReason}. Approve or reject it yourself.
+        </p>
+      )
+    }
+    return (
+      <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+        The carer is back within their weekly hours — this will be approved automatically.
+      </p>
+    )
+  }
+  if (row.requestType === 'EXTRA_VISIT_OVER_HOURS') {
+    const week = extraVisitWeek(row)
+    if (week?.limitMinutes != null && week.weekMinutes <= week.limitMinutes) {
+      return (
+        <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+          Now within the service user&apos;s weekly hours — approving won&apos;t go over the limit. The visit is
+          only created when you approve.
+        </p>
+      )
+    }
+  }
+  return null
+}
+
 export default function HoursApprovalsPage() {
   const canManage = useAuthStore(s => s.can('hours_approvals.manage'))
   const { formatDate, formatTime } = useOrganisationDisplayFormat()
@@ -161,12 +218,33 @@ export default function HoursApprovalsPage() {
 
   const [tab, setTab] = React.useState<HoursApprovalStatus>('PENDING')
   const { data: rows = [], isLoading, isError } = useHoursApprovals(tab)
+
+  // On opening: carer requests back within the weekly hours are approved automatically.
+  const checkWithinLimit = useCheckHoursRequestsWithinLimit()
+  const [autoApproved, setAutoApproved] = React.useState<Array<{ approvalId: string; label: string }>>([])
+  const runCheck = checkWithinLimit.mutateAsync
+  const checkedRef = React.useRef(false)
+  React.useEffect(() => {
+    // Once per visit to the page (React runs effects twice in development).
+    if (checkedRef.current) return
+    checkedRef.current = true
+    runCheck()
+      .then(res => {
+        if (res.approved.length) setAutoApproved(res.approved)
+      })
+      .catch(() => {
+        // Not shown: the list still loads, and the nightly run checks again.
+      })
+  }, [runCheck])
   const approveMut = useApproveHours()
   const rejectMut = useRejectHours()
   const deleteAllMut = useDeleteAllHoursApprovals()
   const [deleteAllOpen, setDeleteAllOpen] = React.useState(false)
 
   const [rejectTarget, setRejectTarget] = React.useState<HoursApproval | null>(null)
+  const canAddExtraHours = useAuthStore(s => s.can(EXTRA_HOURS_PERMISSION))
+  // Kept on the page (not the row) so the result stays open when the request leaves the list.
+  const [extraHoursTarget, setExtraHoursTarget] = React.useState<HoursApproval | null>(null)
   const [rejectReason, setRejectReason] = React.useState('')
   /** An extra visit over the weekly hours needs a reason to reject (the requester sees it). */
   const rejectReasonRequired =
@@ -260,6 +338,32 @@ export default function HoursApprovalsPage() {
           { label: 'Hours approvals' },
         ]}
       />
+
+      {autoApproved.length ? (
+        <div
+          className="flex items-start justify-between gap-3 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100"
+          data-testid="hours-auto-approved"
+        >
+          <div className="space-y-1">
+            <p className="flex items-center gap-1.5 font-medium">
+              <CheckCircle2 className="h-4 w-4" aria-hidden />
+              {autoApproved.length} request{autoApproved.length === 1 ? ' was' : 's were'} approved automatically
+            </p>
+            <p className="text-xs">
+              The carer is back within their weekly hours (a visit was cancelled or they were taken off one), so they
+              are now on the visit. You can see {autoApproved.length === 1 ? 'it' : 'them'} on the Approved tab.
+            </p>
+            <ul className="list-disc space-y-0.5 pl-5 text-xs">
+              {autoApproved.map(a => (
+                <li key={a.approvalId}>{a.label}</li>
+              ))}
+            </ul>
+          </div>
+          <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => setAutoApproved([])}>
+            Dismiss
+          </Button>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-1">
@@ -426,9 +530,13 @@ export default function HoursApprovalsPage() {
                               ) : null}
                               {r.changes?.some((c) => c.kind === 'EXTRA_EDIT') ? (
                                 <HoursRequestChanges changes={r.changes} />
-                              ) : (
-                                <p className="text-xs text-muted-foreground">Carer not on the visit until approved</p>
-                              )}
+                              ) : r.status === 'PENDING' ? (
+                                <p className="text-xs text-muted-foreground">
+                                  {rotaVisitPayload(r)?.replaceEmployeeNames?.length
+                                    ? `${rotaVisitPayload(r)!.replaceEmployeeNames!.join(', ')} stays on the visit until this is approved; approving moves the visit to this carer`
+                                    : 'Carer not on the visit until approved'}
+                                </p>
+                              ) : null}
                               {r.status === 'REJECTED' && r.decisionNotes ? (
                                 <p className="text-xs text-red-700 dark:text-red-300">Rejected: {r.decisionNotes}</p>
                               ) : null}
@@ -465,6 +573,7 @@ export default function HoursApprovalsPage() {
                               ) : null}
                             </div>
                           ) : null}
+                          <WithinLimitNote row={r} />
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {r.serviceUserId ? (
@@ -485,6 +594,11 @@ export default function HoursApprovalsPage() {
                             : extraVisit || draftWeek
                               ? formatHours(r.contractedWeeklyHours)
                               : `${r.contractedWeeklyHours ?? '—'}h`}
+                          {r.weekNow && r.weekNow.extraHours > 0 ? (
+                            <span className="block text-xs text-emerald-700 dark:text-emerald-400">
+                              +{formatHours(r.weekNow.extraHours)} extra that week
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">
                           {contracted ? (
@@ -519,7 +633,11 @@ export default function HoursApprovalsPage() {
                                 : 'Within limit'
                               : draftWeek && draftLimitMinutes != null
                                 ? `+${formatMinutes(Math.max(0, draftWeek.heaviestMinutes - draftLimitMinutes))}`
-                                : r.extraHours != null && r.extraHours <= 0
+                                : r.weekNow
+                                  ? r.weekNow.shortHours > 0
+                                    ? `+${formatHours(r.weekNow.shortHours)}`
+                                    : 'Within limit'
+                                  : r.extraHours != null && r.extraHours <= 0
                                   ? 'Within limit'
                                   : `+${r.extraHours ?? '—'}h`}
                           {contracted && impact ? (
@@ -543,6 +661,18 @@ export default function HoursApprovalsPage() {
                         {showActions ? (
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-2">
+                              {canAddExtraHours && isCarerHoursRequest(r) && r.employeeId ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5"
+                                  onClick={() => setExtraHoursTarget(r)}
+                                >
+                                  <PlusCircle className="h-3.5 w-3.5" aria-hidden />
+                                  Add extra hours
+                                </Button>
+                              ) : null}
                               <Button
                                 type="button"
                                 size="sm"
@@ -855,6 +985,16 @@ export default function HoursApprovalsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {extraHoursTarget?.employeeId ? (
+        <AddExtraHoursDialog
+          open
+          onClose={() => setExtraHoursTarget(null)}
+          employeeId={extraHoursTarget.employeeId}
+          employeeName={extraHoursTarget.employeeName}
+          contractedHours={extraHoursTarget.contractedWeeklyHours}
+          defaultDate={extraHoursTarget.weekNow?.weekStart ?? null}
+        />
+      ) : null}
     </div>
   )
 }

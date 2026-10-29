@@ -250,6 +250,7 @@ export type Permission =
   | 'complaints.manage'
   | 'hours_approvals.read'
   | 'hours_approvals.manage'
+  | 'employees.extra_hours.manage'
   | 'office_salaries.manage'
   | 'setup_checklist.read'
   | 'role_tasks.manage'

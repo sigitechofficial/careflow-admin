@@ -38,11 +38,6 @@ export const WEEKLY_HOURS_BEHAVIOR_OPTIONS: {
     label: 'Warn and confirm',
     description: 'The person giving the visit sees a warning and can confirm to go ahead.',
   },
-  {
-    value: 'ALWAYS_ALLOW',
-    label: 'Always allow',
-    description: 'Weekly hours are not checked.',
-  },
 ]
 
 export const WEEKLY_HOURS_REJECT_OPTIONS: { value: WeeklyHoursRejectAction; label: string }[] = [
