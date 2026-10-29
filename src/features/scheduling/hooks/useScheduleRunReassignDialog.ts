@@ -37,6 +37,7 @@ export function useScheduleRunReassignDialog({
     enabled: Boolean(runId),
     locationIds: serviceUserLocationIds,
     includeEmployeeIds: previousEmployeeId ? [previousEmployeeId] : [],
+    activeOnly: true,
   })
 
   const carerOptions = employeesQuery.comboboxOptions

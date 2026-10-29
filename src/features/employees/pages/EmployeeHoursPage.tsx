@@ -568,9 +568,12 @@ export default function EmployeeHoursPage() {
       <PageHeader
         title="Employee hours"
         description={
+          view === 'monthly' ? 'Monthly sponsor-compliance report.' : 'Weekly hours and utilisation.'
+        }
+        info={
           view === 'monthly'
-            ? 'Monthly sponsor-compliance report — CoS weekly hours, week 1–5 worked hours, SMS reporting and review status. Month bounds use the organisation operational timezone.'
-            : 'Weekly assigned hours, contracted weekly hours, hours worked, overtime, immigration caps, and utilisation. Week bounds use the organisation operational timezone.'
+            ? 'CoS weekly hours, week 1–5 worked hours, SMS reporting and review status. Month bounds use the organisation operational timezone.'
+            : 'Assigned hours, contracted weekly hours, hours worked, overtime, immigration caps, and utilisation. Week bounds use the organisation operational timezone.'
         }
         icon={<Clock className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[

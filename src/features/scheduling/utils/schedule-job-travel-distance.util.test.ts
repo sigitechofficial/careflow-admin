@@ -11,6 +11,7 @@ import {
   hasTravelGapConflict,
   jobGeoCoordinates,
   rowTravelPairs,
+  travelBetween,
   travelConflictFromPreviousJobIds,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import { drivingLegKey, useDrivingTravelStore } from '@/features/scheduling/utils/driving-travel.store'
@@ -57,6 +58,17 @@ describe('schedule-job-travel-distance', () => {
     )
     expect(km).toBeGreaterThan(4)
     expect(km).toBeLessThan(5.5)
+  })
+
+  it('estimates road miles and minutes like the API (careflow-api visit-travel-distance.util.spec)', () => {
+    // Keep in step with the API: 10 km straight line × 1.35 = 13.5 road km ≈ 8.4 mi, 29 min at 28 km/h.
+    useDrivingTravelStore.setState({ legs: {}, version: 0 })
+    const chingford = { lat: 51.632, lng: 0.001 }
+    const tenKmSouth = { lat: 51.5421, lng: 0.001 }
+    const leg = travelBetween(chingford, tenKmSouth)
+    expect(leg.travelSource).toBe('ESTIMATE')
+    expect(formatTravelDistanceKm(leg.distanceKm)).toBe('8.4 mi')
+    expect(leg.travelMinutes).toBe(29)
   })
 
   it('builds next-visit travel detail for the following job on the row', () => {

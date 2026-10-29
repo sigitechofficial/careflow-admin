@@ -63,6 +63,7 @@ export function useScheduleRunsBulkAssignDialog({ date, runs, onChanged }: HookO
     enabled: open,
     locationIds: serviceUserLocationIds,
     includeEmployeeIds,
+    activeOnly: true,
   })
 
   const carerOptions = employeesQuery.comboboxOptions

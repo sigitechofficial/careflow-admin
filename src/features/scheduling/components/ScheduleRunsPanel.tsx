@@ -110,6 +110,7 @@ export function ScheduleRunsPanel({
   const employeesQuery = useScheduleEmployeesCatalog({
     locationIds: serviceUserLocationIds,
     includeEmployeeIds,
+    activeOnly: true,
   })
 
   const carerComboboxOptions = React.useMemo(
