@@ -202,28 +202,19 @@ export function GeneralSettingsServiceUserHoursPanel() {
           />
         </SettingsRow>
 
+        {/* Every rejection needs a reason (no setting since 30 Oct 2026). */}
         {draft.extraOverLimit === 'MANAGER_APPROVAL' ? (
-          <>
-            <SettingsRow
-              label="Re-check the week when a manager approves"
-              hint="If more visits were added to that week after the request, the approval is blocked."
-            >
-              <Switch
-                checked={draft.extraApproveRecheck}
-                onCheckedChange={v => set('extraApproveRecheck', v)}
-                disabled={disabled}
-                aria-label="Check the week again on approve"
-              />
-            </SettingsRow>
-            <SettingsRow label="Reason required to reject an extra visit">
-              <Switch
-                checked={draft.extraRejectReasonRequired}
-                onCheckedChange={v => set('extraRejectReasonRequired', v)}
-                disabled={disabled}
-                aria-label="Reason needed to reject"
-              />
-            </SettingsRow>
-          </>
+          <SettingsRow
+            label="Re-check the week when a manager approves"
+            hint="If more visits were added to that week after the request, the approval is blocked."
+          >
+            <Switch
+              checked={draft.extraApproveRecheck}
+              onCheckedChange={v => set('extraApproveRecheck', v)}
+              disabled={disabled}
+              aria-label="Check the week again on approve"
+            />
+          </SettingsRow>
         ) : null}
 
         <SettingsRow label="Edited extra visit goes over the weekly hours">

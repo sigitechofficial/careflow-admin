@@ -24,7 +24,8 @@ export function allocationWarningsSummary(warnings: AllocationWarning[]): string
 
 /**
  * True when drag-assign should fail (rota clash, blocked carer, compliance block, missing employee,
- * a "Don't allow" rule, or over the carer's weekly hours with Settings → Dom Rules on "Don't allow").
+ * a "Don't allow" rule, a carer with no contracted hours, or above the carer's maximum weekly hours
+ * when Settings → Dom Rules doesn't allow it).
  */
 export function isDragAllocationHardBlock(warnings: AllocationWarning[]): boolean {
   return warnings.some((w) => {

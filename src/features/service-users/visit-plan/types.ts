@@ -219,6 +219,8 @@ export type VisitPlanCarerCandidate = {
   projectedWeeklyHours?: number
   /** That week goes over the contracted weekly hours (+ grace, Settings → Dom Rules). */
   exceedsContractedHours?: boolean
+  /** No contracted weekly hours: can't be given visits until hours are set. */
+  noContractedHours?: boolean
   /** Nearest upcoming leave/holiday overlapping the next 8 weeks. `blocks` = org rule is "Don't allow". */
   timeOff?: {
     kind: 'leave' | 'holiday'

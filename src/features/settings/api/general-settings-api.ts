@@ -45,16 +45,20 @@ export type DomAllocationRuleBehavior =
   | 'REQUEST_CONFIRMATION'
   | 'MANAGER_APPROVAL'
 
-export type WeeklyHoursRejectAction = 'REMOVE_EXTRA_VISITS' | 'REMOVE_FROM_PLAN'
+/** Above a carer's maximum weekly hours (Employment; blank = 60h): never, or as the approval setting says. */
+export type WeeklyHoursOverMax = 'NO' | 'YES'
 
 export type DomWeeklyHoursRuleOptions = {
-  rejectAction: WeeklyHoursRejectAction
-  maxApprovableHours: number
-  /** Called-off visits count in the carer's week (default true). */
+  /** Above the carer's maximum weekly hours (default NO). */
+  allowOverMax: WeeklyHoursOverMax
+  /** Called-off visits count in the carer's weekly hours (default true). */
   countCalledOff: boolean
+  /** Changing contracted weekly hours needs manager approval (default true). */
+  contractedChangeNeedsApproval: boolean
+  /** Adding extra weekly hours needs manager approval (default false). */
+  extraHoursNeedApproval: boolean
 }
 
-/** Service user weekly contracted hours rules (Settings → Dom Rules). Defaults = original behaviour. */
 export type ServiceUserWeeklyHoursSettings = {
   changeApproval: 'ALWAYS' | 'INCREASE_ONLY' | 'DECREASE_ONLY' | 'NEVER'
   decreaseAction: 'KEEP_WARN' | 'CANCEL_LATEST'

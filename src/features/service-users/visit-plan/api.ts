@@ -233,8 +233,13 @@ export async function updateServiceUserVisitPlan(
 ) {
   const res = await apiJson<
     ApiEnvelope<ServiceUserVisitPlan> & {
-      scheduleImpact?: ScheduleImpactSummary
-      heldTimeChanges?: VisitPlanHeldTimeChange[]
+      /** Only data / meta / message reach the client: these come in meta. */
+      meta?: {
+        scheduleImpact?: ScheduleImpactSummary
+        heldTimeChanges?: VisitPlanHeldTimeChange[]
+        /** Settings → Dom Rules (no approval): carers assigned over their weekly hours. */
+        carerHoursWarnings?: string[]
+      }
     }
   >(`/service-users/${serviceUserId}/visit-plans/${planId}`, {
     method: 'PATCH',
@@ -242,7 +247,13 @@ export async function updateServiceUserVisitPlan(
   })
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
-  return { plan, scheduleImpact: res.scheduleImpact, heldTimeChanges: res.heldTimeChanges ?? [], message: res.message }
+  return {
+    plan,
+    scheduleImpact: res.meta?.scheduleImpact,
+    heldTimeChanges: res.meta?.heldTimeChanges ?? [],
+    carerHoursWarnings: res.meta?.carerHoursWarnings ?? [],
+    message: res.message,
+  }
 }
 
 /** A longer visit that keeps its current time until a manager approves the new one. */
@@ -436,14 +447,19 @@ export async function activateServiceUserVisitPlan(
   body?: { reactivationReason?: string; cancelEndedPlanJobs?: boolean },
 ) {
   const res = await apiJson<
-    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: ScheduleImpactSummary }
+    ApiEnvelope<ServiceUserVisitPlan> & { meta?: { scheduleImpact?: ScheduleImpactSummary } }
   >(`/service-users/${serviceUserId}/visit-plans/${planId}/activate`, {
     method: 'POST',
     body: JSON.stringify(body ?? {}),
   })
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
-  return { plan, scheduleImpact: res.scheduleImpact }
+  // Settings → Dom Rules (no approval): the message carries "Warning: … over their weekly hours".
+  const carerHoursWarnings = (res.message ?? '')
+    .split('Warning: ')
+    .slice(1)
+    .map(w => w.trim().replace(/\.$/, ''))
+  return { plan, scheduleImpact: res.meta?.scheduleImpact, carerHoursWarnings }
 }
 
 export type EndVisitPlanPayload = {
@@ -470,14 +486,14 @@ export async function suspendServiceUserVisitPlan(
   body: SuspendVisitPlanPayload,
 ) {
   const res = await apiJson<
-    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } }
+    ApiEnvelope<ServiceUserVisitPlan> & { meta?: { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } } }
   >(`/service-users/${serviceUserId}/visit-plans/${planId}/suspend`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
-  return { plan, scheduleImpact: res.scheduleImpact }
+  return { plan, scheduleImpact: res.meta?.scheduleImpact }
 }
 
 export async function previewVisitPlanEndScheduleImpact(
@@ -514,14 +530,14 @@ export async function endServiceUserVisitPlan(
   body: EndVisitPlanPayload,
 ) {
   const res = await apiJson<
-    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } }
+    ApiEnvelope<ServiceUserVisitPlan> & { meta?: { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } } }
   >(`/service-users/${serviceUserId}/visit-plans/${planId}/end`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
-  return { plan, scheduleImpact: res.scheduleImpact }
+  return { plan, scheduleImpact: res.meta?.scheduleImpact }
 }
 
 export async function prefillVisitPlanFromDomCare(serviceUserId: string, planId: string) {

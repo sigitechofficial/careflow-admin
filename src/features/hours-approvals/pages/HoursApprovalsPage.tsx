@@ -34,6 +34,7 @@ import type {
   VisitPlanRequestPayload,
   HoursApprovalStatus,
 } from '@/features/hours-approvals/types'
+import { fetchRejectPreview, type RejectPreviewVisit } from '@/features/hours-approvals/api'
 import {
   ContractedHoursImpactSummary,
   formatHours,
@@ -112,6 +113,20 @@ function isCarerHoursRequest(row: HoursApproval) {
 
 function isDraftPlanRequest(row: HoursApproval) {
   return row.requestType === 'DRAFT_PLAN_OVER_HOURS'
+}
+
+/** Extra weekly hours for a carer waiting for a manager (Settings → Dom Rules). */
+function isExtraWeeklyHours(row: HoursApproval) {
+  return row.requestType === 'EXTRA_WEEKLY_HOURS'
+}
+
+function extraWeeklyHoursPayload(row: HoursApproval) {
+  return (row.requestPayload ?? null) as unknown as {
+    periodStart?: string
+    periodEnd?: string
+    extraHours?: number
+    overMaxWarning?: string
+  } | null
 }
 
 /** A draft plan request's busiest week (its payload is not an extra visit's). */
@@ -247,10 +262,25 @@ export default function HoursApprovalsPage() {
   const [extraHoursTarget, setExtraHoursTarget] = React.useState<HoursApproval | null>(null)
   const [rejectReason, setRejectReason] = React.useState('')
   /** An extra visit over the weekly hours needs a reason to reject (the requester sees it). */
-  const rejectReasonRequired =
-    rejectTarget != null &&
-    (isExtraVisitRequest(rejectTarget) || isDraftPlanRequest(rejectTarget)) &&
-    rejectTarget.rejectReasonRequired !== false
+  // Every rejection needs a reason.
+  const rejectReasonRequired = rejectTarget != null
+  // Visits Reject would leave without the carer (visit plan and rota requests).
+  const [rejectPreview, setRejectPreview] = React.useState<RejectPreviewVisit[] | null>(null)
+  React.useEffect(() => {
+    setRejectPreview(null)
+    if (!rejectTarget || !isCarerHoursRequest(rejectTarget) || rejectTarget.status !== 'PENDING') return
+    let live = true
+    fetchRejectPreview(rejectTarget.id)
+      .then(v => {
+        if (live) setRejectPreview(v)
+      })
+      .catch(() => {
+        if (live) setRejectPreview([])
+      })
+    return () => {
+      live = false
+    }
+  }, [rejectTarget])
   const [approveContractedTarget, setApproveContractedTarget] = React.useState<HoursApproval | null>(null)
   const [expandedId, setExpandedId] = React.useState<string | null>(null)
 
@@ -311,13 +341,13 @@ export default function HoursApprovalsPage() {
           ? 'Rejected — weekly hours unchanged'
           : isContractedChange(rejectTarget)
             ? 'Rejected — contracted hours unchanged'
+            : isExtraWeeklyHours(rejectTarget)
+            ? 'Rejected — no extra hours were added'
             : isRotaVisitRequest(rejectTarget) && rejectTarget.changes?.some((c) => c.kind === 'EXTRA_EDIT')
               ? 'Rejected — the extra visit keeps its current time and carers'
               : isRotaVisitRequest(rejectTarget)
               ? 'Rejected — the visit stays without this carer'
-              : rejectTarget.rejectAction === 'REMOVE_EXTRA_VISITS'
-                ? 'Rejected — the carer stays off the visits over their hours'
-                : 'Rejected — carer removed from the plan',
+              : 'Rejected — the carer stays off the visits over their hours',
       )
       setRejectTarget(null)
       setRejectReason('')
@@ -413,11 +443,11 @@ export default function HoursApprovalsPage() {
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             <p>
-              Carer over their contracted weekly hours: the carer is not on those visits until approved. If the
-              week would exceed the highest hours a manager can approve (Settings → Dom Rules, default{' '}
+              Carer over their weekly hours: the carer is not on those visits until approved. If the week would
+              go above the carer&apos;s own maximum weekly hours (Employment → Working hours; blank ={' '}
               <span className="font-semibold tabular-nums">{MAX_APPROVABLE_WEEKLY_HOURS}h</span>), Approve is
-              disabled. Other requests (hours changes, extra visits) apply only when approved; Reject leaves
-              everything as it is.
+              disabled — unless Settings → Dom Rules allows going over the maximum. Other requests (hours
+              changes, extra hours, extra visits) apply only when approved. Every rejection needs a reason.
             </p>
           </div>
         </div>
@@ -460,6 +490,8 @@ export default function HoursApprovalsPage() {
                 <tbody>
                   {rows.map(r => {
                     const overCap = exceedsWeeklyCap(r)
+                    // Settings → Dom Rules allows over the maximum with a manager's approval.
+                    const overCapAllowed = overCap && r.allowOverMax === true
                     const suHours = isServiceUserHoursChange(r)
                     const extraVisit = isExtraVisitRequest(r) ? (r.requestPayload ?? null) : null
                     const draftWeek = draftPlanWeek(r)
@@ -497,6 +529,32 @@ export default function HoursApprovalsPage() {
                               <Badge variant="outline" size="sm">
                                 {suHours ? 'Service user weekly hours' : 'Contracted hours change'}
                               </Badge>
+                            </div>
+                          ) : isExtraWeeklyHours(r) ? (
+                            <div className="mt-1 space-y-0.5">
+                              <Badge variant="outline" size="sm">
+                                Extra weekly hours
+                              </Badge>
+                              <p className="text-xs text-foreground">
+                                +{formatHours(r.extraHours)}
+                                {extraWeeklyHoursPayload(r)?.periodStart
+                                  ? ` · ${formatDate(extraWeeklyHoursPayload(r)!.periodStart!)}${
+                                      extraWeeklyHoursPayload(r)!.periodEnd &&
+                                      extraWeeklyHoursPayload(r)!.periodEnd !== extraWeeklyHoursPayload(r)!.periodStart
+                                        ? ` – ${formatDate(extraWeeklyHoursPayload(r)!.periodEnd!)}`
+                                        : ''
+                                    }`
+                                  : ''}
+                              </p>
+                              {extraWeeklyHoursPayload(r)?.overMaxWarning ? (
+                                <p className="text-xs text-amber-700 dark:text-amber-300">
+                                  {extraWeeklyHoursPayload(r)!.overMaxWarning}
+                                </p>
+                              ) : null}
+                              {r.reason ? <p className="text-xs text-muted-foreground">Reason: {r.reason}</p> : null}
+                              {r.status === 'REJECTED' && r.decisionNotes ? (
+                                <p className="text-xs text-red-700 dark:text-red-300">Rejected: {r.decisionNotes}</p>
+                              ) : null}
                             </div>
                           ) : isExtraVisitRequest(r) ? (
                             <div className="mt-1 space-y-0.5">
@@ -617,9 +675,14 @@ export default function HoursApprovalsPage() {
                             </span>
                           )}
                           {overCap ? (
-                            <Badge variant="destructive" size="sm" className="ml-2 align-middle">
+                            <Badge variant={overCapAllowed ? 'warning' : 'destructive'} size="sm" className="ml-2 align-middle">
                               Over {approvableCap(r)}h
                             </Badge>
+                          ) : null}
+                          {overCapAllowed && r.status === 'PENDING' ? (
+                            <p className="mt-1 text-xs font-normal text-amber-700 dark:text-amber-300">
+                              Above the {approvableCap(r)}h weekly maximum — approving allows it
+                            </p>
                           ) : null}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums font-medium text-amber-700 dark:text-amber-300">
@@ -677,9 +740,11 @@ export default function HoursApprovalsPage() {
                                 type="button"
                                 size="sm"
                                 className="gap-1.5"
-                                disabled={approveMut.isPending || rejectMut.isPending || overCap}
+                                disabled={approveMut.isPending || rejectMut.isPending || (overCap && !overCapAllowed)}
                                 title={
-                                  overCap
+                                  overCapAllowed
+                                    ? `Above the ${approvableCap(r)}h weekly maximum — approving allows it`
+                                    : overCap
                                     ? `Cannot approve — exceeds the ${approvableCap(r)}h weekly maximum. Reduce assigned hours first.`
                                     : undefined
                                 }
@@ -819,24 +884,47 @@ export default function HoursApprovalsPage() {
                   <span className="font-medium text-foreground">{rejectTarget.employeeName}</span> is not put on
                   the visit; it stays without them so another carer can be chosen.
                 </>
-              ) : rejectTarget && rejectTarget.rejectAction === 'REMOVE_EXTRA_VISITS' ? (
+              ) : rejectTarget && isExtraWeeklyHours(rejectTarget) ? (
                 <>
-                  <span className="font-medium text-foreground">{rejectTarget.employeeName}</span> stays off the
-                  visits over their weekly hours on{' '}
-                  <span className="font-medium text-foreground">{rejectTarget.serviceUserName}</span>&apos;s plan
-                  — the visits held back and, latest first, any they already have until each week fits (a
-                  weekday taken off every week is taken off them in the plan). Their other visits stay.
+                  No extra hours are added for{' '}
+                  <span className="font-medium text-foreground">{rejectTarget.employeeName}</span>. Their weekly
+                  limit and visits stay as they are.
                 </>
               ) : rejectTarget ? (
                 <>
-                  Rejecting will remove <span className="font-medium text-foreground">{rejectTarget.employeeName}</span>{' '}
-                  from <span className="font-medium text-foreground">{rejectTarget.serviceUserName}</span>&apos;s visit
-                  plan. This cannot be undone from this screen.
+                  <span className="font-medium text-foreground">{rejectTarget.employeeName}</span> keeps the visits
+                  already assigned on{' '}
+                  <span className="font-medium text-foreground">{rejectTarget.serviceUserName}</span>&apos;s plan.
+                  The visits over their weekly hours stay without them so another carer can be chosen.
                 </>
               ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {rejectTarget?.changes?.length ? (
+          {rejectTarget && isCarerHoursRequest(rejectTarget) && rejectTarget.status === 'PENDING' ? (
+            <div
+              className="rounded-md border border-amber-300/60 bg-amber-50/60 px-3 py-2 dark:border-amber-500/30 dark:bg-amber-500/10"
+              data-testid="reject-preview"
+            >
+              <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
+                These visits will stay without {rejectTarget.employeeName}
+              </p>
+              {rejectPreview == null ? (
+                <p className="mt-1 text-xs text-muted-foreground">Checking…</p>
+              ) : rejectPreview.length ? (
+                <ul className="mt-1 space-y-0.5 text-xs text-foreground">
+                  {rejectPreview.map((v, i) => (
+                    <li key={`${v.date}-${v.startTime}-${i}`}>
+                      {v.date ? formatDate(v.date) : ''} · {v.startTime && v.endTime ? `${v.startTime}–${v.endTime} · ` : ''}
+                      {v.slotLabel}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">No visits are left without the carer.</p>
+              )}
+            </div>
+          ) : null}
+          {rejectTarget?.changes?.length && !(isCarerHoursRequest(rejectTarget) && rejectTarget.status === 'PENDING') ? (
             <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
               <p className="text-xs font-medium text-muted-foreground">What this request waits on</p>
               <HoursRequestChanges changes={rejectTarget.changes} />
@@ -847,7 +935,7 @@ export default function HoursApprovalsPage() {
           ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="hours-reject-reason">
-              Reason{rejectReasonRequired ? ' *' : ' (optional)'}
+              Reason *
             </Label>
             <Textarea
               id="hours-reject-reason"
@@ -858,7 +946,7 @@ export default function HoursApprovalsPage() {
               placeholder={
                 rejectTarget && isDraftPlanRequest(rejectTarget)
                   ? 'Why the draft visit plan is not approved'
-                  : rejectReasonRequired
+                  : rejectTarget && isExtraVisitRequest(rejectTarget)
                     ? 'Why the extra visit is not approved'
                     : 'Why this request is rejected'
               }
@@ -874,13 +962,7 @@ export default function HoursApprovalsPage() {
                 void handleReject()
               }}
             >
-              {rejectMut.isPending
-                ? 'Rejecting…'
-                : rejectTarget &&
-                    (rejectTarget.requestType !== 'VISIT_PLAN_OVER_HOURS' ||
-                      rejectTarget.rejectAction === 'REMOVE_EXTRA_VISITS')
-                  ? 'Reject'
-                  : 'Reject & remove carer'}
+              {rejectMut.isPending ? 'Rejecting…' : 'Reject'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
