@@ -6,7 +6,6 @@ import {
   type DomCareAllocationRule,
   type DomWeeklyHoursRuleOptions,
   type OrganisationGeneralSettings,
-  type WeeklyHoursRejectAction,
 } from '@/features/settings/types'
 import {
   useGeneralSettings,
@@ -15,15 +14,13 @@ import {
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { RadioGroup, RadioGroupItem, Switch } from '@/shared/ui/toggle-controls'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
+import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
+import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import { GeneralSettingsCard, SettingsRow } from '@/features/settings/components/GeneralSettingsCard'
 import {
   ALLOCATION_BEHAVIOR_OPTIONS,
   DEFAULT_DOM_CARE_ALLOCATION_RULES,
   DEFAULT_WEEKLY_HOURS_RULE_OPTIONS,
-  WEEKLY_HOURS_BEHAVIOR_OPTIONS,
-  WEEKLY_HOURS_REJECT_OPTIONS,
   WEEKLY_HOURS_RULE_KEY,
   mergeAllocationRules,
   ruleSupportsMinutes,
@@ -86,11 +83,10 @@ export function GeneralSettingsDomRulesPanel() {
         ...(r.weeklyHours
           ? {
               weeklyHours: {
-                ...r.weeklyHours,
-                maxApprovableHours: Math.max(
-                  1,
-                  Math.min(168, Math.round(r.weeklyHours.maxApprovableHours || 0)),
-                ),
+                allowOverMax: r.weeklyHours.allowOverMax,
+                countCalledOff: r.weeklyHours.countCalledOff,
+                contractedChangeNeedsApproval: r.weeklyHours.contractedChangeNeedsApproval,
+                extraHoursNeedApproval: r.weeklyHours.extraHoursNeedApproval,
               },
             }
           : {}),
@@ -192,55 +188,37 @@ export function GeneralSettingsDomRulesPanel() {
         <GeneralSettingsCard title="Carer weekly hours limit">
           <div
             className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
-            data-testid="weekly-hours-rule-not-applied"
+            data-testid="weekly-hours-rule-info"
           >
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
-              A carer&apos;s limit is their contracted weekly hours (Monday to Sunday). If a visit plan
-              takes a carer over, a manager must always approve. The choice below is only for the rota
-              board, extra visits and special visits.
+              A carer&apos;s limit is their contracted weekly hours plus any extra hours (Monday to
+              Sunday). Carers with no contracted hours can&apos;t be given visits. Every rejection
+              needs a reason.
             </span>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-sm text-foreground">
-              What happens when a visit on the rota, an extra visit or a special visit takes a carer
-              over their weekly hours?
-            </p>
-            <RadioGroup
-              value={weeklyRule.behavior}
-              onValueChange={v =>
-                updateRule(WEEKLY_HOURS_RULE_KEY, { behavior: v as DomAllocationRuleBehavior })
+          <p className="pt-1 text-sm font-medium text-muted-foreground">Visits</p>
+          <SettingsRow
+            label="Visits over a carer's weekly hours need manager approval"
+            hint="Visit plans, rota, extra visits and special visits. Yes: visits within the limit are assigned, the rest go to Hours approvals. No: visits are assigned with a warning."
+          >
+            <NoYesToggle
+              value={weeklyRule.behavior !== 'REQUEST_CONFIRMATION'}
+              onChange={v =>
+                updateRule(WEEKLY_HOURS_RULE_KEY, {
+                  behavior: v ? 'MANAGER_APPROVAL' : 'REQUEST_CONFIRMATION',
+                })
               }
               disabled={!canUpdate}
-              className="grid gap-2"
-            >
-              {WEEKLY_HOURS_BEHAVIOR_OPTIONS.map(opt => (
-                <label
-                  key={opt.value}
-                  htmlFor={`${WEEKLY_HOURS_RULE_KEY}-${opt.value}`}
-                  className={cn(
-                    'flex cursor-pointer items-start gap-3 rounded-md border border-border px-3 py-2',
-                    weeklyRule.behavior === opt.value && 'border-primary bg-primary/5',
-                  )}
-                >
-                  <RadioGroupItem
-                    value={opt.value}
-                    id={`${WEEKLY_HOURS_RULE_KEY}-${opt.value}`}
-                    className="mt-0.5"
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-sm text-foreground">{opt.label}</span>
-                    <span className="block text-xs text-muted-foreground">{opt.description}</span>
-                  </span>
-                </label>
-              ))}
-            </RadioGroup>
-          </div>
+              labelOff="No"
+              labelOn="Yes"
+            />
+          </SettingsRow>
 
           <SettingsRow
-            label="Extra minutes allowed before the rule applies"
-            hint="How many minutes a carer can go over their limit before the rule applies. Also used for visit plans."
+            label="Grace minutes over weekly hours"
+            hint="A carer can be assigned visits this many minutes over their weekly hours and it still won't count as over. Example: 20h weekly hours + 20 min grace = up to 20h 20m is OK."
           >
             <div className="flex items-center gap-1.5">
               <Input
@@ -263,68 +241,55 @@ export function GeneralSettingsDomRulesPanel() {
 
           <SettingsRow
             label="Count called-off visits in the carer's hours"
-            hint="A called-off visit is one where the carer went but the service user turned the visit down. Cancelled visits never count."
+            hint="The carer went but the service user turned the visit down. Cancelled visits never count."
           >
-            <Switch
-              checked={weeklyOptions.countCalledOff ?? true}
-              onCheckedChange={v => updateWeeklyOptions({ countCalledOff: v })}
+            <NoYesToggle
+              value={weeklyOptions.countCalledOff ?? true}
+              onChange={v => updateWeeklyOptions({ countCalledOff: v })}
               disabled={!canUpdate}
-              aria-label="Count called-off visits in the carer's hours"
+              labelOff="No"
+              labelOn="Yes"
             />
           </SettingsRow>
 
-          {/* Visit plans always ask a manager, so these apply whatever is chosen above. */}
-          <>
-              <SettingsRow
-                label="When a manager rejects a visit plan request"
-                hint="For the rota, extra visits and special visits, a rejected visit just stays without that carer."
-              >
-                <Select
-                  value={weeklyOptions.rejectAction}
-                  onValueChange={v =>
-                    updateWeeklyOptions({ rejectAction: v as WeeklyHoursRejectAction })
-                  }
-                  disabled={!canUpdate}
-                >
-                  <SelectTrigger
-                    className="h-9 w-[22rem] max-w-full"
-                    aria-label="If the manager rejects"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {WEEKLY_HOURS_REJECT_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </SettingsRow>
+          <SettingsRow
+            label="Allow over a carer's maximum weekly hours"
+            hint="Each carer has their own maximum, set in Employment → Working hours (left blank = 60h). Example: maximum 48h, a week of 50h is over. No: stopped, and a message explains why. Yes: follows the manager approval settings in this card."
+          >
+            <NoYesToggle
+              value={weeklyOptions.allowOverMax === 'YES'}
+              onChange={v => updateWeeklyOptions({ allowOverMax: v ? 'YES' : 'NO' })}
+              disabled={!canUpdate}
+              labelOff="No"
+              labelOn="Yes"
+            />
+          </SettingsRow>
 
-              <SettingsRow
-                label="Most weekly hours a manager can approve"
-                hint="If a request would take the carer's week above this, the Approve button is turned off."
-              >
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={168}
-                    className="h-8 w-16 tabular-nums"
-                    value={weeklyOptions.maxApprovableHours}
-                    disabled={!canUpdate}
-                    onChange={e =>
-                      updateWeeklyOptions({
-                        maxApprovableHours: Number.parseInt(e.target.value, 10) || 0,
-                      })
-                    }
-                    aria-label="Most weekly hours a manager can approve"
-                  />
-                  <span className="text-sm text-muted-foreground">Hours</span>
-                </div>
-              </SettingsRow>
-          </>
+          <p className="pt-2 text-sm font-medium text-muted-foreground">Changing a carer&apos;s hours</p>
+          <SettingsRow
+            label="Changing contracted weekly hours needs manager approval"
+            hint="When hours go down, visits over the new limit (latest in each week) are unassigned. You see them before confirming."
+          >
+            <NoYesToggle
+              value={weeklyOptions.contractedChangeNeedsApproval ?? true}
+              onChange={v => updateWeeklyOptions({ contractedChangeNeedsApproval: v })}
+              disabled={!canUpdate}
+              labelOff="No"
+              labelOn="Yes"
+            />
+          </SettingsRow>
+          <SettingsRow
+            label="Adding extra hours needs manager approval"
+            hint="No: extra hours apply at once. Waiting requests that now fit are approved automatically."
+          >
+            <NoYesToggle
+              value={weeklyOptions.extraHoursNeedApproval ?? false}
+              onChange={v => updateWeeklyOptions({ extraHoursNeedApproval: v })}
+              disabled={!canUpdate}
+              labelOff="No"
+              labelOn="Yes"
+            />
+          </SettingsRow>
         </GeneralSettingsCard>
       ) : null}
 

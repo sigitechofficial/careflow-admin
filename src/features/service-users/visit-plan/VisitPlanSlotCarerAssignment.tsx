@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Link } from '@tanstack/react-router'
 import { CheckCircle2, Clock, Loader2, Users, X } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
@@ -285,6 +286,12 @@ export function VisitPlanSlotCarerAssignment({
     return allowed.filter((c) => !c.isBlocked)
   }, [assignedIds, displayCandidates, showBlockedCarers])
 
+  // Carers hidden because they have no contracted weekly hours: listed with a link to set them.
+  const noHoursCarers = React.useMemo(
+    () => displayCandidates.filter(c => c.noContractedHours && !assignedIds.includes(c.employeeId)),
+    [assignedIds, displayCandidates],
+  )
+
   const searchFilteredCandidates = React.useMemo(() => {
     const q = carerSearch.trim().toLowerCase()
     if (!q) return visibleCandidates
@@ -511,6 +518,30 @@ export function VisitPlanSlotCarerAssignment({
           <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
             No active employees found.
           </p>
+        ) : null}
+
+        {noHoursCarers.length > 0 ? (
+          <div
+            className="rounded-md border border-amber-300/60 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+            data-testid="carers-without-contracted-hours"
+          >
+            <p>Not shown — no contracted weekly hours set (they can&apos;t be given visits until they are):</p>
+            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+              {noHoursCarers.map(c => (
+                <li key={c.employeeId}>
+                  {c.displayName} ·{' '}
+                  <Link
+                    to="/employee/$employeeId/edit"
+                    params={{ employeeId: c.employeeId }}
+                    search={{ tab: 'employment' }}
+                    className="font-medium underline underline-offset-2"
+                  >
+                    Set weekly hours
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
 
         {/* Inside a dialog the dialog body scrolls; a second scroll box here hid most carers. */}

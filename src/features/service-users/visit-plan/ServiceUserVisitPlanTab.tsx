@@ -714,6 +714,14 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
         )
         return
       }
+      if (result.carerHoursWarnings.length) {
+        // Settings → Dom Rules: no approval needed — assigned, with a warning.
+        toastWarning(
+          'Amendment recorded — carer over weekly hours',
+          `${result.carerHoursWarnings.join('. ')}.${parts.length ? ` Rota updated: ${parts.join(', ')}.` : ''}`,
+        )
+        return
+      }
       toastSuccess(
         'Amendment recorded',
         parts.length ? `Rota updated: ${parts.join(', ')}.` : 'Change saved for CQC audit.',
@@ -741,6 +749,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
       setActivateDialogOpen(false)
       setAmendmentReason('')
       const cancelled = result.scheduleImpact?.jobsCancelled ?? 0
+      if (result.carerHoursWarnings.length) {
+        toastWarning('Carer over weekly hours', `${result.carerHoursWarnings.join('. ')}.`)
+      }
       toastSuccess(
         workingPlan.status === 'SUSPENDED' ? 'Authorised package re-activated' : 'Authorised package activated',
         cancelled > 0

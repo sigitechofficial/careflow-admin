@@ -2,7 +2,6 @@ import type {
   DomAllocationRuleBehavior,
   DomCareAllocationRule,
   DomWeeklyHoursRuleOptions,
-  WeeklyHoursRejectAction,
 } from '@/features/settings/types'
 
 export const ALLOCATION_BEHAVIOR_OPTIONS: {
@@ -14,41 +13,17 @@ export const ALLOCATION_BEHAVIOR_OPTIONS: {
   { value: 'REQUEST_CONFIRMATION', label: 'Request confirmation' },
 ]
 
-/** Carer over their contracted weekly hours (rota board, extra and special visits). */
+/** Carer over their weekly hours (visit plans, rota board, extra and special visits). */
 export const WEEKLY_HOURS_RULE_KEY = 'carer_over_weekly_hours'
 
-export const WEEKLY_HOURS_BEHAVIOR_OPTIONS: {
-  value: DomAllocationRuleBehavior
-  label: string
-  description: string
-}[] = [
-  {
-    value: 'DONT_ALLOW',
-    label: "Don't allow",
-    description: "The carer can't be given the visit.",
-  },
-  {
-    value: 'MANAGER_APPROVAL',
-    label: 'Manager must approve',
-    description:
-      'A request goes to Hours approvals. The carer gets the visit only after a manager approves it.',
-  },
-  {
-    value: 'REQUEST_CONFIRMATION',
-    label: 'Warn and confirm',
-    description: 'The person giving the visit sees a warning and can confirm to go ahead.',
-  },
-]
-
-export const WEEKLY_HOURS_REJECT_OPTIONS: { value: WeeklyHoursRejectAction; label: string }[] = [
-  { value: 'REMOVE_EXTRA_VISITS', label: 'Remove the carer only from the visits that go over their hours' },
-  { value: 'REMOVE_FROM_PLAN', label: 'Remove the carer from the whole visit plan' },
-]
+/** A carer's maximum weekly hours when their Employment "Maximum weekly hours" is blank. */
+export const DEFAULT_CARER_MAX_WEEKLY_HOURS = 60
 
 export const DEFAULT_WEEKLY_HOURS_RULE_OPTIONS: DomWeeklyHoursRuleOptions = {
-  rejectAction: 'REMOVE_EXTRA_VISITS',
-  maxApprovableHours: 60,
+  allowOverMax: 'NO',
   countCalledOff: true,
+  contractedChangeNeedsApproval: true,
+  extraHoursNeedApproval: false,
 }
 
 export const DEFAULT_DOM_CARE_ALLOCATION_RULES: DomCareAllocationRule[] = [

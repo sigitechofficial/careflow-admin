@@ -7,6 +7,7 @@ import {
   deleteAllHoursApprovals,
   fetchContractedHoursPreview,
   fetchExtraWeeklyHours,
+  fetchHoursHistory,
   fetchHoursApprovals,
   fetchPendingContractedHoursChange,
   fetchPendingServiceUserHoursChange,
@@ -27,6 +28,7 @@ const keys = {
   pendingServiceUserHours: (serviceUserId: string) =>
     [...keys.all(), 'service-user-hours-pending', serviceUserId] as const,
   extraHours: (employeeId: string) => [...keys.all(), 'extra-hours', employeeId] as const,
+  history: (query: Parameters<typeof fetchHoursHistory>[0]) => [...keys.all(), 'history', query] as const,
 }
 
 export function useHoursApprovals(status?: HoursApprovalStatus) {
@@ -131,6 +133,14 @@ export function useServiceUserHoursImpact(serviceUserId: string, weeklyHours: nu
 }
 
 /** The carer's extra weekly hours, newest first (cancelled ones included). */
+/** Extra hours, hours requests, extra and special visits, grouped by carer or service user. */
+export function useHoursHistory(query: Parameters<typeof fetchHoursHistory>[0]) {
+  return useQuery({
+    queryKey: keys.history(query),
+    queryFn: ({ signal }) => fetchHoursHistory(query, { signal }),
+  })
+}
+
 export function useExtraWeeklyHours(employeeId: string, enabled = true) {
   return useQuery({
     queryKey: keys.extraHours(employeeId),

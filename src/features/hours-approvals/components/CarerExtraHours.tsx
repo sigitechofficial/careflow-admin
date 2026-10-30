@@ -276,6 +276,11 @@ export function AddExtraHoursDialog({
         extraHours,
         reason: reason.trim() || undefined,
       })
+      if (res.sentForApproval) {
+        toastSuccess('Sent for approval', res.message)
+        onClose()
+        return
+      }
       toastSuccess('Extra hours added', res.message)
       setOutcome(res.outcome)
     } catch (e) {
@@ -328,7 +333,8 @@ export function AddExtraHoursDialog({
           </DialogTitle>
           <DialogDescription>
             {contractedHours != null ? `Contracted: ${formatHours(contractedHours)} a week. ` : ''}
-            Extra hours raise the weekly limit for the week you pick and apply straight away.
+            Extra hours raise the weekly limit for the week you pick
+            {preview.data?.needsApproval ? ' once a manager approves them.' : ' and apply straight away.'}
           </DialogDescription>
         </DialogHeader>
         {outcome ? (
@@ -505,7 +511,17 @@ export function AddExtraHoursDialog({
                   <p className="text-muted-foreground">Couldn&apos;t check the waiting requests.</p>
                 ) : preview.data?.blockedMessage ? (
                   <p className="text-destructive">{preview.data.blockedMessage}</p>
-                ) : preview.data &&
+                ) : null}
+                {previewCurrent && !preview.isFetching && preview.data?.overMaxWarning ? (
+                  <p className="text-amber-700 dark:text-amber-400">{preview.data.overMaxWarning}</p>
+                ) : null}
+                {previewCurrent && !preview.isFetching && preview.data?.needsApproval && !preview.data.blockedMessage ? (
+                  <p className="text-amber-700 dark:text-amber-400">
+                    A manager must approve these extra hours (Settings → Dom Rules). Nothing changes until then —
+                    the requests below are approved only once the extra hours are.
+                  </p>
+                ) : null}
+                {!previewCurrent || preview.isFetching || preview.isError || preview.data?.blockedMessage ? null : preview.data &&
                   !preview.data.willApprove.length &&
                   !preview.data.stillOver.length &&
                   !preview.data.wontApprove.length ? (
@@ -576,7 +592,13 @@ export function AddExtraHoursDialog({
               </Button>
               <Button type="button" onClick={() => void submit()} disabled={sending}>
                 {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {hoursValid ? `Add ${formatHours(shownExtra)} extra` : 'Add extra hours'}
+                {preview.data?.needsApproval
+                  ? hoursValid
+                    ? `Send ${formatHours(shownExtra)} extra for approval`
+                    : 'Send for approval'
+                  : hoursValid
+                    ? `Add ${formatHours(shownExtra)} extra`
+                    : 'Add extra hours'}
               </Button>
             </>
           )}
@@ -633,7 +655,7 @@ export function ExtraHoursHistory({ employeeId }: { employeeId: string }) {
     if (!toCancel) return
     try {
       await cancel.mutateAsync({ id: toCancel.id, reason: cancelReason.trim() || undefined })
-      toastSuccess('Extra hours cancelled', 'Requests already approved stay approved.')
+      toastSuccess('Extra hours cancelled', 'The week\'s limit goes back without them.')
       setToCancel(null)
       setCancelReason('')
     } catch (e) {
@@ -687,7 +709,7 @@ export function ExtraHoursHistory({ employeeId }: { employeeId: string }) {
             </div>
             <div className="flex items-center gap-2">
               <Badge variant={r.cancelledAt ? 'secondary' : 'success'}>{r.cancelledAt ? 'Cancelled' : 'Active'}</Badge>
-              {canManage && !r.cancelledAt ? (
+              {canManage && !r.cancelledAt && !r.outcome?.approved.length ? (
                 <Button
                   type="button"
                   size="sm"
@@ -707,8 +729,7 @@ export function ExtraHoursHistory({ employeeId }: { employeeId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel these extra hours?</AlertDialogTitle>
             <AlertDialogDescription>
-              The week&apos;s limit goes back without them. Requests they already approved stay approved, and the
-              record is kept.
+              The week&apos;s limit goes back without them, and the record is kept.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-1.5">
