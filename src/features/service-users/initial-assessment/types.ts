@@ -309,6 +309,10 @@ export type InitialAssessmentAttachmentCategory =
   | 'WOUND_PHOTO'
   | 'EMERGENCY_DOCUMENT'
   | 'OTHER'
+  /** Recorded assessment conversation; served only through the permission-checked file endpoint. */
+  | 'CONVERSATION_RECORDING'
+  /** Whisper transcript (.txt) of a recorded conversation. */
+  | 'CONVERSATION_TRANSCRIPT'
 
 export type InitialAssessmentAttachment = {
   id: string
@@ -386,6 +390,9 @@ export type InitialAssessmentTranscription = {
   language: string | null
   segments: { start: number; end: number; text: string }[]
   error: string | null
+  /** The recording kept in the assessment's attachments, and its saved transcript once done. */
+  recordingAttachmentId: string | null
+  transcriptAttachmentId: string | null
 }
 
 /** An answer suggested by AI from a conversation transcript; applied to the form only after review. */

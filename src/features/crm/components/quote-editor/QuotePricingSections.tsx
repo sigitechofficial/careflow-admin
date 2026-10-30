@@ -2,13 +2,13 @@ import * as React from 'react'
 import { ArrowRight, Building2, ChevronDown, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { useQuoteFunders } from '@/features/crm/hooks/useCrm'
 import {
   CHARGE_FREQUENCY_LABELS,
   EXTRA_KIND_LABELS,
   FUNDING_CATEGORY_LABELS,
   FUNDING_METHOD_LABELS,
   PAYER_TYPE_LABELS,
-  hours,
   money,
 } from '@/features/crm/quote-labels'
 import type {
@@ -18,11 +18,12 @@ import type {
   QuoteFundingCategory,
   QuoteFundingInput,
   QuoteFundingMethod,
-  QuotePayerType,
   QuotePricing,
 } from '@/features/crm/types/quotation.types'
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm'
+/** Select value for a funder kept by name only (no funder id). */
+const LEGACY_FUNDER = '__legacy__'
 const labelClass = 'text-sm font-medium text-foreground'
 
 function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
@@ -59,7 +60,7 @@ export function FundingAndExtras({
   onExtras,
   readOnly,
   pricing,
-  cardName,
+  rateLabel,
   highlight,
 }: {
   category: QuoteFundingCategory
@@ -70,10 +71,12 @@ export function FundingAndExtras({
   onExtras: (e: QuoteExtraInput[]) => void
   readOnly: boolean
   pricing: QuotePricing | null
-  cardName: string | null
+  /** How visits are priced, e.g. "£25.00 per carer per hour". */
+  rateLabel: string
   /** Block to scroll to and flash (from the problem list). */
   highlight?: { block: 'funding' | 'extras'; seq: number } | null
 }) {
+  const funders = useQuoteFunders().data ?? []
   const fundingRef = React.useRef<HTMLElement>(null)
   const extrasRef = React.useRef<HTMLElement>(null)
   const [flash, setFlash] = React.useState<'funding' | 'extras' | null>(null)
@@ -183,14 +186,29 @@ export function FundingAndExtras({
           const detailsOpen = openDetails.has(i) || !!f.reference?.trim()
           return (
             <div key={i} className="flex flex-col gap-3 rounded-lg border border-border p-3">
-              <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_8rem_auto]">
+              <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_8rem_auto]">
                 <Field label="Funder">
-                  <select className={selectClass} value={f.payerType} onChange={e => setF(i, { payerType: e.target.value as QuotePayerType })}>
-                    {(Object.keys(PAYER_TYPE_LABELS) as QuotePayerType[]).map(p => <option key={p} value={p}>{PAYER_TYPE_LABELS[p]}</option>)}
+                  <select
+                    className={selectClass}
+                    value={f.funderId ?? (f.payerName ? LEGACY_FUNDER : '')}
+                    onChange={e => {
+                      const picked = funders.find(o => o.id === e.target.value)
+                      if (picked) setF(i, { funderId: picked.id, payerName: picked.name, payerType: picked.payerType })
+                    }}
+                  >
+                    {!f.funderId && !f.payerName && <option value="">Choose a funder…</option>}
+                    {/* A funder typed in by hand before the list was used, or one since removed from the list. */}
+                    {(f.funderId ? !funders.some(o => o.id === f.funderId) : !!f.payerName) && (
+                      <option value={f.funderId ?? LEGACY_FUNDER}>
+                        {f.payerName?.trim() || PAYER_TYPE_LABELS[f.payerType]} (not in the funder list)
+                      </option>
+                    )}
+                    {funders.map(o => (
+                      <option key={o.id} value={o.id}>
+                        {o.fundingTypeName && o.fundingTypeName !== o.name ? `${o.name} · ${o.fundingTypeName}` : o.name}
+                      </option>
+                    ))}
                   </select>
-                </Field>
-                <Field label="Name">
-                  <Input value={f.payerName ?? ''} placeholder="e.g. Leeds City Council" onChange={e => setF(i, { payerName: e.target.value })} />
                 </Field>
                 <Field label="Pays">
                   <select className={selectClass} value={f.method} onChange={e => setF(i, { method: e.target.value as QuoteFundingMethod })}>
@@ -266,7 +284,7 @@ export function FundingAndExtras({
         )}
         <p className="text-xs text-muted-foreground">
           Funding type: <span className="font-medium text-foreground">{FUNDING_CATEGORY_LABELS[category]}</span> (set from the funders)
-          {' · '}Prices from the charge card <span className="font-medium text-foreground">{cardName ?? '(none found for this branch)'}</span>
+          {' · '}Visits priced at <span className="font-medium text-foreground">{rateLabel}</span>
         </p>
       </section>
 
@@ -306,7 +324,7 @@ export function FundingAndExtras({
                 type="number"
                 min={0}
                 step="0.01"
-                placeholder={e.kind === 'MILEAGE' ? 'Card rate' : ''}
+                placeholder={e.kind === 'MILEAGE' ? 'Rate' : ''}
                 value={e.amount ?? ''}
                 onChange={ev => setE(i, { amount: ev.target.value === '' ? null : Number(ev.target.value) })}
               />
@@ -343,7 +361,38 @@ export function FundingAndExtras({
   )
 }
 
-/** Totals with the method of each estimate, coverage vs carer hours, funding split and any problems. */
+/** Plain names for the longer-period estimates (the weekly one is the headline). */
+const ESTIMATE_LABELS: Record<string, string> = {
+  fourWeekly: 'Every 4 weeks',
+  monthlyAverage: 'Average month',
+  annual: 'A year',
+}
+
+const monthName = (ym: string) => {
+  const [y, m] = ym.split('-').map(Number)
+  return y && m ? new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : ym
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+const hoursText = (minutes: number) => plural(Math.round((minutes / 60) * 100) / 100, 'hour')
+
+/** One line of a receipt-style list: label (with a short note) on the left, amount on the right. */
+function Line({ label, note, amount, strong }: { label: string; note?: string | null; amount: string; strong?: boolean }) {
+  return (
+    <div className={`flex items-baseline justify-between gap-4 py-2 ${strong ? 'font-semibold' : ''}`}>
+      <div className="min-w-0">
+        <dt className={strong ? 'text-base' : 'text-sm'}>{label}</dt>
+        {note ? <dd className="text-xs font-normal text-muted-foreground">{note}</dd> : null}
+      </div>
+      <dd className={`shrink-0 tabular-nums ${strong ? 'text-base' : 'text-sm'}`}>{amount}</dd>
+    </div>
+  )
+}
+
+/**
+ * The price in plain words: what the client pays a week, how that is made up, what it comes to over
+ * longer periods, and each visit. Lines that are nothing (no extras, discount or funding) are left out.
+ */
 export function CostSummary({
   pricing,
   calculating,
@@ -355,6 +404,10 @@ export function CostSummary({
   onResolve?: (message: string) => void
 }) {
   if (!pricing) return <p className="text-sm text-muted-foreground">{calculating ? 'Calculating…' : 'Add visits to see the price.'}</p>
+  const visitsPerWeek = pricing.patterns.reduce((n, p) => n + p.weeklyOccurrences, 0)
+  const funded = pricing.fundedWeekly > 0
+  const extraCarerTime = pricing.weeklyCarerMinutes > pricing.weeklyCoverageMinutes
+  const longer = pricing.estimates.filter(e => e.key !== 'weekly')
   return (
     <div className="flex flex-col gap-5" data-testid="quote-cost-summary">
       {pricing.issues.length > 0 && (
@@ -374,63 +427,107 @@ export function CostSummary({
           </ul>
         </div>
       )}
-      <dl className="grid gap-3 sm:grid-cols-2">
-        {pricing.estimates.map(e => (
-          <div key={e.key} className="rounded-lg bg-muted/40 px-3 py-2">
-            <dt className={labelClass}>{e.label}</dt>
-            <dd className="text-lg font-semibold">{money(e.amount)}</dd>
-            <dd className="text-xs text-muted-foreground">{e.method}</dd>
-          </div>
-        ))}
-        <div className="rounded-lg bg-muted/40 px-3 py-2">
-          <dt className={labelClass}>Calendar month estimate</dt>
-          <dd className="text-lg font-semibold">{pricing.calendarMonth.complete ? money(pricing.calendarMonth.amount) : '—'}</dd>
-          <dd className="text-xs text-muted-foreground">{pricing.calendarMonth.method}</dd>
-        </div>
-        <div className="rounded-lg bg-muted/40 px-3 py-2">
-          <dt className={labelClass}>One-off charges</dt>
-          <dd className="text-lg font-semibold">{money(pricing.oneOffTotal)}</dd>
-          <dd className="text-xs text-muted-foreground">One-off visits and fees, not in the weekly total</dd>
-        </div>
-      </dl>
-      <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <div><dt className={labelClass}>Visits</dt><dd>{money(pricing.visitsWeekly)} / wk</dd></div>
-        <div><dt className={labelClass}>Extras</dt><dd>{money(pricing.extrasWeekly)} / wk</dd></div>
-        <div><dt className={labelClass}>Discounts</dt><dd>−{money(pricing.discountWeekly)} / wk</dd></div>
-        <div><dt className={labelClass}>VAT</dt><dd>{money(pricing.vatWeekly)} / wk</dd><dd className="text-xs text-muted-foreground">{pricing.vatLabel}</dd></div>
-        <div><dt className={labelClass}>Coverage hours</dt><dd>{hours(pricing.weeklyCoverageMinutes)} / wk</dd></div>
-        <div><dt className={labelClass}>Carer hours</dt><dd>{hours(pricing.weeklyCarerMinutes)} / wk</dd></div>
-        <div><dt className={labelClass}>Funded</dt><dd>{money(pricing.fundedWeekly)} / wk</dd>{pricing.pendingFundingWeekly > 0 && <dd className="text-xs text-amber-700">{money(pricing.pendingFundingWeekly)} pending approval</dd>}</div>
-        <div>
-          <dt className={labelClass}>Client pays</dt>
-          <dd className="font-semibold">{money(pricing.clientWeeklyLiability)} / wk</dd>
-          {pricing.pendingFundingWeekly > 0 && (
-            <dd className="text-xs text-muted-foreground">{money(pricing.clientWeeklyLiabilityIfPendingDeclined)} if pending funding is refused</dd>
+
+      <div className="rounded-xl border border-primary/25 bg-primary/5 px-5 py-4" data-testid="quote-client-pays">
+        <p className="text-sm font-medium text-muted-foreground">The client pays</p>
+        <p className="mt-1 text-3xl font-semibold tabular-nums text-foreground">
+          {money(pricing.clientWeeklyLiability)} <span className="text-base font-medium text-muted-foreground">a week</span>
+        </p>
+        <p className="mt-1 text-sm text-foreground">
+          {pricing.manual ? (
+            <>For {plural(visitsPerWeek, 'visit')} a week, at the agreed weekly price.</>
+          ) : (
+            <>
+              For {hoursText(pricing.weeklyCoverageMinutes)} of care a week ({plural(visitsPerWeek, 'visit')})
+              {extraCarerTime ? `, ${hoursText(pricing.weeklyCarerMinutes)} of carer time as some visits have 2 carers` : ''}.
+            </>
           )}
-        </div>
-      </dl>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-xs text-muted-foreground">
-            <th className="py-1.5 font-medium">Visit</th>
-            <th className="py-1.5 font-medium">Day</th>
-            <th className="py-1.5 font-medium">Rate</th>
-            <th className="py-1.5 text-right font-medium">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pricing.patterns.flatMap(p =>
-            p.occurrences.map(o => (
-              <tr key={`${p.index}-${o.date}`} className="border-b border-border/60 align-top">
-                <td className="py-1.5">{p.label}</td>
-                <td className="py-1.5">{o.weekday}{o.isBankHoliday ? ' (bank holiday)' : ''}</td>
-                <td className="py-1.5 text-xs text-muted-foreground">{o.issue ?? o.rateReference}</td>
-                <td className="py-1.5 text-right">{money(o.amount)}</td>
-              </tr>
-            )),
-          )}
-        </tbody>
-      </table>
+        </p>
+        {funded ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            The care costs {money(pricing.weeklyTotal)} a week; funders pay {money(pricing.fundedWeekly)} of it.
+          </p>
+        ) : null}
+        {pricing.pendingFundingWeekly > 0 ? (
+          <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+            {money(pricing.pendingFundingWeekly)} of the funding is waiting for approval. If it is refused, the client pays{' '}
+            {money(pricing.clientWeeklyLiabilityIfPendingDeclined)} a week.
+          </p>
+        ) : null}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-lg border border-border p-4">
+          <h4 className="text-sm font-semibold">How the weekly price is made up</h4>
+          <dl className="mt-1 divide-y divide-border/70">
+            <Line
+              label="Visits"
+              note={`${plural(visitsPerWeek, 'visit')} a week${pricing.manual ? ' · agreed weekly price' : ''}`}
+              amount={money(pricing.visitsWeekly)}
+            />
+            {pricing.extrasWeekly > 0 && <Line label="Extras" amount={`+ ${money(pricing.extrasWeekly)}`} />}
+            {pricing.discountWeekly > 0 && <Line label="Discount" amount={`− ${money(pricing.discountWeekly)}`} />}
+            <Line label="VAT" note={pricing.vatLabel} amount={pricing.vatWeekly > 0 ? `+ ${money(pricing.vatWeekly)}` : money(0)} />
+            <Line label="Total a week" amount={money(pricing.weeklyTotal)} strong />
+            {funded && (
+              <>
+                <Line label="Paid by funders" amount={`− ${money(pricing.fundedWeekly)}`} />
+                <Line label="The client pays a week" amount={money(pricing.clientWeeklyLiability)} strong />
+              </>
+            )}
+          </dl>
+        </section>
+
+        <section className="rounded-lg border border-border p-4">
+          <h4 className="text-sm font-semibold">Over a longer time</h4>
+          <dl className="mt-1 divide-y divide-border/70">
+            {longer.map(e => (
+              <Line key={e.key} label={ESTIMATE_LABELS[e.key] ?? e.label} note={e.method} amount={money(e.amount)} />
+            ))}
+            <Line
+              label={`${monthName(pricing.calendarMonth.month)} (real dates)`}
+              note={pricing.calendarMonth.method}
+              amount={pricing.calendarMonth.complete ? money(pricing.calendarMonth.amount) : '—'}
+            />
+            {pricing.oneOffTotal > 0 && (
+              <Line label="One-off charges" note="Paid once, not in the weekly price" amount={money(pricing.oneOffTotal)} />
+            )}
+          </dl>
+        </section>
+      </div>
+
+      {pricing.patterns.length > 0 && !pricing.manual && (
+        <section className="rounded-lg border border-border p-4">
+          <h4 className="text-sm font-semibold">Each visit in a typical week</h4>
+          <ul className="mt-1 divide-y divide-border/70">
+            {pricing.patterns.map(p => {
+              const days = [...new Set(p.occurrences.map(o => o.weekday.slice(0, 3)))]
+              const bankHolidays = p.occurrences.filter(o => o.isBankHoliday).length
+              return (
+                <li key={p.index} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium">{p.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {days.length === 7 ? 'Every day' : days.join(', ') || 'Not in a typical week'}
+                      {p.rateReference ? ` · ${p.rateReference}` : ''}
+                      {bankHolidays > 0 ? ` · ${plural(bankHolidays, 'bank holiday')}` : ''}
+                    </p>
+                    {p.issues.map(i => (
+                      <p key={i} className="text-xs text-red-700 dark:text-red-300">{i}</p>
+                    ))}
+                  </div>
+                  <p className="shrink-0 tabular-nums">
+                    {p.chargePerOccurrence != null && p.weeklyOccurrences > 0 ? (
+                      <span className="text-muted-foreground">{p.weeklyOccurrences} × {money(p.chargePerOccurrence)} = </span>
+                    ) : null}
+                    <span className="font-medium">{money(p.weeklyTotal)}</span>
+                  </p>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }

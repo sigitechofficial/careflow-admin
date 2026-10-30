@@ -8,6 +8,7 @@ export const crmKeys = {
   duplicates: (q: Record<string, string | undefined>) => [...crmKeys.all, 'duplicates', q] as const,
   owners: () => [...crmKeys.all, 'owners'] as const,
   fundingTypes: () => [...crmKeys.all, 'funding-types'] as const,
+  funders: () => [...crmKeys.all, 'funders'] as const,
   carePlans: () => [...crmKeys.all, 'care-plans'] as const,
   details: () => [...crmKeys.all, 'detail'] as const,
   detail: (id: string) => [...crmKeys.details(), id] as const,

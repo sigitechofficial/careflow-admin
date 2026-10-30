@@ -1,4 +1,4 @@
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { CrmSectionLayout } from '@/features/crm/components/CrmSectionLayout'
 import { EnquiryForm } from '@/features/crm/components/EnquiryForm'
@@ -9,16 +9,18 @@ export default function EnquiryNewPage() {
   const navigate = useNavigate()
   const create = useCreateEnquiry()
   const { locationId: headerLocationId } = useGlobalLocationScope()
+  const { kind } = useSearch({ strict: false }) as { kind?: 'REFERRAL' }
+  const title = kind === 'REFERRAL' ? 'New referral' : 'New enquiry'
 
   return (
     <CrmSectionLayout
-      title="New enquiry"
-      description="Capture a new care enquiry or referral."
+      title={title}
+      description="Capture a care enquiry from a person or family, or a referral from a professional."
       testId="crm-new-page"
-      breadcrumbTail={[{ label: 'Enquiries', href: '/crm' }, { label: 'New enquiry' }]}
+      breadcrumbTail={[{ label: 'Enquiries & Referrals', href: '/crm' }, { label: title }]}
     >
       <EnquiryForm
-        submitLabel="Create enquiry"
+        defaultKind={kind}
         defaultLocationId={headerLocationId}
         checkDuplicates
         busy={create.isPending}
@@ -26,10 +28,10 @@ export default function EnquiryNewPage() {
         onSubmit={payload =>
           create.mutate(payload, {
             onSuccess: created => {
-              toastSuccess('Enquiry created')
+              toastSuccess(created.kind === 'REFERRAL' ? 'Referral created' : 'Enquiry created')
               navigate({ to: '/crm/$enquiryId', params: { enquiryId: created.id } })
             },
-            onError: e => toastApiError(e, 'Could not create enquiry'),
+            onError: e => toastApiError(e, 'Could not save'),
           })
         }
       />

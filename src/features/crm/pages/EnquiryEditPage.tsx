@@ -36,7 +36,7 @@ export default function EnquiryEditPage() {
       description={`${enquiry.firstName} ${enquiry.lastName}`}
       testId="crm-edit-page"
       breadcrumbTail={[
-        { label: 'Enquiries', href: '/crm' },
+        { label: 'Enquiries & Referrals', href: '/crm' },
         { label: enquiry.referenceNumber, href: `/crm/${enquiry.id}` },
         { label: 'Edit' },
       ]}

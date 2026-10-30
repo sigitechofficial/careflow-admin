@@ -7,6 +7,7 @@ import type {
   EnquiryOwner,
   FundingTypeOption,
   EnquirySummary,
+  QuoteFunderOption,
   ListEnquiriesParams,
   MoveEnquiryInput,
   UpdateEnquiryInput,
@@ -52,6 +53,11 @@ export async function linkEnquiryServiceUser(enquiryId: string, serviceUserId: s
   })
 }
 
+/** Link a Pre-admission service user (made from the enquiry if needed) for the full initial assessment. */
+export async function startEnquiryInitialAssessment(enquiryId: string): Promise<{ serviceUserId: string }> {
+  return data<{ serviceUserId: string }>(`/crm/enquiries/${enquiryId}/initial-assessment`, { method: 'POST' })
+}
+
 export async function fetchEnquiryOwners(): Promise<EnquiryOwner[]> {
   return data<EnquiryOwner[]>('/crm/enquiries/owners', { method: 'GET' })
 }
@@ -62,6 +68,11 @@ export async function fetchEnquiryCarePlans(): Promise<CarePlanOption[]> {
 
 export async function fetchEnquiryFundingTypes(): Promise<FundingTypeOption[]> {
   return data<FundingTypeOption[]>('/crm/enquiries/funding-types', { method: 'GET' })
+}
+
+/** Active funders (Settings → Funders) for a quote's funders. */
+export async function fetchQuoteFunders(): Promise<QuoteFunderOption[]> {
+  return data<QuoteFunderOption[]>('/crm/enquiries/funders', { method: 'GET' })
 }
 
 export async function getEnquiry(id: string): Promise<Enquiry> {

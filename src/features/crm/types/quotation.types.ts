@@ -74,7 +74,14 @@ export type QuoteDraftInput = {
   validUntil?: string | null
   assessmentReference?: string | null
   fundingCategory?: QuoteFundingCategory
-  chargeCardId?: string | null
+  /** £ per carer per hour; each visit = rate × length × carers unless it has its own price. */
+  hourlyRate?: number | null
+  /** Short-visit, weekend, bank holiday and night rates (all optional). */
+  rates?: QuoteRates | null
+  /** DETAILED: visits with times priced from rates. SUMMARY: a typed weekly total and visit slots. */
+  clientLayout?: QuoteClientLayout
+  /** The typed weekly price of the visits on a SUMMARY quote. */
+  manualWeeklyTotal?: number | null
   internalNotes?: string | null
   clientNotes?: string | null
   terms?: string | null
@@ -93,6 +100,8 @@ export type QuoteOccurrence = {
 }
 
 export type QuotePricing = {
+  /** A "total amount" quote: the visits' price is the typed weekly total; no hours. */
+  manual?: boolean
   patterns: Array<{
     index: number
     label: string
@@ -128,9 +137,27 @@ export type QuotePricing = {
   unresolvedCharges: number
 }
 
+/** DETAILED: every visit with times and prices. SUMMARY: only the total and the visits by time of day. */
+export type QuoteClientLayout = 'DETAILED' | 'SUMMARY'
+
+/** A day rate: a % on top of the visit price, or an hourly rate used instead of the standard one. */
+export type QuoteDayRate = { mode: 'PERCENT' | 'HOURLY'; value: number }
+
+/**
+ * The quote's other rates. A visit is priced by its night rate, else its short-visit price, else the
+ * hourly rate; a bank holiday (or else weekend) rate is then applied for the day.
+ */
+export type QuoteRates = {
+  shortVisits?: { upToMinutes: number; pricePerVisit: number }[]
+  weekend?: QuoteDayRate | null
+  bankHoliday?: QuoteDayRate | null
+  sleepingNightPrice?: number | null
+  wakingNightHourly?: number | null
+}
+
 export type QuotePricingPreview = {
-  card: { id: string; name: string } | null
-  multiCarerMode: 'COMBINED' | 'FIXED'
+  /** £ per carer per hour the preview was priced at. */
+  hourlyRate: number | null
   referenceWeekStart: string
   calendarMonth: string
   pricing: QuotePricing
@@ -156,7 +183,10 @@ export type QuoteVersion = {
   validUntil: string | null
   assessmentReference: string | null
   fundingCategory: QuoteFundingCategory
-  chargeCardId: string | null
+  hourlyRate: number | null
+  rates: QuoteRates | null
+  clientLayout: QuoteClientLayout
+  manualWeeklyTotal: number | null
   internalNotes: string | null
   clientNotes: string | null
   terms: string | null
@@ -175,6 +205,7 @@ export type QuoteVersion = {
     calculatedAt: string | null
   }
   pricing: QuotePricing | null
+  /** Only on quotes priced before manual pricing, from a charge card. */
   pricingCard: { id: string; name: string } | null
   issuedAt: string | null
   approvedAt: string | null
@@ -329,13 +360,34 @@ export type CreateFollowUpInput = { dueAt: string; assigneeId?: string | null; m
 export type UpdateFollowUpInput = { action: 'COMPLETE' | 'RESCHEDULE' | 'CANCEL'; dueAt?: string; outcome?: string }
 export type ReconcileLegacyInput = { action: 'ACKNOWLEDGE' | 'MOVE_STAGE'; stage?: EnquiryStage; note: string }
 
+type QuoteDiffSide = {
+  id: string
+  versionNumber: number
+  statusLabel: string
+  weeklyTotal: number
+  clientWeeklyLiability: number
+}
+
+/** Two versions compared in plain words (values already formatted: £, days, dates). */
 export type QuoteDiff = {
-  from: { id: string; versionNumber: number }
-  to: { id: string; versionNumber: number }
-  rows: Array<{ section: string; field: string; from: string | null; to: string | null }>
+  from: QuoteDiffSide
+  to: QuoteDiffSide
+  rows: Array<{
+    section: string
+    /** The visit, funder or extra the row belongs to ("Visit 2 · Morning visit"). */
+    item: string | null
+    field: string
+    from: string | null
+    to: string | null
+    change: 'changed' | 'added' | 'removed'
+    /** For money fields: new minus old. */
+    delta: number | null
+  }>
 }
 
 export type ClientQuoteView = {
+  /** SUMMARY: visits by time of day with no times or per-visit prices. */
+  layout?: QuoteClientLayout
   provider?: { name: string; email: string | null; phone: string | null; vatNumber: string | null }
   quotationNumber: string
   versionNumber: number
@@ -347,6 +399,8 @@ export type ClientQuoteView = {
   clientName: string
   visits: Array<{ label: string; when: string; duration: string; carers: number; activities: string[]; perVisit: string | null; weekly: string }>
   extras: Array<{ description: string; frequency: string; amount: string }>
+  /** The rates in words, when the quote has rates besides the hourly one. */
+  rates?: Array<{ label: string; value: string }>
   totals: Array<{ label: string; amount: string; method: string }>
   oneOffTotal: string | null
   vatLabel: string

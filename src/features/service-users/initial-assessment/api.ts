@@ -552,6 +552,22 @@ export async function fetchInitialAssessmentHtml(
   return { html, filename }
 }
 
+/** An attachment's file through the permission-checked endpoint (recordings and transcripts have no public link). */
+export async function fetchInitialAssessmentAttachmentFile(
+  serviceUserId: string,
+  submissionId: string,
+  attachmentId: string,
+): Promise<Blob> {
+  const base = getApiBaseUrl()
+  const token = useAuthStore.getState().accessToken
+  const res = await fetch(
+    `${base}/service-users/${serviceUserId}/initial-assessments/${submissionId}/attachments/${attachmentId}/file`,
+    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  )
+  if (!res.ok) throw new ApiError('Could not open the file', res.status)
+  return res.blob()
+}
+
 export function downloadHtmlBlob(html: string, filename: string): void {
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
   const url = URL.createObjectURL(blob)

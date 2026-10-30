@@ -1,4 +1,5 @@
 import type {
+  EnquiryKind,
   EnquiryLostReason,
   EnquiryReceivedVia,
   EnquirySource,
@@ -54,6 +55,12 @@ export const SOURCE_LABELS: Record<EnquirySource, string> = {
 export const URGENCY_LABELS: Record<EnquiryUrgency, string> = {
   ROUTINE: 'Routine',
   URGENT: 'Urgent',
+  EMERGENCY: 'Emergency',
+}
+
+export const KIND_LABELS: Record<EnquiryKind, string> = {
+  ENQUIRY: 'Enquiry',
+  REFERRAL: 'Referral',
 }
 
 export const RECEIVED_VIA_LABELS: Record<EnquiryReceivedVia, string> = {

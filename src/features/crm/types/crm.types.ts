@@ -19,7 +19,9 @@ export type EnquirySource =
   | 'OTHER'
 
 export type EnquiryType = 'PRIVATE' | 'LOCAL_AUTHORITY' | 'NHS' | 'HOSPITAL'
-export type EnquiryUrgency = 'ROUTINE' | 'URGENT'
+export type EnquiryUrgency = 'ROUTINE' | 'URGENT' | 'EMERGENCY'
+/** An enquiry from the person or family, or a referral from a professional; both follow the same pipeline. */
+export type EnquiryKind = 'ENQUIRY' | 'REFERRAL'
 export type EnquiryReceivedVia =
   | 'PHONE'
   | 'EMAIL'
@@ -55,6 +57,14 @@ export type CarePlanOption = { id: string; name: string }
 /** Row from the shared funding-type lookup (Settings → Funding types). */
 export type FundingTypeOption = { id: string; name: string; code: string }
 
+/** A funder from Settings → Funders, with the quote payer type its funding type maps to. */
+export type QuoteFunderOption = {
+  id: string
+  name: string
+  fundingTypeName: string | null
+  payerType: 'PRIVATE_CLIENT' | 'LOCAL_AUTHORITY' | 'NHS' | 'OTHER'
+}
+
 export type EnquiryEvent = {
   id: string
   action: string
@@ -67,6 +77,12 @@ export type Enquiry = {
   id: string
   referenceNumber: string
   stage: EnquiryStage
+  kind: EnquiryKind
+  /** Referral only. */
+  referringOrganisation: string | null
+  referrerRole: string | null
+  referralReference: string | null
+  referralDate: string | null
   firstName: string
   lastName: string
   dateOfBirth: string | null
@@ -110,6 +126,12 @@ export type Enquiry = {
   lostReasonCode: EnquiryLostReason | null
   lostReason: string | null
   convertedServiceUserId: string | null
+  /** Latest full initial assessment of the linked service user (archived and cancelled ones left out). */
+  initialAssessment: {
+    id: string
+    status: 'DRAFT' | 'IN_PROGRESS' | 'SUBMITTED' | 'REVIEWED'
+    updatedAt: string
+  } | null
   recordedById: string | null
   recordedByName: string | null
   stageChangedAt: string
@@ -131,6 +153,7 @@ export type EnquirySummary = {
 
 export type ListEnquiriesParams = {
   stage?: EnquiryStage
+  kind?: EnquiryKind
   source?: EnquirySource
   ownerId?: string
   /** Header branch filter. */
@@ -144,6 +167,11 @@ export type ListEnquiriesParams = {
  * (the API treats `null` as "clear", `undefined` as "leave as is").
  */
 export type EnquiryWriteInput = {
+  kind?: EnquiryKind
+  referringOrganisation?: string | null
+  referrerRole?: string | null
+  referralReference?: string | null
+  referralDate?: string | null
   firstName: string
   lastName: string
   dateOfBirth?: string | null

@@ -10,20 +10,19 @@ import { useBranchOptions } from '@/features/crm/hooks/useBranchOptions'
 import { DuplicateWarning } from '@/features/crm/components/DuplicateWarning'
 import {
   ASSESSMENT_PLACES,
-  ENQUIRY_TYPE_LABELS,
-  ENQUIRY_TYPE_OPTIONS,
   RECEIVED_VIA_LABELS,
   RECEIVED_VIA_OPTIONS,
   SOURCE_LABELS,
   SOURCE_OPTIONS,
+  KIND_LABELS,
   URGENCY_LABELS,
   URGENCY_OPTIONS,
 } from '@/features/crm/crm-labels'
 import type {
   Enquiry,
+  EnquiryKind,
   EnquiryReceivedVia,
   EnquirySource,
-  EnquiryType,
   EnquiryUrgency,
   EnquiryWriteInput,
 } from '@/features/crm/types/crm.types'
@@ -48,6 +47,11 @@ const dateOrNull = (v: string) => (v ? v : null)
 const numberOrNull = (v: string) => (v.trim() === '' ? null : Number(v))
 
 type FormState = {
+  kind: EnquiryKind
+  referringOrganisation: string
+  referrerRole: string
+  referralReference: string
+  referralDate: string
   firstName: string
   lastName: string
   dateOfBirth: string
@@ -62,15 +66,12 @@ type FormState = {
   source: EnquirySource
   sourceDetail: string
   receivedVia: EnquiryReceivedVia | ''
-  sentAt: string
   receivedAt: string
   urgency: EnquiryUrgency
-  enquiryType: EnquiryType | ''
   hoursPerWeek: string
   visitsPerDay: string
   requestedStartDate: string
   fundingTypeId: string
-  funderName: string
   ownerId: string
   nextFollowUpAt: string
   nextAction: string
@@ -78,14 +79,16 @@ type FormState = {
   assessmentAt: string
   assessorId: string
   assessmentLocation: string
-  quoteWeeklyAmount: string
-  quoteHourlyRate: string
-  quoteSentAt: string
-  quoteNotes: string
 }
 
-function initialState(e?: Enquiry, defaultLocationId?: string | null): FormState {
+function initialState(e?: Enquiry, defaultLocationId?: string | null, defaultKind?: EnquiryKind): FormState {
+  const kind = e?.kind ?? defaultKind ?? 'ENQUIRY'
   return {
+    kind,
+    referringOrganisation: e?.referringOrganisation ?? '',
+    referrerRole: e?.referrerRole ?? '',
+    referralReference: e?.referralReference ?? '',
+    referralDate: toDateInput(e?.referralDate ?? null),
     firstName: e?.firstName ?? '',
     lastName: e?.lastName ?? '',
     dateOfBirth: toDateInput(e?.dateOfBirth ?? null),
@@ -97,18 +100,15 @@ function initialState(e?: Enquiry, defaultLocationId?: string | null): FormState
     contactRelationship: e?.contactRelationship ?? '',
     contactPhone: e?.contactPhone ?? '',
     contactEmail: e?.contactEmail ?? '',
-    source: e?.source ?? 'SELF',
+    source: e?.source ?? (kind === 'REFERRAL' ? 'LOCAL_AUTHORITY' : 'SELF'),
     sourceDetail: e?.sourceDetail ?? '',
     receivedVia: e?.receivedVia ?? (e ? '' : 'PHONE'),
-    sentAt: toLocalDateTime(e?.sentAt ?? null),
     receivedAt: toLocalDateTime(e?.receivedAt ?? null),
     urgency: e?.urgency ?? 'ROUTINE',
-    enquiryType: e?.enquiryType ?? '',
     hoursPerWeek: e?.hoursPerWeek != null ? String(e.hoursPerWeek) : '',
     visitsPerDay: e?.visitsPerDay != null ? String(e.visitsPerDay) : '',
     requestedStartDate: toDateInput(e?.requestedStartDate ?? null),
     fundingTypeId: e?.fundingTypeId ?? '',
-    funderName: e?.funderName ?? '',
     ownerId: e?.ownerId ?? '',
     nextFollowUpAt: toLocalDateTime(e?.nextFollowUpAt ?? null),
     nextAction: e?.nextAction ?? '',
@@ -116,15 +116,17 @@ function initialState(e?: Enquiry, defaultLocationId?: string | null): FormState
     assessmentAt: toLocalDateTime(e?.assessmentAt ?? null),
     assessorId: e?.assessorId ?? '',
     assessmentLocation: e?.assessmentLocation ?? '',
-    quoteWeeklyAmount: e?.quoteWeeklyAmount != null ? String(e.quoteWeeklyAmount) : '',
-    quoteHourlyRate: e?.quoteHourlyRate != null ? String(e.quoteHourlyRate) : '',
-    quoteSentAt: toDateInput(e?.quoteSentAt ?? null),
-    quoteNotes: e?.quoteNotes ?? '',
   }
 }
 
 function toPayload(f: FormState): EnquiryWriteInput {
+  const referral = f.kind === 'REFERRAL'
   return {
+    kind: f.kind,
+    referringOrganisation: referral ? textOrNull(f.referringOrganisation) : null,
+    referrerRole: referral ? textOrNull(f.referrerRole) : null,
+    referralReference: referral ? textOrNull(f.referralReference) : null,
+    referralDate: referral ? dateOrNull(f.referralDate) : null,
     firstName: f.firstName.trim(),
     lastName: f.lastName.trim(),
     dateOfBirth: dateOrNull(f.dateOfBirth),
@@ -139,15 +141,12 @@ function toPayload(f: FormState): EnquiryWriteInput {
     source: f.source,
     sourceDetail: textOrNull(f.sourceDetail),
     receivedVia: f.receivedVia || null,
-    sentAt: dateTimeOrNull(f.sentAt),
     receivedAt: dateTimeOrNull(f.receivedAt),
     urgency: f.urgency,
-    enquiryType: f.enquiryType || null,
     hoursPerWeek: numberOrNull(f.hoursPerWeek),
     visitsPerDay: numberOrNull(f.visitsPerDay),
     requestedStartDate: dateOrNull(f.requestedStartDate),
     fundingTypeId: f.fundingTypeId || null,
-    funderName: textOrNull(f.funderName),
     ownerId: f.ownerId || null,
     nextFollowUpAt: dateTimeOrNull(f.nextFollowUpAt),
     nextAction: textOrNull(f.nextAction),
@@ -155,10 +154,6 @@ function toPayload(f: FormState): EnquiryWriteInput {
     assessmentAt: dateTimeOrNull(f.assessmentAt),
     assessorId: f.assessorId || null,
     assessmentLocation: textOrNull(f.assessmentLocation),
-    quoteWeeklyAmount: numberOrNull(f.quoteWeeklyAmount),
-    quoteHourlyRate: numberOrNull(f.quoteHourlyRate),
-    quoteSentAt: dateOrNull(f.quoteSentAt),
-    quoteNotes: textOrNull(f.quoteNotes),
   }
 }
 
@@ -170,6 +165,7 @@ const textareaClass = 'min-h-[72px] w-full rounded-md border border-input bg-bac
 function Field({
   label,
   required,
+  optional,
   wide,
   hint,
   group,
@@ -177,6 +173,8 @@ function Field({
 }: {
   label: string
   required?: boolean
+  /** Shows "(optional)" after the label. */
+  optional?: boolean
   wide?: boolean
   hint?: string
   /**
@@ -192,6 +190,7 @@ function Field({
       <span className="font-medium">
         {label}
         {required && <span className="ml-0.5 text-red-600">*</span>}
+        {optional && <span className="ml-1 font-normal text-muted-foreground">(optional)</span>}
       </span>
       {children}
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
@@ -224,7 +223,10 @@ function Section({ title, description, children }: { title: string; description?
 
 type Props = {
   initial?: Enquiry
-  submitLabel: string
+  /** Button text; a new record says "Create enquiry" or "Create referral" by its type. */
+  submitLabel?: string
+  /** Type to start a new record with (from "New referral"). */
+  defaultKind?: EnquiryKind
   busy?: boolean
   onSubmit: (payload: EnquiryWriteInput) => void
   onCancel: () => void
@@ -242,8 +244,10 @@ export function EnquiryForm({
   onCancel,
   defaultLocationId,
   checkDuplicates,
+  defaultKind,
 }: Props) {
-  const [f, setF] = React.useState<FormState>(() => initialState(initial, defaultLocationId))
+  const [f, setF] = React.useState<FormState>(() => initialState(initial, defaultLocationId, defaultKind))
+  const isReferral = f.kind === 'REFERRAL'
   const { options: branchOptions } = useBranchOptions()
   // Every enquiry belongs to the branch that received it; with only one branch it is chosen for you.
   React.useEffect(() => {
@@ -283,12 +287,55 @@ export function EnquiryForm({
       toastApiError(null, 'Choose the branch that received this enquiry')
       return
     }
+    if (isReferral && !f.referringOrganisation.trim()) {
+      toastApiError(null, 'Enter the referring organisation')
+      return
+    }
     onSubmit(toPayload(f))
   }
 
   return (
     <form className="flex flex-col gap-6" onSubmit={submit} data-testid="enquiry-form">
-      <Section title="Person" description="Who the care enquiry is for.">
+      <Card>
+        <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-base font-semibold">Type</p>
+            <p className="text-sm text-muted-foreground">
+              {isReferral
+                ? 'A referral from a professional: council, NHS, hospital, GP or social worker.'
+                : 'An enquiry from the person themselves, their family or a friend.'}
+            </p>
+          </div>
+          <div role="radiogroup" aria-label="Type" className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+            {(['ENQUIRY', 'REFERRAL'] as EnquiryKind[]).map(k => (
+              <button
+                key={k}
+                type="button"
+                role="radio"
+                aria-checked={f.kind === k}
+                className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
+                  f.kind === k ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() =>
+                  setF(prev => ({
+                    ...prev,
+                    kind: k,
+                    // A family source on a referral (or a professional one on an enquiry) is most likely wrong.
+                    source:
+                      k === 'REFERRAL' && ['SELF', 'FAMILY'].includes(prev.source)
+                        ? 'LOCAL_AUTHORITY'
+                        : prev.source,
+                  }))
+                }
+              >
+                {KIND_LABELS[k]}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Section title="Person" description="Who the care is for.">
         <Field label="First name" required>
           <Input value={f.firstName} onChange={set('firstName')} />
         </Field>
@@ -366,13 +413,36 @@ export function EnquiryForm({
         />
       )}
 
-      <Section title="Received from" description="The person or organisation that made the enquiry.">
+      {isReferral && (
+        <Section title="Referral details" description="The organisation that referred, and its reference for the case.">
+          <Field label="Referring organisation" required hint="e.g. Croydon Council Adult Social Care, St George's discharge team">
+            <Input value={f.referringOrganisation} onChange={set('referringOrganisation')} />
+          </Field>
+          <Field label="Referral reference" hint="Their case or referral number">
+            <Input value={f.referralReference} onChange={set('referralReference')} />
+          </Field>
+          <Field label="Referral date" hint="The date on the referral">
+            <Input type="date" value={f.referralDate} onChange={set('referralDate')} />
+          </Field>
+        </Section>
+      )}
+
+      <Section
+        title={isReferral ? 'Referrer' : 'Received from'}
+        description={isReferral ? 'The professional who made the referral.' : 'The person who made the enquiry.'}
+      >
         <Field label="Name">
           <Input value={f.contactName} onChange={set('contactName')} />
         </Field>
-        <Field label="Relationship" hint="e.g. Daughter, Social worker, GP">
-          <Input value={f.contactRelationship} onChange={set('contactRelationship')} />
-        </Field>
+        {isReferral ? (
+          <Field label="Role" hint="e.g. Social worker, Discharge nurse, GP">
+            <Input value={f.referrerRole} onChange={set('referrerRole')} />
+          </Field>
+        ) : (
+          <Field label="Relationship" hint="e.g. Daughter, Son, Friend">
+            <Input value={f.contactRelationship} onChange={set('contactRelationship')} />
+          </Field>
+        )}
         <Field label="Phone">
           <Input value={f.contactPhone} onChange={set('contactPhone')} />
         </Field>
@@ -404,19 +474,6 @@ export function EnquiryForm({
             ))}
           </select>
         </Field>
-        <Field label="Enquiry type">
-          <select className={selectClass} value={f.enquiryType} onChange={set('enquiryType')}>
-            <option value="">—</option>
-            {ENQUIRY_TYPE_OPTIONS.map(t => (
-              <option key={t} value={t}>
-                {ENQUIRY_TYPE_LABELS[t]}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Sent at (by referrer)">
-          <Input type="datetime-local" value={f.sentAt} onChange={set('sentAt')} />
-        </Field>
         <Field label="Received at">
           <Input type="datetime-local" value={f.receivedAt} onChange={set('receivedAt')} />
         </Field>
@@ -432,10 +489,10 @@ export function EnquiryForm({
       </Section>
 
       <Section title="Care requirements & funding" description="Used to prepare a quote or bid.">
-        <Field label="Hours per week">
+        <Field label="Hours per week" optional hint="What was asked for; shown on the quote as a guide">
           <Input type="number" min={0} max={168} step={0.5} value={f.hoursPerWeek} onChange={set('hoursPerWeek')} />
         </Field>
-        <Field label="Visits per day">
+        <Field label="Visits per day" optional hint="What was asked for; shown on the quote as a guide">
           <Input type="number" min={0} max={24} step={1} value={f.visitsPerDay} onChange={set('visitsPerDay')} />
         </Field>
         <Field label="Requested start date">
@@ -456,53 +513,41 @@ export function EnquiryForm({
             aria-label="Funding type"
           />
         </Field>
-        <Field label="Funder name" hint="e.g. Camden Council, NHS North Central London" wide>
-          <Input value={f.funderName} onChange={set('funderName')} />
-        </Field>
       </Section>
 
-      <Section title="Assessment & quote" description="Book the assessment visit and record the quote or bid.">
-        <Field label="Assessment date & time">
-          <Input type="datetime-local" value={f.assessmentAt} onChange={set('assessmentAt')} />
-        </Field>
-        <Field label="Assessor">
-          <Combobox
-            options={owners.map(o => ({ value: o.id, label: o.name }))}
-            value={f.assessorId}
-            onChange={v => setValue('assessorId', v)}
-            placeholder="Select assessor…"
-            searchPlaceholder="Search staff…"
-            emptyText="No staff member found."
-            loading={ownersLoading}
-            aria-label="Assessor"
-          />
-        </Field>
-        <Field label="Assessment place">
-          <select className={selectClass} value={f.assessmentLocation} onChange={set('assessmentLocation')}>
-            <option value="">—</option>
-            {ASSESSMENT_PLACES.map(p => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-            {f.assessmentLocation && !(ASSESSMENT_PLACES as readonly string[]).includes(f.assessmentLocation) && (
-              <option value={f.assessmentLocation}>{f.assessmentLocation}</option>
-            )}
-          </select>
-        </Field>
-        <Field label="Quote sent on">
-          <Input type="date" value={f.quoteSentAt} onChange={set('quoteSentAt')} />
-        </Field>
-        <Field label="Quoted price per week (£)">
-          <Input type="number" min={0} step={0.01} value={f.quoteWeeklyAmount} onChange={set('quoteWeeklyAmount')} />
-        </Field>
-        <Field label="Hourly rate (£)">
-          <Input type="number" min={0} step={0.01} value={f.quoteHourlyRate} onChange={set('quoteHourlyRate')} />
-        </Field>
-        <Field label="Quote notes" wide>
-          <textarea className={textareaClass} value={f.quoteNotes} onChange={set('quoteNotes')} />
-        </Field>
-      </Section>
+      {/* Booked from the enquiry's Plan ("Book assessment visit"), so only when editing. */}
+      {initial && (
+        <Section title="Assessment" description="Book the assessment visit. The quote itself is made under Quote on the enquiry.">
+          <Field label="Assessment date & time">
+            <Input type="datetime-local" value={f.assessmentAt} onChange={set('assessmentAt')} />
+          </Field>
+          <Field label="Assessor">
+            <Combobox
+              options={owners.map(o => ({ value: o.id, label: o.name }))}
+              value={f.assessorId}
+              onChange={v => setValue('assessorId', v)}
+              placeholder="Select assessor…"
+              searchPlaceholder="Search staff…"
+              emptyText="No staff member found."
+              loading={ownersLoading}
+              aria-label="Assessor"
+            />
+          </Field>
+          <Field label="Assessment place">
+            <select className={selectClass} value={f.assessmentLocation} onChange={set('assessmentLocation')}>
+              <option value="">—</option>
+              {ASSESSMENT_PLACES.map(p => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+              {f.assessmentLocation && !(ASSESSMENT_PLACES as readonly string[]).includes(f.assessmentLocation) && (
+                <option value={f.assessmentLocation}>{f.assessmentLocation}</option>
+              )}
+            </select>
+          </Field>
+        </Section>
+      )}
 
       <Section title="Ownership & follow-up">
         <Field label="Owner (assigned to)" hint={ownersError ? 'Could not load staff list' : undefined}>
@@ -530,7 +575,7 @@ export function EnquiryForm({
           Cancel
         </Button>
         <Button type="submit" disabled={busy}>
-          {busy ? 'Saving…' : submitLabel}
+          {busy ? 'Saving…' : (submitLabel ?? `Create ${isReferral ? 'referral' : 'enquiry'}`)}
         </Button>
       </div>
     </form>

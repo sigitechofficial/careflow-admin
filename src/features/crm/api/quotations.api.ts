@@ -55,6 +55,27 @@ export const retryQuoteEmail = (enquiryId: string, quotationId: string, communic
 export const recordQuoteResponse = (enquiryId: string, quotationId: string, versionId: string, body: RecordResponseInput) =>
   data<QuoteVersionDetail>(`${version(enquiryId, quotationId, versionId)}/responses`, post(body))
 
+/** A funder approved its share of an accepted quote; the price is not changed. */
+export const confirmQuoteFunding = (
+  enquiryId: string,
+  quotationId: string,
+  versionId: string,
+  fundingId: string,
+  body: { reference?: string; note?: string },
+) => data<QuoteVersionDetail>(`${version(enquiryId, quotationId, versionId)}/fundings/${fundingId}/confirm`, post(body))
+
+/** After acceptance: make the person an active service user (and, if asked, the draft care package). */
+export const createServiceUserFromQuote = (
+  enquiryId: string,
+  quotationId: string,
+  versionId: string,
+  body: { createCarePackage: boolean },
+) =>
+  data<{ serviceUserId: string; created: boolean; carePackage: { created: boolean; error: string | null } }>(
+    `${version(enquiryId, quotationId, versionId)}/service-user`,
+    post(body),
+  )
+
 export const convertQuoteToCarePackage = (enquiryId: string, quotationId: string, versionId: string) =>
   data<{ visitPlanId: string; serviceUserId: string; created: boolean; hasActivePackage?: boolean }>(
     `${version(enquiryId, quotationId, versionId)}/care-package`,

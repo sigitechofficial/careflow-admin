@@ -1,11 +1,13 @@
 import * as React from 'react'
 import { AlertCircle, Copy, Download, FileAudio, Loader2, Mic, RotateCcw, Square, Upload } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/shared/ui/button'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
   useInitialAssessmentTranscription,
   useStartInitialAssessmentTranscription,
 } from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
+import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import {
   InitialAssessmentAiFillReview,
   type AiFillTarget,
@@ -59,8 +61,9 @@ function pickRecorderType() {
 
 /**
  * Conversation to text: record the assessment here (microphone) or upload a recording, and
- * Whisper on the CareFlow server turns the speech into text. The audio is deleted once read and
- * the transcript is not saved to the assessment; copy what you need into the answers.
+ * Whisper on the CareFlow server turns the speech into text. The recording and Whisper's transcript
+ * are kept in the assessment's attachments (so on the service user's record); edits made in the box
+ * here are not saved back — copy what you need into the answers.
  */
 export function InitialAssessmentTranscriptionPanel({ serviceUserId, submissionId, canUpdate, fillTarget }: Props) {
   const [jobId, setJobId] = React.useState<string | null>(() => readStoredJob(submissionId))
@@ -87,6 +90,17 @@ export function InitialAssessmentTranscriptionPanel({ serviceUserId, submissionI
   React.useEffect(() => {
     if (job?.status === 'DONE') setText(job.text ?? '')
   }, [job?.status, job?.text])
+
+  // The transcript is saved as an attachment just after Whisper finishes; refresh the list then.
+  const queryClient = useQueryClient()
+  React.useEffect(() => {
+    if (job?.status !== 'DONE' || !submissionId) return
+    const refresh = () =>
+      void queryClient.invalidateQueries({ queryKey: initialAssessmentKeys.attachments(serviceUserId, submissionId) })
+    refresh()
+    const t = window.setTimeout(refresh, 2000)
+    return () => window.clearTimeout(t)
+  }, [job?.status, queryClient, serviceUserId, submissionId])
 
   const stopTracks = React.useCallback(() => {
     if (timerRef.current) window.clearInterval(timerRef.current)
@@ -215,7 +229,7 @@ export function InitialAssessmentTranscriptionPanel({ serviceUserId, submissionI
           <div>
             <h3 className="text-sm font-semibold">Conversation to text</h3>
             <p className="text-xs text-muted-foreground">
-              Record the assessment conversation or upload a recording. It is turned into text on the CareFlow server; the audio is deleted afterwards.
+              Record the assessment conversation or upload a recording. It is turned into text on the CareFlow server, and the recording and its transcript are saved to this assessment's attachments.
             </p>
           </div>
         </div>

@@ -26,14 +26,18 @@ import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { createClientUuid } from '@/shared/lib/create-client-uuid'
 import { LOST_REASON_LABELS, LOST_REASON_OPTIONS } from '@/features/crm/crm-labels'
+import { useEnquiry } from '@/features/crm/hooks/useCrm'
 import {
   RESPONDABLE,
   RESPONSE_TYPE_LABELS,
   REVISABLE,
   SENDABLE,
   SEND_CHANNEL_LABELS,
+  PAYER_TYPE_LABELS,
+  money,
 } from '@/features/crm/quote-labels'
 import {
+  useConfirmQuoteFunding,
   useConvertQuoteToCarePackage,
   useDownloadQuotePdf,
   useQuoteAction,
@@ -45,6 +49,7 @@ import {
   useSendQuote,
 } from '@/features/crm/hooks/useQuotations'
 import type { EnquiryLostReason } from '@/features/crm/types/crm.types'
+import { QuoteVersionCompare } from '@/features/crm/components/quote-editor/QuoteVersionCompare'
 import type {
   QuoteResponseType,
   QuoteSendChannel,
@@ -234,6 +239,8 @@ function ClientPreview({ enquiryId, detail }: { enquiryId: string; detail: Quote
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading preview…</p>
   if (error || !data) return <p className="text-sm text-red-700">Preview not available.</p>
   const th = 'py-2 pr-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground'
+  // "Total only": the visits by time of day, no times or per-visit prices.
+  const summary = data.layout === 'SUMMARY'
   return (
     <div className="flex flex-col gap-2">
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -268,24 +275,47 @@ function ClientPreview({ enquiryId, detail }: { enquiryId: string; detail: Quote
         </dl>
 
         <h5 className="mb-1 mt-2 font-semibold">Proposed visits</h5>
-        <table className="w-full">
+        <table className="w-full" data-testid="quote-preview-visits">
           <thead className="border-b border-zinc-200 dark:border-zinc-800">
-            <tr><th className={th}>Visit</th><th className={th}>When</th><th className={th}>Carers</th><th className={`${th} text-right`}>Price</th></tr>
+            <tr>
+              <th className={th}>Visit</th>
+              <th className={th}>{summary ? 'Days' : 'When'}</th>
+              <th className={th}>Carers</th>
+              {!summary && <th className={`${th} text-right`}>Price</th>}
+            </tr>
           </thead>
           <tbody>
-            {data.visits.map(v => (
-              <tr key={v.label + v.when} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+            {data.visits.map((v, i) => (
+              <tr key={i} className="border-b border-zinc-100 align-top dark:border-zinc-900">
                 <td className="py-2 pr-3">
                   <p className="font-medium">{v.label}</p>
                   {v.activities.length > 0 && <p className="text-xs text-zinc-500">{v.activities.join(', ')}</p>}
                 </td>
-                <td className="py-2 pr-3">{v.when}<span className="block text-xs text-zinc-500">{v.duration}</span></td>
+                <td className="py-2 pr-3">{v.when}{!summary && <span className="block text-xs text-zinc-500">{v.duration}</span>}</td>
                 <td className="py-2 pr-3">{v.carers}</td>
-                <td className="py-2 text-right">{v.weekly}{v.perVisit && <span className="block text-xs text-zinc-500">{v.perVisit} per visit</span>}</td>
+                {!summary && (
+                  <td className="py-2 text-right">{v.weekly}{v.perVisit && <span className="block text-xs text-zinc-500">{v.perVisit} per visit</span>}</td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
+
+        {(data.rates?.length ?? 0) > 0 && (
+          <>
+            <h5 className="mb-1 mt-6 font-semibold">Rates used</h5>
+            <table className="w-full" data-testid="quote-preview-rates">
+              <tbody>
+                {data.rates!.map(r => (
+                  <tr key={r.label} className="border-b border-zinc-100 dark:border-zinc-900">
+                    <td className="py-2 pr-3">{r.label}</td>
+                    <td className="py-2 text-right">{r.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
 
         {data.extras.length > 0 && (
           <>
@@ -532,6 +562,7 @@ export function ReviewAndSendPanel({ enquiryId, detail, onOpenVersion, onRecordR
 /* ─── Responses & Activity ────────────────────────────────────────────── */
 
 function ResponseForm({ enquiryId, detail, onOpenVersion }: Props) {
+  const navigate = useNavigate()
   const record = useRecordQuoteResponse(enquiryId, detail.quotationId, detail.id)
   const [type, setType] = React.useState<QuoteResponseType>('ACCEPTED')
   const [form, setForm] = React.useState({ responderName: '', responderRelationship: '', method: 'Phone', respondedAt: '', details: '', evidence: '', nextAction: '', followUpAt: '' })
@@ -558,7 +589,13 @@ function ResponseForm({ enquiryId, detail, onOpenVersion }: Props) {
       {
         onSuccess: d => {
           toastSuccess('Response recorded')
-          if (d.id !== detail.id) onOpenVersion(d.id)
+          // Accepted: on to the page that shows what is missing and creates the service user.
+          if (type === 'ACCEPTED')
+            navigate({
+              to: '/crm/$enquiryId/quotes/$quotationId/$versionId/service-user',
+              params: { enquiryId, quotationId: detail.quotationId, versionId: d.id },
+            })
+          else if (d.id !== detail.id) onOpenVersion(d.id)
         },
         onError: e => toastApiError(e, 'Could not record the response'),
       },
@@ -667,12 +704,68 @@ function FollowUps({ enquiryId, detail }: { enquiryId: string; detail: QuoteVers
   )
 }
 
+/**
+ * A funder's share still waiting for approval on an accepted quote. Confirming records the
+ * funder's reference; the price and the copy the client received do not change.
+ */
+export function PendingFunding({
+  enquiryId,
+  detail,
+  funding,
+}: {
+  enquiryId: string
+  detail: QuoteVersionDetail
+  funding: QuoteVersionDetail['fundings'][number]
+}) {
+  const confirm = useConfirmQuoteFunding(enquiryId, detail.quotationId, detail.id)
+  const [reference, setReference] = React.useState(funding.reference ?? '')
+  const payer = funding.payerName?.trim() || PAYER_TYPE_LABELS[funding.payerType]
+  // A fixed weekly amount is already the weekly figure, so only a % or per-visit share is shown.
+  const share =
+    funding.method === 'PERCENTAGE' ? `${funding.amount}% · ` : funding.method === 'PER_VISIT' ? `${money(funding.amount)} per visit · ` : ''
+  return (
+    <li className="flex flex-col gap-2 rounded-md border border-amber-200 bg-background p-2.5 sm:flex-row sm:items-center" data-testid="quote-pending-funding">
+      <div className="min-w-0 flex-1 text-sm">
+        <span className="font-medium">{payer}</span>
+        <span className="text-muted-foreground"> · {share}{money(funding.weeklyAmount)} / week · waiting for approval</span>
+      </div>
+      <Input
+        className="h-9 sm:w-56"
+        placeholder="Funder's reference (optional)"
+        aria-label={`Funding reference for ${payer}`}
+        value={reference}
+        onChange={e => setReference(e.target.value)}
+      />
+      <Button
+        variant="outline"
+        className="h-9"
+        disabled={confirm.isPending}
+        onClick={() =>
+          confirm.mutate(
+            { fundingId: funding.id, reference: reference.trim() || undefined },
+            {
+              onSuccess: () => toastSuccess('Funding confirmed', payer),
+              onError: e => toastApiError(e, 'Could not confirm the funding'),
+            },
+          )
+        }
+      >
+        Confirm funding
+      </Button>
+    </li>
+  )
+}
+
 function AcceptedNextSteps({ enquiryId, detail }: { enquiryId: string; detail: QuoteVersionDetail }) {
   const navigate = useNavigate()
   const can = useAuthStore(s => s.can)
+  const { data: enquiry } = useEnquiry(enquiryId)
+  // The Pre-admission record made for the initial assessment is linked too; Won means it was made active.
+  const activeServiceUser = Boolean(detail.serviceUserId) && enquiry?.stage === 'WON'
   const agreement = useQuoteAction(enquiryId, detail.quotationId, detail.id)
   const convert = useConvertQuoteToCarePackage(enquiryId, detail.quotationId, detail.id)
   const [note, setNote] = React.useState('')
+  const pendingFundings = detail.fundings.filter(f => f.payerType !== 'PRIVATE_CLIENT' && f.status !== 'CONFIRMED')
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
       <h4 className="text-sm font-semibold">Accepted — before care starts</h4>
@@ -685,6 +778,13 @@ function AcceptedNextSteps({ enquiryId, detail }: { enquiryId: string; detail: Q
           </li>
         ))}
       </ul>
+      {pendingFundings.length > 0 && can('crm.manage') && (
+        <ul className="flex flex-col gap-2">
+          {pendingFundings.map(f => (
+            <PendingFunding key={f.id} enquiryId={enquiryId} detail={detail} funding={f} />
+          ))}
+        </ul>
+      )}
       {!detail.agreementReceivedAt && (
         <div className="flex gap-2">
           <Input placeholder="Where the signed agreement is kept" value={note} onChange={e => setNote(e.target.value)} />
@@ -694,9 +794,18 @@ function AcceptedNextSteps({ enquiryId, detail }: { enquiryId: string; detail: Q
         </div>
       )}
       <div className="flex flex-wrap gap-2">
-        {!detail.serviceUserId && can('service_users.create') && (
-          // Existing Create Service User flow; only the enquiry id goes in the URL.
-          <Button variant="outline" onClick={() => navigate({ to: '/service-users/add', search: { enquiryId } })}>Create service user</Button>
+        {!activeServiceUser && can('service_users.create') && (
+          <Button
+            variant="outline"
+            onClick={() =>
+              navigate({
+                to: '/crm/$enquiryId/quotes/$quotationId/$versionId/service-user',
+                params: { enquiryId, quotationId: detail.quotationId, versionId: detail.id },
+              })
+            }
+          >
+            Create service user
+          </Button>
         )}
         {detail.serviceUserId && (
           <Button variant="outline" onClick={() => navigate({ to: '/service-users/$serviceUserId/view', params: { serviceUserId: detail.serviceUserId! } })}>View service user</Button>
@@ -734,18 +843,7 @@ function CompareVersions({ enquiryId, detail }: { enquiryId: string; detail: Quo
         <option value="">Choose a version…</option>
         {others.map(v => <option key={v.id} value={v.id}>V{v.versionNumber} ({v.statusLabel})</option>)}
       </select>
-      {data && (data.rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No differences.</p>
-      ) : (
-        <table className="w-full text-sm">
-          <thead><tr className="border-b border-border text-left text-xs text-muted-foreground"><th className="py-1">Field</th><th className="py-1">V{data.from.versionNumber}</th><th className="py-1">V{data.to.versionNumber}</th></tr></thead>
-          <tbody>
-            {data.rows.map(r => (
-              <tr key={r.section + r.field} className="border-b border-border/60"><td className="py-1"><span className="text-muted-foreground">{r.section} · </span>{r.field}</td><td className="py-1">{r.from ?? '—'}</td><td className="py-1">{r.to ?? '—'}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      ))}
+      {data && <QuoteVersionCompare diff={data} />}
     </section>
   )
 }

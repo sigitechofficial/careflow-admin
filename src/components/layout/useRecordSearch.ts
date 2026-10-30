@@ -59,15 +59,15 @@ const SOURCES: Source[] = [
     },
   },
   {
-    section: 'Enquiries',
+    section: 'Enquiries & Referrals',
     anyOf: ['crm.read', 'crm.manage'],
     run: async q => {
       const rows = await listEnquiries({ search: q })
       return rows.slice(0, PER_GROUP).map(r => ({
         id: `enq:${r.id}`,
-        section: 'Enquiries',
+        section: 'Enquiries & Referrals',
         label: `${r.firstName} ${r.lastName}`.trim(),
-        detail: r.referenceNumber,
+        detail: r.kind === 'REFERRAL' ? `${r.referenceNumber} · Referral` : r.referenceNumber,
         href: `/crm/${r.id}`,
       }))
     },

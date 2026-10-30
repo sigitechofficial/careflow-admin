@@ -20,6 +20,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { CrmSectionLayout } from '@/features/crm/components/CrmSectionLayout'
 import { QuoteSummary } from '@/features/crm/components/QuoteSummaryCard'
+import { EnquiryInitialAssessment } from '@/features/crm/components/EnquiryInitialAssessment'
 import {
   useAddEnquiryNote,
   useEnquiry,
@@ -154,9 +155,14 @@ function EnquiryHeader({ enquiry, canManage }: { enquiry: Enquiry; canManage: bo
                 <span className={`rounded-full px-2.5 py-0.5 font-semibold ${STAGE_CLASS[enquiry.stage]}`}>
                   {STAGE_LABELS[enquiry.stage]}
                 </span>
-                {enquiry.urgency === 'URGENT' && (
+                {enquiry.kind === 'REFERRAL' && (
+                  <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                    Referral
+                  </span>
+                )}
+                {enquiry.urgency !== 'ROUTINE' && (
                   <span className="rounded-full bg-red-100 px-2.5 py-0.5 font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">
-                    Urgent
+                    {URGENCY_LABELS[enquiry.urgency]}
                   </span>
                 )}
                 <span className="rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">
@@ -178,7 +184,7 @@ function EnquiryHeader({ enquiry, canManage }: { enquiry: Enquiry; canManage: bo
               onClick={() => navigate({ to: '/crm/$enquiryId/edit', params: { enquiryId: enquiry.id } })}
             >
               <Pencil className="mr-1.5 h-4 w-4" aria-hidden />
-              Edit enquiry
+              {enquiry.kind === 'REFERRAL' ? 'Edit referral' : 'Edit enquiry'}
             </Button>
           )}
         </div>
@@ -278,7 +284,7 @@ function DetailsCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: bool
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Enquiry details</CardTitle>
+        <CardTitle className="text-base">{enquiry.kind === 'REFERRAL' ? 'Referral details' : 'Enquiry details'}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <DetailSection
@@ -310,20 +316,36 @@ function DetailsCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: bool
 
         <div className="border-t border-border" />
 
+        {enquiry.kind === 'REFERRAL' && (
+          <>
+            <DetailSection
+              title="Referral"
+              onAdd={onAdd}
+              details={[
+                { label: 'Referring organisation', value: orNull(enquiry.referringOrganisation), wide: true },
+                { label: 'Referral reference', value: orNull(enquiry.referralReference) },
+                { label: 'Referral date', value: orNull(enquiry.referralDate, fmtDate) },
+              ]}
+            />
+            <div className="border-t border-border" />
+          </>
+        )}
+
         <DetailSection
-          title="Received from"
+          title={enquiry.kind === 'REFERRAL' ? 'Referrer' : 'Received from'}
           onAdd={onAdd}
           details={[
             {
               label: 'Contact',
-              value: orNull(enquiry.contactName, v => (
-                <>
-                  {v}
-                  {enquiry.contactRelationship ? (
-                    <span className="text-muted-foreground"> · {enquiry.contactRelationship}</span>
-                  ) : null}
-                </>
-              )),
+              value: orNull(enquiry.contactName, v => {
+                const role = enquiry.kind === 'REFERRAL' ? enquiry.referrerRole : enquiry.contactRelationship
+                return (
+                  <>
+                    {v}
+                    {role ? <span className="text-muted-foreground"> · {role}</span> : null}
+                  </>
+                )
+              }),
             },
             {
               label: 'Phone',
@@ -355,7 +377,8 @@ function DetailsCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: bool
             { label: 'How received', value: orNull(enquiry.receivedVia, v => RECEIVED_VIA_LABELS[v]) },
             { label: 'Urgency', value: URGENCY_LABELS[enquiry.urgency] },
             { label: 'Source detail', value: orNull(enquiry.sourceDetail) },
-            { label: 'Sent by referrer', value: orNull(enquiry.sentAt, fmtDateTime) },
+            // No longer asked for on the form; shown only on older enquiries that have it.
+            ...(enquiry.sentAt ? [{ label: 'Sent by referrer', value: fmtDateTime(enquiry.sentAt) }] : []),
             { label: 'Received', value: orNull(enquiry.receivedAt, fmtDateTime) },
           ]}
         />
@@ -370,7 +393,7 @@ function DetailsCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: bool
             { label: 'Visits per day', value: orNull(enquiry.visitsPerDay) },
             { label: 'Requested start', value: orNull(enquiry.requestedStartDate, fmtDate) },
             { label: 'Funding type', value: orNull(enquiry.fundingTypeName) },
-            { label: 'Funder', value: orNull(enquiry.funderName) },
+            ...(enquiry.funderName ? [{ label: 'Funder', value: enquiry.funderName }] : []),
           ]}
         />
       </CardContent>
@@ -555,6 +578,7 @@ function PlanRow({
   note,
   actionLabel,
   onAction,
+  children,
 }: {
   icon: React.ReactNode
   title: string
@@ -564,6 +588,7 @@ function PlanRow({
   note?: string | null
   actionLabel: string
   onAction?: () => void
+  children?: React.ReactNode
 }) {
   const shown = lines.filter(Boolean)
   return (
@@ -589,6 +614,7 @@ function PlanRow({
             {actionLabel}
           </button>
         )}
+        {children}
       </div>
     </div>
   )
@@ -665,9 +691,11 @@ function PlanCard({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean
                 ]
               : []
           }
-          actionLabel={booked ? 'Change assessment' : 'Book assessment'}
+          actionLabel={booked ? 'Change assessment visit' : 'Book assessment visit'}
           onAction={edit}
-        />
+        >
+          <EnquiryInitialAssessment enquiry={enquiry} canManage={canManage} />
+        </PlanRow>
         <div className="border-t border-border" />
         <QuoteSummary enquiry={enquiry} canManage={canManage} />
       </CardContent>
@@ -808,7 +836,7 @@ export default function EnquiryDetailPage() {
     <div>
       <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate({ to: '/crm' })}>
         <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
-        Back to enquiries
+        Back to enquiries &amp; referrals
       </Button>
     </div>
   )
@@ -835,10 +863,10 @@ export default function EnquiryDetailPage() {
   return (
     <CrmSectionLayout
       title={enquiry.referenceNumber}
-      description="Enquiry record"
+      description={enquiry.kind === 'REFERRAL' ? 'Referral record' : 'Enquiry record'}
       testId="crm-detail-page"
       breadcrumbTail={[
-        { label: 'Enquiries', href: '/crm' },
+        { label: 'Enquiries & Referrals', href: '/crm' },
         { label: enquiry.referenceNumber },
       ]}
     >

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { crmKeys } from '@/features/crm/keys'
 import {
+  confirmQuoteFunding,
+  createServiceUserFromQuote,
   convertQuoteToCarePackage,
   createQuotation,
   createQuoteFollowUp,
@@ -117,6 +119,23 @@ export function useRecordQuoteResponse(enquiryId: string, quotationId: string, v
   const invalidate = useInvalidateEnquiry()
   return useMutation({
     mutationFn: (body: RecordResponseInput) => recordQuoteResponse(enquiryId, quotationId, versionId, body),
+    onSuccess: invalidate,
+  })
+}
+
+export function useConfirmQuoteFunding(enquiryId: string, quotationId: string, versionId: string) {
+  const invalidate = useInvalidateEnquiry()
+  return useMutation({
+    mutationFn: ({ fundingId, reference }: { fundingId: string; reference?: string }) =>
+      confirmQuoteFunding(enquiryId, quotationId, versionId, fundingId, { reference }),
+    onSuccess: invalidate,
+  })
+}
+
+export function useCreateServiceUserFromQuote(enquiryId: string, quotationId: string, versionId: string) {
+  const invalidate = useInvalidateEnquiry()
+  return useMutation({
+    mutationFn: (body: { createCarePackage: boolean }) => createServiceUserFromQuote(enquiryId, quotationId, versionId, body),
     onSuccess: invalidate,
   })
 }

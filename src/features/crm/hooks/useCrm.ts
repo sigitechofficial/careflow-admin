@@ -7,6 +7,8 @@ import {
   fetchEnquiryCarePlans,
   fetchEnquiryFundingTypes,
   fetchEnquiryOwners,
+  fetchQuoteFunders,
+  startEnquiryInitialAssessment,
   getEnquiry,
   getEnquirySummary,
   listEnquiries,
@@ -66,6 +68,14 @@ export function useEnquiryFundingTypes() {
   })
 }
 
+export function useQuoteFunders() {
+  return useQuery({
+    queryKey: crmKeys.funders(),
+    queryFn: () => fetchQuoteFunders(),
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 export function useEnquiry(id: string | undefined) {
   return useQuery({
     queryKey: crmKeys.detail(id ?? ''),
@@ -99,6 +109,14 @@ export function useMoveEnquiry(id: string) {
   const invalidate = useInvalidateAll()
   return useMutation({
     mutationFn: (body: MoveEnquiryInput) => moveEnquiry(id, body),
+    onSuccess: invalidate,
+  })
+}
+
+export function useStartEnquiryInitialAssessment(id: string) {
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: () => startEnquiryInitialAssessment(id),
     onSuccess: invalidate,
   })
 }

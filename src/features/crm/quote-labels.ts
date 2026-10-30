@@ -7,6 +7,7 @@ import type {
   QuotePatternFrequency,
   QuotePatternInput,
   QuotePayerType,
+  QuoteRates,
   QuoteResponseType,
   QuoteSendChannel,
   QuoteStatus,
@@ -156,3 +157,39 @@ export const emptyPattern = (): QuotePatternInput => ({
   manualChargePerVisit: null,
   overrideReason: null,
 })
+
+/**
+ * The price of one visit on an ordinary weekday, as the server prices it: a night rate, else a
+ * short-visit price, else the hourly rate × length; × carers. Null when no rate applies yet.
+ */
+export function visitBasePrice(
+  visit: Pick<QuotePatternInput, 'durationMinutes' | 'carersPerVisit' | 'nightDuty'>,
+  hourlyRate: number | null,
+  rates: QuoteRates | null | undefined,
+): { amount: number; how: string } | null {
+  const carers = Math.max(1, visit.carersPerVisit)
+  const times = carers > 1 ? ` × ${carers} carers` : ''
+  const mins = visit.durationMinutes
+  // Rates still at 0 (a line not filled in yet) are ignored, as on the server.
+  if (visit.nightDuty === 'SLEEPING_NIGHT' && rates?.sleepingNightPrice) {
+    return { amount: rates.sleepingNightPrice * carers, how: `sleeping night ${money(rates.sleepingNightPrice)}${times}` }
+  }
+  if (visit.nightDuty === 'WAKING_NIGHT' && rates?.wakingNightHourly) {
+    return {
+      amount: ((rates.wakingNightHourly * mins) / 60) * carers,
+      how: `waking night ${money(rates.wakingNightHourly)}/hour × ${mins} min${times}`,
+    }
+  }
+  const band = [...(rates?.shortVisits ?? [])].filter(b => b.pricePerVisit > 0).sort((a, b) => a.upToMinutes - b.upToMinutes).find(b => mins <= b.upToMinutes)
+  if (band) return { amount: band.pricePerVisit * carers, how: `short visit (up to ${band.upToMinutes} min) ${money(band.pricePerVisit)}${times}` }
+  if (hourlyRate == null) return null
+  return { amount: ((hourlyRate * mins) / 60) * carers, how: `${money(hourlyRate)}/hour × ${mins} min${times}` }
+}
+
+/** "Weekends +20% · bank holidays £30.00/hour" — the day rates that change a visit's price. */
+export function dayRatesNote(rates: QuoteRates | null | undefined): string | null {
+  const one = (label: string, r: QuoteRates['weekend']) =>
+    r && r.value > 0 ? `${label} ${r.mode === 'PERCENT' ? `+${r.value}%` : `${money(r.value)}/hour`}` : null
+  const parts = [one('weekends', rates?.weekend), one('bank holidays', rates?.bankHoliday)].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
+}

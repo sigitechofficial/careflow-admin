@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { AlarmClock, FolderOpen, Inbox, Plus, Search, TrendingUp, Trophy, X } from 'lucide-react'
+import { AlarmClock, FileInput, FolderOpen, Inbox, Plus, Search, TrendingUp, Trophy, X } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { StatCard } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
@@ -9,7 +9,7 @@ import { LoadingSpinner } from '@/shared/ui/page-elements'
 import { useAuthStore } from '@/features/auth/store'
 import { CrmSectionLayout } from '@/features/crm/components/CrmSectionLayout'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
-import { useEnquiries, useEnquiryOwners, useEnquirySummary } from '@/features/crm/hooks/useCrm'
+import { useEnquiries, useEnquiryOwners } from '@/features/crm/hooks/useCrm'
 import {
   BOARD_STAGES,
   SOURCE_LABELS,
@@ -20,7 +20,29 @@ import {
   URGENCY_OPTIONS,
   isFollowUpOverdue,
 } from '@/features/crm/crm-labels'
-import type { Enquiry, EnquirySource, EnquiryUrgency } from '@/features/crm/types/crm.types'
+import type { Enquiry, EnquiryKind, EnquirySource, EnquiryUrgency } from '@/features/crm/types/crm.types'
+
+type KindTab = 'ALL' | EnquiryKind
+const KIND_TABS: { key: KindTab; label: string }[] = [
+  { key: 'ALL', label: 'All' },
+  { key: 'ENQUIRY', label: 'Enquiries' },
+  { key: 'REFERRAL', label: 'Referrals' },
+]
+
+/** Pipeline figures for the rows on the chosen tab (before the toolbar filters). */
+function pipelineSummary(rows: Enquiry[]) {
+  const won = rows.filter(e => e.stage === 'WON').length
+  const lost = rows.filter(e => e.stage === 'LOST').length
+  const decided = won + lost
+  return {
+    total: rows.length,
+    open: rows.length - decided,
+    won,
+    lost,
+    winRate: decided ? Math.round((won / decided) * 100) : 0,
+    followUpsDue: rows.filter(isFollowUpOverdue).length,
+  }
+}
 
 function initialsOf(first?: string | null, last?: string | null): string {
   return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase() || '?'
@@ -56,7 +78,16 @@ function matches(e: Enquiry, f: Filters): boolean {
   if (f.overdueOnly && !isFollowUpOverdue(e)) return false
   const q = f.q.trim().toLowerCase()
   if (q) {
-    const hay = [e.firstName, e.lastName, e.referenceNumber, e.contactName, e.contactPhone, e.postcode]
+    const hay = [
+      e.firstName,
+      e.lastName,
+      e.referenceNumber,
+      e.contactName,
+      e.contactPhone,
+      e.postcode,
+      e.referringOrganisation,
+      e.referralReference,
+    ]
       .filter(Boolean)
       .join(' ')
       .toLowerCase()
@@ -88,11 +119,18 @@ function EnquiryCard({ e }: { e: Enquiry }) {
             {e.locationName ? ` · ${e.locationName}` : ''}
           </p>
         </div>
-        {e.urgency === 'URGENT' && (
-          <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-red-700 dark:bg-red-950 dark:text-red-300">
-            Urgent
-          </span>
-        )}
+        <span className="flex shrink-0 flex-col items-end gap-1">
+          {e.kind === 'REFERRAL' && (
+            <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+              Referral
+            </span>
+          )}
+          {e.urgency !== 'ROUTINE' && (
+            <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-red-700 dark:bg-red-950 dark:text-red-300">
+              {URGENCY_LABELS[e.urgency]}
+            </span>
+          )}
+        </span>
       </div>
 
       {overdue && (
@@ -103,7 +141,7 @@ function EnquiryCard({ e }: { e: Enquiry }) {
       )}
 
       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span className="truncate">{SOURCE_LABELS[e.source]}</span>
+        <span className="truncate">{e.kind === 'REFERRAL' && e.referringOrganisation ? e.referringOrganisation : SOURCE_LABELS[e.source]}</span>
         <span className="flex shrink-0 items-center gap-2">
           <span>{daysSince(e.stageChangedAt)}d</span>
           <span
@@ -125,14 +163,21 @@ export default function EnquiryBoardPage() {
   const canManage = useAuthStore(s => s.can)('crm.manage')
   const { locationId: headerLocationId } = useGlobalLocationScope()
   const { data: enquiries, isLoading } = useEnquiries(headerLocationId ? { locationId: headerLocationId } : undefined)
-  const { data: summary } = useEnquirySummary(headerLocationId ?? undefined)
   const { data: owners = [] } = useEnquiryOwners()
   const [filters, setFilters] = React.useState<Filters>(EMPTY_FILTERS)
+  const [tab, setTab] = React.useState<KindTab>('ALL')
+  const tabRows = React.useMemo(
+    () => (enquiries ?? []).filter(e => tab === 'ALL' || e.kind === tab),
+    [enquiries, tab],
+  )
+  const summary = React.useMemo(() => (enquiries ? pipelineSummary(tabRows) : null), [enquiries, tabRows])
+  const countFor = (k: KindTab) => (enquiries ?? []).filter(e => k === 'ALL' || e.kind === k).length
+  const noun = tab === 'REFERRAL' ? 'referrals' : tab === 'ENQUIRY' ? 'enquiries' : 'enquiries & referrals'
 
   const setFilter = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     setFilters(prev => ({ ...prev, [key]: value }))
 
-  const filtered = React.useMemo(() => (enquiries ?? []).filter(e => matches(e, filters)), [enquiries, filters])
+  const filtered = React.useMemo(() => tabRows.filter(e => matches(e, filters)), [tabRows, filters])
   const isFiltered = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS)
 
   const byStage = React.useMemo(() => {
@@ -144,8 +189,8 @@ export default function EnquiryBoardPage() {
 
   return (
     <CrmSectionLayout
-      title="Enquiries"
-      description="Capture enquiries, move them through the pipeline and convert them to clients."
+      title="Enquiries & Referrals"
+      description="Capture enquiries and referrals, move them through the pipeline and convert them to clients."
       testId="crm-board-page"
       actions={
         canManage
@@ -155,14 +200,37 @@ export default function EnquiryBoardPage() {
                 icon: <Plus className="h-4 w-4" aria-hidden />,
                 onClick: () => navigate({ to: '/crm/new' }),
               },
+              {
+                label: 'New referral',
+                icon: <FileInput className="h-4 w-4" aria-hidden />,
+                onClick: () => navigate({ to: '/crm/new', search: { kind: 'REFERRAL' } }),
+              },
             ]
           : undefined
       }
     >
       <div className="flex flex-col gap-4">
+        <div role="tablist" aria-label="Show" className="inline-flex self-start rounded-lg border border-border bg-muted/40 p-1">
+          {KIND_TABS.map(t => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                tab === t.key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+              <span className="rounded-full bg-muted px-1.5 text-xs text-muted-foreground">{countFor(t.key)}</span>
+            </button>
+          ))}
+        </div>
+
         {summary && (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <StatCard label="Total enquiries" value={summary.total} tone="primary" icon={<Inbox className="h-4 w-4" aria-hidden />} />
+            <StatCard label={`Total ${noun}`} value={summary.total} tone="primary" icon={<Inbox className="h-4 w-4" aria-hidden />} />
             <StatCard label="Open" value={summary.open} tone="sky" icon={<FolderOpen className="h-4 w-4" aria-hidden />} />
             <StatCard label="Won" value={summary.won} tone="emerald" icon={<Trophy className="h-4 w-4" aria-hidden />} />
             <StatCard
@@ -176,7 +244,7 @@ export default function EnquiryBoardPage() {
               label="Follow-ups due"
               value={summary.followUpsDue ?? 0}
               tone={summary.followUpsDue ? 'rose' : 'muted'}
-              hint="Open enquiries past their follow-up date"
+              hint={`Open ${noun} past their follow-up date`}
               icon={<AlarmClock className="h-4 w-4" aria-hidden />}
             />
           </div>
@@ -188,7 +256,7 @@ export default function EnquiryBoardPage() {
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
               className="pl-8"
-              placeholder="Search name, ref, contact, postcode…"
+              placeholder="Search name, ref, contact, postcode, referrer…"
               value={filters.q}
               onChange={e => setFilter('q', e.target.value)}
             />
@@ -239,7 +307,7 @@ export default function EnquiryBoardPage() {
           )}
           {isFiltered && (
             <span className="text-xs text-muted-foreground">
-              {filtered.length} of {enquiries?.length ?? 0}
+              {filtered.length} of {tabRows.length}
             </span>
           )}
         </div>
@@ -266,7 +334,7 @@ export default function EnquiryBoardPage() {
                     ))}
                     {items.length === 0 && (
                       <p className="rounded-lg border border-dashed border-border/70 p-3 text-center text-xs text-muted-foreground">
-                        No enquiries
+                        No {noun}
                       </p>
                     )}
                   </div>

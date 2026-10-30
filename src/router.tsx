@@ -137,6 +137,7 @@ import EnquiryDetailPage from '@/features/crm/pages/EnquiryDetailPage'
 import EnquiryNewPage from '@/features/crm/pages/EnquiryNewPage'
 import EnquiryEditPage from '@/features/crm/pages/EnquiryEditPage'
 import QuotationEditorPage from '@/features/crm/pages/QuotationEditorPage'
+import QuoteServiceUserPage from '@/features/crm/pages/QuoteServiceUserPage'
 import HoursApprovalsPage from '@/features/hours-approvals/pages/HoursApprovalsPage'
 import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
 import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
@@ -391,12 +392,13 @@ const pageTitles: Record<string, string> = {
   '/specialist-pathways/$pathway/$caseId': 'Pathway case',
   '/safeguarding': 'Safeguarding',
   '/safeguarding/$caseId': 'Safeguarding case',
-  '/crm': 'Enquiries',
+  '/crm': 'Enquiries & Referrals',
   '/crm/$enquiryId': 'Enquiry',
-  '/crm/new': 'New enquiry',
+  '/crm/new': 'New enquiry or referral',
   '/crm/$enquiryId/edit': 'Edit enquiry',
   '/crm/$enquiryId/quotes/new': 'New quotation',
   '/crm/$enquiryId/quotes/$quotationId/$versionId': 'Quotation',
+  '/crm/$enquiryId/quotes/$quotationId/$versionId/service-user': 'Create service user',
   '/learning/dashboard': 'Learning dashboard',
   '/learning/courses': 'Learning courses',
   '/learning/courses/new': 'New course',
@@ -2455,6 +2457,9 @@ const crmNewEnquiryRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/crm/new',
   beforeLoad: requirePermission('crm.manage'),
+  // ?kind=REFERRAL starts the form as a referral ("New referral").
+  validateSearch: (raw: Record<string, unknown>): { kind?: 'REFERRAL' } =>
+    raw.kind === 'REFERRAL' ? { kind: 'REFERRAL' } : {},
   component: EnquiryNewPage,
 })
 
@@ -2480,6 +2485,13 @@ const crmQuotationRoute = createRoute({
   }),
   beforeLoad: requirePermission('crm.read'),
   component: QuotationEditorPage,
+})
+
+const crmQuoteServiceUserRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/$enquiryId/quotes/$quotationId/$versionId/service-user',
+  beforeLoad: requirePermission('crm.manage'),
+  component: QuoteServiceUserPage,
 })
 
 const policiesLibraryRoute = createRoute({
@@ -2754,6 +2766,7 @@ const routeTree = rootRoute.addChildren([
     crmEditEnquiryRoute,
     crmNewQuotationRoute,
     crmQuotationRoute,
+    crmQuoteServiceUserRoute,
     policiesLibraryRoute,
     policyNewRoute,
     policyCategoriesRoute,

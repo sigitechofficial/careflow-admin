@@ -3377,7 +3377,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
               <InitialAssessmentTranscriptionPanel
                 serviceUserId={selectedId}
                 submissionId={submissionId}
-                canUpdate={canUpdate}
+                // A recording is saved to the assessment, so only while it can still be changed.
+                canUpdate={canUpdate && editable}
                 fillTarget={{
                   tabTitle: currentHolisticTab.title,
                   questions: transcriptFillQuestions,

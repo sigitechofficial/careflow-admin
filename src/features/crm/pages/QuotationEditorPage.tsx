@@ -39,6 +39,9 @@ import {
 } from '@/features/crm/hooks/useQuotations'
 import { QUOTE_STATUS_CLASS, QUOTE_TYPE_LABELS, emptyPattern, hours, money } from '@/features/crm/quote-labels'
 import { VisitPatternBuilder, patternProblems } from '@/features/crm/components/quote-editor/VisitPatternBuilder'
+import { QuoteRatesEditor } from '@/features/crm/components/quote-editor/QuoteRatesEditor'
+import { QuoteClientLayoutChoice } from '@/features/crm/components/quote-editor/QuoteClientLayoutChoice'
+import { VisitSlotsBuilder } from '@/features/crm/components/quote-editor/VisitSlotsBuilder'
 import { CostSummary, FundingAndExtras } from '@/features/crm/components/quote-editor/QuotePricingSections'
 import { ResponsesAndActivityPanel, ReviewAndSendPanel } from '@/features/crm/components/quote-editor/QuoteReviewPanels'
 import type { Enquiry } from '@/features/crm/types/crm.types'
@@ -58,10 +61,13 @@ const SECTION_ALIASES: Record<string, SectionKey> = { general: 'cost', care: 'sc
 const isSectionKey = (s: string | undefined): s is SectionKey => SECTIONS.some(x => x.key === s)
 
 /** Something to fix before the quote can be issued, and where to fix it. */
-type Issue = { section: SectionKey; message: string; patternIndex?: number; block?: 'funding' | 'extras'; details?: boolean }
+/** `field` is the id of the input to scroll to and focus (e.g. the branch select inside Quote details). */
+type Issue = { section: SectionKey; message: string; patternIndex?: number; block?: 'funding' | 'extras'; details?: boolean; field?: string }
 
 /** Where a server pricing problem is fixed: the visit it belongs to, the funding or extras block, or the summary. */
 function routeForProblem(message: string, pricing: QuotePricing | null): Omit<Issue, 'message'> {
+  if (/hourly rate/i.test(message)) return { section: 'schedule', field: 'quote-hourly-rate-input' }
+  if (/weekly total/i.test(message)) return { section: 'schedule', field: 'quote-manual-total-input' }
   const patternIndex = pricing?.patterns.findIndex(p => p.issues.includes(message)) ?? -1
   if (patternIndex >= 0) return { section: 'schedule', patternIndex }
   if (/VAT|tax treatment/i.test(message)) return { section: 'cost' }
@@ -95,7 +101,10 @@ function formFromDetail(d: QuoteVersionDetail): QuoteDraftInput {
     validUntil: d.validUntil,
     assessmentReference: d.assessmentReference,
     fundingCategory: d.fundingCategory,
-    chargeCardId: d.chargeCardId,
+    hourlyRate: d.hourlyRate,
+    rates: d.rates,
+    clientLayout: d.clientLayout,
+    manualWeeklyTotal: d.manualWeeklyTotal,
     internalNotes: d.internalNotes,
     clientNotes: d.clientNotes,
     terms: d.terms,
@@ -132,6 +141,10 @@ function newForm(enquiry: Enquiry): QuoteDraftInput {
     proposedStartDate: enquiry.requestedStartDate?.slice(0, 10) ?? null,
     validUntil: in30,
     fundingCategory: 'PRIVATE',
+    hourlyRate: enquiry.quoteHourlyRate ?? null,
+    rates: null,
+    clientLayout: 'DETAILED',
+    manualWeeklyTotal: null,
     patterns: [emptyPattern()],
     fundings: [],
     extras: [],
@@ -156,7 +169,9 @@ function cleanForm(f: QuoteDraftInput): QuoteDraftInput {
       effectiveFrom: blank(p.effectiveFrom),
       effectiveTo: blank(p.effectiveTo),
       notes: blank(p.notes),
-      overrideReason: p.manualChargePerVisit == null ? null : blank(p.overrideReason),
+      // Quotes are priced from the hourly rate only; an own price per visit is no longer offered.
+      manualChargePerVisit: null,
+      overrideReason: null,
       daysOfWeek: p.frequency === 'ONE_OFF' ? [] : p.daysOfWeek,
       oneOffDates: p.frequency === 'ONE_OFF' ? p.oneOffDates : [],
     })),
@@ -166,16 +181,29 @@ function cleanForm(f: QuoteDraftInput): QuoteDraftInput {
 /** Everything that blocks issuing, each tied to the section (and visit) where it is fixed. */
 function collectIssues(form: QuoteDraftInput, pricing: QuotePricing | null): Issue[] {
   const out: Issue[] = []
-  if (!form.locationId) out.push({ section: 'cost', details: true, message: 'Choose the branch' })
-  if (!form.validUntil) out.push({ section: 'cost', details: true, message: 'Set the valid-until date' })
+  if (!form.locationId) out.push({ section: 'cost', details: true, field: 'quote-branch', message: 'Choose the branch' })
+  if (!form.validUntil) out.push({ section: 'cost', details: true, field: 'quote-valid-until', message: 'Set the valid-until date' })
   if (form.proposedStartDate && form.proposedEndDate && form.proposedEndDate < form.proposedStartDate) {
-    out.push({ section: 'cost', details: true, message: 'The proposed end date is before the start date' })
+    out.push({ section: 'cost', details: true, field: 'quote-end-date', message: 'The proposed end date is before the start date' })
   }
   if (form.issueDate && form.validUntil && form.validUntil < form.issueDate) {
-    out.push({ section: 'cost', details: true, message: 'Valid until is before the issue date' })
+    out.push({ section: 'cost', details: true, field: 'quote-valid-until', message: 'Valid until is before the issue date' })
   }
   const patterns = form.patterns ?? []
   if (!patterns.length) out.push({ section: 'schedule', message: 'Add at least one visit' })
+  // Listed first so the server's per-visit copies of this message (filtered below) don't point at a visit.
+  // Visits priced by a night or short-visit rate need no hourly rate; the server says which do.
+  if (
+    form.clientLayout !== 'SUMMARY' &&
+    form.hourlyRate == null &&
+    patterns.length > 0 &&
+    (!pricing || pricing.issues.includes('Set the hourly rate for this quote'))
+  ) {
+    out.push({ section: 'schedule', field: 'quote-hourly-rate-input', message: 'Set the hourly rate for this quote' })
+  }
+  if ((form.fundings ?? []).some(f => !f.funderId && !f.payerName?.trim())) {
+    out.push({ section: 'pricing', block: 'funding', message: 'Choose the funder for each funding line' })
+  }
   // Pattern problems come from the browser check first; the server adds missing-rate problems.
   const patternIssues = new Set<string>()
   patterns.forEach((p, i) => {
@@ -259,7 +287,7 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
   const [focus, setFocus] = React.useState<{ index: number; seq: number } | null>(null)
   const [form, setForm] = React.useState<QuoteDraftInput>(() => (detail ? formFromDetail(detail) : newForm(enquiry)))
   const [dirty, setDirty] = React.useState(!detail)
-  const [live, setLive] = React.useState<{ pricing: QuotePricing; cardName: string | null } | null>(null)
+  const [live, setLive] = React.useState<{ pricing: QuotePricing } | null>(null)
   const contentRef = React.useRef<HTMLDivElement>(null)
 
   // A reload (save, status change) replaces the form with the server copy.
@@ -276,13 +304,17 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
   React.useEffect(() => {
     if (!editable) return
     const t = window.setTimeout(() => {
-      previewMutate(cleanForm(form), { onSuccess: r => setLive({ pricing: r.pricing, cardName: r.card?.name ?? null }) })
+      previewMutate(cleanForm(form), { onSuccess: r => setLive({ pricing: r.pricing }) })
     }, 600)
     return () => window.clearTimeout(t)
   }, [form, editable, previewMutate])
 
   const pricing: QuotePricing | null = editable ? (live?.pricing ?? detail?.pricing ?? null) : (detail?.pricing ?? null)
-  const cardName = editable ? (live?.cardName ?? detail?.pricingCard?.name ?? null) : (detail?.pricingCard?.name ?? null)
+  const manualTotal = form.clientLayout === 'SUMMARY'
+  const rateLabel = manualTotal
+    ? 'Total amount quote'
+    : (form.hourlyRate != null ? `${money(form.hourlyRate)} per carer per hour` : 'No hourly rate yet') +
+      (form.rates ? ' + other rates' : '')
   const issues = editable ? collectIssues(form, pricing) : []
   const issuesBySection = (key: SectionKey) => issues.filter(i => i.section === key).length
 
@@ -291,16 +323,35 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
     setDirty(true)
   }
   const [highlight, setHighlight] = React.useState<{ block: 'funding' | 'extras'; seq: number } | null>(null)
-  const go = (key: SectionKey, patternIndex?: number, block?: 'funding' | 'extras', details?: boolean) => {
+  const [fieldFocus, setFieldFocus] = React.useState<{ id: string; seq: number } | null>(null)
+  const go = (key: SectionKey, patternIndex?: number, block?: 'funding' | 'extras', details?: boolean, field?: string) => {
     setSection(key)
     if (details) setDetailsOpen(true)
     if (patternIndex != null) setFocus(f => ({ index: patternIndex, seq: (f?.seq ?? 0) + 1 }))
-    if (block) setHighlight(h => ({ block, seq: (h?.seq ?? 0) + 1 }))
+    if (field) setFieldFocus(f => ({ id: field, seq: (f?.seq ?? 0) + 1 }))
+    else if (block) setHighlight(h => ({ block, seq: (h?.seq ?? 0) + 1 }))
     else contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+  // After the step (and any fold) has rendered: bring the field into view, focus it and flash it.
+  React.useEffect(() => {
+    if (!fieldFocus) return
+    let timer = 0
+    const frame = window.requestAnimationFrame(() => {
+      const el = document.getElementById(fieldFocus.id)
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.focus({ preventScroll: true })
+      el.classList.add('ring-2', 'ring-amber-400', 'ring-offset-2')
+      timer = window.setTimeout(() => el.classList.remove('ring-2', 'ring-amber-400', 'ring-offset-2'), 2500)
+    })
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+    }
+  }, [fieldFocus])
   const resolve = (message: string) => {
     const r = routeForProblem(message, pricing)
-    go(r.section, r.patternIndex, r.block)
+    go(r.section, r.patternIndex, r.block, r.details, r.field)
   }
   const openVersion = (versionId: string) =>
     navigate({ to: '/crm/$enquiryId/quotes/$quotationId/$versionId', params: { enquiryId: enquiry.id, quotationId: detail!.quotationId, versionId } })
@@ -379,13 +430,22 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat icon={PoundSterling} label="Weekly total" value={money(pricing?.weeklyTotal ?? null)} sub={pricing?.oneOffTotal ? `+ ${money(pricing.oneOffTotal)} one-off` : undefined} />
         <Stat icon={CalendarClock} label="Average month" value={money(pricing?.estimates.find(e => e.key === 'monthlyAverage')?.amount ?? null)} sub="Weekly × 52 ÷ 12" />
-        <Stat
-          icon={Users}
-          label="Hours per week"
-          value={pricing ? `${hours(pricing.weeklyCoverageMinutes)} cover` : '—'}
-          sub={pricing ? `${hours(pricing.weeklyCarerMinutes)} carer time` : undefined}
-        />
-        <Stat icon={Wallet} label="Client pays per week" value={money(pricing?.clientWeeklyLiability ?? null)} sub={cardName ? `Rates: ${cardName}` : 'No charge card found'} />
+        {pricing?.manual ? (
+          <Stat
+            icon={Users}
+            label="Visits per week"
+            value={String(pricing.patterns.reduce((n, p) => n + p.weeklyOccurrences, 0))}
+            sub="Total amount quote (no times)"
+          />
+        ) : (
+          <Stat
+            icon={Users}
+            label="Hours per week"
+            value={pricing ? `${hours(pricing.weeklyCoverageMinutes)} cover` : '—'}
+            sub={pricing ? `${hours(pricing.weeklyCarerMinutes)} carer time` : undefined}
+          />
+        )}
+        <Stat icon={Wallet} label="Client pays per week" value={money(pricing?.clientWeeklyLiability ?? null)} sub={`Rate: ${rateLabel}`} />
       </div>
 
       {/* What still needs doing, with a link to each place */}
@@ -401,7 +461,7 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
                 <button
                   type="button"
                   className="group flex w-full items-center justify-between gap-3 rounded-md px-2 py-1 text-left text-sm hover:bg-amber-100 dark:hover:bg-amber-900/40"
-                  onClick={() => go(issue.section, issue.patternIndex, issue.block, issue.details)}
+                  onClick={() => go(issue.section, issue.patternIndex, issue.block, issue.details, issue.field)}
                 >
                   <span>{issue.message}</span>
                   <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
@@ -488,14 +548,72 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
                   </p>
                   {enquiry.needs && <p className="whitespace-pre-wrap">{enquiry.needs}</p>}
                 </div>
+                <QuoteClientLayoutChoice
+                  value={form.clientLayout ?? 'DETAILED'}
+                  onChange={clientLayout =>
+                    patch({
+                      clientLayout,
+                      // Start the typed total from the price worked out so far.
+                      ...(clientLayout === 'SUMMARY' && form.manualWeeklyTotal == null && pricing?.visitsWeekly
+                        ? { manualWeeklyTotal: pricing.visitsWeekly }
+                        : {}),
+                    })
+                  }
+                  readOnly={!editable}
+                />
+                {manualTotal ? (
+                  <>
+                    <fieldset disabled={!editable} className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm" data-testid="quote-manual-total">
+                      <Field label="Weekly total for the visits (£)" required hint="The price of all the visits below for one week. Extras, discounts and funding are added in the next steps.">
+                        <div className="relative w-44">
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">£</span>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            className={`pl-7 ${form.manualWeeklyTotal == null ? 'border-amber-400' : ''}`}
+                            id="quote-manual-total-input"
+                            placeholder="e.g. 350.00"
+                            value={form.manualWeeklyTotal ?? ''}
+                            onChange={e => patch({ manualWeeklyTotal: e.target.value === '' ? null : Number(e.target.value) })}
+                          />
+                        </div>
+                      </Field>
+                    </fieldset>
+                    <VisitSlotsBuilder patterns={form.patterns ?? []} onChange={patterns => patch({ patterns })} readOnly={!editable} />
+                  </>
+                ) : (
+                <>
+                <fieldset disabled={!editable} className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm" data-testid="quote-hourly-rate">
+                  <Field label="Hourly rate (£ per carer per hour)" required hint="Visits are priced as rate × visit length × carers, unless another rate below applies.">
+                    <div className="relative w-44">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">£</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        className={`pl-7 ${form.hourlyRate == null ? 'border-amber-400' : ''}`}
+                        id="quote-hourly-rate-input"
+                        placeholder="e.g. 25.00"
+                        value={form.hourlyRate ?? ''}
+                        onChange={e => patch({ hourlyRate: e.target.value === '' ? null : Number(e.target.value) })}
+                      />
+                    </div>
+                  </Field>
+                </fieldset>
+                <QuoteRatesEditor value={form.rates} onChange={rates => patch({ rates })} readOnly={!editable} />
                 <VisitPatternBuilder
                   patterns={form.patterns ?? []}
                   onChange={patterns => patch({ patterns })}
                   readOnly={!editable}
                   pricing={pricing}
+                  hourlyRate={form.hourlyRate ?? null}
+                  rates={form.rates ?? null}
                   focusIndex={focus?.index}
                   focusKey={focus?.seq}
                 />
+                </>
+                )}
               </>
             )}
 
@@ -509,7 +627,7 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
                 onExtras={extras => patch({ extras })}
                 readOnly={!editable}
                 pricing={pricing}
-                cardName={cardName}
+                rateLabel={rateLabel}
                 highlight={highlight}
               />
             )}
@@ -538,7 +656,7 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
                   </select>
                 </Field>
                 <Field label="Branch" required>
-                  <select className={selectClass} value={form.locationId ?? ''} onChange={e => patch({ locationId: e.target.value || undefined })}>
+                  <select id="quote-branch" className={selectClass} value={form.locationId ?? ''} onChange={e => patch({ locationId: e.target.value || undefined })}>
                     <option value="">Select branch…</option>
                     {branches.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}
                   </select>
@@ -554,9 +672,9 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
                   <p className="mb-3 flex items-center gap-2 text-sm font-semibold"><CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden />Dates</p>
                   <div className="grid gap-5 sm:grid-cols-2">
                     <Field label="Proposed start"><Input type="date" value={form.proposedStartDate ?? ''} onChange={e => patch({ proposedStartDate: e.target.value })} /></Field>
-                    <Field label="Proposed end" hint="Leave empty for ongoing care"><Input type="date" value={form.proposedEndDate ?? ''} onChange={e => patch({ proposedEndDate: e.target.value })} /></Field>
+                    <Field label="Proposed end" hint="Leave empty for ongoing care"><Input id="quote-end-date" type="date" value={form.proposedEndDate ?? ''} onChange={e => patch({ proposedEndDate: e.target.value })} /></Field>
                     <Field label="Issue date" hint="Leave empty to use the day it is approved"><Input type="date" value={form.issueDate ?? ''} onChange={e => patch({ issueDate: e.target.value })} /></Field>
-                    <Field label="Valid until" required><Input type="date" value={form.validUntil ?? ''} onChange={e => patch({ validUntil: e.target.value })} /></Field>
+                    <Field label="Valid until" required><Input id="quote-valid-until" type="date" value={form.validUntil ?? ''} onChange={e => patch({ validUntil: e.target.value })} /></Field>
                   </div>
                 </div>
                 <div className="sm:col-span-2">
@@ -658,7 +776,7 @@ export default function QuotationEditorPage() {
       description={`Care quotation for ${enquiry.firstName} ${enquiry.lastName}`}
       testId="crm-quote-editor"
       breadcrumbTail={[
-        { label: 'Enquiries', href: '/crm' },
+        { label: 'Enquiries & Referrals', href: '/crm' },
         { label: enquiry.referenceNumber, href: `/crm/${enquiry.id}` },
         { label: title },
       ]}

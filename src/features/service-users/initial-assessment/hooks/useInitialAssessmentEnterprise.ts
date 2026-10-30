@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  fetchInitialAssessmentAttachmentFile,
   createInitialAssessmentSubmission,
   fetchDefaultInitialAssessmentTemplate,
   fetchInitialAssessmentTemplate,
@@ -321,9 +322,13 @@ export function useUploadInitialAssessmentAttachment(serviceUserId: string, subm
 }
 
 export function useStartInitialAssessmentTranscription(serviceUserId: string, submissionId: string) {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ file, fileName }: { file: Blob; fileName: string }) =>
       startInitialAssessmentTranscription(serviceUserId, submissionId, file, fileName),
+    // The recording is saved to the assessment's attachments as soon as it is uploaded.
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: initialAssessmentKeys.attachments(serviceUserId, submissionId) }),
   })
 }
 
@@ -350,6 +355,14 @@ export function useInitialAssessmentTranscription(
       const status = query.state.data?.status
       return status === 'DONE' || status === 'FAILED' || query.state.error ? false : 2000
     },
+  })
+}
+
+/** Reads an attachment's file (recordings and transcripts are only served through this endpoint). */
+export function useInitialAssessmentAttachmentFile(serviceUserId: string) {
+  return useMutation({
+    mutationFn: ({ submissionId, attachmentId }: { submissionId: string; attachmentId: string }) =>
+      fetchInitialAssessmentAttachmentFile(serviceUserId, submissionId, attachmentId),
   })
 }
 
