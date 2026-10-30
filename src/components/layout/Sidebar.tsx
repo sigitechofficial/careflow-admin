@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import {
+  History,
   Home,
   Users,
   Calendar,
@@ -461,6 +462,14 @@ const navItems: NavItem[] = [
         href: '/hours-approvals',
         anyPermission: ['hours_approvals.read', 'hours_approvals.manage'],
         navTestId: 'nav-hours-approvals',
+      },
+      {
+        section: 'Time & absence',
+        label: 'Hours & visits history',
+        icon: <History className="h-4 w-4" />,
+        href: '/hours-history',
+        anyPermission: ['hours_approvals.read', 'hours_approvals.manage'],
+        navTestId: 'nav-hours-history',
       },
       {
         section: 'Time & absence',

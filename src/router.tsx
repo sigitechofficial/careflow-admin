@@ -16,6 +16,7 @@ import { queryClient } from '@/app/query-client'
 import { DevUiTraceChip } from '@/dev/DevUiTraceChip'
 import { traceUi } from '@/dev/ui-trace'
 import { AppToaster } from '@/components/layout/AppToaster'
+import { CarerHoursStopDialog } from '@/components/layout/CarerHoursStopDialog'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ScrollToTopOnNavigate } from '@/components/layout/ScrollToTopOnNavigate'
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
@@ -137,6 +138,7 @@ import EnquiryDetailPage from '@/features/crm/pages/EnquiryDetailPage'
 import EnquiryNewPage from '@/features/crm/pages/EnquiryNewPage'
 import EnquiryEditPage from '@/features/crm/pages/EnquiryEditPage'
 import HoursApprovalsPage from '@/features/hours-approvals/pages/HoursApprovalsPage'
+import HoursHistoryPage from '@/features/hours-approvals/pages/HoursHistoryPage'
 import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
 import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
 import IncidentsDashboardPage from '@/features/incidents/pages/IncidentsDashboardPage'
@@ -579,7 +581,7 @@ function AppRootShell() {
   const employeeManagementWide =
     /^\/employee(?:\/(?:staff-list|hours|compliance|review-status|skills|non-core-activity|reports|add)|\/[^/]+\/edit)?$/.test(
       pathname,
-    ) || pathname === '/hours-approvals'
+    ) || pathname === '/hours-approvals' || pathname === '/hours-history'
   const serviceUserHoursWide = pathname === '/service-users/hours'
   const contentLayout =
     fullBleed ? 'full' : employeeManagementWide || serviceUserHoursWide ? 'wide' : 'default'
@@ -590,6 +592,7 @@ function AppRootShell() {
       <CompanyBrandingBootstrap />
       <OrganisationDisplayFormatProvider>
         <AppToaster />
+        <CarerHoursStopDialog />
         <UrgentOfficeAlertHost />
         <DevUiTraceChip />
         <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
@@ -1725,6 +1728,13 @@ const hoursApprovalsRoute = createRoute({
   component: HoursApprovalsPage,
 })
 
+const hoursHistoryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hours-history',
+  beforeLoad: requireAnyPermission('hours_approvals.read', 'hours_approvals.manage'),
+  component: HoursHistoryPage,
+})
+
 const incidentsListRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/incidents/view',
@@ -2651,6 +2661,7 @@ const routeTree = rootRoute.addChildren([
     surveyBuilderRoute,
     surveyResponsesRoute,
     hoursApprovalsRoute,
+    hoursHistoryRoute,
     incidentsDashboardRoute,
     incidentsListRoute,
     incidentsRaiseRoute,

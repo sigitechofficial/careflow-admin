@@ -10,6 +10,7 @@ export type HoursApprovalType =
   | 'EXTRA_VISIT_OVER_HOURS'
   | 'DRAFT_PLAN_OVER_HOURS'
   | 'ROTA_VISIT_OVER_HOURS'
+  | 'EXTRA_WEEKLY_HOURS'
 
 /** Extra visit over a service user's weekly hours: the visit created if a manager approves. */
 export type ExtraVisitRequestPayload = {
@@ -166,10 +167,27 @@ export type HoursApproval = {
     /** Within the hours, but another rota check stops the approval (why). */
     blockedReason?: string | null
   } | null
-  /** Carer over weekly hours: Approve is refused above this (Settings → Dom Rules). */
+  /** Carer over weekly hours: the carer's maximum weekly hours (Employment; blank = 60h). */
   maxApprovableHours?: number | null
-  /** Carer over weekly hours on a plan: what Reject does (Settings → Dom Rules). */
-  rejectAction?: 'REMOVE_EXTRA_VISITS' | 'REMOVE_FROM_PLAN' | null
+  /** Carer over weekly hours: true = a manager can still approve above `maxApprovableHours`. */
+  allowOverMax?: boolean
+}
+
+/** A visit Reject would leave without the carer. */
+export type RejectPreviewVisit = {
+  date?: string
+  slotLabel: string
+  startTime?: string
+  endTime?: string
+}
+
+/** What Reject would leave without the carer (nothing saved). */
+export async function fetchRejectPreview(id: string): Promise<RejectPreviewVisit[]> {
+  const res = await apiJson<ApiEnvelope<{ id: string; unassignedVisits: RejectPreviewVisit[] }>>(
+    `/hours-approvals/${id}/reject-preview`,
+    { method: 'GET' },
+  )
+  return res.data?.unassignedVisits ?? []
 }
 
 export async function fetchHoursApprovals(
@@ -236,11 +254,13 @@ export async function requestContractedHoursChange(body: {
   employeeId: string
   contractedWeeklyHours: number
   reason?: string
-}): Promise<void> {
-  await apiJson<ApiEnvelope<unknown>>('/hours-approvals/contracted-hours', {
+}): Promise<{ appliedAtOnce: boolean; message: string }> {
+  const res = await apiJson<ApiEnvelope<{ id: string; appliedAtOnce?: boolean }>>('/hours-approvals/contracted-hours', {
     method: 'POST',
     body: JSON.stringify(body),
   })
+  // Settings → Dom Rules: no approval needed — the change was applied straight away.
+  return { appliedAtOnce: res.data?.appliedAtOnce === true, message: res.message ?? '' }
 }
 
 export async function cancelHoursApproval(id: string): Promise<void> {
@@ -348,14 +368,26 @@ export async function grantExtraWeeklyHours(body: {
   endDate?: string
   extraHours: number
   reason?: string
-}): Promise<{ message: string; outcome: ExtraHoursOutcome }> {
+}): Promise<{ message: string; outcome: ExtraHoursOutcome | null; sentForApproval: boolean }> {
   const res = await apiJson<
-    ApiEnvelope<{ id: string; startDate: string; endDate: string; extraHours: number; outcome: ExtraHoursOutcome }>
+    ApiEnvelope<{
+      id: string
+      startDate: string
+      endDate: string
+      extraHours: number
+      outcome?: ExtraHoursOutcome
+      /** Settings → Dom Rules: the extra hours wait for a manager on Hours approvals. */
+      sentForApproval?: boolean
+    }>
   >('/hours-approvals/extra-hours', {
     method: 'POST',
     body: JSON.stringify(body),
   })
-  return { message: res.message ?? 'Extra hours added', outcome: res.data.outcome }
+  return {
+    message: res.message ?? 'Extra hours added',
+    outcome: res.data.outcome ?? null,
+    sentForApproval: res.data.sentForApproval === true,
+  }
 }
 
 export async function cancelExtraWeeklyHours(id: string, reason?: string): Promise<void> {
@@ -368,6 +400,10 @@ export async function cancelExtraWeeklyHours(id: string, reason?: string): Promi
 /** What adding extra hours would do (nothing saved). blockedMessage: it would be refused. */
 export type ExtraHoursPreview = {
   blockedMessage: string | null
+  /** Settings → Dom Rules: the extra hours wait for a manager (nothing applies until approved). */
+  needsApproval?: boolean
+  /** Above the carer's maximum weekly hours, but allowed by Settings → Dom Rules. */
+  overMaxWarning?: string | null
   willApprove: Array<{ approvalId: string; label: string }>
   stillOver: Array<{ approvalId: string; label: string; shortHours: number; weekStart: string }>
   /** Fit the hours, but another rota check (blocked carer, clash…) would stop the approval. */
@@ -395,4 +431,52 @@ export async function checkHoursRequestsWithinLimit(): Promise<{
     { method: 'POST', body: JSON.stringify({}) },
   )
   return res.data ?? { approved: [] }
+}
+
+export type HoursHistoryGroupBy = 'carer' | 'service_user'
+export type HoursHistoryKind = 'EXTRA_HOURS' | 'HOURS_REQUEST' | 'EXTRA_VISIT' | 'SPECIAL_VISIT'
+
+/** One thing given, created or asked for, and who decided it. */
+export type HoursHistoryEvent = {
+  id: string
+  kind: HoursHistoryKind
+  requestType: HoursApprovalType | null
+  /** ACTIVE / CANCELLED (extra hours), CREATED (visits), or the request status. */
+  status: string
+  at: string
+  byName: string | null
+  decidedByName: string | null
+  decidedAt: string | null
+  decisionNotes: string | null
+  periodType: ExtraHoursPeriod | null
+  periodStart: string | null
+  periodEnd: string | null
+  visitDate: string | null
+  startTime: string | null
+  endTime: string | null
+  hours: number | null
+  weekHours: number | null
+  limitHours: number | null
+  previousHours: number | null
+  requestedHours: number | null
+  serviceUserName: string | null
+  carerNames: string[]
+  title: string | null
+  reason: string | null
+}
+
+export type HoursHistoryGroup = { personId: string; personName: string; events: HoursHistoryEvent[] }
+
+export async function fetchHoursHistory(
+  query: { group: HoursHistoryGroupBy; from: string; to: string; kind?: HoursHistoryKind; search?: string },
+  init?: RequestInit,
+): Promise<HoursHistoryGroup[]> {
+  const q = new URLSearchParams({ group: query.group, from: query.from, to: query.to })
+  if (query.kind) q.set('kind', query.kind)
+  if (query.search?.trim()) q.set('search', query.search.trim())
+  const res = await apiJson<ApiEnvelope<HoursHistoryGroup[]>>(`/hours-approvals/history?${q.toString()}`, {
+    method: 'GET',
+    ...init,
+  })
+  return res.data ?? []
 }

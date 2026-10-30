@@ -1,5 +1,10 @@
 import { ApiError, formatApiErrorMessage } from '@/shared/api/api-client'
 import { useToastStore, type ToastVariant } from '@/store/toast.store'
+import {
+  CARER_NO_CONTRACTED_HOURS_CODE,
+  CARER_OVER_MAX_CODE,
+  useCarerHoursStopStore,
+} from '@/store/carer-hours-stop.store'
 
 export function toastSuccess(title: string, description?: string) {
   useToastStore.getState().push({ title, description, variant: 'success' })
@@ -50,6 +55,18 @@ export function extractApiErrorMessage(
 
 /** Convenience for form / API catch blocks. */
 export function toastApiError(e: unknown, title = 'Something went wrong', fallbackMessage?: string) {
+  // Carer weekly hours stops (no contracted hours / above the maximum) open a dialog with a link.
+  if (e instanceof ApiError && e.body && typeof e.body === 'object') {
+    const body = e.body as { code?: unknown; employeeId?: unknown }
+    if (body.code === CARER_NO_CONTRACTED_HOURS_CODE || body.code === CARER_OVER_MAX_CODE) {
+      useCarerHoursStopStore.getState().show({
+        code: body.code,
+        message: extractApiErrorMessage(e, fallbackMessage),
+        employeeId: typeof body.employeeId === 'string' && body.employeeId ? body.employeeId : undefined,
+      })
+      return
+    }
+  }
   toastError(title, extractApiErrorMessage(e, fallbackMessage))
 }
 

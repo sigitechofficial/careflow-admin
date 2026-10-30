@@ -22,11 +22,14 @@ type Props = {
   sending: boolean
   onSend: () => void
   onCancel: () => void
+  /** Settings → Dom Rules: false = the change applies as soon as it is confirmed. */
+  needsApproval?: boolean
 }
 
 /**
- * Contracted weekly hours never change straight away: the change goes to a manager on the
- * Hours approvals page. Shows what approving it would do before it is sent.
+ * Contracted weekly hours change: shows what the change would do (visits unassigned) before it
+ * is sent to a manager on Hours approvals — or, when Settings → Dom Rules needs no approval,
+ * before it is applied.
  */
 export function EmployeeContractedHoursReviewDialog({
   open,
@@ -37,6 +40,7 @@ export function EmployeeContractedHoursReviewDialog({
   sending,
   onSend,
   onCancel,
+  needsApproval = true,
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={next => (!next && !sending ? onCancel() : undefined)}>
@@ -44,12 +48,21 @@ export function EmployeeContractedHoursReviewDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden />
-            Manager approval needed
+            {needsApproval ? 'Manager approval needed' : 'Confirm contracted hours change'}
           </DialogTitle>
           <DialogDescription>
-            Changing {employeeName}&apos;s contracted weekly hours needs a manager&apos;s approval.
-            Nothing changes until it is approved — the hours and visits stay as they are, and the
-            hours can&apos;t be edited again while the request is pending.
+            {needsApproval ? (
+              <>
+                Changing {employeeName}&apos;s contracted weekly hours needs a manager&apos;s approval.
+                Nothing changes until it is approved — the hours and visits stay as they are, and the
+                hours can&apos;t be edited again while the request is pending.
+              </>
+            ) : (
+              <>
+                {employeeName}&apos;s contracted weekly hours change as soon as you confirm. Check the
+                visits below — any over the new hours are unassigned.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="max-h-[60vh] space-y-4 overflow-y-auto">
@@ -72,7 +85,7 @@ export function EmployeeContractedHoursReviewDialog({
           </Button>
           <Button type="button" onClick={onSend} disabled={sending || !impact}>
             {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Send for review
+            {needsApproval ? 'Send for review' : 'Confirm change'}
           </Button>
         </DialogFooter>
       </DialogContent>

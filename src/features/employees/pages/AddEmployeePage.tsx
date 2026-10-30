@@ -1017,17 +1017,26 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
         employeeId: createdEmployeeId,
         body: { ...contractedReview.body, contractedWeeklyHours: savedHours },
       })
-      await requestContractedHoursMutation.mutateAsync({
+      const sent = await requestContractedHoursMutation.mutateAsync({
         employeeId: createdEmployeeId,
         contractedWeeklyHours: contractedReview.requestedHours,
         reason: contractedReviewReason.trim() || undefined,
       })
-      setValue('contractedWeeklyHours', String(savedHours))
       setEmploymentSaved(true)
-      setBanner({
-        type: 'success',
-        text: `Sent for manager approval. Contracted hours stay at ${savedHours}h until it is approved.`,
-      })
+      if (sent.appliedAtOnce) {
+        // Settings → Dom Rules: no approval needed — already applied.
+        setValue('contractedWeeklyHours', String(contractedReview.requestedHours))
+        setBanner({
+          type: 'success',
+          text: `Contracted hours changed to ${contractedReview.requestedHours}h.`,
+        })
+      } else {
+        setValue('contractedWeeklyHours', String(savedHours))
+        setBanner({
+          type: 'success',
+          text: `Sent for manager approval. Contracted hours stay at ${savedHours}h until it is approved.`,
+        })
+      }
       setContractedReview(null)
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Could not send for approval.'
@@ -1983,7 +1992,12 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           <ExtraHoursHistory employeeId={createdEmployeeId} />
                         </div>
                       ) : null}
-                      <FormField label="Maximum" htmlFor="maxh" error={errors.maximumWeeklyHours?.message}>
+                      <FormField
+                        label="Maximum"
+                        htmlFor="maxh"
+                        hint="Left blank = 60h maximum. Can't be less than the contracted hours."
+                        error={errors.maximumWeeklyHours?.message}
+                      >
                         <Input
                           id="maxh"
                           inputMode="decimal"
@@ -2427,6 +2441,10 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
         sending={patchEmploymentMutation.isPending || requestContractedHoursMutation.isPending}
         onSend={() => void sendContractedHoursForReview()}
         onCancel={() => setContractedReview(null)}
+        needsApproval={
+          generalSettingsQuery.data?.domCareAllocationRules?.find(r => r.key === 'carer_over_weekly_hours')
+            ?.weeklyHours?.contractedChangeNeedsApproval ?? true
+        }
       />
     </TooltipProvider>
   )
