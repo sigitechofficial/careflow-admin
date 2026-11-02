@@ -268,6 +268,36 @@ describe('FundingAndExtras funders', () => {
   })
 })
 
+describe('FundingAndExtras extra care', () => {
+  it('adds a care task like medication in one click, as a weekly charge to price', async () => {
+    const onExtras = vi.fn()
+    const extras = [{ kind: 'OTHER' as const, description: 'Shower / bathing', frequency: 'WEEKLY' as const, amount: 20 }]
+    render(
+      <FundingAndExtras
+        category="PRIVATE"
+        onCategory={vi.fn()}
+        fundings={[]}
+        onFundings={vi.fn()}
+        extras={extras}
+        onExtras={onExtras}
+        readOnly={false}
+        pricing={null}
+        rateLabel="£20.00 per carer per hour"
+      />,
+    )
+    // Already added, so it can't be added twice.
+    expect(screen.getByRole('button', { name: 'Shower / bathing' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Medication support' }))
+    expect(onExtras).toHaveBeenLastCalledWith([
+      ...extras,
+      { kind: 'OTHER', description: 'Medication support', frequency: 'WEEKLY', amount: null },
+    ])
+    expect(screen.getByLabelText('Extra name')).toHaveValue('Shower / bathing')
+    expect(screen.getByLabelText('Amount £')).toHaveValue(20)
+    expect(screen.getByLabelText('How often')).toHaveValue('WEEKLY')
+  })
+})
+
 describe('CostSummary', () => {
   it('shows each estimate with its method, coverage vs carer hours and blocking problems', () => {
     const pricing = {

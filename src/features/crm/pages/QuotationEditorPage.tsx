@@ -204,6 +204,9 @@ function collectIssues(form: QuoteDraftInput, pricing: QuotePricing | null): Iss
   if ((form.fundings ?? []).some(f => !f.funderId && !f.payerName?.trim())) {
     out.push({ section: 'pricing', block: 'funding', message: 'Choose the funder for each funding line' })
   }
+  if ((form.extras ?? []).some(e => !e.description.trim())) {
+    out.push({ section: 'pricing', block: 'extras', message: 'Give each extra a name' })
+  }
   // Pattern problems come from the browser check first; the server adds missing-rate problems.
   const patternIssues = new Set<string>()
   patterns.forEach((p, i) => {

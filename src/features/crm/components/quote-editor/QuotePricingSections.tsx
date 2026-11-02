@@ -5,7 +5,6 @@ import { Input } from '@/shared/ui/input'
 import { useQuoteFunders } from '@/features/crm/hooks/useCrm'
 import {
   CHARGE_FREQUENCY_LABELS,
-  EXTRA_KIND_LABELS,
   FUNDING_CATEGORY_LABELS,
   FUNDING_METHOD_LABELS,
   PAYER_TYPE_LABELS,
@@ -14,7 +13,6 @@ import {
 import type {
   QuoteChargeFrequency,
   QuoteExtraInput,
-  QuoteExtraKind,
   QuoteFundingCategory,
   QuoteFundingInput,
   QuoteFundingMethod,
@@ -25,6 +23,17 @@ const selectClass = 'h-10 w-full rounded-md border border-input bg-background px
 /** Select value for a funder kept by name only (no funder id). */
 const LEGACY_FUNDER = '__legacy__'
 const labelClass = 'text-sm font-medium text-foreground'
+
+/** One-click extras: care the person needs on top of the visits, then the usual charges. */
+const EXTRA_PRESETS: { group: 'care' | 'charge'; extra: QuoteExtraInput }[] = [
+  ...['Medication support', 'Shower / bathing', 'Meal preparation', 'Shopping', 'Laundry', 'Escort to appointments'].map(description => ({
+    group: 'care' as const,
+    extra: { kind: 'OTHER' as const, description, frequency: 'WEEKLY' as const, amount: null },
+  })),
+  { group: 'charge', extra: { kind: 'SETUP_FEE', description: 'Set-up fee', frequency: 'ONE_OFF', amount: null } },
+  { group: 'charge', extra: { kind: 'MILEAGE', description: 'Mileage', frequency: 'WEEKLY', amount: null, quantity: null } },
+  { group: 'charge', extra: { kind: 'DISCOUNT', description: 'Discount', frequency: 'WEEKLY', amount: null, isPercentage: false } },
+]
 
 function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
@@ -296,65 +305,143 @@ export function FundingAndExtras({
           onClick={() => setShowExtras(v => !v)}
         >
           <ChevronDown className={`h-4 w-4 transition-transform ${showExtras ? 'rotate-180' : ''}`} aria-hidden />
-          Extra charges or discounts
-          <span className="font-normal text-muted-foreground">{extras.length ? `(${extras.length})` : '(optional: set-up fee, mileage, discount)'}</span>
+          Extra care & charges
+          <span className="font-normal text-muted-foreground">
+            {extras.length ? `(${extras.length})` : '(optional: medication, shower, set-up fee, discount…)'}
+          </span>
         </button>
-        {showExtras && extras.map((e, i) => (
-          <div key={i} className="grid items-start gap-3 rounded-lg border border-border p-4 sm:grid-cols-12">
-            <Field className="sm:col-span-2" label="Type">
-              <select className={selectClass} value={e.kind} onChange={ev => setE(i, { kind: ev.target.value as QuoteExtraKind })}>
-                {(Object.keys(EXTRA_KIND_LABELS) as QuoteExtraKind[]).map(k => <option key={k} value={k}>{EXTRA_KIND_LABELS[k]}</option>)}
-              </select>
-            </Field>
-            <Field className="sm:col-span-4" label="Description">
-              <Input value={e.description} onChange={ev => setE(i, { description: ev.target.value })} />
-            </Field>
-            <Field className="sm:col-span-2" label="Frequency">
-              <select className={selectClass} value={e.frequency} onChange={ev => setE(i, { frequency: ev.target.value as QuoteChargeFrequency })}>
-                {(Object.keys(CHARGE_FREQUENCY_LABELS) as QuoteChargeFrequency[]).map(f => <option key={f} value={f}>{CHARGE_FREQUENCY_LABELS[f]}</option>)}
-              </select>
-            </Field>
-            {e.kind === 'MILEAGE' && (
-              <Field className="sm:col-span-1" label="Miles">
-                <Input type="number" min={0} value={e.quantity ?? ''} onChange={ev => setE(i, { quantity: ev.target.value === '' ? null : Number(ev.target.value) })} />
-              </Field>
-            )}
-            <Field className={e.kind === 'MILEAGE' ? 'sm:col-span-1' : 'sm:col-span-2'} label={e.kind === 'MILEAGE' ? '£/mile' : e.kind === 'DISCOUNT' && e.isPercentage ? '%' : '£'}>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                placeholder={e.kind === 'MILEAGE' ? 'Rate' : ''}
-                value={e.amount ?? ''}
-                onChange={ev => setE(i, { amount: ev.target.value === '' ? null : Number(ev.target.value) })}
-              />
-            </Field>
-            <div className="flex h-10 items-center justify-end gap-2 sm:col-span-2 sm:self-end">
-              {e.kind === 'DISCOUNT' && (
-                <label className="flex items-center gap-1 text-xs">
-                  <input type="checkbox" checked={Boolean(e.isPercentage)} onChange={ev => setE(i, { isPercentage: ev.target.checked })} />%
-                </label>
-              )}
-              <span className="text-xs text-muted-foreground">{pricing?.extras[i] ? money(pricing.extras[i].total) : ''}</span>
-              {!readOnly && (
-                <Button type="button" variant="ghost" size="sm" aria-label="Remove extra" onClick={() => onExtras(extras.filter((_, j) => j !== i))}>
-                  <Trash2 className="h-4 w-4" aria-hidden />
-                </Button>
-              )}
-            </div>
-          </div>
-        ))}
         {showExtras && !readOnly && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="self-start"
-            onClick={() => onExtras([...extras, { kind: 'SETUP_FEE', description: 'Set-up fee', frequency: 'ONE_OFF', amount: 0 }])}
-          >
-            <Plus className="mr-1.5 h-4 w-4" aria-hidden />
-            Add extra or discount
-          </Button>
+          <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3" data-testid="quote-extra-presets">
+            {(['care', 'charge'] as const).map(group => (
+              <div key={group} className="flex flex-col gap-1.5 sm:flex-row sm:items-start">
+                <span className="w-24 shrink-0 pt-1.5 text-xs font-medium text-muted-foreground">{group === 'care' ? 'Extra care' : 'Charges'}</span>
+                <div className="flex flex-1 flex-wrap gap-1.5">
+                  {EXTRA_PRESETS.filter(x => x.group === group).map(({ extra }) => {
+                    const added = extras.some(e => e.kind === extra.kind && e.description === extra.description)
+                    return (
+                      <Button
+                        key={extra.description}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 rounded-full"
+                        disabled={added}
+                        onClick={() => onExtras([...extras, { ...extra }])}
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" aria-hidden />
+                        {extra.description}
+                      </Button>
+                    )
+                  })}
+                  {group === 'charge' && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 rounded-full"
+                      onClick={() => onExtras([...extras, { kind: 'OTHER', description: '', frequency: 'WEEKLY', amount: null }])}
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" aria-hidden />
+                      Something else
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {showExtras && extras.length > 0 && (
+          <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
+            {extras.map((e, i) => {
+              const mileage = e.kind === 'MILEAGE'
+              const discount = e.kind === 'DISCOUNT'
+              const total = pricing?.extras[i]?.total
+              return (
+                <li key={i} className="grid items-center gap-2 p-3 sm:grid-cols-12" data-testid={`quote-extra-${i}`}>
+                  <Input
+                    className="sm:col-span-4"
+                    aria-label="Extra name"
+                    placeholder="e.g. Night sitting"
+                    value={e.description}
+                    onChange={ev => setE(i, { description: ev.target.value })}
+                  />
+                  {mileage ? (
+                    <div className="flex items-center gap-2 sm:col-span-3">
+                      <Input
+                        type="number"
+                        min={0}
+                        aria-label="Miles"
+                        placeholder="Miles"
+                        value={e.quantity ?? ''}
+                        onChange={ev => setE(i, { quantity: ev.target.value === '' ? null : Number(ev.target.value) })}
+                      />
+                      <span className="text-xs text-muted-foreground">×</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        aria-label="£ per mile"
+                        placeholder="£/mile"
+                        value={e.amount ?? ''}
+                        onChange={ev => setE(i, { amount: ev.target.value === '' ? null : Number(ev.target.value) })}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 sm:col-span-3">
+                      <div className="relative flex-1">
+                        {!(discount && e.isPercentage) && (
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">£</span>
+                        )}
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          aria-label={discount && e.isPercentage ? 'Discount %' : 'Amount £'}
+                          placeholder="0.00"
+                          className={discount && e.isPercentage ? '' : 'pl-7'}
+                          value={e.amount ?? ''}
+                          onChange={ev => setE(i, { amount: ev.target.value === '' ? null : Number(ev.target.value) })}
+                        />
+                      </div>
+                      {discount && (
+                        <select
+                          className="h-10 w-16 rounded-md border border-input bg-background px-2 text-sm"
+                          aria-label="Discount in"
+                          value={e.isPercentage ? '%' : '£'}
+                          onChange={ev => setE(i, { isPercentage: ev.target.value === '%' })}
+                        >
+                          <option value="£">£</option>
+                          <option value="%">%</option>
+                        </select>
+                      )}
+                    </div>
+                  )}
+                  <select
+                    className={`${selectClass} sm:col-span-3`}
+                    aria-label="How often"
+                    value={e.frequency}
+                    onChange={ev => setE(i, { frequency: ev.target.value as QuoteChargeFrequency })}
+                  >
+                    {(Object.keys(CHARGE_FREQUENCY_LABELS) as QuoteChargeFrequency[]).map(f => (
+                      <option key={f} value={f}>
+                        {CHARGE_FREQUENCY_LABELS[f]}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center justify-end gap-1 sm:col-span-2">
+                    <span className={`text-sm tabular-nums ${discount ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground'}`}>
+                      {discount ? (e.amount ? (e.isPercentage ? `− ${e.amount}%` : `− ${money(e.amount)}`) : '') : total != null ? money(total) : ''}
+                    </span>
+                    {!readOnly && (
+                      <Button type="button" variant="ghost" size="sm" aria-label="Remove extra" onClick={() => onExtras(extras.filter((_, j) => j !== i))}>
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
         )}
       </section>
     </fieldset>
