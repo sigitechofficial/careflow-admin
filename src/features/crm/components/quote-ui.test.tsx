@@ -36,7 +36,7 @@ vi.mock('@/features/crm/hooks/useQuotations', () => ({
 
 import { QuoteSummary } from '@/features/crm/components/QuoteSummaryCard'
 import { VisitPatternBuilder, patternProblems } from '@/features/crm/components/quote-editor/VisitPatternBuilder'
-import { CostSummary, FundingAndExtras, suggestFundingCategory } from '@/features/crm/components/quote-editor/QuotePricingSections'
+import { CostSummary, FundingAndExtras, percentShares, suggestFundingCategory } from '@/features/crm/components/quote-editor/QuotePricingSections'
 import { QuoteClientLayoutChoice } from '@/features/crm/components/quote-editor/QuoteClientLayoutChoice'
 import { VisitSlotsBuilder } from '@/features/crm/components/quote-editor/VisitSlotsBuilder'
 import { QuoteVersionCompare } from '@/features/crm/components/quote-editor/QuoteVersionCompare'
@@ -244,6 +244,15 @@ describe('QuoteVersionCompare', () => {
     expect(sections).toEqual(['quote-compare-Price', 'quote-compare-Visits'])
     expect(screen.getByTestId('quote-compare-Visits')).toHaveTextContent('Visit 1 · Morning visitDaysEvery dayMon, Fri, Sat, Sun')
     expect(screen.getByTestId('quote-compare-Visits')).toHaveTextContent('Visit 2 · Evening visitAdded')
+  })
+})
+
+describe('percentShares', () => {
+  it('gives whole-number shares that add up to 100', () => {
+    // £40 + £33 + £32 of £105 rounds to 38 + 31 + 30 = 99; the largest remainder takes the last 1.
+    expect(percentShares([40, 33, 32])).toEqual([38, 31, 31])
+    expect(percentShares([1, 1, 1])).toEqual([34, 33, 33])
+    expect(percentShares([0, 0])).toEqual([0, 0])
   })
 })
 

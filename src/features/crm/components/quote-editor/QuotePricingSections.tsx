@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ArrowRight, Building2, ChevronDown, Plus, Trash2 } from 'lucide-react'
+import { ArrowRight, Building2, ChevronDown, Info, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { useQuoteFunders } from '@/features/crm/hooks/useCrm'
@@ -48,6 +48,21 @@ function Field({ label, children, className }: { label: string; children: React.
  * Funding type from the funders: none → Private; one kind of funder paying 100% → that funder's type;
  * anything else (several funders, or the client topping up) → Mixed.
  */
+/** Whole-number shares of the total that add up to 100 (largest remainder), so rounding never shows 99%. */
+export function percentShares(amounts: number[]): number[] {
+  const total = amounts.reduce((a, b) => a + Math.max(0, b), 0)
+  if (total <= 0) return amounts.map(() => 0)
+  const raw = amounts.map(a => (Math.max(0, a) / total) * 100)
+  const out = raw.map(Math.floor)
+  const order = raw.map((r, i) => ({ i, rest: r - Math.floor(r) })).sort((a, b) => b.rest - a.rest)
+  const missing = 100 - out.reduce((a, b) => a + b, 0)
+  for (let k = 0; k < missing; k++) {
+    const j = order[k % order.length]!.i
+    out[j] = (out[j] ?? 0) + 1
+  }
+  return out
+}
+
 export function suggestFundingCategory(fundings: QuoteFundingInput[]): QuoteFundingCategory {
   const thirdParty = fundings.filter(f => f.payerType !== 'PRIVATE_CLIENT')
   if (!thirdParty.length) return 'PRIVATE'
@@ -121,61 +136,100 @@ export function FundingAndExtras({
   }, [highlight, extras.length])
 
   const weeklyTotal = pricing?.weeklyTotal ?? 0
-  const pct = (amount: number) => (weeklyTotal > 0 ? Math.round((amount / weeklyTotal) * 100) : 0)
-  const split = pricing
+  const SPLIT_COLOURS = ['bg-sky-500', 'bg-violet-500', 'bg-teal-500', 'bg-orange-500', 'bg-pink-500']
+  const splitRows = pricing
     ? [
         ...fundings.map((f, i) => ({
           key: `f${i}`,
           name: f.payerName?.trim() || PAYER_TYPE_LABELS[f.payerType],
+          type: PAYER_TYPE_LABELS[f.payerType],
           amount: pricing.fundings[i]?.weeklyAmount ?? 0,
           pending: f.payerType !== 'PRIVATE_CLIENT' && (f.status ?? 'PENDING_APPROVAL') === 'PENDING_APPROVAL',
+          colour: SPLIT_COLOURS[i % SPLIT_COLOURS.length],
         })),
-        { key: 'client', name: 'Client pays', amount: pricing.clientWeeklyLiability, pending: false },
+        { key: 'client', name: 'Client pays', type: 'Whatever the funders don’t cover', amount: pricing.clientWeeklyLiability, pending: false, colour: 'bg-emerald-500' },
       ]
     : []
-  const SPLIT_COLOURS = ['bg-sky-500', 'bg-violet-500', 'bg-teal-500', 'bg-orange-500', 'bg-pink-500']
+  const shares = percentShares(splitRows.map(r => r.amount))
+  const split = splitRows.map((r, i) => ({ ...r, share: shares[i] ?? 0 }))
 
   return (
     <fieldset disabled={readOnly} className="flex flex-col gap-6">
       {/* Who pays what each week */}
       {pricing && weeklyTotal > 0 && (
-        <div className="flex flex-col gap-3 rounded-lg border border-border p-4" data-testid="quote-funding-split">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-sm font-semibold">Who pays each week</p>
-            <p className="text-sm text-muted-foreground">
-              Total <span className="font-semibold text-foreground">{money(weeklyTotal)}</span> / week
-            </p>
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm" data-testid="quote-funding-split">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border px-5 py-4">
+            <div>
+              <p className="text-sm font-semibold">Who pays each week</p>
+              <p className="text-xs text-muted-foreground">Each payer’s share of the weekly price</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Weekly total</p>
+              <p className="text-xl font-semibold tabular-nums">{money(weeklyTotal)}</p>
+            </div>
           </div>
-          <div className="flex h-3 overflow-hidden rounded-full bg-muted" aria-hidden>
-            {split.map((s, i) =>
-              s.amount > 0 ? (
-                <div
+
+          <div className="flex flex-col gap-4 px-5 py-4">
+            {/* One bar, each payer's share labelled where it fits. */}
+            <div className="flex h-7 gap-0.5 overflow-hidden rounded-md bg-muted" aria-hidden>
+              {split.map(s =>
+                s.amount > 0 ? (
+                  <div
+                    key={s.key}
+                    className={`flex items-center justify-center text-[11px] font-semibold text-white ${s.colour}`}
+                    style={{ width: `${Math.min(100, (s.amount / weeklyTotal) * 100)}%` }}
+                  >
+                    {s.share >= 8 ? `${s.share}%` : ''}
+                  </div>
+                ) : null,
+              )}
+            </div>
+
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {split.map(s => (
+                <li
                   key={s.key}
-                  className={s.key === 'client' ? 'bg-emerald-500' : SPLIT_COLOURS[i % SPLIT_COLOURS.length]}
-                  style={{ width: `${Math.min(100, (s.amount / weeklyTotal) * 100)}%` }}
-                />
-              ) : null,
+                  className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 sm:grid-cols-[auto_minmax(0,1fr)_9rem_6rem] ${s.key === 'client' ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : ''}`}
+                  data-testid={`quote-split-${s.key}`}
+                >
+                  <span className={`h-3 w-3 rounded-sm ${s.colour}`} aria-hidden />
+                  <span className="min-w-0">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className="break-words text-sm font-medium">{s.name}</span>
+                      {s.pending && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                          Pending approval
+                        </span>
+                      )}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">{s.type}</span>
+                  </span>
+                  <span className="text-right text-sm tabular-nums">
+                    <span className="font-semibold">{money(s.amount)}</span>
+                    <span className="text-muted-foreground"> / week</span>
+                  </span>
+                  <span className="col-span-3 flex items-center gap-2 sm:col-span-1 sm:justify-end">
+                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted sm:hidden" aria-hidden>
+                      <span className={`block h-full ${s.colour}`} style={{ width: `${s.share}%` }} />
+                    </span>
+                    <span className="min-w-[3.5rem] rounded-md bg-muted px-2 py-1 text-center text-sm font-semibold tabular-nums">
+                      {s.share}%
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            {pricing.pendingFundingWeekly > 0 && (
+              <p className="flex items-start gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>
+                  {money(pricing.pendingFundingWeekly)} / week is still pending approval. If it is refused, the client pays{' '}
+                  <span className="font-semibold">{money(pricing.clientWeeklyLiabilityIfPendingDeclined)}</span> / week.
+                </span>
+              </p>
             )}
           </div>
-          <ul className="grid gap-1.5 text-sm sm:grid-cols-2">
-            {split.map((s, i) => (
-              <li key={s.key} className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.key === 'client' ? 'bg-emerald-500' : SPLIT_COLOURS[i % SPLIT_COLOURS.length]}`} aria-hidden />
-                  <span className={`truncate ${s.key === 'client' ? 'font-semibold' : ''}`}>{s.name}</span>
-                  {s.pending && <span className="shrink-0 rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-800">pending</span>}
-                </span>
-                <span className={`shrink-0 tabular-nums ${s.key === 'client' ? 'font-semibold' : ''}`}>
-                  {money(s.amount)} <span className="text-muted-foreground">({pct(s.amount)}%)</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          {pricing.pendingFundingWeekly > 0 && (
-            <p className="text-xs text-muted-foreground">
-              If pending funding is refused, the client pays {money(pricing.clientWeeklyLiabilityIfPendingDeclined)} / week.
-            </p>
-          )}
         </div>
       )}
 
@@ -248,6 +302,12 @@ export function FundingAndExtras({
                 <span className="flex items-center gap-1.5 text-muted-foreground">
                   <Building2 className="h-3.5 w-3.5" aria-hidden />
                   Covers <span className="font-semibold text-foreground">{weekly != null ? money(weekly) : '—'}</span> / week
+                  {split[i] && (
+                    <span className="ml-1 inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 font-semibold text-foreground">
+                      <span className={`h-2 w-2 rounded-sm ${split[i].colour}`} aria-hidden />
+                      {split[i].share}% of the total
+                    </span>
+                  )}
                 </span>
                 <span
                   className={`rounded-full px-2 py-0.5 font-semibold ${status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}
