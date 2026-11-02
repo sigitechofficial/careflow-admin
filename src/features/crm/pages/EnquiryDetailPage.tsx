@@ -58,10 +58,14 @@ function initialsOf(e: Enquiry): string {
 /** When each stage was last entered, from "Moved to X" events (NEW = created). */
 function stageReachedAt(enquiry: Enquiry): Partial<Record<EnquiryStage, string>> {
   const reached: Partial<Record<EnquiryStage, string>> = { NEW: enquiry.createdAt }
+  let firstQuote: string | undefined
   for (const ev of enquiry.events) {
     const stage = /^Moved to (\w+)$/.exec(ev.action)?.[1]
     if (stage && stage in STAGE_LABELS) reached[stage as EnquiryStage] = ev.at
+    if (ev.action === 'Quote created' && (!firstQuote || ev.at < firstQuote)) firstQuote = ev.at
   }
+  // A quote is only made once the person has been contacted (older enquiries have no Contacted event).
+  if (!reached.CONTACTED && firstQuote) reached.CONTACTED = firstQuote
   // Conversion moves to WON without a "Moved to" event; stageChangedAt covers it.
   reached[enquiry.stage] = enquiry.stageChangedAt
   return reached
