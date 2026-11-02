@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { crmKeys } from '@/features/crm/keys'
+import { serviceUserKeys } from '@/features/service-users/keys'
 import {
   confirmQuoteFunding,
   createServiceUserFromQuote,
@@ -76,6 +77,16 @@ function useInvalidateEnquiry() {
   return () => qc.invalidateQueries({ queryKey: crmKeys.all })
 }
 
+/** For actions that also change the service user (status, care package): its cached pages refresh too. */
+function useInvalidateEnquiryAndServiceUser() {
+  const qc = useQueryClient()
+  return () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: crmKeys.all }),
+      qc.invalidateQueries({ queryKey: serviceUserKeys.all() }),
+    ])
+}
+
 export function useCreateQuotation(enquiryId: string) {
   const invalidate = useInvalidateEnquiry()
   return useMutation({ mutationFn: (body: QuoteDraftInput) => createQuotation(enquiryId, body), onSuccess: invalidate })
@@ -133,7 +144,7 @@ export function useConfirmQuoteFunding(enquiryId: string, quotationId: string, v
 }
 
 export function useCreateServiceUserFromQuote(enquiryId: string, quotationId: string, versionId: string) {
-  const invalidate = useInvalidateEnquiry()
+  const invalidate = useInvalidateEnquiryAndServiceUser()
   return useMutation({
     mutationFn: (body: { createCarePackage: boolean }) => createServiceUserFromQuote(enquiryId, quotationId, versionId, body),
     onSuccess: invalidate,
@@ -141,7 +152,7 @@ export function useCreateServiceUserFromQuote(enquiryId: string, quotationId: st
 }
 
 export function useConvertQuoteToCarePackage(enquiryId: string, quotationId: string, versionId: string) {
-  const invalidate = useInvalidateEnquiry()
+  const invalidate = useInvalidateEnquiryAndServiceUser()
   return useMutation({
     mutationFn: () => convertQuoteToCarePackage(enquiryId, quotationId, versionId),
     onSuccess: invalidate,
