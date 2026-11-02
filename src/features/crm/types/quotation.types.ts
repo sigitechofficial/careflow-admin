@@ -403,7 +403,8 @@ export type ClientQuoteView = {
   rates?: Array<{ label: string; value: string }>
   totals: Array<{ label: string; amount: string; method: string }>
   oneOffTotal: string | null
-  vatLabel: string
+  /** Only when the quote charges VAT. */
+  vatLabel: string | null
   funding: Array<{ payer: string; detail: string; weekly: string; status: string }>
   clientWeeklyLiability: string
   clientNotes: string | null

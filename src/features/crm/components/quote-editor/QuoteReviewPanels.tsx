@@ -351,7 +351,7 @@ function ClientPreview({ enquiryId, detail }: { enquiryId: string; detail: Quote
             </div>
           )}
         </div>
-        <p className="mt-1 text-xs text-zinc-500">{data.vatLabel}</p>
+        {data.vatLabel && <p className="mt-1 text-xs text-zinc-500">{data.vatLabel}</p>}
 
         {data.funding.length > 0 && (
           <>

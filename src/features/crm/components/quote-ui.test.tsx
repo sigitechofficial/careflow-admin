@@ -350,8 +350,9 @@ describe('CostSummary', () => {
     expect(summary).toHaveTextContent('Actual dates in February 2027')
     expect(screen.getByTestId('quote-client-pays')).toHaveTextContent('£186.00 a week')
     expect(summary).toHaveTextContent('For 0.5 hours of care a week (0 visits), 1 hour of carer time as some visits have 2 carers.')
-    // Nothing-lines (extras, discount, funding) are left out.
+    // Nothing-lines (extras, discount, VAT, funding) are left out.
     expect(summary).not.toHaveTextContent('Extras')
+    expect(summary).not.toHaveTextContent('VAT')
     expect(summary).not.toHaveTextContent('Paid by funders')
     expect(summary).toHaveTextContent('cannot be issued yet (1 unresolved)')
   })

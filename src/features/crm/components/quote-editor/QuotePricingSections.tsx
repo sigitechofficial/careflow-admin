@@ -554,7 +554,8 @@ export function CostSummary({
             />
             {pricing.extrasWeekly > 0 && <Line label="Extras" amount={`+ ${money(pricing.extrasWeekly)}`} />}
             {pricing.discountWeekly > 0 && <Line label="Discount" amount={`− ${money(pricing.discountWeekly)}`} />}
-            <Line label="VAT" note={pricing.vatLabel} amount={pricing.vatWeekly > 0 ? `+ ${money(pricing.vatWeekly)}` : money(0)} />
+            {/* Care is VAT exempt, so VAT is only shown when the quote charges it. */}
+            {pricing.vatWeekly > 0 && <Line label="VAT" note={pricing.vatLabel} amount={`+ ${money(pricing.vatWeekly)}`} />}
             <Line label="Total a week" amount={money(pricing.weeklyTotal)} strong />
             {funded && (
               <>
