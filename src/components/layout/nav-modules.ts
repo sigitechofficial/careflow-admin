@@ -86,7 +86,7 @@ export const NAV_MODULES: Record<string, NavModuleMeta> = {
   },
   CRM: {
     slug: 'crm',
-    railLabel: 'Enquiry/Referral',
+    railLabel: 'Enquiry',
     description: 'Capture enquiries and referrals and convert them into clients',
     Icon: Inbox,
     tone: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',

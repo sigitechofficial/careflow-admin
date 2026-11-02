@@ -553,7 +553,7 @@ const navItems: NavItem[] = [
     children: [
       {
         section: 'CRM',
-        label: 'Enquiry/Referral',
+        label: 'Enquiry',
         icon: <Inbox className="h-4 w-4" />,
         href: '/crm',
         permission: 'crm.read',
