@@ -23,6 +23,25 @@ import {
   useQuoteVersion,
 } from "@/features/crm/hooks/useQuotations";
 import { money } from "@/features/crm/quote-labels";
+import { useServiceUser } from "@/features/service-users/hooks/useServiceUser";
+
+type ServiceUserDetailContact = NonNullable<
+  ReturnType<typeof useServiceUser>["data"]
+>["contacts"][number];
+
+/** GP and professionals are contacts by relationship; the rest are family and friends (as on the Contacts tab). */
+function splitContacts(contacts: ServiceUserDetailContact[]) {
+  const code = (c: ServiceUserDetailContact) => c.relationshipType?.code ?? "";
+  return {
+    gp: contacts.filter((c) => code(c) === "GP"),
+    personal: contacts.filter(
+      (c) => !["GP", "SOCIAL_WORKER", "OTHER"].includes(code(c)),
+    ),
+  };
+}
+
+const contactName = (c: ServiceUserDetailContact) =>
+  [c.firstName, c.lastName].filter(Boolean).join(" ");
 
 const fmtDate = (iso: string | null | undefined) =>
   iso
@@ -112,8 +131,14 @@ export default function QuoteServiceUserPage() {
   const agreement = useQuoteAction(enquiryId, quotationId, versionId);
   const [agreementNote, setAgreementNote] = React.useState("");
   const [withPackage, setWithPackage] = React.useState(true);
+  const suId = enquiry?.convertedServiceUserId ?? null;
+  const { data: su, isLoading: suLoading } = useServiceUser(
+    suId ?? "",
+    Boolean(suId) && can("service_users.read"),
+  );
 
-  if (enquiryLoading || quoteLoading) return <LoadingSpinner />;
+  if (enquiryLoading || quoteLoading || (suId && suLoading))
+    return <LoadingSpinner />;
   if (!enquiry || !detail)
     return <p className="text-sm text-muted-foreground">Quote not found.</p>;
 
@@ -213,62 +238,194 @@ export default function QuoteServiceUserPage() {
     },
   ];
 
-  const details: Check[] = [
+  // Once the person has a service user record, its details are what count; before that, the
+  // enquiry's (they are copied across when the service user is created).
+  const profileAction = (tab: string) =>
+    suId ? (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() =>
+          navigate({
+            to: "/service-users/$serviceUserId/profile",
+            params: { serviceUserId: suId },
+            search: { tab },
+          })
+        }
+      >
+        Add on the profile
+      </Button>
+    ) : null;
+  // A detail only the service user record holds (the enquiry has no field for it).
+  const recordOnly = (
+    key: string,
+    label: string,
+    value: string | null | undefined,
+    tab: string,
+  ): Check => ({
+    key,
+    label,
+    done: Boolean(value),
+    detail:
+      value ||
+      (suId
+        ? "Not recorded"
+        : "Add on the profile once the service user is created"),
+    action: value ? null : profileAction(tab),
+  });
+  const fromEnquiryOrRecord = (
+    key: string,
+    label: string,
+    value: string | null | undefined,
+    tab: string,
+    extra?: Partial<Check>,
+  ): Check => ({
+    key,
+    label,
+    done: Boolean(value),
+    detail: value || "Not recorded",
+    action: value ? null : suId ? profileAction(tab) : editEnquiry,
+    ...extra,
+  });
+
+  const { gp, personal } = splitContacts(su?.contacts ?? []);
+  const emergency = (su?.contacts ?? []).filter((c) => c.isEmergencyContact);
+  const enquiryContact = [
+    enquiry.contactName,
+    enquiry.contactPhone,
+    enquiry.contactEmail,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const address = su?.address
+    ? [
+        su.address.addressLine1,
+        su.address.secondaryPostcode || su.address.postcode,
+      ]
+    : [enquiry.addressLine, enquiry.postcode];
+  const homeAccess = su?.address
+    ? [
+        su.address.accessMethod,
+        su.address.keySafeLocation,
+        su.address.accessInstructions,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
+  const serviceStart = su?.serviceStartDate ?? detail.proposedStartDate;
+
+  const groups: { title: string; items: Check[] }[] = [
     {
-      key: "branch",
-      label: "Branch",
-      done: Boolean(enquiry.locationId),
-      detail: enquiry.locationName ?? "Which branch will look after them",
-      required: true,
-      action: enquiry.locationId ? null : editEnquiry,
+      title: "Personal",
+      items: [
+        fromEnquiryOrRecord(
+          "branch",
+          "Branch",
+          su?.location?.displayLabel ??
+            su?.location?.name ??
+            enquiry.locationName,
+          "personal",
+          {
+            required: true,
+            detail:
+              su?.location?.name ??
+              enquiry.locationName ??
+              "Which branch will look after them",
+          },
+        ),
+        recordOnly("title", "Title", su?.title?.name, "personal"),
+        recordOnly("gender", "Gender", su?.gender?.name, "personal"),
+        fromEnquiryOrRecord(
+          "dob",
+          "Date of birth",
+          fmtDate(su?.dateOfBirth ?? enquiry.dateOfBirth),
+          "personal",
+        ),
+        recordOnly("nhs", "NHS number", su?.nhsNumber, "personal"),
+      ],
     },
     {
-      key: "dob",
-      label: "Date of birth",
-      done: Boolean(enquiry.dateOfBirth),
-      detail: fmtDate(enquiry.dateOfBirth) ?? "Not recorded",
-      action: enquiry.dateOfBirth ? null : editEnquiry,
+      title: "Home and contact",
+      items: [
+        fromEnquiryOrRecord(
+          "address",
+          "Address and postcode",
+          address[0] && address[1] ? address.join(", ") : null,
+          "dom",
+          { detail: address.filter(Boolean).join(", ") || "Not recorded" },
+        ),
+        recordOnly("access", "How to get into the home", homeAccess, "dom"),
+        recordOnly(
+          "phone",
+          "Their phone or email",
+          [su?.phone || su?.mobile, su?.email].filter(Boolean).join(" · "),
+          "personal",
+        ),
+      ],
     },
     {
-      key: "address",
-      label: "Address and postcode",
-      done: Boolean(enquiry.addressLine && enquiry.postcode),
-      detail:
-        [enquiry.addressLine, enquiry.postcode].filter(Boolean).join(", ") ||
-        "Not recorded",
-      action: enquiry.addressLine && enquiry.postcode ? null : editEnquiry,
+      title: "People",
+      items: [
+        su
+          ? recordOnly(
+              "contact",
+              "Family or next of kin",
+              personal.map(contactName).join(", "),
+              "contacts",
+            )
+          : fromEnquiryOrRecord(
+              "contact",
+              "Family or next of kin",
+              enquiryContact,
+              "contacts",
+            ),
+        recordOnly(
+          "emergency",
+          "Emergency contact",
+          emergency.map(contactName).join(", "),
+          "contacts",
+        ),
+        recordOnly("gp", "GP", gp.map(contactName).join(", "), "contacts"),
+      ],
     },
     {
-      key: "funding-type",
-      label: "Funding type",
-      done: Boolean(enquiry.fundingTypeId),
-      detail: enquiry.fundingTypeName ?? "Not recorded",
-      action: enquiry.fundingTypeId ? null : editEnquiry,
-    },
-    {
-      key: "contact",
-      label: "Contact",
-      done: Boolean(
-        enquiry.contactName && (enquiry.contactPhone || enquiry.contactEmail),
-      ),
-      detail:
-        [enquiry.contactName, enquiry.contactPhone, enquiry.contactEmail]
-          .filter(Boolean)
-          .join(" · ") || "Not recorded",
-      action:
-        enquiry.contactName && (enquiry.contactPhone || enquiry.contactEmail)
-          ? null
-          : editEnquiry,
-    },
-    {
-      key: "start",
-      label: "Service start",
-      done: Boolean(detail.proposedStartDate),
-      detail: fmtDate(detail.proposedStartDate)
-        ? `${fmtDate(detail.proposedStartDate)} (the quote's proposed start)`
-        : "Not set on the quote",
+      title: "Care",
+      items: [
+        fromEnquiryOrRecord(
+          "funding-type",
+          "Funding type",
+          su?.fundingType?.name ?? enquiry.fundingTypeName,
+          "personal",
+        ),
+        recordOnly(
+          "care-type",
+          "Category of care",
+          su?.careType?.name,
+          "personal",
+        ),
+        recordOnly(
+          "key-worker",
+          "Key worker",
+          su?.keyWorker
+            ? `${su.keyWorker.firstName ?? ""} ${su.keyWorker.lastName ?? ""}`.trim()
+            : null,
+          "personal",
+        ),
+        {
+          key: "start",
+          label: "Service start",
+          done: Boolean(serviceStart),
+          detail: su?.serviceStartDate
+            ? (fmtDate(su.serviceStartDate) ?? "")
+            : fmtDate(detail.proposedStartDate)
+              ? `${fmtDate(detail.proposedStartDate)} (the quote's proposed start)`
+              : "Not set on the quote",
+          action: serviceStart ? null : profileAction("personal"),
+        },
+      ],
     },
   ];
+  const details = groups.flatMap((g) => g.items);
 
   const missing = [...beforeCare, ...details].filter((c) => !c.done);
   const blocked =
@@ -357,7 +514,7 @@ export default function QuoteServiceUserPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="flex flex-col gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Before care starts</CardTitle>
@@ -381,9 +538,23 @@ export default function QuoteServiceUserPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Service user details</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {su
+                  ? `From ${name}'s service user record.`
+                  : "From the enquiry. Details the enquiry does not hold are added on the service user's profile."}{" "}
+                {details.filter((c) => !c.done).length} of {details.length}{" "}
+                missing.
+              </p>
             </CardHeader>
-            <CardContent>
-              <CheckList items={details} />
+            <CardContent className="grid gap-x-8 gap-y-2 lg:grid-cols-2">
+              {groups.map((g) => (
+                <div key={g.title} data-testid={`su-group-${g.title}`}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {g.title}
+                  </p>
+                  <CheckList items={g.items} />
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>

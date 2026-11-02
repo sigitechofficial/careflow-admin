@@ -1,6 +1,6 @@
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const { navigate, mutate, state } = vi.hoisted(() => ({
@@ -9,6 +9,7 @@ const { navigate, mutate, state } = vi.hoisted(() => ({
   state: {
     enquiry: {} as Record<string, unknown>,
     detail: {} as Record<string, unknown>,
+    su: undefined as Record<string, unknown> | undefined,
   },
 }));
 vi.mock("@tanstack/react-router", () => ({
@@ -38,6 +39,9 @@ vi.mock("@/features/crm/components/quote-editor/QuoteReviewPanels", () => ({
 }));
 vi.mock("@/features/crm/hooks/useCrm", () => ({
   useEnquiry: () => ({ data: state.enquiry, isLoading: false }),
+}));
+vi.mock("@/features/service-users/hooks/useServiceUser", () => ({
+  useServiceUser: () => ({ data: state.su, isLoading: false }),
 }));
 vi.mock("@/features/crm/hooks/useQuotations", () => ({
   useQuoteVersion: () => ({ data: state.detail, isLoading: false }),
@@ -92,6 +96,7 @@ describe("QuoteServiceUserPage (accepted quote → active service user)", () => 
     vi.clearAllMocks();
     state.enquiry = { ...enquiry };
     state.detail = { ...detail };
+    state.su = undefined;
   });
 
   it("lists what is missing and creates the active service user with the care package", async () => {
@@ -114,8 +119,15 @@ describe("QuoteServiceUserPage (accepted quote → active service user)", () => 
     expect(screen.getByTestId("su-check-branch")).not.toHaveTextContent(
       "Needed",
     );
+    // Details only the service user record holds are listed too.
+    expect(screen.getByTestId("su-check-gp")).toHaveTextContent(
+      "Add on the profile once the service user is created",
+    );
+    expect(screen.getByTestId("su-check-contact")).not.toHaveTextContent(
+      "Missing",
+    );
     expect(screen.getByTestId("su-missing-summary")).toHaveTextContent(
-      "2 things still missing",
+      "11 things still missing",
     );
 
     await userEvent.click(screen.getByTestId("su-create-button"));
@@ -142,5 +154,54 @@ describe("QuoteServiceUserPage (accepted quote → active service user)", () => 
       "Make service user active",
     );
     expect(screen.getByTestId("su-create-button")).toBeDisabled();
+  });
+});
+
+describe("QuoteServiceUserPage with a service user record", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    state.enquiry = { ...enquiry, convertedServiceUserId: "su-1", stage: "WON" };
+    state.detail = { ...detail };
+    state.su = {
+      id: "su-1",
+      dateOfBirth: "1941-06-02",
+      title: { id: "t", name: "Mrs", code: "MRS" },
+      gender: null,
+      nhsNumber: "485 777 3456",
+      location: { id: "loc-1", name: "Leeds" },
+      address: null,
+      contacts: [
+        {
+          id: "c1",
+          firstName: "Dr",
+          lastName: "Shah",
+          isEmergencyContact: false,
+          relationshipType: { id: "r", name: "GP", code: "GP" },
+        },
+      ],
+      fundingType: null,
+      careType: null,
+      keyWorker: null,
+      serviceStartDate: null,
+    };
+  });
+
+  it("checks the record itself and links each gap to the profile tab", async () => {
+    render(<QuoteServiceUserPage />);
+    expect(screen.getByTestId("su-check-title")).toHaveTextContent("Mrs");
+    expect(screen.getByTestId("su-check-gp")).toHaveTextContent("Dr Shah");
+    expect(screen.getByTestId("su-check-gender")).toHaveTextContent("Missing");
+    // The enquiry's contact is not on the record, so family is still missing there.
+    expect(screen.getByTestId("su-check-contact")).toHaveTextContent("Missing");
+    await userEvent.click(
+      within(screen.getByTestId("su-check-emergency")).getByRole("button", {
+        name: "Add on the profile",
+      }),
+    );
+    expect(navigate).toHaveBeenCalledWith({
+      to: "/service-users/$serviceUserId/profile",
+      params: { serviceUserId: "su-1" },
+      search: { tab: "contacts" },
+    });
   });
 });
