@@ -284,24 +284,15 @@ export type VisitPlanWeeklyHoursResult = {
   limitWeeklyHours: number | null
   overLimitWeeks: VisitPlanWeekHours[]
   /**
-   * Settings → Dom Rules: a save over the hours is blocked or only warned. A draft follows the
-   * draft rule, where MANAGER_APPROVAL saves it but activation waits for a manager.
+   * Settings → Dom Rules: visits over the hours go to Hours approvals (made once approved) when
+   * true, or are made with a warning. Counted from the rota, this week to the rota horizon.
    */
-  planOverLimit?: 'BLOCK' | 'WARN' | 'MANAGER_APPROVAL'
-  /** Draft on manager approval: its latest weekly-hours request (null when none). */
-  draftApproval?: VisitPlanDraftApproval | null
+  visitsNeedApproval?: boolean
+  /** Today and the last day counted (the rota horizon). */
+  today?: string
+  edge?: string
 }
 
-export type VisitPlanDraftApproval = {
-  id: string
-  status: 'PENDING' | 'APPROVED' | 'REJECTED'
-  /** Busiest week (minutes) the request was made for. */
-  heaviestMinutes: number
-  requestedAt: string
-  decidedAt: string | null
-  decidedByName: string | null
-  decisionNotes: string | null
-}
 
 /** Weekly hours for an unsaved visit schedule, counted on the server (nothing is saved). */
 export async function previewVisitPlanWeeklyHours(

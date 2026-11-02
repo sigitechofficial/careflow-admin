@@ -60,21 +60,12 @@ export type DomWeeklyHoursRuleOptions = {
 }
 
 export type ServiceUserWeeklyHoursSettings = {
-  changeApproval: 'ALWAYS' | 'INCREASE_ONLY' | 'DECREASE_ONLY' | 'NEVER'
-  decreaseAction: 'KEEP_WARN' | 'CANCEL_LATEST'
-  planOverLimit: 'BLOCK' | 'WARN'
-  extraOverLimit: 'MANAGER_APPROVAL' | 'BLOCK' | 'WARN'
-  extraApproveRecheck: boolean
-  extraRejectReasonRequired: boolean
-  extraEditOverLimit: 'BLOCK' | 'WARN'
-  /** Bulk generate / hourly rolling rota with a plan over the hours. */
-  bulkOverLimit: 'WARN' | 'SKIP_MANUAL' | 'SKIP_ALL'
+  /** Changing a service user's weekly hours (up or down) waits for a manager. The first value never does. */
+  changeNeedsApproval: boolean
+  /** New visits over the weekly hours go to Hours approvals (made once approved); No = made with a warning. */
+  visitsNeedApproval: boolean
   /** Special visits count towards the service user's weekly hours. */
   specialVisitsCount: boolean
-  specialVisitOverLimit: 'BLOCK' | 'WARN'
-  /** Draft visit plan over the hours: block, manager approval before Activate, or warning only. */
-  draftOverLimit: 'BLOCK' | 'MANAGER_APPROVAL' | 'WARN'
-  checkWeeks: number
 }
 
 export type OptionalAboutMeField = {

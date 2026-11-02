@@ -110,8 +110,8 @@ export function BulkGenerateRotaResultWeeklyHoursBanner({
           </p>
           <p className="text-amber-900/90 dark:text-amber-100/90">
             {skipped === warnings.length
-              ? 'No visits were made for these plans (Settings → Dom Rules). Fix the visit plan or the weekly hours, then generate again.'
-              : 'Visits were still made unless marked skipped (Settings → Dom Rules). Check the visit plan or the weekly hours.'}
+              ? 'No visits were made for these plans. Fix the visit plan or the weekly hours, then generate again.'
+              : 'Visits within the hours were made. Visits over the hours either went to Hours approvals (made once a manager approves) or were made with a warning (Settings → Dom Rules).'}
           </p>
           <WarningList warnings={warnings} overflowClassName="text-amber-800/80 dark:text-amber-200/80" />
         </div>

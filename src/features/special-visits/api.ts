@@ -73,11 +73,13 @@ export async function fetchSpecialVisitSummary({
 
 /**
  * `weeklyHoursWarning`: the visit takes the service user's week over the weekly contracted hours (Settings → Dom Rules: warning only).
+ * `serviceUserHoursApprovalRequested`: over the service user's weekly hours and waiting for a manager — not made yet (`id` null).
  * `carerHoursApprovalRequested` / `carerHoursWarning`: the carer goes over their contracted weekly hours.
  */
 export type CreateSpecialVisitResult = {
-  id: string
+  id: string | null
   weeklyHoursWarning?: string
+  serviceUserHoursApprovalRequested?: string
   carerHoursApprovalRequested?: string
   carerHoursWarning?: string
 }
