@@ -125,9 +125,15 @@ export function QuoteRatesEditor({
   const bands = rates.shortVisits ?? []
   const setBand = (i: number, patch: Partial<{ upToMinutes: number; pricePerVisit: number }>) =>
     set({ shortVisits: bands.map((b, j) => (j === i ? { ...b, ...patch } : b)) })
-  // Each new length is 15 min longer than the longest so far, up to an hour.
+  // A new length is 15 min longer than the longest so far; past an hour, the first unused
+  // 15 then 5 min step (there are more 5 min steps than lines allowed).
   const longest = Math.max(0, ...bands.map(b => b.upToMinutes || 0))
-  const canAddBand = bands.length < MAX_SHORT_VISITS && longest < MAX_SHORT_VISIT_MINUTES
+  const nextLength = [
+    longest + 15,
+    15, 30, 45, 60,
+    ...Array.from({ length: MAX_SHORT_VISIT_MINUTES / 5 }, (_, i) => (i + 1) * 5),
+  ].find(m => m <= MAX_SHORT_VISIT_MINUTES && !bands.some(b => b.upToMinutes === m)) ?? MAX_SHORT_VISIT_MINUTES
+  const canAddBand = bands.length < MAX_SHORT_VISITS
   const addBands = (mins: number[]) =>
     set({
       shortVisits: [
@@ -260,7 +266,7 @@ export function QuoteRatesEditor({
                   size="sm"
                   leftIcon={<Plus className="h-3.5 w-3.5" />}
                   disabled={!canAddBand}
-                  onClick={() => set({ shortVisits: [...bands, { upToMinutes: Math.min(MAX_SHORT_VISIT_MINUTES, longest + 15), pricePerVisit: 0 }] })}
+                  onClick={() => set({ shortVisits: [...bands, { upToMinutes: nextLength, pricePerVisit: 0 }] })}
                 >
                   Add visit
                 </Button>
