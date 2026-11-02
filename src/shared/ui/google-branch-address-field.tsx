@@ -8,6 +8,7 @@ import {
   loadGoogleMapsPlaces,
   parseGooglePlaceFormatted,
   type GoogleAutocompletePrediction,
+  type GoogleGeocoderApi,
 } from '@/shared/lib/google-maps'
 
 export type GoogleBranchAddressMeta = {
@@ -88,6 +89,7 @@ export function GoogleBranchAddressField({
         ) => void,
       ) => void
     }
+    geocoder: GoogleGeocoderApi | null
   } | null>(null)
 
   const updateMenuPos = React.useCallback(() => {
@@ -112,6 +114,7 @@ export function GoogleBranchAddressField({
         servicesRef.current = {
           autocomplete: new google.maps.places.AutocompleteService(),
           places: new google.maps.places.PlacesService(attr),
+          geocoder: google.maps.Geocoder ? new google.maps.Geocoder() : null,
         }
         setReady(true)
         setError(null)
@@ -220,15 +223,31 @@ export function GoogleBranchAddressField({
             return
           }
           const parsed = parseGooglePlaceFormatted(place)
-          onChange(parsed.formattedAddress || prediction.description, {
-            city: parsed.city || undefined,
-            country: parsed.country || undefined,
-            postcode: parsed.postcode || undefined,
-            addressLine1: parsed.addressLine1 || undefined,
-            addressLine2: parsed.addressLine2 || undefined,
-            county: parsed.county || undefined,
-            lat: parsed.lat,
-            lng: parsed.lng,
+          const emit = (postcode: string) =>
+            onChange(parsed.formattedAddress || prediction.description, {
+              city: parsed.city || undefined,
+              country: parsed.country || undefined,
+              postcode: postcode || undefined,
+              addressLine1: parsed.addressLine1 || undefined,
+              addressLine2: parsed.addressLine2 || undefined,
+              county: parsed.county || undefined,
+              lat: parsed.lat,
+              lng: parsed.lng,
+            })
+          const geocoder = servicesRef.current?.geocoder
+          if (parsed.postcode || parsed.lat == null || parsed.lng == null || !geocoder) {
+            emit(parsed.postcode)
+            return
+          }
+          // A street or area has no postcode of its own: take the nearest one to its position.
+          setSearching(true)
+          geocoder.geocode({ location: { lat: parsed.lat, lng: parsed.lng } }, (results, geoStatus) => {
+            setSearching(false)
+            const nearest =
+              geoStatus === 'OK'
+                ? (results ?? []).map(r => parseGooglePlaceFormatted(r).postcode).find(Boolean)
+                : undefined
+            emit(nearest ?? '')
           })
         },
       )

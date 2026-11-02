@@ -388,7 +388,8 @@ export function EnquiryForm({
                   ? {
                       ...prev,
                       addressLine: [meta.addressLine1, meta.addressLine2, meta.city].filter(Boolean).join(', ') || address,
-                      postcode: meta.postcode || prev.postcode,
+                      // A postcode left from another address would not match the picked one.
+                      postcode: meta.postcode ?? '',
                       latitude: meta.lat ?? null,
                       longitude: meta.lng ?? null,
                     }
