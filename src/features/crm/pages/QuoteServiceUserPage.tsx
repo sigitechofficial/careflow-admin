@@ -3,13 +3,19 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import {
   AlertTriangle,
   ArrowLeft,
-  CheckCircle2,
-  ClipboardList,
+  ArrowRight,
+  Check,
+  ClipboardCheck,
+  HeartHandshake,
+  Home,
   Loader2,
   UserPlus,
+  UserRound,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Card } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { LoadingSpinner } from "@/shared/ui/page-elements";
 import { useAuthStore } from "@/features/auth/store";
@@ -58,55 +64,138 @@ type Check = {
   done: boolean;
   detail: string;
   required?: boolean;
-  action?: React.ReactNode;
+  /** Opens the page and field where the missing detail is filled in. */
+  go?: { label: string; onClick: () => void };
+  /** An inline action instead (e.g. recording the agreement here). */
+  extra?: React.ReactNode;
 };
 
-function CheckList({ items }: { items: Check[] }) {
+function StatusIcon({ check }: { check: Check }) {
+  if (check.done)
+    return (
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+        <Check className="h-4 w-4" strokeWidth={3} aria-hidden />
+      </span>
+    );
   return (
-    <ul className="divide-y divide-border/70">
-      {items.map((c) => (
-        <li
-          key={c.key}
-          className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-start sm:justify-between"
-          data-testid={`su-check-${c.key}`}
-        >
-          <div className="flex min-w-0 items-start gap-2.5">
-            {c.done ? (
-              <CheckCircle2
-                className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600"
-                aria-hidden
-              />
-            ) : (
-              <AlertTriangle
-                className={`mt-0.5 h-4 w-4 shrink-0 ${c.required ? "text-red-600" : "text-amber-600"}`}
-                aria-hidden
-              />
+    <span
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+        check.required
+          ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
+          : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+      }`}
+    >
+      <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+    </span>
+  );
+}
+
+function CheckRow({ check }: { check: Check }) {
+  return (
+    <li
+      className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center"
+      data-testid={`su-check-${check.key}`}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <StatusIcon check={check} />
+        <div className="min-w-0">
+          <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+            {check.label}
+            {!check.done && (
+              <span
+                className={`rounded-full px-2 py-px text-[10px] font-semibold uppercase tracking-wide ${
+                  check.required
+                    ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
+                    : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                }`}
+              >
+                {check.required ? "Needed" : "Missing"}
+              </span>
             )}
-            <div className="min-w-0">
-              <p className="text-sm font-medium">
-                {c.label}
-                {!c.done && (
-                  <span
-                    className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.required ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"}`}
-                  >
-                    {c.required ? "Needed" : "Missing"}
-                  </span>
-                )}
-              </p>
-              <p className="text-xs text-muted-foreground">{c.detail}</p>
-            </div>
-          </div>
-          {c.action && <div className="shrink-0 sm:pl-4">{c.action}</div>}
-        </li>
-      ))}
-    </ul>
+          </p>
+          <p
+            className={`truncate text-xs ${check.done ? "text-foreground/80" : "text-muted-foreground"}`}
+          >
+            {check.detail}
+          </p>
+        </div>
+      </div>
+      {check.extra ??
+        (!check.done && check.go && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 self-start sm:self-center"
+            onClick={check.go.onClick}
+          >
+            {check.go.label}
+            <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden />
+          </Button>
+        ))}
+    </li>
+  );
+}
+
+function Section({
+  title,
+  icon: Icon,
+  items,
+  missingOnly,
+  children,
+}: {
+  title: string;
+  icon: LucideIcon;
+  items: Check[];
+  missingOnly: boolean;
+  children?: React.ReactNode;
+}) {
+  const done = items.filter((c) => c.done).length;
+  const shown = missingOnly ? items.filter((c) => !c.done) : items;
+  if (!shown.length && !children) return null;
+  return (
+    <Card className="overflow-hidden" data-testid={`su-group-${title}`}>
+      <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/40 px-5 py-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <Icon className="h-4 w-4" aria-hidden />
+          </span>
+          <h3 className="text-sm font-semibold">{title}</h3>
+        </div>
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
+            done === items.length
+              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+              : "bg-background text-muted-foreground ring-1 ring-border"
+          }`}
+        >
+          {done}/{items.length}
+        </span>
+      </div>
+      {shown.length > 0 && (
+        <ul className="divide-y divide-border/70">
+          {shown.map((c) => (
+            <CheckRow key={c.key} check={c} />
+          ))}
+        </ul>
+      )}
+      {children}
+    </Card>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 px-5 py-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="truncate text-sm font-semibold tabular-nums">{value}</p>
+    </div>
   );
 }
 
 /**
  * After the client accepts a quote: what is still missing before care starts and on the service
- * user's record, and one button that makes the person an active service user (with the draft
- * care package from the quote).
+ * user's record (each gap opens the field where it is filled in), and one button that makes the
+ * person an active service user (with the draft care package from the quote).
  */
 export default function QuoteServiceUserPage() {
   const navigate = useNavigate();
@@ -131,6 +220,7 @@ export default function QuoteServiceUserPage() {
   const agreement = useQuoteAction(enquiryId, quotationId, versionId);
   const [agreementNote, setAgreementNote] = React.useState("");
   const [withPackage, setWithPackage] = React.useState(true);
+  const [missingOnly, setMissingOnly] = React.useState(false);
   const suId = enquiry?.convertedServiceUserId ?? null;
   const { data: su, isLoading: suLoading } = useServiceUser(
     suId ?? "",
@@ -143,6 +233,8 @@ export default function QuoteServiceUserPage() {
     return <p className="text-sm text-muted-foreground">Quote not found.</p>;
 
   const name = `${enquiry.firstName} ${enquiry.lastName}`;
+  const initials =
+    `${enquiry.firstName?.[0] ?? ""}${enquiry.lastName?.[0] ?? ""}`.toUpperCase();
   const quoteUrl = {
     to: "/crm/$enquiryId/quotes/$quotationId/$versionId" as const,
     params: { enquiryId, quotationId, versionId },
@@ -153,19 +245,66 @@ export default function QuoteServiceUserPage() {
   const pendingFundings = detail.fundings.filter(
     (f) => f.payerType !== "PRIVATE_CLIENT" && f.status !== "CONFIRMED",
   );
-  const preAdmission = Boolean(enquiry.convertedServiceUserId);
+  const preAdmission = Boolean(suId);
   const alreadyActive = preAdmission && enquiry.stage === "WON";
-  const editEnquiry = (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() =>
-        navigate({ to: "/crm/$enquiryId/edit", params: { enquiryId } })
-      }
-    >
-      Add on the enquiry
-    </Button>
-  );
+
+  // Each gap opens the form on its field: the enquiry before there is a service user record,
+  // then the record's own profile tab. Saving the enquiry comes back here.
+  const thisPage = `/crm/${enquiryId}/quotes/${quotationId}/${versionId}/service-user`;
+  const onEnquiry = (field: string): Check["go"] => ({
+    label: "Add on enquiry",
+    onClick: () =>
+      navigate({
+        to: "/crm/$enquiryId/edit",
+        params: { enquiryId },
+        search: { focus: field, returnTo: thisPage },
+      }),
+  });
+  const onProfile = (tab: string, field: string): Check["go"] =>
+    suId
+      ? {
+          label: "Add on profile",
+          onClick: () =>
+            navigate({
+              to: "/service-users/$serviceUserId/profile",
+              params: { serviceUserId: suId },
+              search: { tab, focus: field },
+            }),
+        }
+      : undefined;
+  /** A detail the enquiry also holds: filled on the enquiry until the record exists. */
+  const shared = (
+    key: string,
+    label: string,
+    value: string | null | undefined,
+    enquiryField: string,
+    profile: [tab: string, field: string],
+    extra?: Partial<Check>,
+  ): Check => ({
+    key,
+    label,
+    done: Boolean(value),
+    detail: value || "Not recorded",
+    go: suId ? onProfile(...profile) : onEnquiry(enquiryField),
+    ...extra,
+  });
+  /** A detail only the service user record holds. */
+  const recordOnly = (
+    key: string,
+    label: string,
+    value: string | null | undefined,
+    profile: [tab: string, field: string],
+  ): Check => ({
+    key,
+    label,
+    done: Boolean(value),
+    detail:
+      value ||
+      (suId
+        ? "Not recorded"
+        : "Added on the profile once the service user is created"),
+    go: onProfile(...profile),
+  });
 
   const beforeCare: Check[] = [
     {
@@ -173,25 +312,20 @@ export default function QuoteServiceUserPage() {
       label: "Assessment",
       done: Boolean(prereq("assessment")?.done),
       detail: prereq("assessment")?.detail ?? "—",
-      action: !prereq("assessment")?.done ? (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            enquiry.convertedServiceUserId
-              ? navigate({
-                  to: "/service-users/initial-assessment",
-                  search: { serviceUserId: enquiry.convertedServiceUserId },
-                })
-              : navigate({ to: "/crm/$enquiryId", params: { enquiryId } })
+      go: suId
+        ? {
+            label: "Open assessment",
+            onClick: () =>
+              navigate({
+                to: "/service-users/initial-assessment",
+                search: { serviceUserId: suId },
+              }),
           }
-        >
-          <ClipboardList className="mr-1.5 h-4 w-4" aria-hidden />
-          {enquiry.convertedServiceUserId
-            ? "Open initial assessment"
-            : "Start on the enquiry"}
-        </Button>
-      ) : null,
+        : {
+            label: "Start on enquiry",
+            onClick: () =>
+              navigate({ to: "/crm/$enquiryId", params: { enquiryId } }),
+          },
     },
     {
       key: "funding",
@@ -204,11 +338,12 @@ export default function QuoteServiceUserPage() {
       label: "Signed agreement",
       done: Boolean(prereq("agreement")?.done),
       detail: prereq("agreement")?.detail ?? "—",
-      action: !detail.agreementReceivedAt ? (
-        <div className="flex gap-2">
+      extra: !detail.agreementReceivedAt ? (
+        <div className="flex shrink-0 gap-2">
           <Input
-            className="h-9 w-56"
+            className="h-9 w-48"
             placeholder="Where it is kept"
+            aria-label="Where the signed agreement is kept"
             value={agreementNote}
             onChange={(e) => setAgreementNote(e.target.value)}
           />
@@ -234,59 +369,9 @@ export default function QuoteServiceUserPage() {
             Record
           </Button>
         </div>
-      ) : null,
+      ) : undefined,
     },
   ];
-
-  // Once the person has a service user record, its details are what count; before that, the
-  // enquiry's (they are copied across when the service user is created).
-  const profileAction = (tab: string) =>
-    suId ? (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() =>
-          navigate({
-            to: "/service-users/$serviceUserId/profile",
-            params: { serviceUserId: suId },
-            search: { tab },
-          })
-        }
-      >
-        Add on the profile
-      </Button>
-    ) : null;
-  // A detail only the service user record holds (the enquiry has no field for it).
-  const recordOnly = (
-    key: string,
-    label: string,
-    value: string | null | undefined,
-    tab: string,
-  ): Check => ({
-    key,
-    label,
-    done: Boolean(value),
-    detail:
-      value ||
-      (suId
-        ? "Not recorded"
-        : "Add on the profile once the service user is created"),
-    action: value ? null : profileAction(tab),
-  });
-  const fromEnquiryOrRecord = (
-    key: string,
-    label: string,
-    value: string | null | undefined,
-    tab: string,
-    extra?: Partial<Check>,
-  ): Check => ({
-    key,
-    label,
-    done: Boolean(value),
-    detail: value || "Not recorded",
-    action: value ? null : suId ? profileAction(tab) : editEnquiry,
-    ...extra,
-  });
 
   const { gp, personal } = splitContacts(su?.contacts ?? []);
   const emergency = (su?.contacts ?? []).filter((c) => c.isEmergencyContact);
@@ -312,104 +397,117 @@ export default function QuoteServiceUserPage() {
         .filter(Boolean)
         .join(" · ")
     : null;
+  const branch =
+    su?.location?.displayLabel ?? su?.location?.name ?? enquiry.locationName;
   const serviceStart = su?.serviceStartDate ?? detail.proposedStartDate;
 
-  const groups: { title: string; items: Check[] }[] = [
+  const groups: { title: string; icon: LucideIcon; items: Check[] }[] = [
     {
       title: "Personal",
+      icon: UserRound,
       items: [
-        fromEnquiryOrRecord(
+        shared(
           "branch",
           "Branch",
-          su?.location?.displayLabel ??
-            su?.location?.name ??
-            enquiry.locationName,
-          "personal",
+          branch,
+          "Receiving branch",
+          ["dom", "Branch"],
           {
             required: true,
-            detail:
-              su?.location?.name ??
-              enquiry.locationName ??
-              "Which branch will look after them",
+            detail: branch ?? "Which branch will look after them",
           },
         ),
-        recordOnly("title", "Title", su?.title?.name, "personal"),
-        recordOnly("gender", "Gender", su?.gender?.name, "personal"),
-        fromEnquiryOrRecord(
+        recordOnly("title", "Title", su?.title?.name, ["personal", "Title"]),
+        recordOnly("gender", "Gender", su?.gender?.name, [
+          "personal",
+          "Gender",
+        ]),
+        shared(
           "dob",
           "Date of birth",
           fmtDate(su?.dateOfBirth ?? enquiry.dateOfBirth),
-          "personal",
+          "Date of birth",
+          ["personal", "Date of Birth"],
         ),
-        recordOnly("nhs", "NHS number", su?.nhsNumber, "personal"),
+        recordOnly("nhs", "NHS number", su?.nhsNumber, [
+          "personal",
+          "NHS Number",
+        ]),
       ],
     },
     {
       title: "Home and contact",
+      icon: Home,
       items: [
-        fromEnquiryOrRecord(
+        shared(
           "address",
           "Address and postcode",
           address[0] && address[1] ? address.join(", ") : null,
-          "dom",
+          "Address",
+          ["dom", "Address"],
           { detail: address.filter(Boolean).join(", ") || "Not recorded" },
         ),
-        recordOnly("access", "How to get into the home", homeAccess, "dom"),
+        recordOnly("access", "How to get into the home", homeAccess, [
+          "dom",
+          "How to enter the home",
+        ]),
         recordOnly(
           "phone",
           "Their phone or email",
           [su?.phone || su?.mobile, su?.email].filter(Boolean).join(" · "),
-          "personal",
+          ["personal", "Phone Number"],
         ),
       ],
     },
     {
       title: "People",
+      icon: Users,
       items: [
         su
           ? recordOnly(
               "contact",
               "Family or next of kin",
               personal.map(contactName).join(", "),
-              "contacts",
+              ["contacts", "Personal Contacts"],
             )
-          : fromEnquiryOrRecord(
-              "contact",
-              "Family or next of kin",
-              enquiryContact,
+          : shared("contact", "Family or next of kin", enquiryContact, "Name", [
               "contacts",
-            ),
+              "Personal Contacts",
+            ]),
         recordOnly(
           "emergency",
           "Emergency contact",
           emergency.map(contactName).join(", "),
-          "contacts",
+          ["contacts", "Personal Contacts"],
         ),
-        recordOnly("gp", "GP", gp.map(contactName).join(", "), "contacts"),
+        recordOnly("gp", "GP", gp.map(contactName).join(", "), [
+          "contacts",
+          "GP Details",
+        ]),
       ],
     },
     {
       title: "Care",
+      icon: HeartHandshake,
       items: [
-        fromEnquiryOrRecord(
+        shared(
           "funding-type",
           "Funding type",
           su?.fundingType?.name ?? enquiry.fundingTypeName,
-          "personal",
+          "Funding type",
+          ["personal", "Funding Route"],
         ),
-        recordOnly(
-          "care-type",
-          "Category of care",
-          su?.careType?.name,
+        recordOnly("care-type", "Category of care", su?.careType?.name, [
           "personal",
-        ),
+          "Category of Care",
+        ]),
         recordOnly(
           "key-worker",
           "Key worker",
           su?.keyWorker
             ? `${su.keyWorker.firstName ?? ""} ${su.keyWorker.lastName ?? ""}`.trim()
             : null,
-          "personal",
+          ["personal", "Key Worker (search employees)"],
         ),
         {
           key: "start",
@@ -420,18 +518,25 @@ export default function QuoteServiceUserPage() {
             : fmtDate(detail.proposedStartDate)
               ? `${fmtDate(detail.proposedStartDate)} (the quote's proposed start)`
               : "Not set on the quote",
-          action: serviceStart ? null : profileAction("personal"),
+          go: onProfile("personal", "Service Start Date/Time"),
         },
       ],
     },
   ];
   const details = groups.flatMap((g) => g.items);
+  const all = [...beforeCare, ...details];
+  const missing = all.filter((c) => !c.done);
+  const donePct = Math.round(
+    ((all.length - missing.length) / all.length) * 100,
+  );
 
-  const missing = [...beforeCare, ...details].filter((c) => !c.done);
-  const blocked =
-    details.some((c) => c.required && !c.done) ||
-    !accepted ||
-    !can("service_users.create");
+  const needsBranch = details.some((c) => c.required && !c.done);
+  const canCreate = can("service_users.create");
+  const blockers = [
+    !accepted && "The quote is not accepted yet",
+    needsBranch && "Set the branch",
+    !canCreate && "You do not have permission to create service users",
+  ].filter(Boolean) as string[];
 
   const submit = () =>
     create.mutate(
@@ -467,7 +572,7 @@ export default function QuoteServiceUserPage() {
         { label: "Create service user" },
       ]}
     >
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         <Button
           variant="ghost"
           size="sm"
@@ -487,42 +592,117 @@ export default function QuoteServiceUserPage() {
           </p>
         )}
 
-        <Card>
-          <CardContent className="grid gap-4 pt-6 sm:grid-cols-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Accepted quote</p>
-              <p className="font-semibold">{detail.label}</p>
+        {/* Who, which quote, and how complete the record is. */}
+        <Card className="overflow-hidden">
+          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary">
+                {initials || "?"}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-lg font-semibold">{name}</p>
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                  <span>{enquiry.referenceNumber}</span>
+                  <span aria-hidden>·</span>
+                  <span>{detail.label}</span>
+                  <span
+                    className={`rounded-full px-2 py-px text-xs font-semibold ${
+                      accepted
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                        : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                    }`}
+                  >
+                    {accepted ? "Accepted" : "Not accepted"}
+                  </span>
+                  {preAdmission && (
+                    <span className="rounded-full bg-sky-100 px-2 py-px text-xs font-semibold text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                      {alreadyActive ? "Service user" : "Pre-admission record"}
+                    </span>
+                  )}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Weekly total</p>
-              <p className="font-semibold tabular-nums">
-                {money(detail.totals.weekly)}
-              </p>
+            <div className="w-full sm:w-64">
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="font-medium">Ready</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {all.length - missing.length} of {all.length}
+                </span>
+              </div>
+              <div
+                className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-valuenow={donePct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Details in place"
+              >
+                <div
+                  className={`h-full rounded-full transition-all ${donePct === 100 ? "bg-emerald-500" : "bg-primary"}`}
+                  style={{ width: `${donePct}%` }}
+                />
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Client pays</p>
-              <p className="font-semibold tabular-nums">
-                {money(detail.totals.clientWeeklyLiability)} / week
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Proposed start</p>
-              <p className="font-semibold">
-                {fmtDate(detail.proposedStartDate) ?? "—"}
-              </p>
-            </div>
-          </CardContent>
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-y divide-border border-t border-border sm:grid-cols-4 sm:divide-y-0">
+            <Stat label="Weekly total" value={money(detail.totals.weekly)} />
+            <Stat
+              label="Client pays"
+              value={`${money(detail.totals.clientWeeklyLiability)} / week`}
+            />
+            <Stat
+              label="Proposed start"
+              value={fmtDate(detail.proposedStartDate) ?? "—"}
+            />
+            <Stat label="Branch" value={branch ?? "Not set"} />
+          </div>
         </Card>
 
-        <div className="flex flex-col gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Before care starts</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <CheckList items={beforeCare} />
+        <div className="grid items-start gap-5 lg:grid-cols-3">
+          <div className="flex flex-col gap-4 lg:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">
+                {su
+                  ? `Checked against ${name}'s service user record.`
+                  : "Checked against the enquiry. The rest is added on the service user's profile."}
+              </p>
+              <div
+                role="tablist"
+                aria-label="Show"
+                className="inline-flex rounded-lg border border-border bg-muted/40 p-1"
+              >
+                {(
+                  [
+                    [false, `All (${all.length})`],
+                    [true, `Missing (${missing.length})`],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    role="tab"
+                    aria-selected={missingOnly === value}
+                    className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+                      missingOnly === value
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    onClick={() => setMissingOnly(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Section
+              title="Before care starts"
+              icon={ClipboardCheck}
+              items={beforeCare}
+              missingOnly={missingOnly}
+            >
               {pendingFundings.length > 0 && can("crm.manage") && (
-                <ul className="flex flex-col gap-2">
+                <ul className="flex flex-col gap-2 border-t border-border px-5 py-3">
                   {pendingFundings.map((f) => (
                     <PendingFunding
                       key={f.id}
@@ -533,35 +713,46 @@ export default function QuoteServiceUserPage() {
                   ))}
                 </ul>
               )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Service user details</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {su
-                  ? `From ${name}'s service user record.`
-                  : "From the enquiry. Details the enquiry does not hold are added on the service user's profile."}{" "}
-                {details.filter((c) => !c.done).length} of {details.length}{" "}
-                missing.
+            </Section>
+            {groups.map((g) => (
+              <Section
+                key={g.title}
+                title={g.title}
+                icon={g.icon}
+                items={g.items}
+                missingOnly={missingOnly}
+              />
+            ))}
+            {missingOnly && missing.length === 0 && (
+              <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                Nothing is missing.
               </p>
-            </CardHeader>
-            <CardContent className="grid gap-x-8 gap-y-2 lg:grid-cols-2">
-              {groups.map((g) => (
-                <div key={g.title} data-testid={`su-group-${g.title}`}>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {g.title}
-                  </p>
-                  <CheckList items={g.items} />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </div>
 
-        <Card className="border-primary/30">
-          <CardContent className="flex flex-col gap-3 pt-6">
-            <p className="text-sm" data-testid="su-missing-summary">
+          {/* The one action, kept in view while the list is worked through. */}
+          <Card className="flex flex-col gap-4 p-5 lg:sticky lg:top-20">
+            <div>
+              <h3 className="text-base font-semibold">
+                {alreadyActive
+                  ? "Service user is active"
+                  : preAdmission
+                    ? "Make service user active"
+                    : "Create service user"}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {alreadyActive
+                  ? `${name} was made a service user from this enquiry, and the enquiry is Won.`
+                  : preAdmission
+                    ? `${name} already has a Pre-admission record (made for the initial assessment). It will be made Active and the enquiry marked Won.`
+                    : `A new service user is created for ${name} as Active, and the enquiry is marked Won.`}
+              </p>
+            </div>
+
+            <p
+              className="rounded-lg bg-muted/50 px-3 py-2.5 text-sm"
+              data-testid="su-missing-summary"
+            >
               {missing.length === 0 ? (
                 <span className="font-medium text-emerald-700 dark:text-emerald-300">
                   Everything is in place.
@@ -575,52 +766,62 @@ export default function QuoteServiceUserPage() {
                   <span className="text-muted-foreground">
                     {alreadyActive
                       ? " — complete them on the enquiry or the service user's profile."
-                      : details.some((c) => c.required && !c.done)
+                      : needsBranch
                         ? " — set the branch before creating the service user."
                         : " — you can still create the service user and complete them later."}
                   </span>
                 </>
               )}
             </p>
-            <p className="text-sm text-muted-foreground">
-              {alreadyActive
-                ? `${name} was made a service user from this enquiry, and the enquiry is Won.`
-                : preAdmission
-                  ? `${name} already has a Pre-admission record (made for the initial assessment). It will be made Active and the enquiry marked Won.`
-                  : `A new service user is created for ${name} as Active, and the enquiry is marked Won.`}
-            </p>
+
+            {!alreadyActive && blockers.length > 0 && (
+              <ul className="flex flex-col gap-1.5 text-sm text-red-700 dark:text-red-300">
+                {blockers.map((b) => (
+                  <li key={b} className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {!detail.convertedVisitPlanId ? (
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={withPackage}
-                  onChange={(e) => setWithPackage(e.target.checked)}
-                />
-                Also create the draft care package from this quote (not active,
-                no carers assigned)
-              </label>
+              !alreadyActive && (
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={withPackage}
+                    onChange={(e) => setWithPackage(e.target.checked)}
+                  />
+                  Also create the draft care package from this quote (not
+                  active, no carers assigned)
+                </label>
+              )
             ) : (
               <p className="text-sm text-muted-foreground">
                 The draft care package from this quote already exists.
               </p>
             )}
+
             {alreadyActive ? (
               <Button
-                className="self-start"
                 variant="outline"
+                className="w-full"
                 onClick={() =>
                   navigate({
                     to: "/service-users/$serviceUserId/view",
-                    params: { serviceUserId: enquiry.convertedServiceUserId! },
+                    params: { serviceUserId: suId! },
                   })
                 }
               >
-                {name} is already a service user — view
+                View {name}
+                <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden />
               </Button>
             ) : (
               <Button
-                className="self-start"
-                disabled={blocked || create.isPending}
+                className="w-full"
+                disabled={blockers.length > 0 || create.isPending}
                 onClick={submit}
                 data-testid="su-create-button"
               >
@@ -634,8 +835,8 @@ export default function QuoteServiceUserPage() {
                   : "Create service user"}
               </Button>
             )}
-          </CardContent>
-        </Card>
+          </Card>
+        </div>
       </div>
     </CrmSectionLayout>
   );

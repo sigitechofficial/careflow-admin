@@ -2476,6 +2476,12 @@ const crmNewEnquiryRoute = createRoute({
 const crmEditEnquiryRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/crm/$enquiryId/edit',
+  // `focus`: a field label to open the form on; `returnTo`: a CRM page to go back to after saving.
+  validateSearch: (raw: Record<string, unknown>): { focus?: string; returnTo?: string } => {
+    const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+    const returnTo = text(raw.returnTo)
+    return { focus: text(raw.focus), returnTo: returnTo?.startsWith('/crm/') ? returnTo : undefined }
+  },
   beforeLoad: requirePermission('crm.manage'),
   component: EnquiryEditPage,
 })

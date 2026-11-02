@@ -89,7 +89,8 @@ export function resolveServiceUserProfileTab(raw: string | undefined): ServiceUs
   return isServiceUserProfileTabId(raw) ? raw : 'personal'
 }
 
-export function validateServiceUserProfileSearch(raw: Record<string, unknown>): { tab?: string } {
-  const tab = raw.tab
-  return { tab: typeof tab === 'string' && tab.trim() ? tab.trim() : undefined }
+/** `focus` is the label of a field to open the tab on (see useFocusField). */
+export function validateServiceUserProfileSearch(raw: Record<string, unknown>): { tab?: string; focus?: string } {
+  const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+  return { tab: text(raw.tab), focus: text(raw.focus) }
 }

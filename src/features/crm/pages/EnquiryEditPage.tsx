@@ -1,6 +1,7 @@
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { EmptyState, LoadingSpinner } from '@/shared/ui/page-elements'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { useFocusField } from '@/shared/lib/use-focus-field'
 import { CrmSectionLayout } from '@/features/crm/components/CrmSectionLayout'
 import { EnquiryForm } from '@/features/crm/components/EnquiryForm'
 import { useEnquiry, useUpdateEnquiry } from '@/features/crm/hooks/useCrm'
@@ -9,10 +10,16 @@ export default function EnquiryEditPage() {
   const params = useParams({ strict: false }) as { enquiryId?: string }
   const enquiryId = params.enquiryId ?? ''
   const navigate = useNavigate()
+  const search = useSearch({ strict: false }) as { focus?: string; returnTo?: string }
   const { data: enquiry, isLoading } = useEnquiry(enquiryId)
   const update = useUpdateEnquiry(enquiryId)
+  useFocusField(search.focus)
 
-  const backToDetail = () => navigate({ to: '/crm/$enquiryId', params: { enquiryId } })
+  // Opened from another CRM page (e.g. "what is missing" before creating the service user): go back there.
+  const backToDetail = () =>
+    search.returnTo
+      ? navigate({ to: search.returnTo })
+      : navigate({ to: '/crm/$enquiryId', params: { enquiryId } })
 
   if (isLoading) {
     return (

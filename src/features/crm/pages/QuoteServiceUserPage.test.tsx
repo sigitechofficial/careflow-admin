@@ -121,7 +121,7 @@ describe("QuoteServiceUserPage (accepted quote → active service user)", () => 
     );
     // Details only the service user record holds are listed too.
     expect(screen.getByTestId("su-check-gp")).toHaveTextContent(
-      "Add on the profile once the service user is created",
+      "Added on the profile once the service user is created",
     );
     expect(screen.getByTestId("su-check-contact")).not.toHaveTextContent(
       "Missing",
@@ -129,6 +129,21 @@ describe("QuoteServiceUserPage (accepted quote → active service user)", () => 
     expect(screen.getByTestId("su-missing-summary")).toHaveTextContent(
       "11 things still missing",
     );
+
+    // A gap on the enquiry opens the enquiry form on that field, and saving comes back here.
+    await userEvent.click(
+      within(screen.getByTestId("su-check-dob")).getByRole("button", {
+        name: "Add on enquiry",
+      }),
+    );
+    expect(navigate).toHaveBeenCalledWith({
+      to: "/crm/$enquiryId/edit",
+      params: { enquiryId: "e1" },
+      search: {
+        focus: "Date of birth",
+        returnTo: "/crm/e1/quotes/q1/v1/service-user",
+      },
+    });
 
     await userEvent.click(screen.getByTestId("su-create-button"));
     expect(mutate).toHaveBeenCalledWith(
@@ -195,13 +210,14 @@ describe("QuoteServiceUserPage with a service user record", () => {
     expect(screen.getByTestId("su-check-contact")).toHaveTextContent("Missing");
     await userEvent.click(
       within(screen.getByTestId("su-check-emergency")).getByRole("button", {
-        name: "Add on the profile",
+        name: "Add on profile",
       }),
     );
+    // Opens the profile tab on the field where it is added.
     expect(navigate).toHaveBeenCalledWith({
       to: "/service-users/$serviceUserId/profile",
       params: { serviceUserId: "su-1" },
-      search: { tab: "contacts" },
+      search: { tab: "contacts", focus: "Personal Contacts" },
     });
   });
 });

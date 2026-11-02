@@ -14,6 +14,7 @@ import { ServiceUserModuleTabs } from '@/features/service-users/components/Servi
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { serviceUserKeys } from '@/features/service-users/keys'
+import { useFocusField } from '@/shared/lib/use-focus-field'
 import { resolveServiceUserIdFromParams } from '@/features/service-users/service-user-route-id'
 import {
   resolveServiceUserProfileTab,
@@ -26,8 +27,9 @@ import {
 export default function ServiceUserProfilePage() {
   const navigate = useNavigate()
   const params = useParams({ strict: false }) as { serviceUserId?: string }
-  const search = useSearch({ strict: false }) as { tab?: string }
+  const search = useSearch({ strict: false }) as { tab?: string; focus?: string }
   const serviceUserId = resolveServiceUserIdFromParams(params.serviceUserId)
+  useFocusField(search.focus)
 
   React.useEffect(() => {
     if (!serviceUserId || search.tab !== 'invoices') return
