@@ -8,6 +8,9 @@ import type { QuoteDayRate, QuoteRates } from '@/features/crm/types/quotation.ty
 const thClass = 'border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-4'
 const tdClass = 'border-b border-border/70 px-3 py-2 align-middle first:pl-4'
 const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm'
+/** As many fixed short-visit lengths as the server accepts, each up to an hour. */
+const MAX_SHORT_VISITS = 10
+const MAX_SHORT_VISIT_MINUTES = 60
 
 const num = (v: string) => (v.trim() === '' ? null : Number(v))
 
@@ -122,12 +125,15 @@ export function QuoteRatesEditor({
   const bands = rates.shortVisits ?? []
   const setBand = (i: number, patch: Partial<{ upToMinutes: number; pricePerVisit: number }>) =>
     set({ shortVisits: bands.map((b, j) => (j === i ? { ...b, ...patch } : b)) })
+  // Each new length is 15 min longer than the longest so far, up to an hour.
+  const longest = Math.max(0, ...bands.map(b => b.upToMinutes || 0))
+  const canAddBand = bands.length < MAX_SHORT_VISITS && longest < MAX_SHORT_VISIT_MINUTES
   const addBands = (mins: number[]) =>
     set({
       shortVisits: [
         ...bands,
         ...mins.filter(m => !bands.some(b => b.upToMinutes === m)).map(m => ({ upToMinutes: m, pricePerVisit: 0 })),
-      ],
+      ].slice(0, MAX_SHORT_VISITS),
     })
 
   const dayRows: { key: 'weekend' | 'bankHoliday'; label: string; when: string; rate: QuoteDayRate }[] = [
@@ -245,7 +251,7 @@ export function QuoteRatesEditor({
             icon={<PoundSterling className="h-4 w-4" aria-hidden />}
             tone="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
             title="Fixed short visits"
-            hint="A flat £ per visit (per carer) by visit length, instead of the hourly rate. The shortest that fits is used."
+            hint="A flat £ per visit (per carer) by visit length, up to 60 min, instead of the hourly rate. The shortest that fits is used."
             actions={
               <>
                 <Button
@@ -253,12 +259,12 @@ export function QuoteRatesEditor({
                   variant="outline"
                   size="sm"
                   leftIcon={<Plus className="h-3.5 w-3.5" />}
-                  disabled={bands.length >= 3}
-                  onClick={() => set({ shortVisits: [...bands, { upToMinutes: bands.length ? 30 : 15, pricePerVisit: 0 }] })}
+                  disabled={!canAddBand}
+                  onClick={() => set({ shortVisits: [...bands, { upToMinutes: Math.min(MAX_SHORT_VISIT_MINUTES, longest + 15), pricePerVisit: 0 }] })}
                 >
                   Add visit
                 </Button>
-                <Button type="button" variant="ghost" size="sm" disabled={bands.length >= 2} onClick={() => addBands([15, 30])}>
+                <Button type="button" variant="ghost" size="sm" disabled={[15, 30].every(m => bands.some(b => b.upToMinutes === m))} onClick={() => addBands([15, 30])}>
                   Add 15/30
                 </Button>
               </>
@@ -282,11 +288,11 @@ export function QuoteRatesEditor({
                         <Input
                           type="number"
                           min={1}
-                          max={240}
+                          max={MAX_SHORT_VISIT_MINUTES}
                           className="h-9 w-20"
                           aria-label={`Short visit ${i + 1} minutes`}
                           value={b.upToMinutes || ''}
-                          onChange={e => setBand(i, { upToMinutes: Number(e.target.value) || 0 })}
+                          onChange={e => setBand(i, { upToMinutes: Math.min(MAX_SHORT_VISIT_MINUTES, Number(e.target.value) || 0) })}
                         />
                         <span className="text-muted-foreground">min</span>
                       </div>

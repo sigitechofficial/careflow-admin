@@ -40,6 +40,7 @@ import { CostSummary, FundingAndExtras, suggestFundingCategory } from '@/feature
 import { QuoteClientLayoutChoice } from '@/features/crm/components/quote-editor/QuoteClientLayoutChoice'
 import { VisitSlotsBuilder } from '@/features/crm/components/quote-editor/VisitSlotsBuilder'
 import { QuoteVersionCompare } from '@/features/crm/components/quote-editor/QuoteVersionCompare'
+import { QuoteRatesEditor } from '@/features/crm/components/quote-editor/QuoteRatesEditor'
 import { dayRatesNote, emptyPattern, visitBasePrice } from '@/features/crm/quote-labels'
 
 const enquiry = { id: 'e1', stage: 'OFFER', firstName: 'Jo', lastName: 'Bloggs' } as Enquiry
@@ -171,6 +172,25 @@ describe('quote rates in the editor', () => {
     await userEvent.type(duration, '15')
     expect(screen.getByTestId('quote-visit-price')).toHaveTextContent('£9.50 = short visit (up to 15 min) £9.50')
     expect(screen.getByTestId('quote-visit-price')).toHaveTextContent('On those days: weekends +20%')
+  })
+
+  it('adds more than three fixed short visits, each 15 min longer than the last, up to 60 min', async () => {
+    const onChange = vi.fn()
+    const three = [15, 30, 45].map(m => ({ upToMinutes: m, pricePerVisit: 10 }))
+    const { rerender } = render(<QuoteRatesEditor value={{ shortVisits: three }} onChange={onChange} readOnly={false} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Add visit' }))
+    expect(onChange.mock.calls[0][0].shortVisits.map((b: { upToMinutes: number }) => b.upToMinutes)).toEqual([15, 30, 45, 60])
+
+    const four = [...three, { upToMinutes: 60, pricePerVisit: 10 }]
+    rerender(<QuoteRatesEditor value={{ shortVisits: four }} onChange={onChange} readOnly={false} />)
+    expect(screen.getByRole('button', { name: 'Add visit' })).toBeDisabled()
+    // A typed length over an hour is held at 60.
+    await userEvent.type(screen.getByLabelText('Short visit 1 minutes'), '0')
+    expect(onChange.mock.lastCall![0].shortVisits[0].upToMinutes).toBe(60)
+
+    const ten = Array.from({ length: 10 }, (_, i) => ({ upToMinutes: (i + 1) * 5, pricePerVisit: 10 }))
+    rerender(<QuoteRatesEditor value={{ shortVisits: ten }} onChange={onChange} readOnly={false} />)
+    expect(screen.getByRole('button', { name: 'Add visit' })).toBeDisabled()
   })
 })
 
