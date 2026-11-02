@@ -9,6 +9,7 @@ import {
   HeartHandshake,
   Home,
   Loader2,
+  PoundSterling,
   UserPlus,
   UserRound,
   Users,
@@ -22,6 +23,7 @@ import { useAuthStore } from "@/features/auth/store";
 import { toastApiError, toastSuccess, toastWarning } from "@/shared/lib/toast";
 import { CrmSectionLayout } from "@/features/crm/components/CrmSectionLayout";
 import { PendingFunding } from "@/features/crm/components/quote-editor/QuoteReviewPanels";
+import { percentShares } from "@/features/crm/components/quote-editor/QuotePricingSections";
 import {
   useCreateEnquiryPreAdmission,
   useEnquiry,
@@ -31,7 +33,7 @@ import {
   useQuoteAction,
   useQuoteVersion,
 } from "@/features/crm/hooks/useQuotations";
-import { money } from "@/features/crm/quote-labels";
+import { PAYER_TYPE_LABELS, money } from "@/features/crm/quote-labels";
 import { useServiceUser } from "@/features/service-users/hooks/useServiceUser";
 
 type ServiceUserDetailContact = NonNullable<
@@ -182,6 +184,128 @@ function Section({
         </ul>
       )}
       {children}
+    </Card>
+  );
+}
+
+const PAYER_COLOURS = [
+  "bg-sky-500",
+  "bg-violet-500",
+  "bg-teal-500",
+  "bg-orange-500",
+  "bg-pink-500",
+];
+
+/** Each funder's weekly share of the accepted quote, and what is left for the client. */
+function WhoPays({
+  detail,
+}: {
+  detail: NonNullable<ReturnType<typeof useQuoteVersion>["data"]>;
+}) {
+  const weekly = detail.totals.weekly;
+  if (weekly <= 0) return null;
+  const rows = [
+    ...detail.fundings.map((f, i) => ({
+      key: f.id,
+      name: f.payerName?.trim() || PAYER_TYPE_LABELS[f.payerType],
+      type: PAYER_TYPE_LABELS[f.payerType],
+      amount: f.weeklyAmount,
+      pending:
+        f.payerType !== "PRIVATE_CLIENT" &&
+        (f.status ?? "PENDING_APPROVAL") === "PENDING_APPROVAL",
+      colour: PAYER_COLOURS[i % PAYER_COLOURS.length],
+    })),
+    {
+      key: "client",
+      name: "Client pays",
+      type: "Whatever the funders don’t cover",
+      amount: detail.totals.clientWeeklyLiability,
+      pending: false,
+      colour: "bg-emerald-500",
+    },
+  ];
+  const shares = percentShares(rows.map((r) => r.amount));
+  return (
+    <Card className="overflow-hidden" data-testid="su-who-pays">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border px-5 py-4">
+        <div className="flex items-center gap-2">
+          <PoundSterling
+            className="h-4 w-4 text-muted-foreground"
+            aria-hidden
+          />
+          <div>
+            <h3 className="text-sm font-semibold">Who pays each week</h3>
+            <p className="text-xs text-muted-foreground">
+              {detail.fundings.length
+                ? `${detail.fundings.length} funder${detail.fundings.length === 1 ? "" : "s"} on this quote`
+                : "No funders — the client pays it all"}
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Weekly total
+          </p>
+          <p className="text-lg font-semibold tabular-nums">{money(weekly)}</p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3 px-5 py-4">
+        <div
+          className="flex h-6 gap-0.5 overflow-hidden rounded-md bg-muted"
+          aria-hidden
+        >
+          {rows.map((r, i) =>
+            r.amount > 0 ? (
+              <div
+                key={r.key}
+                className={`flex items-center justify-center text-[11px] font-semibold text-white ${r.colour}`}
+                style={{
+                  width: `${Math.min(100, (r.amount / weekly) * 100)}%`,
+                }}
+              >
+                {(shares[i] ?? 0) >= 8 ? `${shares[i]}%` : ""}
+              </div>
+            ) : null,
+          )}
+        </div>
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {rows.map((r, i) => (
+            <li
+              key={r.key}
+              className={`grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-2.5 ${
+                r.key === "client"
+                  ? "bg-emerald-50/60 dark:bg-emerald-950/20"
+                  : ""
+              }`}
+              data-testid={`su-payer-${r.key}`}
+            >
+              <span className={`h-3 w-3 rounded-sm ${r.colour}`} aria-hidden />
+              <span className="min-w-0">
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span className="break-words text-sm font-medium">
+                    {r.name}
+                  </span>
+                  {r.pending && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      Pending approval
+                    </span>
+                  )}
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {r.type}
+                </span>
+              </span>
+              <span className="text-right text-sm tabular-nums">
+                <span className="font-semibold">{money(r.amount)}</span>
+                <span className="text-muted-foreground"> / week</span>
+              </span>
+              <span className="min-w-[3.5rem] rounded-md bg-muted px-2 py-1 text-center text-sm font-semibold tabular-nums">
+                {shares[i] ?? 0}%
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </Card>
   );
 }
@@ -677,6 +801,8 @@ export default function QuoteServiceUserPage() {
             <Stat label="Branch" value={branch ?? "Not set"} />
           </div>
         </Card>
+
+        <WhoPays detail={detail} />
 
         <div className="grid items-start gap-5 lg:grid-cols-3">
           <div className="flex flex-col gap-4 lg:col-span-2">

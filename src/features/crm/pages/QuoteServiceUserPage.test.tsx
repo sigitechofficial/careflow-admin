@@ -76,11 +76,21 @@ const detail = {
   quotationId: "q1",
   status: "ACCEPTED",
   label: "EQ-2026-0001 V1",
-  totals: { weekly: 350, clientWeeklyLiability: 350 },
+  totals: { weekly: 350, clientWeeklyLiability: 210 },
   proposedStartDate: "2026-11-09",
   agreementReceivedAt: null,
   convertedVisitPlanId: null,
-  fundings: [],
+  fundings: [
+    {
+      id: "f1",
+      payerType: "LOCAL_AUTHORITY",
+      payerName: "Croydon Council",
+      method: "FIXED",
+      amount: 140,
+      status: "CONFIRMED",
+      weeklyAmount: 140,
+    },
+  ],
   prerequisites: [
     { key: "assessment", label: "Assessment", done: true, detail: "Completed" },
     { key: "funding", label: "Funding", done: true, detail: "Private client" },
@@ -131,6 +141,18 @@ describe("QuoteServiceUserPage (accepted quote → active service user)", () => 
     expect(screen.getByTestId("su-missing-summary")).toHaveTextContent(
       "11 things still missing",
     );
+    // Each funder's weekly amount and share, and what is left for the client.
+    expect(screen.getByTestId("su-payer-f1")).toHaveTextContent(
+      "Croydon Council",
+    );
+    expect(screen.getByTestId("su-payer-f1")).toHaveTextContent(
+      "£140.00 / week",
+    );
+    expect(screen.getByTestId("su-payer-f1")).toHaveTextContent("40%");
+    expect(screen.getByTestId("su-payer-client")).toHaveTextContent(
+      "£210.00 / week",
+    );
+    expect(screen.getByTestId("su-payer-client")).toHaveTextContent("60%");
 
     // A gap on the enquiry opens the enquiry form on that field, and saving comes back here.
     await userEvent.click(
