@@ -12,8 +12,8 @@ function formatMinutes(minutes: number): string {
 }
 
 /**
- * Lower weekly hours: the weeks over the new hours and, when Settings → Dom Rules cancels
- * visits, which ones. Nothing is saved here.
+ * Lower weekly hours: the weeks over the new hours and the rota visits that will be cancelled
+ * (highlighted; special and time-critical visits marked). Nothing is saved here.
  */
 export function ServiceUserHoursDecreaseImpact({
   serviceUserId,
@@ -57,34 +57,43 @@ export function ServiceUserHoursDecreaseImpact({
           <li key={w.weekStart}>{weekLine(w)}</li>
         ))}
       </ul>
-      {impact.decreaseAction === 'KEEP_WARN' ? (
-        <p>The visits stay as they are. The visit plan shows these weeks as over the weekly hours.</p>
-      ) : (
-        <>
-          <p>
-            {impact.visitsToCancel.length
-              ? `These ${impact.visitsToCancel.length} visit${impact.visitsToCancel.length === 1 ? ' is' : 's are'} cancelled (no charge), the latest in each week first:`
-              : 'No visits can be cancelled automatically.'}
-          </p>
-          {impact.visitsToCancel.length ? (
-            <ul className="ml-5 max-h-40 list-disc space-y-0.5 overflow-y-auto">
-              {impact.visitsToCancel.map(v => (
-                <li key={`${v.date}-${v.startDateTime}`}>
-                  {formatDate(dayKeyFromInstant(v.startDateTime) ?? v.date)} {formatTime(v.startDateTime)}–
-                  {formatTime(v.endDateTime)} · {v.slotLabel}
-                  {v.onRota ? '' : ' (not on the rota yet)'}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {impact.stillOverWeeks.length ? (
-            <p>
-              Still over after that (time-critical visits are never cancelled automatically):{' '}
-              {impact.stillOverWeeks.map(weekLine).join('; ')}.
-            </p>
-          ) : null}
-        </>
-      )}
+      <p>
+        {impact.visitsToCancel.length
+          ? `These ${impact.visitsToCancel.length} visit${impact.visitsToCancel.length === 1 ? ' is' : 's are'} cancelled (no charge) when the change applies, the latest in each week first. Today's visits are never cancelled.`
+          : "No visits can be cancelled automatically (today's visits are never cancelled)."}
+      </p>
+      {impact.visitsToCancel.length ? (
+        <ul className="ml-1 max-h-48 space-y-1 overflow-y-auto" data-testid="su-hours-decrease-visits">
+          {impact.visitsToCancel.map(v => (
+            <li
+              key={`${v.date}-${v.startDateTime}`}
+              className="flex flex-wrap items-center gap-1.5 rounded border border-red-300 bg-red-50 px-2 py-1 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100"
+            >
+              <span className="tabular-nums">
+                {formatDate(dayKeyFromInstant(v.startDateTime) ?? v.date)} {formatTime(v.startDateTime)}–
+                {formatTime(v.endDateTime)}
+              </span>
+              <span>· {v.slotLabel}</span>
+              {v.kind === 'SPECIAL' ? (
+                <span className="rounded bg-violet-100 px-1.5 text-[11px] font-medium text-violet-900 dark:bg-violet-900/50 dark:text-violet-100">
+                  Special visit
+                </span>
+              ) : null}
+              {v.timeCritical ? (
+                <span className="rounded bg-amber-200 px-1.5 text-[11px] font-medium text-amber-950 dark:bg-amber-900/60 dark:text-amber-100">
+                  Time-critical
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {impact.visitsToCancel.some(v => v.kind === 'SPECIAL') ? (
+        <p className="font-medium">Special visits are included in the visits to cancel.</p>
+      ) : null}
+      {impact.stillOverWeeks.length ? (
+        <p>Still over after that: {impact.stillOverWeeks.map(weekLine).join('; ')}.</p>
+      ) : null}
     </div>
   )
 }

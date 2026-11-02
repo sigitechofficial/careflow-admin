@@ -746,9 +746,18 @@ export function VisitPlanAddExtraVisitsDialog({
                 <>
                 {approvalCount > 0 ? (
                   <p className="mt-2 rounded-md border border-orange-300 bg-orange-50 px-2.5 py-1.5 text-xs text-orange-900 dark:border-orange-900 dark:bg-orange-950/30 dark:text-orange-100">
-                    Dates marked <strong>Needs manager approval</strong> would take that week over the service
-                    user&apos;s weekly contracted hours. They are sent to a manager and added only if approved. The
-                    other dates are added now.
+                    {isEditing ? (
+                      <>
+                        The new time would take that week over the service user&apos;s weekly contracted hours. The
+                        change is sent to a manager; the visit keeps its current time until it is approved.
+                      </>
+                    ) : (
+                      <>
+                        Dates marked <strong>Needs manager approval</strong> would take that week over the service
+                        user&apos;s weekly contracted hours. They are sent to a manager and added only if approved.
+                        The other dates are added now.
+                      </>
+                    )}
                   </p>
                 ) : null}
                 <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-sm">
@@ -773,7 +782,9 @@ export function VisitPlanAddExtraVisitsDialog({
                           : d.ok && d.needsApproval
                           ? `Needs manager approval — that week would have ${formatVisitPlanWeeklyHours(
                               d.weekMinutes ?? 0,
-                            )} of ${formatVisitPlanWeeklyHours(limitMinutes ?? 0)}`
+                            )} of ${formatVisitPlanWeeklyHours(limitMinutes ?? 0)}${
+                              isEditing ? '. The visit keeps its current time until a manager approves' : ''
+                            }`
                           : d.ok
                           ? isEditing
                             ? 'No clash — can be saved'

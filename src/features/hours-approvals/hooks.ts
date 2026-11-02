@@ -105,13 +105,13 @@ export function usePendingServiceUserHoursChange(serviceUserId: string, enabled 
   })
 }
 
-/** Settings → Dom Rules: which weekly hours changes need a manager (same request as the pending one). */
+/** Settings → Dom Rules: whether weekly hours changes need a manager (same request as the pending one). */
 export function useServiceUserHoursChangeApproval(serviceUserId: string, enabled = true) {
   return useQuery({
     queryKey: keys.pendingServiceUserHours(serviceUserId),
     queryFn: ({ signal }) => fetchPendingServiceUserHoursChange(serviceUserId, { signal }),
     enabled: enabled && Boolean(serviceUserId),
-    select: d => d.changeApproval,
+    select: d => d.changeNeedsApproval,
   })
 }
 

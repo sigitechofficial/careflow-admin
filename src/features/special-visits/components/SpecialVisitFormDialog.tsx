@@ -107,7 +107,9 @@ export function SpecialVisitFormDialog({
     onSuccess: (result) => {
       void qc.invalidateQueries({ queryKey: specialVisitKeys.list(employeeId, weekStart) })
       void qc.invalidateQueries({ queryKey: specialVisitKeys.summary(employeeId, weekStart) })
-      if (result.carerHoursApprovalRequested) {
+      if (result.serviceUserHoursApprovalRequested) {
+        toastWarning('Sent to Hours approvals — not added yet', result.serviceUserHoursApprovalRequested)
+      } else if (result.carerHoursApprovalRequested) {
         toastWarning('Special visit added — waiting for a manager', result.carerHoursApprovalRequested)
       } else if (result.carerHoursWarning || result.weeklyHoursWarning) {
         toastWarning(

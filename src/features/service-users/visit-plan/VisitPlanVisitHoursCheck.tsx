@@ -57,11 +57,9 @@ export function VisitPlanVisitHoursCheck({ serviceUserId, planId, slots }: Props
         </span>{' '}
         weekly contracted hours.{' '}
         {over > 0
-          ? result.planOverLimit === 'WARN'
-            ? `That is ${formatVisitPlanWeeklyHours(over)} over — it can still be saved (warning only, set in Settings).`
-            : result.planOverLimit === 'MANAGER_APPROVAL'
-              ? `That is ${formatVisitPlanWeeklyHours(over)} over — the draft can be saved, but a manager must approve it before it's activated.`
-            : `That is ${formatVisitPlanWeeklyHours(over)} over — the plan can't be saved like this. Increase the weekly hours first (manager approval).`
+          ? result.visitsNeedApproval === false
+            ? `That is ${formatVisitPlanWeeklyHours(over)} over — the visits are still made (warning only, set in Settings).`
+            : `That is ${formatVisitPlanWeeklyHours(over)} over — it can be saved; the visits over the hours go to Hours approvals when the rota is made.`
           : `${formatVisitPlanWeeklyHours(-over)} left.`}
         {query.isFetching ? <Loader2 className="ml-1 inline h-3 w-3 animate-spin" aria-hidden /> : null}
       </p>

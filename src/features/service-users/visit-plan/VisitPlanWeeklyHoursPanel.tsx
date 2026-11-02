@@ -6,9 +6,8 @@ import {
   type VisitPlanWeeklyHoursSummary,
 } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
-import type { VisitPlanDraftApproval, VisitPlanWeeklyHoursResult } from '@/features/service-users/visit-plan/api'
+import type { VisitPlanWeeklyHoursResult } from '@/features/service-users/visit-plan/api'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
-import { dayKeyInTimeZone } from '@/shared/lib/operational-day.util'
 
 type Props = {
   slots: VisitPlanSlot[]
@@ -42,8 +41,7 @@ function fromServer(server: VisitPlanWeeklyHoursResult): VisitPlanWeeklyHoursSum
 function statusMessage(
   summary: VisitPlanWeeklyHoursSummary,
   fromServerCount: boolean,
-  planOverLimit?: VisitPlanWeeklyHoursResult['planOverLimit'],
-  draftApproved = false,
+  visitsNeedApproval?: VisitPlanWeeklyHoursResult['visitsNeedApproval'],
 ): string {
   if (summary.contractedMinutes == null) {
     return `Call pattern totals ${formatVisitPlanWeeklyHours(summary.plannedMinutes)} per week.`
@@ -52,17 +50,11 @@ function statusMessage(
     return `No visits planned yet — ${formatVisitPlanWeeklyHours(summary.contractedMinutes)} a week available.`
   }
   if (summary.isOverContract) {
-    if (fromServerCount && planOverLimit === 'WARN') {
-      return `${formatVisitPlanWeeklyHours(summary.excessMinutes)} over the weekly contracted hours. Saving is still allowed (warning only, set in Settings).`
-    }
-    if (fromServerCount && planOverLimit === 'MANAGER_APPROVAL') {
-      if (draftApproved) {
-        return `${formatVisitPlanWeeklyHours(summary.excessMinutes)} over the weekly contracted hours — a manager approved this.`
-      }
-      return `${formatVisitPlanWeeklyHours(summary.excessMinutes)} over the weekly contracted hours. The draft can be saved, but a manager must approve it (Hours approvals) before it's activated.`
+    if (fromServerCount && visitsNeedApproval === false) {
+      return `${formatVisitPlanWeeklyHours(summary.excessMinutes)} over the weekly contracted hours. The visits are still made (warning only, set in Settings).`
     }
     return fromServerCount
-      ? `${formatVisitPlanWeeklyHours(summary.excessMinutes)} over the weekly contracted hours. Visits that go over can't be saved — increase the weekly hours first (manager approval).`
+      ? `${formatVisitPlanWeeklyHours(summary.excessMinutes)} over the weekly contracted hours. The plan can be saved; when the rota is made, the visits over the hours go to Hours approvals and are made only once a manager approves.`
       : `${formatVisitPlanWeeklyHours(summary.excessMinutes)} over weekly contract — excess visits show amber stripes on Schedule Jobs (rota is not blocked).`
   }
   if (summary.isUnderContract) {
@@ -135,15 +127,13 @@ export function VisitPlanWeeklyHoursPanel({
               summary.isOverContract ? 'text-amber-900 dark:text-amber-100' : 'text-muted-foreground',
             )}
           >
-            {statusMessage(
-              summary,
-              Boolean(serverSummary),
-              serverSummary?.planOverLimit,
-              draftApprovalCovers(serverSummary?.draftApproval, summary.plannedMinutes),
-            )}
+            {statusMessage(summary, Boolean(serverSummary), serverSummary?.visitsNeedApproval)}
           </p>
-          {summary.isOverContract && serverSummary?.draftApproval ? (
-            <DraftApprovalNote approval={serverSummary.draftApproval} plannedMinutes={summary.plannedMinutes} />
+          {serverSummary?.edge ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Counted from the visits on the rota, this week to {formatDate(serverSummary.edge)} (the rota horizon); the
+              last week may be partly made yet.
+            </p>
           ) : null}
           {sleepInNights > 0 ? (
             <p className="mt-1 text-xs text-muted-foreground">
@@ -154,40 +144,5 @@ export function VisitPlanWeeklyHoursPanel({
         </div>
       </div>
     </div>
-  )
-}
-
-/** A manager approved this draft at its current busiest week (or a heavier one). */
-function draftApprovalCovers(approval: VisitPlanDraftApproval | null | undefined, plannedMinutes: number) {
-  return approval?.status === 'APPROVED' && approval.heaviestMinutes >= plannedMinutes
-}
-
-/** Where this draft's weekly-hours request stands (manager approval setting). */
-function DraftApprovalNote({
-  approval,
-  plannedMinutes,
-}: {
-  approval: VisitPlanDraftApproval
-  plannedMinutes: number
-}) {
-  const { formatDate, formatTime } = useOrganisationDisplayFormat()
-  const at = (iso: string | null) => (iso ? `${formatDate(dayKeyInTimeZone(iso))} ${formatTime(iso)}` : '')
-  const by = approval.decidedByName ?? 'a manager'
-  let text: string
-  let tone: string
-  if (draftApprovalCovers(approval, plannedMinutes)) {
-    text = `Approved by ${by} on ${at(approval.decidedAt)} — the draft can be activated.`
-    tone = 'text-emerald-800 dark:text-emerald-200'
-  } else if (approval.status === 'REJECTED') {
-    text = `Rejected by ${by} on ${at(approval.decidedAt)}: ${approval.decisionNotes || 'no reason given'}. It can't be activated — change the visits or increase the weekly hours, then save again.`
-    tone = 'text-red-800 dark:text-red-200'
-  } else {
-    text = `Waiting for a manager's approval (Hours approvals) since ${at(approval.requestedAt)} — it can't be activated yet.`
-    tone = 'text-amber-900 dark:text-amber-100'
-  }
-  return (
-    <p className={cn('mt-1 text-xs font-medium', tone)} data-testid="visit-plan-draft-approval">
-      {text}
-    </p>
   )
 }

@@ -42,6 +42,7 @@ const REQUEST_LABEL: Record<HoursApprovalType, string> = {
   SERVICE_USER_WEEKLY_HOURS_CHANGE: 'Weekly hours change',
   EXTRA_VISIT_OVER_HOURS: 'Extra visit over the weekly hours',
   DRAFT_PLAN_OVER_HOURS: 'Draft visit plan over the weekly hours',
+  SERVICE_USER_VISIT_OVER_HOURS: 'Visit over the service user\'s weekly hours',
   EXTRA_WEEKLY_HOURS: 'Extra weekly hours (waiting for approval)',
 }
 
@@ -50,6 +51,7 @@ const STATUS_LABEL: Record<string, string> = {
   APPROVED: 'Approved',
   REJECTED: 'Rejected',
   CANCELLED: 'Cancelled',
+  EXPIRED: 'Expired',
   ACTIVE: 'Given',
   CREATED: 'Added',
 }
@@ -59,6 +61,7 @@ const STATUS_BADGE: Record<string, 'warning' | 'success' | 'destructive' | 'seco
   APPROVED: 'success',
   REJECTED: 'destructive',
   CANCELLED: 'secondary',
+  EXPIRED: 'secondary',
   ACTIVE: 'success',
   CREATED: 'secondary',
 }
