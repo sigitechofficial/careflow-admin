@@ -15,11 +15,8 @@ const IA_STATUS: Record<NonNullable<Enquiry['initialAssessment']>['status'], { l
   REVIEWED: { label: 'Reviewed', className: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200' },
 }
 
-/**
- * The full initial assessment (the same one a service user has). It is kept on a service user, so
- * an enquiry without one first gets a Pre-admission service user made from its details.
- */
-export function EnquiryInitialAssessment({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean }) {
+/** Start, continue or open the enquiry's full initial assessment (also used by the page header). */
+export function useInitialAssessmentAction(enquiry: Enquiry, canManage: boolean) {
   const navigate = useNavigate()
   const can = useAuthStore(s => s.can)
   const start = useStartEnquiryInitialAssessment(enquiry.id)
@@ -52,6 +49,18 @@ export function EnquiryInitialAssessment({ enquiry, canManage }: { enquiry: Enqu
       ? 'Continue initial assessment'
       : 'View initial assessment'
 
+  return { visible: canOpen || canStart, label, pending: start.isPending, onClick }
+}
+
+/**
+ * The full initial assessment (the same one a service user has). It is kept on a service user, so
+ * an enquiry without one first gets a Pre-admission service user made from its details.
+ */
+export function EnquiryInitialAssessment({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean }) {
+  const { visible, label, pending, onClick } = useInitialAssessmentAction(enquiry, canManage)
+  const ia = enquiry.initialAssessment
+  const serviceUserId = enquiry.convertedServiceUserId
+
   return (
     <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3" data-testid="crm-enquiry-initial-assessment">
       <div className="flex flex-wrap items-center gap-2">
@@ -72,9 +81,9 @@ export function EnquiryInitialAssessment({ enquiry, canManage }: { enquiry: Enqu
           enquiry; the enquiry stays at its stage.
         </p>
       ) : null}
-      {canOpen || canStart ? (
-        <Button type="button" size="sm" variant="outline" className="mt-2" disabled={start.isPending} onClick={onClick}>
-          {start.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+      {visible ? (
+        <Button type="button" size="sm" variant="outline" className="mt-2" disabled={pending} onClick={onClick}>
+          {pending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
           {label}
         </Button>
       ) : null}

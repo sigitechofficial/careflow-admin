@@ -7,7 +7,10 @@ import {
   Check,
   CheckCircle2,
   ClipboardCheck,
+  ClipboardList,
+  Loader2,
   Pencil,
+  PoundSterling,
   Mail,
   MessageSquarePlus,
   Phone,
@@ -22,7 +25,8 @@ import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { CrmSectionLayout } from '@/features/crm/components/CrmSectionLayout'
 import { QuoteSummary } from '@/features/crm/components/QuoteSummaryCard'
-import { EnquiryInitialAssessment } from '@/features/crm/components/EnquiryInitialAssessment'
+import { EnquiryInitialAssessment, useInitialAssessmentAction } from '@/features/crm/components/EnquiryInitialAssessment'
+import { useEnquiryQuotations } from '@/features/crm/hooks/useQuotations'
 import {
   useAddEnquiryNote,
   useEnquiry,
@@ -146,12 +150,63 @@ function MetaItem({ label, children }: { label: string; children: React.ReactNod
   )
 }
 
+/** The assessment and quote, reachable from the top of the page as well as from the Plan card. */
+function HeaderShortcuts({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean }) {
+  const navigate = useNavigate()
+  const assessment = useInitialAssessmentAction(enquiry, canManage)
+  const { data } = useEnquiryQuotations(enquiry.id)
+  const quotations = data?.quotations ?? []
+  const currentQuotation = quotations.find(q => q.isCurrent) ?? quotations[0]
+  const current = currentQuotation?.latestVersion
+  return (
+    <>
+      {assessment.visible && (
+        <Button variant="outline" size="sm" disabled={assessment.pending} onClick={assessment.onClick}>
+          {assessment.pending ? (
+            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <ClipboardList className="mr-1.5 h-4 w-4" aria-hidden />
+          )}
+          {assessment.label}
+        </Button>
+      )}
+      {current && currentQuotation ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            navigate({
+              to: '/crm/$enquiryId/quotes/$quotationId/$versionId',
+              params: { enquiryId: enquiry.id, quotationId: currentQuotation.id, versionId: current.id },
+            })
+          }
+        >
+          <PoundSterling className="mr-1.5 h-4 w-4" aria-hidden />
+          View quote
+        </Button>
+      ) : (
+        canManage &&
+        data && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate({ to: '/crm/$enquiryId/quotes/new', params: { enquiryId: enquiry.id } })}
+          >
+            <PoundSterling className="mr-1.5 h-4 w-4" aria-hidden />
+            Create quotation
+          </Button>
+        )
+      )}
+    </>
+  )
+}
+
 function EnquiryHeader({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean }) {
   const navigate = useNavigate()
   return (
     <Card>
       <CardContent className="flex flex-col gap-5 py-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-center gap-4">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary">
               {initialsOf(enquiry)}
@@ -186,17 +241,19 @@ function EnquiryHeader({ enquiry, canManage }: { enquiry: Enquiry; canManage: bo
               </div>
             </div>
           </div>
-          {canManage && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 self-start"
-              onClick={() => navigate({ to: '/crm/$enquiryId/edit', params: { enquiryId: enquiry.id } })}
-            >
-              <Pencil className="mr-1.5 h-4 w-4" aria-hidden />
-              {enquiry.kind === 'REFERRAL' ? 'Edit referral' : 'Edit enquiry'}
-            </Button>
-          )}
+          <div className="flex shrink-0 flex-wrap gap-2 self-start lg:justify-end">
+            <HeaderShortcuts enquiry={enquiry} canManage={canManage} />
+            {canManage && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate({ to: '/crm/$enquiryId/edit', params: { enquiryId: enquiry.id } })}
+              >
+                <Pencil className="mr-1.5 h-4 w-4" aria-hidden />
+                {enquiry.kind === 'REFERRAL' ? 'Edit referral' : 'Edit enquiry'}
+              </Button>
+            )}
+          </div>
         </div>
 
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg bg-muted/40 px-4 py-3 sm:grid-cols-4">
