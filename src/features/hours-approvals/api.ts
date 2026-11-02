@@ -1,6 +1,7 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 
-export type HoursApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+/** EXPIRED: the visit's start time passed, or the request is no longer valid (plan ended, date cancelled, …). */
+export type HoursApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED'
 
 /** VISIT_PLAN_OVER_HOURS: a visit plan put the carer over their hours. CONTRACTED_HOURS_CHANGE: a contracted hours change waiting for a manager. */
 export type HoursApprovalType =
@@ -11,6 +12,8 @@ export type HoursApprovalType =
   | 'DRAFT_PLAN_OVER_HOURS'
   | 'ROTA_VISIT_OVER_HOURS'
   | 'EXTRA_WEEKLY_HOURS'
+  /** A rota visit (visit plan or special visit) over the service user's weekly hours: made once approved. */
+  | 'SERVICE_USER_VISIT_OVER_HOURS'
 
 /** Extra visit over a service user's weekly hours: the visit created if a manager approves. */
 export type ExtraVisitRequestPayload = {
@@ -270,18 +273,15 @@ export async function cancelHoursApproval(id: string): Promise<void> {
   })
 }
 
-/** Settings → Dom Rules: which weekly hours changes need a manager. */
-export type ServiceUserHoursChangeApproval = 'ALWAYS' | 'INCREASE_ONLY' | 'DECREASE_ONLY' | 'NEVER'
-
 export async function fetchPendingServiceUserHoursChange(
   serviceUserId: string,
   init?: RequestInit,
-): Promise<{ pending: PendingServiceUserHoursChange | null; changeApproval: ServiceUserHoursChangeApproval }> {
+): Promise<{ pending: PendingServiceUserHoursChange | null; changeNeedsApproval: boolean }> {
   const q = new URLSearchParams({ serviceUserId })
   const res = await apiJson<
-    ApiEnvelope<{ pending: PendingServiceUserHoursChange | null; changeApproval?: ServiceUserHoursChangeApproval }>
+    ApiEnvelope<{ pending: PendingServiceUserHoursChange | null; changeNeedsApproval?: boolean }>
   >(`/hours-approvals/service-user-hours/pending?${q.toString()}`, { method: 'GET', ...init })
-  return { pending: res.data?.pending ?? null, changeApproval: res.data?.changeApproval ?? 'ALWAYS' }
+  return { pending: res.data?.pending ?? null, changeNeedsApproval: res.data?.changeNeedsApproval !== false }
 }
 
 
@@ -299,11 +299,18 @@ export async function requestServiceUserHoursChange(body: {
 
 /** What lowering a service user's weekly hours would do to their visits (Settings → Dom Rules). */
 export type ServiceUserHoursImpact = {
-  decreaseAction: 'KEEP_WARN' | 'CANCEL_LATEST'
   limitMinutes: number
   overWeeks: Array<{ weekStart: string; minutes: number }>
-  visitsToCancel: Array<{ date: string; slotLabel: string; startDateTime: string; endDateTime: string; onRota: boolean }>
-  /** Weeks still over after cancelling (time-critical visits are never cancelled automatically). */
+  /** Rota visits cancelled when the change applies (latest in each week over, from tomorrow). */
+  visitsToCancel: Array<{
+    date: string
+    slotLabel: string
+    startDateTime: string
+    endDateTime: string
+    kind: 'PLAN' | 'EXTRA' | 'SPECIAL'
+    timeCritical: boolean
+  }>
+  /** Weeks still over after cancelling (hours in visits that can't be cancelled, e.g. today's). */
   stillOverWeeks: Array<{ weekStart: string; minutes: number }>
 }
 

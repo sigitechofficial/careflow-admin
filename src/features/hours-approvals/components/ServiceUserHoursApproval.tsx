@@ -51,7 +51,7 @@ export function ServiceUserHoursReviewDialog({
   const ruleQuery = useServiceUserHoursChangeApproval(serviceUserId, open)
   const from = fromHours != null && fromHours.trim() !== '' ? Number.parseFloat(fromHours) : null
   const needsApproval = serviceUserHoursChangeNeedsApproval(
-    ruleQuery.data ?? 'ALWAYS',
+    ruleQuery.data ?? true,
     from != null && Number.isFinite(from) ? from : null,
     toHours,
   )
@@ -110,7 +110,9 @@ export function ServiceUserHoursReviewDialog({
           <p className="text-xs text-muted-foreground">
             {needsApproval ? 'Once approved, the' : 'The'} new hours apply to the DOM Care tab and the visit
             plan together.
-            {from == null || toHours >= from ? ' Visits already on the rota are not changed.' : ''}
+            {from == null || toHours >= from
+              ? ' Visits already on the rota are not changed; waiting visits that then fit are approved automatically.'
+              : ''}
           </p>
           {open && from != null && toHours < from ? (
             <ServiceUserHoursDecreaseImpact serviceUserId={serviceUserId} weeklyHours={toHours} />

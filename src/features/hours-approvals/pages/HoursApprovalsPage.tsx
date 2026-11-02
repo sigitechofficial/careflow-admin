@@ -51,6 +51,7 @@ const TABS: { id: HoursApprovalStatus; label: string }[] = [
   { id: 'APPROVED', label: 'Approved' },
   { id: 'REJECTED', label: 'Rejected' },
   { id: 'CANCELLED', label: 'Cancelled' },
+  { id: 'EXPIRED', label: 'Expired' },
 ]
 
 /** Default weekly cap; each carer row carries the one set in Settings → Dom Rules. */
@@ -65,6 +66,7 @@ const STATUS_BADGE: Record<HoursApprovalStatus, React.ComponentProps<typeof Badg
   APPROVED: 'success',
   REJECTED: 'destructive',
   CANCELLED: 'secondary',
+  EXPIRED: 'secondary',
 }
 
 const STATUS_LABEL: Record<HoursApprovalStatus, string> = {
@@ -72,6 +74,7 @@ const STATUS_LABEL: Record<HoursApprovalStatus, string> = {
   APPROVED: 'Approved',
   REJECTED: 'Rejected',
   CANCELLED: 'Cancelled',
+  EXPIRED: 'Expired',
 }
 
 function isContractedChange(row: HoursApproval) {
@@ -82,8 +85,37 @@ function isServiceUserHoursChange(row: HoursApproval) {
   return row.requestType === 'SERVICE_USER_WEEKLY_HOURS_CHANGE'
 }
 
+/** Extra visit, or a visit plan / special visit held over the service user's weekly hours (same visit details). */
 function isExtraVisitRequest(row: HoursApproval) {
-  return row.requestType === 'EXTRA_VISIT_OVER_HOURS'
+  return row.requestType === 'EXTRA_VISIT_OVER_HOURS' || row.requestType === 'SERVICE_USER_VISIT_OVER_HOURS'
+}
+
+/** Badge for a service user visit request: extra visit, visit plan visit or special visit. */
+function serviceUserVisitLabel(row: HoursApproval): string {
+  if (row.requestType === 'EXTRA_VISIT_OVER_HOURS') return 'Extra visit over weekly hours'
+  const kind = (row.requestPayload as unknown as { kind?: string } | null)?.kind
+  if (kind === 'SPECIAL_VISIT') return 'Special visit over weekly hours'
+  if (kind === 'EXTRA_EDIT') return 'Longer extra visit over weekly hours'
+  if (kind === 'PLAN_TIME') return 'Longer visit plan visits over weekly hours'
+  return 'Visit plan visit over weekly hours'
+}
+
+/** A longer visit waiting for a manager: its time before the change and how many visits keep it. */
+function longerVisitLine(row: HoursApproval): string | null {
+  const p = row.requestPayload as unknown as {
+    kind?: string
+    fromStartTime?: string
+    fromEndTime?: string
+    startTime?: string
+    endTime?: string
+    heldDeltas?: unknown[]
+  } | null
+  if (!p || (p.kind !== 'EXTRA_EDIT' && p.kind !== 'PLAN_TIME')) return null
+  const n = p.heldDeltas?.length ?? 1
+  const times = `${p.fromStartTime ?? ''}–${p.fromEndTime ?? ''} → ${p.startTime ?? ''}–${p.endTime ?? ''} · ${n} visit${n === 1 ? '' : 's'}`
+  return row.status === 'PENDING'
+    ? `${times} keep${n === 1 ? 's' : ''} the current time until approved`
+    : times
 }
 
 function isRotaVisitRequest(row: HoursApproval) {
@@ -559,13 +591,16 @@ export default function HoursApprovalsPage() {
                           ) : isExtraVisitRequest(r) ? (
                             <div className="mt-1 space-y-0.5">
                               <Badge variant="outline" size="sm">
-                                Extra visit over weekly hours
+                                {serviceUserVisitLabel(r)}
                               </Badge>
                               {extraVisit ? (
                                 <p className="text-xs text-foreground">
                                   {formatDate(extraVisit.date)} · {extraVisit.startTime}–{extraVisit.endTime} ·{' '}
                                   {extraVisit.slotLabel}
                                 </p>
+                              ) : null}
+                              {longerVisitLine(r) ? (
+                                <p className="text-xs text-muted-foreground">{longerVisitLine(r)}</p>
                               ) : null}
                               {r.reason ? (
                                 <p className="text-xs text-muted-foreground">Reason: {r.reason}</p>
@@ -717,6 +752,9 @@ export default function HoursApprovalsPage() {
                           <Badge variant={STATUS_BADGE[r.status]} size="sm">
                             {STATUS_LABEL[r.status]}
                           </Badge>
+                          {r.status === 'EXPIRED' && r.decisionNotes ? (
+                            <p className="mt-1 max-w-[12rem] text-xs text-muted-foreground">{r.decisionNotes}</p>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3 tabular-nums text-muted-foreground">
                           {formatInstant(tab === 'PENDING' ? r.requestedAt : r.decidedAt ?? r.requestedAt)}
@@ -976,7 +1014,7 @@ export default function HoursApprovalsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {approveContractedTarget && isExtraVisitRequest(approveContractedTarget)
-                ? 'Approve extra visit over weekly hours?'
+                ? `Approve ${serviceUserVisitLabel(approveContractedTarget).replace(' over weekly hours', '').toLowerCase()} over weekly hours?`
                 : approveContractedTarget && isServiceUserHoursChange(approveContractedTarget)
                   ? 'Approve weekly hours change?'
                   : 'Approve contracted hours change?'}
@@ -984,7 +1022,7 @@ export default function HoursApprovalsPage() {
             <AlertDialogDescription>
               {approveContractedTarget && isExtraVisitRequest(approveContractedTarget) ? (
                 <>
-                  The extra visit for{' '}
+                  The {serviceUserVisitLabel(approveContractedTarget).replace(' over weekly hours', '').toLowerCase()} for{' '}
                   <span className="font-medium text-foreground">{approveContractedTarget.serviceUserName}</span>
                   {approveContractedTarget.requestPayload ? (
                     <>
