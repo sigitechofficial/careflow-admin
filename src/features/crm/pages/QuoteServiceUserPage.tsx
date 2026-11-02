@@ -22,7 +22,10 @@ import { useAuthStore } from "@/features/auth/store";
 import { toastApiError, toastSuccess, toastWarning } from "@/shared/lib/toast";
 import { CrmSectionLayout } from "@/features/crm/components/CrmSectionLayout";
 import { PendingFunding } from "@/features/crm/components/quote-editor/QuoteReviewPanels";
-import { useEnquiry } from "@/features/crm/hooks/useCrm";
+import {
+  useCreateEnquiryPreAdmission,
+  useEnquiry,
+} from "@/features/crm/hooks/useCrm";
 import {
   useCreateServiceUserFromQuote,
   useQuoteAction,
@@ -222,6 +225,7 @@ export default function QuoteServiceUserPage() {
   const [withPackage, setWithPackage] = React.useState(true);
   const [missingOnly, setMissingOnly] = React.useState(false);
   const suId = enquiry?.convertedServiceUserId ?? null;
+  const preAdmit = useCreateEnquiryPreAdmission(enquiryId);
   const { data: su, isLoading: suLoading } = useServiceUser(
     suId ?? "",
     Boolean(suId) && can("service_users.read"),
@@ -260,18 +264,34 @@ export default function QuoteServiceUserPage() {
         search: { focus: field, returnTo: thisPage },
       }),
   });
+  const openProfile = (serviceUserId: string, tab: string, field: string) =>
+    navigate({
+      to: "/service-users/$serviceUserId/profile",
+      params: { serviceUserId },
+      search: { tab, focus: field },
+    });
+  // Before there is a record, a Pre-admission one is made from the enquiry (no assessment) and
+  // opened on the field; creating the service user later makes that same record active.
+  const canPreAdmit = can("crm.manage") && can("service_users.create");
   const onProfile = (tab: string, field: string): Check["go"] =>
     suId
       ? {
           label: "Add on profile",
-          onClick: () =>
-            navigate({
-              to: "/service-users/$serviceUserId/profile",
-              params: { serviceUserId: suId },
-              search: { tab, focus: field },
-            }),
+          onClick: () => void openProfile(suId, tab, field),
         }
-      : undefined;
+      : canPreAdmit
+        ? {
+            label: "Add on profile",
+            onClick: () => {
+              if (preAdmit.isPending) return;
+              preAdmit.mutate(undefined, {
+                onSuccess: (r) => void openProfile(r.serviceUserId, tab, field),
+                onError: (e) =>
+                  toastApiError(e, "Could not make the Pre-admission record"),
+              });
+            },
+          }
+        : undefined;
   /** A detail the enquiry also holds: filled on the enquiry until the record exists. */
   const shared = (
     key: string,
@@ -302,7 +322,7 @@ export default function QuoteServiceUserPage() {
       value ||
       (suId
         ? "Not recorded"
-        : "Added on the profile once the service user is created"),
+        : "Not recorded · adding it makes a Pre-admission record"),
     go: onProfile(...profile),
   });
 

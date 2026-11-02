@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const { navigate, mutate, state } = vi.hoisted(() => ({
+const { navigate, mutate, preAdmit, state } = vi.hoisted(() => ({
   navigate: vi.fn(),
   mutate: vi.fn(),
+  preAdmit: vi.fn(),
   state: {
     enquiry: {} as Record<string, unknown>,
     detail: {} as Record<string, unknown>,
@@ -39,6 +40,7 @@ vi.mock("@/features/crm/components/quote-editor/QuoteReviewPanels", () => ({
 }));
 vi.mock("@/features/crm/hooks/useCrm", () => ({
   useEnquiry: () => ({ data: state.enquiry, isLoading: false }),
+  useCreateEnquiryPreAdmission: () => ({ mutate: preAdmit, isPending: false }),
 }));
 vi.mock("@/features/service-users/hooks/useServiceUser", () => ({
   useServiceUser: () => ({ data: state.su, isLoading: false }),
@@ -121,7 +123,7 @@ describe("QuoteServiceUserPage (accepted quote → active service user)", () => 
     );
     // Details only the service user record holds are listed too.
     expect(screen.getByTestId("su-check-gp")).toHaveTextContent(
-      "Added on the profile once the service user is created",
+      "adding it makes a Pre-admission record",
     );
     expect(screen.getByTestId("su-check-contact")).not.toHaveTextContent(
       "Missing",
@@ -143,6 +145,22 @@ describe("QuoteServiceUserPage (accepted quote → active service user)", () => 
         focus: "Date of birth",
         returnTo: "/crm/e1/quotes/q1/v1/service-user",
       },
+    });
+
+    // A detail only the record holds makes a Pre-admission record, then opens its profile field.
+    preAdmit.mockImplementation(
+      (_: unknown, opts: { onSuccess: (r: unknown) => void }) =>
+        opts.onSuccess({ serviceUserId: "su-new" }),
+    );
+    await userEvent.click(
+      within(screen.getByTestId("su-check-gp")).getByRole("button", {
+        name: "Add on profile",
+      }),
+    );
+    expect(navigate).toHaveBeenCalledWith({
+      to: "/service-users/$serviceUserId/profile",
+      params: { serviceUserId: "su-new" },
+      search: { tab: "contacts", focus: "GP Details" },
     });
 
     await userEvent.click(screen.getByTestId("su-create-button"));
@@ -175,7 +193,11 @@ describe("QuoteServiceUserPage (accepted quote → active service user)", () => 
 describe("QuoteServiceUserPage with a service user record", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    state.enquiry = { ...enquiry, convertedServiceUserId: "su-1", stage: "WON" };
+    state.enquiry = {
+      ...enquiry,
+      convertedServiceUserId: "su-1",
+      stage: "WON",
+    };
     state.detail = { ...detail };
     state.su = {
       id: "su-1",

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { crmKeys } from '@/features/crm/keys'
+import { serviceUserKeys } from '@/features/service-users/keys'
 import {
   addEnquiryNote,
   createEnquiry,
@@ -9,6 +10,7 @@ import {
   fetchEnquiryOwners,
   fetchQuoteFunders,
   startEnquiryInitialAssessment,
+  createEnquiryPreAdmission,
   getEnquiry,
   getEnquirySummary,
   listEnquiries,
@@ -127,6 +129,16 @@ export function useStartEnquiryInitialAssessment(id: string) {
   return useMutation({
     mutationFn: () => startEnquiryInitialAssessment(id),
     onSuccess: invalidate,
+  })
+}
+
+export function useCreateEnquiryPreAdmission(id: string) {
+  const invalidate = useInvalidateAll()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => createEnquiryPreAdmission(id),
+    // A new service user: the service user lists refresh too.
+    onSuccess: () => Promise.all([invalidate(), qc.invalidateQueries({ queryKey: serviceUserKeys.all() })]),
   })
 }
 

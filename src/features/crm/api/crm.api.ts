@@ -58,6 +58,11 @@ export async function startEnquiryInitialAssessment(enquiryId: string): Promise<
   return data<{ serviceUserId: string }>(`/crm/enquiries/${enquiryId}/initial-assessment`, { method: 'POST' })
 }
 
+/** Link a Pre-admission service user made from the enquiry (no assessment), to add its details. */
+export async function createEnquiryPreAdmission(enquiryId: string): Promise<{ serviceUserId: string }> {
+  return data<{ serviceUserId: string }>(`/crm/enquiries/${enquiryId}/pre-admission`, { method: 'POST' })
+}
+
 export async function fetchEnquiryOwners(): Promise<EnquiryOwner[]> {
   return data<EnquiryOwner[]>('/crm/enquiries/owners', { method: 'GET' })
 }
