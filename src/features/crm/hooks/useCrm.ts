@@ -113,6 +113,15 @@ export function useMoveEnquiry(id: string) {
   })
 }
 
+/** Move any enquiry (the board drags cards between stage columns). */
+export function useMoveAnyEnquiry() {
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: ({ id, ...body }: MoveEnquiryInput & { id: string }) => moveEnquiry(id, body),
+    onSettled: invalidate,
+  })
+}
+
 export function useStartEnquiryInitialAssessment(id: string) {
   const invalidate = useInvalidateAll()
   return useMutation({

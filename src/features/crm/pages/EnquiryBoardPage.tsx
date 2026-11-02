@@ -5,13 +5,17 @@ import { Button } from '@/shared/ui/button'
 import { StatCard } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
 import { Combobox } from '@/shared/ui/combobox'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { LoadingSpinner } from '@/shared/ui/page-elements'
 import { useAuthStore } from '@/features/auth/store'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { CrmSectionLayout } from '@/features/crm/components/CrmSectionLayout'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
-import { useEnquiries, useEnquiryOwners } from '@/features/crm/hooks/useCrm'
+import { useEnquiries, useEnquiryOwners, useMoveAnyEnquiry } from '@/features/crm/hooks/useCrm'
 import {
   BOARD_STAGES,
+  LOST_REASON_LABELS,
+  LOST_REASON_OPTIONS,
   SOURCE_LABELS,
   SOURCE_OPTIONS,
   STAGE_CLASS,
@@ -20,7 +24,15 @@ import {
   URGENCY_OPTIONS,
   isFollowUpOverdue,
 } from '@/features/crm/crm-labels'
-import type { Enquiry, EnquiryKind, EnquirySource, EnquiryUrgency } from '@/features/crm/types/crm.types'
+import type {
+  Enquiry,
+  EnquiryKind,
+  EnquiryLostReason,
+  EnquirySource,
+  EnquiryStage,
+  EnquiryUrgency,
+  MoveEnquiryInput,
+} from '@/features/crm/types/crm.types'
 
 type KindTab = 'ALL' | EnquiryKind
 const KIND_TABS: { key: KindTab; label: string }[] = [
@@ -96,15 +108,35 @@ function matches(e: Enquiry, f: Filters): boolean {
   return true
 }
 
-function EnquiryCard({ e }: { e: Enquiry }) {
+function EnquiryCard({
+  e,
+  draggable,
+  dragging,
+  onDragStart,
+  onDragEnd,
+}: {
+  e: Enquiry
+  draggable: boolean
+  dragging: boolean
+  onDragStart: () => void
+  onDragEnd: () => void
+}) {
   const overdue = isFollowUpOverdue(e)
   return (
     <Link
       to="/crm/$enquiryId"
       params={{ enquiryId: e.id }}
+      draggable={draggable}
+      onDragStart={ev => {
+        ev.dataTransfer.effectAllowed = 'move'
+        ev.dataTransfer.setData('text/plain', e.id)
+        onDragStart()
+      }}
+      onDragEnd={onDragEnd}
+      data-testid={`crm-card-${e.id}`}
       className={`group rounded-lg border bg-card p-3 shadow-sm transition hover:border-primary/40 hover:shadow-md ${
         overdue ? 'border-red-300 dark:border-red-900' : 'border-border'
-      }`}
+      } ${draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${dragging ? 'opacity-40' : ''}`}
     >
       <div className="flex items-start gap-2.5">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
@@ -180,12 +212,72 @@ export default function EnquiryBoardPage() {
   const filtered = React.useMemo(() => tabRows.filter(e => matches(e, filters)), [tabRows, filters])
   const isFiltered = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS)
 
+  // Dragging a card onto another column moves the enquiry; the card shows in its new column while the move saves.
+  const move = useMoveAnyEnquiry()
+  const [dragged, setDragged] = React.useState<Enquiry | null>(null)
+  const [overStage, setOverStage] = React.useState<EnquiryStage | null>(null)
+  const [pendingMoves, setPendingMoves] = React.useState<Record<string, EnquiryStage>>({})
+  const [losing, setLosing] = React.useState<Enquiry | null>(null)
+  const [reasonCode, setReasonCode] = React.useState<EnquiryLostReason | ''>('')
+  const [reason, setReason] = React.useState('')
+  const needsDetail = reasonCode === 'OTHER'
+  const canConfirmLost = Boolean(reasonCode) && (!needsDetail || reason.trim() !== '')
+
   const byStage = React.useMemo(() => {
     const map: Record<string, Enquiry[]> = {}
     for (const s of BOARD_STAGES) map[s] = []
-    for (const e of filtered) (map[e.stage] ??= []).push(e)
+    for (const e of filtered) (map[pendingMoves[e.id] ?? e.stage] ??= []).push(e)
     return map
-  }, [filtered])
+  }, [filtered, pendingMoves])
+
+  const endDrag = () => {
+    setDragged(null)
+    setOverStage(null)
+  }
+
+  const moveCard = (e: Enquiry, body: MoveEnquiryInput, onDone?: () => void) => {
+    setPendingMoves(prev => ({ ...prev, [e.id]: body.stage }))
+    move.mutate(
+      { id: e.id, ...body },
+      {
+        onSuccess: () => {
+          toastSuccess(`${e.firstName} ${e.lastName} moved to ${STAGE_LABELS[body.stage]}`)
+          onDone?.()
+        },
+        onError: err => toastApiError(err, 'Could not move enquiry'),
+        onSettled: () =>
+          setPendingMoves(prev => {
+            const next = { ...prev }
+            delete next[e.id]
+            return next
+          }),
+      },
+    )
+  }
+
+  const dropOn = (stage: EnquiryStage) => {
+    const e = dragged
+    endDrag()
+    if (!e || e.stage === stage) return
+    // Lost needs a reason, so it is asked for before the move.
+    if (stage === 'LOST') setLosing(e)
+    else moveCard(e, { stage })
+  }
+
+  const closeLost = () => {
+    setLosing(null)
+    setReasonCode('')
+    setReason('')
+  }
+
+  const confirmLost = () => {
+    if (!losing) return
+    moveCard(
+      losing,
+      { stage: 'LOST', lostReasonCode: reasonCode || undefined, lostReason: reason.trim() || undefined },
+      closeLost,
+    )
+  }
 
   return (
     <CrmSectionLayout
@@ -312,14 +404,38 @@ export default function EnquiryBoardPage() {
           )}
         </div>
 
+        {canManage && !isLoading && (
+          <p className="-mb-2 text-xs text-muted-foreground">Drag a card to another column to change its stage.</p>
+        )}
+
         {isLoading ? (
           <LoadingSpinner />
         ) : (
           <div className="flex gap-4 overflow-x-auto pb-2">
             {BOARD_STAGES.map(stage => {
               const items = byStage[stage] ?? []
+              const canDrop = Boolean(dragged) && dragged?.stage !== stage
               return (
-                <div key={stage} className="flex w-72 shrink-0 flex-col rounded-xl border border-border bg-muted/30">
+                <div
+                  key={stage}
+                  data-testid={`crm-column-${stage}`}
+                  onDragOver={ev => {
+                    if (!canDrop) return
+                    ev.preventDefault()
+                    ev.dataTransfer.dropEffect = 'move'
+                    if (overStage !== stage) setOverStage(stage)
+                  }}
+                  onDragLeave={ev => {
+                    if (!ev.currentTarget.contains(ev.relatedTarget as Node | null) && overStage === stage) setOverStage(null)
+                  }}
+                  onDrop={ev => {
+                    ev.preventDefault()
+                    dropOn(stage)
+                  }}
+                  className={`flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 transition ${
+                    overStage === stage ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'border-border'
+                  }`}
+                >
                   <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STAGE_CLASS[stage]}`}>
                       {STAGE_LABELS[stage]}
@@ -330,7 +446,14 @@ export default function EnquiryBoardPage() {
                   </div>
                   <div className="flex min-h-[120px] flex-col gap-2 p-2">
                     {items.map(e => (
-                      <EnquiryCard key={e.id} e={e} />
+                      <EnquiryCard
+                        key={e.id}
+                        e={e}
+                        draggable={canManage && !pendingMoves[e.id]}
+                        dragging={dragged?.id === e.id}
+                        onDragStart={() => setDragged(e)}
+                        onDragEnd={endDrag}
+                      />
                     ))}
                     {items.length === 0 && (
                       <p className="rounded-lg border border-dashed border-border/70 p-3 text-center text-xs text-muted-foreground">
@@ -344,6 +467,52 @@ export default function EnquiryBoardPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={Boolean(losing)} onOpenChange={open => !open && closeLost()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="pr-6">
+              Mark as lost — {losing?.firstName} {losing?.lastName}
+            </DialogTitle>
+            <DialogDescription>Choose why it was lost before it moves to the Lost column.</DialogDescription>
+          </DialogHeader>
+          <DialogBody className="flex flex-col gap-2">
+            <label className="text-sm font-medium" htmlFor="crm-board-lost-reason">
+              Why was it lost? (required)
+            </label>
+            <select
+              id="crm-board-lost-reason"
+              className={selectClass}
+              value={reasonCode}
+              onChange={e => setReasonCode(e.target.value as EnquiryLostReason | '')}
+            >
+              <option value="">Select a reason…</option>
+              {LOST_REASON_OPTIONS.map(r => (
+                <option key={r} value={r}>
+                  {LOST_REASON_LABELS[r]}
+                </option>
+              ))}
+            </select>
+            <label className="text-sm font-medium" htmlFor="crm-board-lost-detail">
+              Details {needsDetail ? '(required)' : '(optional)'}
+            </label>
+            <textarea
+              id="crm-board-lost-detail"
+              className="min-h-[56px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+            />
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeLost}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmLost} disabled={move.isPending || !canConfirmLost}>
+              Confirm lost
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </CrmSectionLayout>
   )
 }
