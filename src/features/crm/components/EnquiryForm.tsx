@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
 import { Combobox } from '@/shared/ui/combobox'
 import { MultiSelect } from '@/shared/ui/multi-select'
+import { GoogleBranchAddressField } from '@/shared/ui/google-branch-address-field'
 import { toastApiError } from '@/shared/lib/toast'
 import { useEnquiryCarePlans, useEnquiryFundingTypes, useEnquiryOwners } from '@/features/crm/hooks/useCrm'
 import { useBranchOptions } from '@/features/crm/hooks/useBranchOptions'
@@ -57,6 +58,9 @@ type FormState = {
   dateOfBirth: string
   addressLine: string
   postcode: string
+  /** Set when an address is picked from Google Places; cleared when the address is typed. */
+  latitude: number | null
+  longitude: number | null
   needs: string
   carePlanFormIds: string[]
   contactName: string
@@ -94,6 +98,8 @@ function initialState(e?: Enquiry, defaultLocationId?: string | null, defaultKin
     dateOfBirth: toDateInput(e?.dateOfBirth ?? null),
     addressLine: e?.addressLine ?? '',
     postcode: e?.postcode ?? '',
+    latitude: e?.latitude ?? null,
+    longitude: e?.longitude ?? null,
     needs: e?.needs ?? '',
     carePlanFormIds: e?.carePlanFormIds ?? [],
     contactName: e?.contactName ?? '',
@@ -132,6 +138,8 @@ function toPayload(f: FormState): EnquiryWriteInput {
     dateOfBirth: dateOrNull(f.dateOfBirth),
     addressLine: textOrNull(f.addressLine),
     postcode: textOrNull(f.postcode),
+    latitude: f.latitude,
+    longitude: f.longitude,
     needs: textOrNull(f.needs),
     carePlanFormIds: f.carePlanFormIds,
     contactName: textOrNull(f.contactName),
@@ -367,11 +375,30 @@ export function EnquiryForm({
             </select>
           )}
         </Field>
+        <Field label="Address" wide group>
+          <GoogleBranchAddressField
+            value={f.addressLine}
+            placeholder="Start typing the address or postcode…"
+            helpText="Powered by Google Places — pick a suggestion to fill the address and postcode."
+            onChange={(address, meta) =>
+              // A picked suggestion fills the address (without the postcode), the postcode and its map
+              // position; typing over it drops the position, which no longer matches.
+              setF(prev =>
+                meta
+                  ? {
+                      ...prev,
+                      addressLine: [meta.addressLine1, meta.addressLine2, meta.city].filter(Boolean).join(', ') || address,
+                      postcode: meta.postcode || prev.postcode,
+                      latitude: meta.lat ?? null,
+                      longitude: meta.lng ?? null,
+                    }
+                  : { ...prev, addressLine: address, latitude: null, longitude: null },
+              )
+            }
+          />
+        </Field>
         <Field label="Postcode">
           <Input value={f.postcode} onChange={set('postcode')} />
-        </Field>
-        <Field label="Address" wide>
-          <Input value={f.addressLine} onChange={set('addressLine')} placeholder="House, street, town" />
         </Field>
         <Field
           label="Care needs"

@@ -31,6 +31,8 @@ type Props = {
   countryRestriction?: string | string[]
   disabled?: boolean
   placeholder?: string
+  /** Line under the field when Google Places is on. */
+  helpText?: string
   className?: string
 }
 
@@ -45,6 +47,7 @@ export function GoogleBranchAddressField({
   countryRestriction = 'gb',
   disabled,
   placeholder = 'Start typing an address…',
+  helpText = 'Powered by Google Places — pick a suggestion to fill the branch address.',
   className,
 }: Props) {
   const wrapRef = React.useRef<HTMLDivElement>(null)
@@ -337,9 +340,7 @@ export function GoogleBranchAddressField({
       {menu}
 
       {configured ? (
-        <p className="text-xs text-muted-foreground">
-          Powered by Google Places — pick a suggestion to fill the branch address.
-        </p>
+        <p className="text-xs text-muted-foreground">{helpText}</p>
       ) : (
         <p className="text-xs text-muted-foreground">
           Add <code className="text-[11px]">VITE_GOOGLE_MAPS_API_KEY</code> to enable address

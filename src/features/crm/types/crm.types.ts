@@ -105,6 +105,9 @@ export type Enquiry = {
   receivedAt: string | null
   addressLine: string | null
   postcode: string | null
+  /** Map position of the address (from Google Places). */
+  latitude: number | null
+  longitude: number | null
   fundingTypeId: string | null
   fundingTypeName: string | null
   funderName: string | null
@@ -177,6 +180,8 @@ export type EnquiryWriteInput = {
   dateOfBirth?: string | null
   addressLine?: string | null
   postcode?: string | null
+  latitude?: number | null
+  longitude?: number | null
   contactName?: string | null
   contactRelationship?: string | null
   contactPhone?: string | null
