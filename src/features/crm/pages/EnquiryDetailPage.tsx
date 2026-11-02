@@ -4,6 +4,7 @@ import {
   AlarmClock,
   ArrowLeft,
   CalendarClock,
+  Check,
   CheckCircle2,
   ClipboardCheck,
   Pencil,
@@ -11,6 +12,7 @@ import {
   MessageSquarePlus,
   Phone,
   UserPlus,
+  X,
   XCircle,
 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
@@ -69,55 +71,63 @@ function StageStepper({ enquiry }: { enquiry: Enquiry }) {
   return (
     <ol className="flex flex-col gap-4 sm:flex-row sm:gap-0" data-testid="crm-stage-timeline">
       {steps.map((stage, i) => {
-        const done = i < currentIndex
         const current = i === currentIndex
+        const passed = i < currentIndex
+        // A stage the enquiry jumped over (e.g. Contacted → Quote sent) has no date of its own.
+        const skipped = passed && !reached[stage]
+        const done = passed && !skipped
         const final = current && (stage === 'WON' || stage === 'LOST')
         return (
           <li key={stage} className="relative flex flex-1 items-start gap-3 sm:flex-col sm:items-center sm:text-center">
             {i > 0 && (
               <span
-                className={`absolute hidden h-0.5 sm:left-[-50%] sm:right-1/2 sm:top-3.5 sm:block ${
+                className={`absolute hidden h-0.5 sm:left-[-50%] sm:right-1/2 sm:top-4 sm:block ${
                   i <= currentIndex ? 'bg-primary' : 'bg-border'
                 }`}
                 aria-hidden
               />
             )}
             <span
-              className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ring-4 ring-card ${
+              className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ring-4 ring-card ${
                 current
                   ? stage === 'LOST'
                     ? 'bg-red-600 text-white'
                     : stage === 'WON'
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-primary text-primary-foreground'
+                      : 'bg-primary text-primary-foreground outline outline-2 outline-offset-2 outline-primary/30'
                   : done
-                    ? 'bg-primary/15 text-primary'
-                    : 'bg-muted text-muted-foreground'
+                    ? 'bg-primary text-primary-foreground'
+                    : skipped
+                      ? 'border border-dashed border-primary/50 bg-card text-muted-foreground'
+                      : 'border border-border bg-card text-muted-foreground'
               }`}
               aria-hidden
             >
               {final && stage === 'LOST' ? (
-                <XCircle className="h-4 w-4" />
+                <X className="h-4 w-4" strokeWidth={3} />
               ) : done || final ? (
-                <CheckCircle2 className="h-4 w-4" />
+                <Check className="h-4 w-4" strokeWidth={3} />
               ) : (
                 i + 1
               )}
             </span>
-            <div className="flex flex-col gap-0.5 sm:mt-2">
+            <div className="flex flex-col gap-0.5 sm:mt-2 sm:items-center">
               <span
-                className={`text-sm ${current ? 'font-semibold text-foreground' : done ? 'font-medium' : 'text-muted-foreground'}`}
+                className={`text-sm ${
+                  current ? 'font-semibold text-foreground' : done ? 'font-medium text-foreground' : 'text-muted-foreground'
+                }`}
                 aria-current={current ? 'step' : undefined}
               >
                 {STAGE_LABELS[stage]}
               </span>
-              {current && (
-                <span className={`mx-0 w-fit rounded-full px-2 py-0.5 text-[11px] font-semibold sm:mx-auto ${STAGE_CLASS[stage]}`}>
-                  Current
-                </span>
-              )}
               {(done || current) && (
                 <span className="text-xs text-muted-foreground">{fmtDate(reached[stage] ?? null)}</span>
+              )}
+              {skipped && <span className="text-xs italic text-muted-foreground">Skipped</span>}
+              {current && (
+                <span className={`mt-1 w-fit rounded-full px-2 py-0.5 text-[11px] font-semibold ${STAGE_CLASS[stage]}`}>
+                  Current
+                </span>
               )}
             </div>
           </li>
