@@ -21,6 +21,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Label, Textarea } from '@/shared/ui/form-field'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
+import { formatMinutes } from '@/features/timebank/timebank-format'
 
 /** datetime-local value (treated as UTC) → ISO string. */
 function localInputToIso(value: string): string | null {
@@ -117,6 +118,11 @@ export function SpecialVisitFormDialog({
           [result.weeklyHoursWarning ? `${result.weeklyHoursWarning}.` : null, result.carerHoursWarning]
             .filter(Boolean)
             .join(' '),
+        )
+      } else if (result.fromTimebankMinutes) {
+        toastSuccess(
+          'Special visit added',
+          `${formatMinutes(result.fromTimebankMinutes)} over the weekly hours taken from the service user's timebank.`,
         )
       } else {
         toastSuccess('Special visit added')

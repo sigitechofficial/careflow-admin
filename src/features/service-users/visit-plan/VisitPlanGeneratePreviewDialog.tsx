@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle, Loader2, PiggyBank } from 'lucide-react'
 import type { GenerateSchedulePreview } from '@/features/service-users/visit-plan/types'
 import { formatDate } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
@@ -84,13 +84,13 @@ export function VisitPlanGeneratePreviewDialog({
           ) : preview ? (
             <ul className="space-y-2 text-sm">
               <li>
-                <strong>{preview.visitsToCreate}</strong> visit
+                <strong>{preview.visitsToCreate}</strong> new visit
                 {preview.visitsToCreate === 1 ? '' : 's'} to create
               </li>
               {preview.visitsAlreadyExist > 0 ? (
                 <li className="text-muted-foreground">
-                  {preview.visitsAlreadyExist} already on the rota
-                  {isRegenerate ? ' — carers will be synced from this plan' : ' (will sync carers only)'}
+                  {preview.visitsAlreadyExist} visit{preview.visitsAlreadyExist === 1 ? '' : 's'} already on the
+                  rota — not made again; only their carers are updated from this plan
                 </li>
               ) : null}
               {preview.visitsSkippedAbsent > 0 ? (
@@ -108,12 +108,6 @@ export function VisitPlanGeneratePreviewDialog({
                   {preview.visitsSkippedBankHoliday} dates skipped — bank holiday
                 </li>
               ) : null}
-              {(preview.visitsSkippedOffPattern ?? 0) > 0 ? (
-                <li className="text-muted-foreground">
-                  {preview.visitsSkippedOffPattern} day{preview.visitsSkippedOffPattern === 1 ? '' : 's'} not
-                  included — outside this visit's days or start/end dates
-                </li>
-              ) : null}
               {(preview.visitsSkippedNoBackfillAllow ?? 0) > 0 ? (
                 <li className="text-destructive">
                   {preview.visitsSkippedNoBackfillAllow} day(s) skipped — Max backfill days not saved on
@@ -127,6 +121,18 @@ export function VisitPlanGeneratePreviewDialog({
                 </li>
               ) : null}
             </ul>
+          ) : null}
+
+          {preview && !loading && preview.weeklyHoursTimebank ? (
+            <div
+              className="flex gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-foreground"
+              data-testid="generate-preview-timebank"
+            >
+              <PiggyBank className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <p>
+                <strong>Timebank:</strong> {preview.weeklyHoursTimebank}.
+              </p>
+            </div>
           ) : null}
 
           {preview && !loading && preview.weeklyHoursWarning ? (

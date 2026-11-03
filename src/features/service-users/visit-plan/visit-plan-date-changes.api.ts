@@ -231,6 +231,8 @@ export type ExtraVisitDateCheck = {
   weekMinutes?: number
   /** Editing only: the change would take the week over the weekly hours, so it can't be saved. */
   overWeeklyHours?: boolean
+  /** Hours over the weekly hours the service user's timebank pays for (made as fitting). */
+  fromTimebankMinutes?: number
   /** Carers over their contracted weekly hours with this visit, and what saving does. */
   carerOverHours?: Array<{
     employeeId: string
@@ -253,6 +255,8 @@ export type AddExtraVisitsResult = {
   sentForApproval: Array<{ date: string; weekStart: string; weekMinutes: number; approvalId: string }>
   /** Added although over the weekly hours (Settings → Dom Rules: warning only). */
   overWeeklyHours?: Array<{ date: string; weekMinutes: number }>
+  /** Dates whose hours over the weekly hours came from the service user's timebank. */
+  fromTimebank?: Array<{ date: string; minutes: number }>
   /** Carers over their contracted weekly hours sent to a manager (not on those visits yet). */
   carerApprovals?: Array<{ date: string; employeeId: string; approvalId: string }>
   /** Carers over their contracted weekly hours put on the visit to be confirmed. */

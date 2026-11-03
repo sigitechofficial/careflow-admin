@@ -24,6 +24,7 @@ import {
 } from '@/shared/lib/organisation-display-format.store'
 import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 import { ScheduleJobStatusBadge } from '@/features/scheduling/components/schedule-filters/ScheduleJobStatusBadge'
+import { JobTimebankNote } from '@/features/timebank/components/TimebankNotes'
 
 /** Cancelled reads grey in lists; in the workspace header it must stand out (dark mode too). */
 const HEADER_CANCELLED_CLASS =
@@ -115,6 +116,9 @@ export function ScheduleVisitWorkspaceSheet({
           </SheetDescription>
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4">
+          <div className="mb-3 empty:hidden">
+            <JobTimebankNote scheduledJobId={job.id} />
+          </div>
           <ScheduleVisitWorkspaceContent
             job={job}
             date={date}

@@ -174,15 +174,29 @@ function formatMinutes(minutes: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
-/** An extra visit's week: as it is now for pending requests, else as it was when asked for. */
-function extraVisitWeek(row: HoursApproval): { weekMinutes: number; limitMinutes: number | null } | null {
+/**
+ * An extra visit's week: as it is now for pending requests, else as it was when asked for.
+ * `roomMinutes` = weekly hours + what the week's visits hold from the timebank (paid for already).
+ */
+function extraVisitWeek(
+  row: HoursApproval,
+): { weekMinutes: number; limitMinutes: number | null; timebankMinutes: number; roomMinutes: number | null } | null {
   const payload = row.requestPayload
   if (!payload) return null
   const week = row.currentWeek ?? payload
+  const limitMinutes = week.limitWeeklyHours != null ? Math.round(week.limitWeeklyHours * 60) : null
+  const timebankMinutes = week.timebankMinutes ?? 0
   return {
     weekMinutes: week.weekMinutes,
-    limitMinutes: week.limitWeeklyHours != null ? Math.round(week.limitWeeklyHours * 60) : null,
+    limitMinutes,
+    timebankMinutes,
+    roomMinutes: limitMinutes != null ? limitMinutes + timebankMinutes : null,
   }
+}
+
+/** " (1h from the timebank)" when the week's visits hold time from the bank. */
+function timebankPart(week: { timebankMinutes: number } | null): string {
+  return week && week.timebankMinutes > 0 ? ` (${formatMinutes(week.timebankMinutes)} from the timebank)` : ''
 }
 
 function exceedsWeeklyCap(row: HoursApproval) {
@@ -242,7 +256,7 @@ function WithinLimitNote({ row }: { row: HoursApproval }) {
   }
   if (row.requestType === 'EXTRA_VISIT_OVER_HOURS') {
     const week = extraVisitWeek(row)
-    if (week?.limitMinutes != null && week.weekMinutes <= week.limitMinutes) {
+    if (week?.roomMinutes != null && week.weekMinutes <= week.roomMinutes) {
       return (
         <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
           Now within the service user&apos;s weekly hours — approving won&apos;t go over the limit. The visit is
@@ -701,7 +715,7 @@ export default function HoursApprovalsPage() {
                           ) : (
                             <span className={overCap ? 'font-semibold text-destructive' : 'font-medium text-foreground'}>
                               {extraVisit
-                                ? `${formatMinutes(extraVisitWeek(r)?.weekMinutes ?? extraVisit.weekMinutes)} that week`
+                                ? `${formatMinutes(extraVisitWeek(r)?.weekMinutes ?? extraVisit.weekMinutes)} that week${timebankPart(extraVisitWeek(r))}`
                                 : isRotaVisitRequest(r)
                                   ? `${r.projectedWeeklyHours ?? '—'}h that week`
                                   : draftWeek
@@ -725,9 +739,9 @@ export default function HoursApprovalsPage() {
                             ? change == null
                               ? '—'
                               : `${change > 0 ? '+' : change < 0 ? '−' : ''}${formatHours(Math.abs(change))}`
-                            : extraVisit && extraVisitWeek(r)?.limitMinutes != null
-                              ? extraVisitWeek(r)!.weekMinutes > extraVisitWeek(r)!.limitMinutes!
-                                ? `+${formatMinutes(extraVisitWeek(r)!.weekMinutes - extraVisitWeek(r)!.limitMinutes!)}`
+                            : extraVisit && extraVisitWeek(r)?.roomMinutes != null
+                              ? extraVisitWeek(r)!.weekMinutes > extraVisitWeek(r)!.roomMinutes!
+                                ? `+${formatMinutes(extraVisitWeek(r)!.weekMinutes - extraVisitWeek(r)!.roomMinutes!)}`
                                 : 'Within limit'
                               : draftWeek && draftLimitMinutes != null
                                 ? `+${formatMinutes(Math.max(0, draftWeek.heaviestMinutes - draftLimitMinutes))}`
@@ -1040,11 +1054,15 @@ export default function HoursApprovalsPage() {
                   {(() => {
                     const week = extraVisitWeek(approveContractedTarget)
                     const asked = approveContractedTarget.requestPayload?.weekMinutes
-                    if (!week || week.limitMinutes == null) return ''
+                    if (!week || week.limitMinutes == null || week.roomMinutes == null) return ''
+                    const of =
+                      week.timebankMinutes > 0
+                        ? `${formatMinutes(week.limitMinutes)} weekly contracted hours + ${formatMinutes(week.timebankMinutes)} from the timebank`
+                        : `${formatMinutes(week.limitMinutes)} weekly contracted hours`
                     const now =
-                      week.weekMinutes > week.limitMinutes
-                        ? ` That week will have ${formatMinutes(week.weekMinutes)} of ${formatMinutes(week.limitMinutes)} weekly contracted hours.`
-                        : ` That week will have ${formatMinutes(week.weekMinutes)} of ${formatMinutes(week.limitMinutes)} — within the weekly contracted hours now.`
+                      week.weekMinutes > week.roomMinutes
+                        ? ` That week will have ${formatMinutes(week.weekMinutes)} of ${of}.`
+                        : ` That week will have ${formatMinutes(week.weekMinutes)} of ${of} — within them now.`
                     return asked != null && asked !== week.weekMinutes
                       ? `${now} (It was ${formatMinutes(asked)} when this was asked for.)`
                       : now

@@ -79,6 +79,13 @@ import {
 } from '@/features/scheduling/utils/visit-care-not-delivered-reason.util'
 import type { VisitPlanCalendarOutcomeStatus } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 
+/** "HH:mm" plus minutes, on a 24-hour clock (an end past midnight is read as the next day). */
+function addMinutesToHm(hm: string, minutes: number): string {
+  const [h = 0, m = 0] = hm.split(':').map(Number)
+  const total = (((h * 60 + m + minutes) % 1440) + 1440) % 1440
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
 /** Re-enable when care-plan delivery checkboxes return to Record visit. */
 const SHOW_DELIVERED_CARE_PLANS = false
 
@@ -105,6 +112,12 @@ export function ScheduleJobCompleteDialog({
   const visitStatusReasonOptions = visitStatusReasonsQuery.data ?? []
   const [notes, setNotes] = React.useState('')
   const [statusReason, setStatusReason] = React.useState('')
+  // No end time on a completed visit: confirm, then save it as start + planned length.
+  const [missingEndFill, setMissingEndFill] = React.useState<{
+    endHm: string
+    carerEnds: Record<string, string>
+  } | null>(null)
+  const [submitAfterFill, setSubmitAfterFill] = React.useState(false)
   const [deliveredIds, setDeliveredIds] = React.useState<string[]>([])
   const [visitStatus, setVisitStatus] = React.useState<VisitPlanCalendarOutcomeStatus>('COMPLETED')
   const [actualStartTime, setActualStartTime] = React.useState('')
@@ -210,6 +223,7 @@ export function ScheduleJobCompleteDialog({
     if (!open || !job) return
     setNotes(job.notes?.trim() ?? '')
     setStatusReason('')
+    setMissingEndFill(null)
     setDeliveredIds([])
     setVisitTasks([])
     setOverrunReason('')
@@ -387,6 +401,30 @@ export function ScheduleJobCompleteDialog({
         'Select a reason for this visit status before saving.',
       )
       return
+    }
+    if (requiresTimes && plannedDurationMinutes != null && plannedDurationMinutes > 0) {
+      const hm = /^\d{2}:\d{2}$/
+      if (multiCarerTiming) {
+        const missing = carerActualTimes.filter((row) => hm.test(row.startHm) && !row.endHm)
+        if (missing.length > 0) {
+          setMissingEndFill({
+            endHm: '',
+            carerEnds: Object.fromEntries(
+              missing.map((row) => [
+                row.allocationId,
+                addMinutesToHm(row.startHm, plannedDurationMinutes),
+              ]),
+            ),
+          })
+          return
+        }
+      } else if (hm.test(actualStartTime) && !actualEndTime) {
+        setMissingEndFill({
+          endHm: addMinutesToHm(actualStartTime, plannedDurationMinutes),
+          carerEnds: {},
+        })
+        return
+      }
     }
     if (isStartedOutcome && multiCarerTiming) {
       const invalid = carerActualTimes.some((row) => !row.startHm || !/^\d{2}:\d{2}$/.test(row.startHm))
@@ -574,6 +612,28 @@ export function ScheduleJobCompleteDialog({
     }
   }
 
+  // Save once the filled-in end times are in state.
+  React.useEffect(() => {
+    if (!submitAfterFill) return
+    setSubmitAfterFill(false)
+    void handleComplete()
+  }, [submitAfterFill, handleComplete])
+
+  const applyMissingEndFill = () => {
+    if (!missingEndFill) return
+    if (missingEndFill.endHm) setActualEndTime(missingEndFill.endHm)
+    if (Object.keys(missingEndFill.carerEnds).length > 0) {
+      setCarerActualTimes((rows) =>
+        rows.map((row) => {
+          const endHm = missingEndFill.carerEnds[row.allocationId]
+          return endHm ? { ...row, endHm } : row
+        }),
+      )
+    }
+    setMissingEndFill(null)
+    setSubmitAfterFill(true)
+  }
+
   const visitLabel = job?.visitPlan?.label?.trim()
   const busy = completeJob.isPending
 
@@ -606,7 +666,11 @@ export function ScheduleJobCompleteDialog({
             <Label className="text-sm font-semibold text-foreground">Visit status</Label>
             <Select
               value={visitStatus}
-              onValueChange={(value) => setVisitStatus(value as VisitPlanCalendarOutcomeStatus)}
+              onValueChange={(value) => {
+                setVisitStatus(value as VisitPlanCalendarOutcomeStatus)
+                // Reasons belong to a status: pick again for the new one.
+                setStatusReason('')
+              }}
               disabled={busy}
             >
               <SelectTrigger>
@@ -634,7 +698,7 @@ export function ScheduleJobCompleteDialog({
               Reason <span className="text-destructive">*</span>
             </Label>
             <Select
-              value={statusReason || undefined}
+              value={statusReason}
               onValueChange={setStatusReason}
               disabled={busy || visitStatusReasonsQuery.isLoading}
             >
@@ -644,11 +708,7 @@ export function ScheduleJobCompleteDialog({
                     visitStatusReasonsQuery.isLoading
                       ? 'Loading reasons…'
                       : visitStatusReasonOptions.length
-                        ? `Why is this visit "${
-                            SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find(
-                              (option) => option.value === visitStatus,
-                            )?.label ?? visitStatus
-                          }"?`
+                        ? 'Select a reason'
                         : 'No reasons configured — add them in Settings'
                   }
                 />
@@ -1127,6 +1187,44 @@ export function ScheduleJobCompleteDialog({
             )}
           </Button>
         </DialogFooter>
+        <Dialog open={missingEndFill != null} onOpenChange={(next) => !next && setMissingEndFill(null)}>
+          <DialogContent className="sm:max-w-md" data-testid="schedule-job-missing-end-confirm">
+            <DialogHeader>
+              <DialogTitle>No end time entered</DialogTitle>
+              <DialogDescription>
+                You did not enter an end time, so the full planned time of the visit
+                {plannedDurationMinutes ? ` (${plannedDurationMinutes} min)` : ''} will be counted.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogBody className="space-y-1 text-sm">
+              {missingEndFill?.endHm ? (
+                <p>
+                  End time will be saved as <span className="font-semibold">{missingEndFill.endHm}</span>{' '}
+                  (start {actualStartTime} + {plannedDurationMinutes} min).
+                </p>
+              ) : (
+                carerActualTimes
+                  .filter((row) => missingEndFill?.carerEnds[row.allocationId])
+                  .map((row) => (
+                    <p key={row.allocationId}>
+                      End time will be saved as{' '}
+                      <span className="font-semibold">{missingEndFill?.carerEnds[row.allocationId]}</span>{' '}
+                      (start {row.startHm} + {plannedDurationMinutes} min).
+                    </p>
+                  ))
+              )}
+              <p className="text-muted-foreground">Go back if you want to enter the real end time.</p>
+            </DialogBody>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setMissingEndFill(null)}>
+                Go back
+              </Button>
+              <Button type="button" onClick={applyMissingEndFill}>
+                Continue
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   )

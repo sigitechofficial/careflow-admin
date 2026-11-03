@@ -274,9 +274,13 @@ export type VisitPlanWeekHours = {
   visits: number
   /** Sleeping nights in the week — their hours are included in `minutes`. */
   sleepInNights: number
+  /** Minutes visits of the week hold from the service user's timebank (on top of the weekly hours). */
+  timebankMinutes?: number
 }
 
 export type VisitPlanWeeklyHoursResult = {
+  /** The service user's timebank (Settings → Dom Rules "Use timebank hours automatically"). */
+  timebank?: { useTimebank: boolean; availableMinutes: number } | null
   mode: 'COMBINED' | 'FIXED'
   weeks: VisitPlanWeekHours[]
   heaviestWeek: VisitPlanWeekHours | null
@@ -562,6 +566,8 @@ export async function generateScheduleFromVisitPlan(
       backfillDays?: number
       /** Weeks of this run over the service user's weekly contracted hours (Settings → Dom Rules: warning only). */
       weeklyHoursWarning?: string
+      /** Hours this run took from the timebank for visits over the weekly hours, in words. */
+      weeklyHoursTimebank?: string
     }>
   >(
     `/service-users/${serviceUserId}/visit-plans/${planId}/generate-schedule`,
