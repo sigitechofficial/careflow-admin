@@ -384,6 +384,17 @@ export function SummernoteCustomEditor({
           <option value="32px">32</option>
           <option value="36px">36</option>
         </select>
+        {dictation && (
+          <DictationButton
+            withText
+            className="ml-auto"
+            disabled={disabled || showSource}
+            onStart={() => {
+              if (!editor.isFocused) editor.commands.focus("end")
+            }}
+            onText={insertDictation}
+          />
+        )}
       </div>
 
       {/* ── Row 2: Formatting, Colors, Lists, Insert ── */}
@@ -526,15 +537,6 @@ export function SummernoteCustomEditor({
         <Btn label="Source code" active={showSource} onClick={toggleSource}>
           <Code2 className="h-3.5 w-3.5" />
         </Btn>
-        {dictation && (
-          <DictationButton
-            disabled={disabled || showSource}
-            onStart={() => {
-              if (!editor.isFocused) editor.commands.focus("end")
-            }}
-            onText={insertDictation}
-          />
-        )}
         <Btn label={fullscreen ? "Exit fullscreen" : "Fullscreen"} active={fullscreen} onClick={() => setFullscreen(!fullscreen)}>
           {fullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
         </Btn>

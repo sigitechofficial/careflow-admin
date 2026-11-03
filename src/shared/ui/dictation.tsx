@@ -114,11 +114,13 @@ export interface DictationButtonProps {
   /** Called just before recording starts (e.g. to focus the field). */
   onStart?: () => void
   disabled?: boolean
+  /** Outlined button with "Dictate" / "Stop" text instead of a bare icon. */
+  withText?: boolean
   className?: string
 }
 
 /** Toggles browser speech-to-text (en-GB). Renders nothing where the Web Speech API is missing. */
-export function DictationButton({ onText, onStart, disabled, className }: DictationButtonProps) {
+export function DictationButton({ onText, onStart, disabled, withText, className }: DictationButtonProps) {
   const [recording, setRecording] = React.useState(false)
   const recognitionRef = React.useRef<SpeechRecognitionLike | null>(null)
   const onTextRef = React.useRef(onText)
@@ -198,11 +200,24 @@ export function DictationButton({ onText, onStart, disabled, className }: Dictat
         recording
           ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-950/60 dark:text-red-400'
           : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+        withText && 'w-auto gap-1.5 border px-2.5 text-xs font-medium',
+        withText &&
+          (recording
+            ? 'border-red-300 text-red-700 dark:border-red-800'
+            : 'border-border bg-background text-foreground'),
         className,
       )}
     >
-      <Mic className="h-3.5 w-3.5" aria-hidden />
-      {recording ? (
+      {withText && recording ? (
+        <span className="relative flex h-2 w-2" aria-hidden>
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+        </span>
+      ) : (
+        <Mic className="h-3.5 w-3.5" aria-hidden />
+      )}
+      {withText ? <span aria-hidden>{recording ? 'Stop' : 'Dictate'}</span> : null}
+      {!withText && recording ? (
         <span className="absolute right-1 top-1 flex h-1.5 w-1.5" aria-hidden>
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
