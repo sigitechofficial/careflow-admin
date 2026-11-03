@@ -4,8 +4,16 @@ import {
   fetchCarePlanInstance,
   fetchCarePlanInstances,
   fetchCarePlanVersion,
+  approveCarePlanDraftApi,
+  changeCarePlanLifecycleApi,
+  changeCarePlanRisksApi,
+  changeCarePlanTaskReconciliationApi,
+  fetchCarePlanRisks,
+  fetchCarePlanTaskReconciliation,
   publishCarePlanApi,
+  requestCarePlanChangesApi,
   saveCarePlanDraftApi,
+  submitCarePlanForApprovalApi,
 } from '@/features/service-users/care-plans/api'
 import type { CarePlanComposeGap, CarePlanInstance, CarePlanReviewSummary } from '@/features/service-users/care-plans/types'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
@@ -126,6 +134,82 @@ export function usePublishCarePlan(serviceUserId: string, formId: string) {
         qc.invalidateQueries({ queryKey: initialAssessmentKeys.submissions(serviceUserId) }),
         qc.invalidateQueries({ queryKey: serviceUserKeys.lists() }),
       ])
+    },
+  })
+}
+
+/** Submit / Approve / Request changes on the working draft. */
+export function useCarePlanApprovalActions(serviceUserId: string, formId: string) {
+  const qc = useQueryClient()
+  const onSuccess = () => qc.invalidateQueries({ queryKey: serviceUserKeys.carePlan(serviceUserId) })
+  return {
+    submit: useMutation({ mutationFn: () => submitCarePlanForApprovalApi(serviceUserId, formId), onSuccess }),
+    approve: useMutation({
+      mutationFn: (contentHash: string) => approveCarePlanDraftApi(serviceUserId, formId, contentHash),
+      onSuccess,
+    }),
+    requestChanges: useMutation({
+      mutationFn: (reason: string) => requestCarePlanChangesApi(serviceUserId, formId, reason),
+      onSuccess,
+    }),
+  }
+}
+
+export function useCarePlanLifecycleAction(serviceUserId: string, formId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      action: 'suspend' | 'resume' | 'archive'
+      reason: string
+      reviewConfirmed?: boolean
+    }) =>
+      changeCarePlanLifecycleApi(serviceUserId, formId, input.action, {
+        reason: input.reason,
+        ...(input.reviewConfirmed !== undefined ? { reviewConfirmed: input.reviewConfirmed } : {}),
+      }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: serviceUserKeys.carePlan(serviceUserId) }),
+        qc.invalidateQueries({ queryKey: serviceUserKeys.lists() }),
+      ]),
+  })
+}
+
+export function useCarePlanTaskReconciliation(serviceUserId: string, formId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...serviceUserKeys.carePlan(serviceUserId), 'task-reconciliation', formId] as const,
+    queryFn: ({ signal }) => fetchCarePlanTaskReconciliation(serviceUserId, formId, { signal }),
+    enabled: enabled && Boolean(serviceUserId) && Boolean(formId),
+    staleTime: STALE_TIME,
+  })
+}
+
+export function useCarePlanTaskReconciliationAction(serviceUserId: string, formId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Parameters<typeof changeCarePlanTaskReconciliationApi>[2]) =>
+      changeCarePlanTaskReconciliationApi(serviceUserId, formId, input),
+    onSuccess: (data) =>
+      qc.setQueryData([...serviceUserKeys.carePlan(serviceUserId), 'task-reconciliation', formId] as const, data),
+  })
+}
+
+export function useCarePlanRisks(serviceUserId: string, formId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...serviceUserKeys.carePlan(serviceUserId), 'risks', formId] as const,
+    queryFn: ({ signal }) => fetchCarePlanRisks(serviceUserId, formId, { signal }),
+    enabled: enabled && Boolean(serviceUserId) && Boolean(formId),
+    staleTime: STALE_TIME,
+  })
+}
+
+export function useCarePlanRisksAction(serviceUserId: string, formId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Parameters<typeof changeCarePlanRisksApi>[2]) => changeCarePlanRisksApi(serviceUserId, formId, input),
+    onSuccess: async (data) => {
+      qc.setQueryData([...serviceUserKeys.carePlan(serviceUserId), 'risks', formId] as const, data)
+      await qc.invalidateQueries({ queryKey: [...serviceUserKeys.carePlan(serviceUserId), 'instance', formId] })
     },
   })
 }

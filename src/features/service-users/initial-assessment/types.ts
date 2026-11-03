@@ -160,8 +160,20 @@ export type CarePlanRecommendation = {
   title: string
   triggerCount: number
   triggers: Array<{ questionId: string; questionText: string; specRef?: string }>
-  status: 'pending' | 'accepted' | 'declined'
+  status: 'pending' | 'accepted' | 'declined' | 'deferred'
   declineReason?: string | null
+  /** Reason recorded with the latest decision (decline, defer, or accept note). */
+  decisionReason?: string | null
+  /** Care plan created or linked when this recommendation was accepted (kept if later changed). */
+  carePlanInstanceId?: string | null
+  linkedCarePlan?: {
+    instanceId: string
+    carePathwayFormId: string
+    status: 'DRAFT' | 'PUBLISHED'
+    hasDraft: boolean
+  }
+  /** An accepted, linked recommendation was later declined or deferred: review the linked plan. */
+  linkedCarePlanReviewRequired?: boolean
   decidedAt?: string | null
   carePathwayFormId?: string
   carePathwayFormName?: string

@@ -219,6 +219,10 @@ import { InitialAssessmentCareActivationPanel } from '@/features/service-users/i
 import { InitialAssessmentQuestionField } from '@/features/service-users/initial-assessment/components/InitialAssessmentQuestionField'
 import { sectionProgress, overallAssessmentProgress, formatSectionNavMeta, type SectionProgressContext } from '@/features/service-users/initial-assessment/utils/section-progress'
 import {
+  nextImportantSection,
+  type NextImportantSection,
+} from '@/features/service-users/initial-assessment/utils/next-important-section'
+import {
   applyPrefillToDraftAnswers,
   buildPrefillMap,
   hasAssessmentAnswer,
@@ -634,6 +638,11 @@ function InitialAssessmentEnterprisePageContent() {
   const sectionCommentsLocalEditRef = React.useRef(false)
   const sectionCommentDraftRef = React.useRef<Record<string, string>>({})
   const saveSectionInProgressRef = React.useRef(false)
+  /** Shown under the form after "Save section"; `next: null` means nothing important is left. */
+  const [nextSectionSuggestion, setNextSectionSuggestion] = React.useState<{
+    fromTabId: number
+    next: NextImportantSection | null
+  } | null>(null)
   const submissionMetadataRef = React.useRef<Record<string, unknown>>({})
   const skinIntegrityLocalEditRef = React.useRef(false)
   const skinIntegrityPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -2542,8 +2551,8 @@ function InitialAssessmentEnterprisePageContent() {
     gaveUp: boolean
   }>({ attempt: 0, timer: null, failing: false, gaveUp: false })
   const persistTabAnswersRef = React.useRef<
-    (questions: InitialAssessmentQuestion[], silent?: boolean) => Promise<void>
-  >(async () => undefined)
+    (questions: InitialAssessmentQuestion[], silent?: boolean) => Promise<boolean>
+  >(async () => false)
   const currentTabQuestionsRef = React.useRef(currentTabQuestions)
   currentTabQuestionsRef.current = currentTabQuestions
 
@@ -2634,8 +2643,8 @@ function InitialAssessmentEnterprisePageContent() {
   }, [retryAutosaveNow])
 
   const persistTabAnswers = React.useCallback(
-    async (questions: InitialAssessmentQuestion[], silent = false) => {
-      if (!submissionId || !editable || !canUpdate) return
+    async (questions: InitialAssessmentQuestion[], silent = false): Promise<boolean> => {
+      if (!submissionId || !editable || !canUpdate) return false
       const extraIds = [...syncSaveQuestionIdsRef.current]
       const syncedQuestions = sections
         .flatMap((s) => s.questions)
@@ -2662,7 +2671,7 @@ function InitialAssessmentEnterprisePageContent() {
           setSaveIndicator('saved')
           toastSuccess('Saved', `${tabLabel} saved.`)
         }
-        return
+        return true
       }
       setSaveIndicator('saving')
       const savedQuestionIds = answers.map((a) => a.questionId)
@@ -2679,6 +2688,7 @@ function InitialAssessmentEnterprisePageContent() {
         setSaveIndicator('saved')
         markAutosaveRecovered()
         if (!silent) toastSuccess('Saved', `${tabLabel} saved.`)
+        return true
       } catch (e) {
         // Dirty ids are still set; keep the synced extras too so the retry saves the same answers.
         for (const id of pendingSyncIds) syncSaveQuestionIdsRef.current.add(id)
@@ -2688,6 +2698,7 @@ function InitialAssessmentEnterprisePageContent() {
           setSaveIndicator('error')
           toastApiError(e, 'Save failed')
         }
+        return false
       }
     },
     [
@@ -2730,6 +2741,7 @@ function InitialAssessmentEnterprisePageContent() {
   const saveSection = async () => {
     if (!currentSection) return
     saveSectionInProgressRef.current = true
+    let saved = false
     sectionCommentsLocalEditRef.current = true
     try {
       if (document.activeElement instanceof HTMLElement) {
@@ -2739,7 +2751,7 @@ function InitialAssessmentEnterprisePageContent() {
       const commentText = resolveSectionCommentText(activeHolisticTab)
       await flushHolisticTabMetadata()
       await persistSectionComment(activeHolisticTab, commentText)
-      await persistTabAnswers(
+      saved = await persistTabAnswers(
         [
           ...currentTabQuestions,
           ...demoFillQuestions.filter((q) => demoFilledQuestionIdsRef.current.has(q.id)),
@@ -2749,6 +2761,31 @@ function InitialAssessmentEnterprisePageContent() {
     } finally {
       saveSectionInProgressRef.current = false
       sectionCommentsLocalEditRef.current = false
+    }
+    if (saved) {
+      // Point the assessor at the section that matters most next (from the live tab statuses).
+      // Same per-tab required counts as the side nav ("N required").
+      const requiredMissing = new Map<number, number>()
+      for (const tab of HOLISTIC_ASSESSMENT_TABS) {
+        const enterprise = sections.find((sec) => sec.sectionNumber === tab.enterpriseSection)
+        if (!enterprise) continue
+        const prog = sectionProgress(
+          { ...enterprise, questions: questionsForDocumentTab(tab, sections, visibleQuestionsBySection) },
+          draftAnswers,
+          sections,
+          progressContext,
+        )
+        requiredMissing.set(tab.id, Math.max(0, prog.requiredTotal - prog.requiredAnswered))
+      }
+      const next = nextImportantSection({
+        tabs: HOLISTIC_ASSESSMENT_TABS,
+        currentTabId: activeHolisticTab,
+        navStatus: rawHolisticTabNavStatus,
+        requiredMissing,
+        specialistRelevance: specialistRelevanceByTab,
+      })
+      setNextSectionSuggestion({ fromTabId: activeHolisticTab, next })
+      if (next) toastInfo('Next important section', `Tab ${next.displayNumber} — ${next.title}`)
     }
   }
 
@@ -3833,6 +3870,42 @@ function InitialAssessmentEnterprisePageContent() {
                         }}
                         onBlur={(tabId, text) => void persistSectionComment(tabId, text)}
                       />
+                      {editable && canUpdate && nextSectionSuggestion?.fromTabId === activeHolisticTab ? (
+                        <div
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-950 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100"
+                          role="status"
+                          data-testid="ia-next-important-section"
+                        >
+                          {nextSectionSuggestion.next ? (
+                            <>
+                              <div className="min-w-0">
+                                <p className="font-medium">
+                                  Next important section: Tab {nextSectionSuggestion.next.displayNumber} —{' '}
+                                  {nextSectionSuggestion.next.title}
+                                </p>
+                                <p className="text-xs text-sky-900/80 dark:text-sky-200/80">{nextSectionSuggestion.next.reason}</p>
+                              </div>
+                              <div className="flex shrink-0 gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => goToHolisticTab(nextSectionSuggestion.next!.tabId)}
+                                  data-testid="ia-next-important-section-go"
+                                >
+                                  Go to Tab {nextSectionSuggestion.next.displayNumber}
+                                </Button>
+                                <Button type="button" size="sm" variant="ghost" onClick={() => setNextSectionSuggestion(null)}>
+                                  Dismiss
+                                </Button>
+                              </div>
+                            </>
+                          ) : (
+                            <p className="font-medium">
+                              No important sections are left to complete — review the assessment and submit it.
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
                       {editable && canUpdate ? (
                         <div className="flex flex-wrap gap-2 border-t border-border pt-4">
                           <Button type="button" onClick={() => void saveSection()} disabled={saveMutation.isPending}>

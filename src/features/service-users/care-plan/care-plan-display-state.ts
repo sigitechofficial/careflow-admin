@@ -7,7 +7,7 @@ export type CarePlanDisplayState =
   | 'LIVE_WITH_DRAFT'
   | 'AVAILABLE'
 
-export type CarePlanRecommendationStatus = 'pending' | 'accepted' | 'declined'
+export type CarePlanRecommendationStatus = 'pending' | 'accepted' | 'declined' | 'deferred'
 
 export type CarePlanRecommendationRef = {
   carePathwayFormId?: string | null

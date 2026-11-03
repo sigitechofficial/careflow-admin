@@ -53,6 +53,10 @@ import { EditFlashMessageDialog } from '@/features/service-users/components/Edit
 import { Button } from '@/shared/ui/button'
 import { ServiceUserAllergiesManageDialog } from '@/features/service-users/components/ServiceUserAllergiesManageDialog'
 import { ServiceUserSafetySummary } from '@/features/alerts/components/ServiceUserSafetySummary'
+import {
+  serviceUserMissingItems,
+  type MissingItemGroup,
+} from '@/features/service-users/dashboard/service-user-missing-items'
 type AttentionSeverity = 'red' | 'amber' | 'blue'
 
 type AttentionItem = {
@@ -67,6 +71,8 @@ type AttentionItem = {
   /** Same-page action (e.g. scroll to flash). Prefer over Link when already on target. */
   onAction?: () => void
 }
+
+const MISSING_GROUP_ORDER: MissingItemGroup[] = ['Profile', 'Care', 'Clinical', 'People', 'Home & access']
 
 const ECM_OPEN_LIFECYCLES = new Set([
   'DETECTED',
@@ -544,6 +550,26 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
     visitPlan,
   ])
 
+  const missingItems = React.useMemo(
+    () =>
+      detail
+        ? serviceUserMissingItems({
+            detail,
+            allergyCount: allergyRows.length,
+            activeMedicationCount: activeMeds.length,
+            visitPlanStatus: visitPlan?.status,
+            primaryFunding: primaryFunding
+              ? { fundingTypeName: primaryFunding.fundingType?.name ?? null, reviewDate: primaryFunding.reviewDate }
+              : null,
+          })
+        : [],
+    [detail, allergyRows.length, activeMeds.length, visitPlan?.status, primaryFunding],
+  )
+  const missingGroups = MISSING_GROUP_ORDER.map((group) => ({
+    group,
+    items: missingItems.filter((item) => item.group === group),
+  })).filter((g) => g.items.length > 0)
+
   const primaryContacts = (detail?.contacts ?? [])
     .filter((c) => c.isPrimary || c.isEmergencyContact)
     .slice(0, 3)
@@ -698,6 +724,41 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
                 )
               })}
             </ul>
+          </SimpleCard>
+        ) : null}
+
+        {missingItems.length > 0 ? (
+          <SimpleCard title={`Missing information (${missingItems.length})`}>
+            <div className="space-y-3" data-testid="service-user-missing-items">
+              {missingGroups.map(({ group, items }) => (
+                <div key={group}>
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group}</p>
+                  <ul className="grid gap-2 sm:grid-cols-2">
+                    {items.map((item) => (
+                      <li key={item.id}>
+                        <Link
+                          to={item.to}
+                          params={{ serviceUserId }}
+                          search={item.search}
+                          className="flex w-full items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-left transition-colors hover:bg-muted/50"
+                          data-testid={`missing-item-${item.id}`}
+                        >
+                          <span className="mt-1 h-6 w-1 shrink-0 rounded-full bg-amber-500" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground">{item.title}</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
+                          </div>
+                          <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-teal-700">
+                            {item.linkLabel}
+                            <ArrowRight className="h-3 w-3" />
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </SimpleCard>
         ) : null}
 

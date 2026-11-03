@@ -686,7 +686,7 @@ export async function decideInitialAssessmentCarePlanRecommendation(
   serviceUserId: string,
   submissionId: string,
   recommendationId: string,
-  body: { decision: 'accepted' | 'declined'; reason?: string },
+  body: { decision: 'accepted' | 'declined' | 'deferred'; reason?: string },
 ): Promise<void> {
   await apiJson(
     `/service-users/${serviceUserId}/initial-assessments/${submissionId}/care-plan-recommendations/${recommendationId}`,

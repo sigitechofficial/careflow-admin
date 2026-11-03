@@ -143,6 +143,7 @@ export type Permission =
   | 'service_users.initial_assessment.delete'
   | 'service_users.initial_assessment.submit'
   | 'service_users.initial_assessment.review'
+  | 'service_users.care_plan.approve'
   | 'service_users.initial_assessment.export'
   | 'service_users.assessments.read'
   | 'service_users.assessments.create'

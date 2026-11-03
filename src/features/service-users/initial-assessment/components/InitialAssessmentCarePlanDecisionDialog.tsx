@@ -14,7 +14,7 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
-  mode: 'accept' | 'decline'
+  mode: 'accept' | 'decline' | 'defer'
   reason: string
   onReasonChange: (reason: string) => void
   submitting?: boolean
@@ -32,16 +32,17 @@ export function InitialAssessmentCarePlanDecisionDialog({
   onConfirm,
 }: Props) {
   const valid = mode === 'accept' || reason.trim().length >= 3
+  const label = mode === 'accept' ? 'Accept' : mode === 'decline' ? 'Decline' : 'Defer'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="sm">
         <DialogHeader>
-          <DialogTitle>{mode === 'accept' ? 'Accept recommendation' : 'Decline recommendation'}</DialogTitle>
+          <DialogTitle>{label} recommendation</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <p className="text-sm text-muted-foreground">{title}</p>
-          {mode === 'decline' ? (
+          {mode !== 'accept' ? (
             <div>
               <Label htmlFor="ia-cp-decline-reason">Reason (required)</Label>
               <Textarea
@@ -50,8 +51,17 @@ export function InitialAssessmentCarePlanDecisionDialog({
                 className="mt-1"
                 value={reason}
                 onChange={(e) => onReasonChange(e.target.value)}
-                placeholder="Why is this care plan update not being taken forward?"
+                placeholder={
+                  mode === 'decline'
+                    ? 'Why is this care plan update not being taken forward?'
+                    : 'Why is this decision being put off, and what is needed first?'
+                }
               />
+              {mode === 'defer' ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Deferring creates nothing. The recommendation stays open to accept or decline later.
+                </p>
+              ) : null}
             </div>
           ) : (
             <p className="text-sm">
@@ -64,7 +74,7 @@ export function InitialAssessmentCarePlanDecisionDialog({
             Cancel
           </Button>
           <Button type="button" disabled={!valid || submitting} onClick={onConfirm}>
-            {mode === 'accept' ? 'Accept' : 'Decline'}
+            {label}
           </Button>
         </DialogFooter>
       </DialogContent>
