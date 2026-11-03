@@ -131,6 +131,20 @@ export const money = (n: number | null | undefined) =>
 
 export const hours = (minutes: number) => `${Math.round((minutes / 60) * 100) / 100} h`
 
+const EVERY_N_WEEKS: Record<Exclude<QuotePatternFrequency, 'ONE_OFF'>, number> = { WEEKLY: 1, FORTNIGHTLY: 2, FOUR_WEEKLY: 4 }
+
+/** Care time a week from the repeating visits; a visit with 2 carers counts once, one-off visits not at all. */
+export function weeklyVisitMinutes(patterns: QuotePatternInput[]): number {
+  return patterns.reduce(
+    (sum, p) => (p.frequency === 'ONE_OFF' ? sum : sum + (p.durationMinutes * p.daysOfWeek.length) / EVERY_N_WEEKS[p.frequency]),
+    0,
+  )
+}
+
+/** True when the visits take more time a week than the hours allowed (none set: no limit). */
+export const overWeeklyHours = (minutes: number, hoursPerWeek: number | null | undefined) =>
+  hoursPerWeek != null && minutes > hoursPerWeek * 60 + 0.01
+
 /** Minutes from start to end on the clock; an end at or before the start is the next day. */
 export function clockSpan(start: string, end: string): number {
   const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))

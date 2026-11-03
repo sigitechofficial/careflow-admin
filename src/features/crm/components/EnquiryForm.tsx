@@ -299,6 +299,10 @@ export function EnquiryForm({
       toastApiError(null, 'Enter the referring organisation')
       return
     }
+    if (f.hoursPerWeek.trim() === '' || !(Number(f.hoursPerWeek) > 0)) {
+      toastApiError(null, 'Enter the hours per week')
+      return
+    }
     onSubmit(toPayload(f))
   }
 
@@ -517,8 +521,8 @@ export function EnquiryForm({
       </Section>
 
       <Section title="Care requirements & funding" description="Used to prepare a quote or bid.">
-        <Field label="Hours per week" optional hint="What was asked for; shown on the quote as a guide">
-          <Input type="number" min={0} max={168} step={0.5} value={f.hoursPerWeek} onChange={set('hoursPerWeek')} />
+        <Field label="Hours per week" required hint="What was asked for; a quote's visits can't add up to more than this">
+          <Input type="number" min={0.5} max={168} step={0.5} value={f.hoursPerWeek} onChange={set('hoursPerWeek')} />
         </Field>
         <Field label="Visits per day" optional hint="What was asked for; shown on the quote as a guide">
           <Input type="number" min={0} max={24} step={1} value={f.visitsPerDay} onChange={set('visitsPerDay')} />

@@ -18,7 +18,17 @@ import { useMedicationRounds } from '@/features/settings/hooks/useMedicationRoun
 import { sortMedicationRounds, type MedicationRoundLookup } from '@/features/service-users/medication/medication-time-slots'
 import { roundVisual } from '@/features/service-users/visit-tasks/visit-task-planner-visual.util'
 import { VisitPlanCarersCountInput } from '@/features/service-users/visit-plan/VisitPlanCarersCountInput'
-import { FREQUENCY_LABELS, NIGHT_DUTY_LABELS, clockSpan, dayRatesNote, money, visitBasePrice } from '@/features/crm/quote-labels'
+import {
+  FREQUENCY_LABELS,
+  NIGHT_DUTY_LABELS,
+  clockSpan,
+  dayRatesNote,
+  hours,
+  money,
+  overWeeklyHours,
+  visitBasePrice,
+  weeklyVisitMinutes,
+} from '@/features/crm/quote-labels'
 import type {
   QuoteNightDuty,
   QuotePatternFrequency,
@@ -107,6 +117,7 @@ function VisitDialog({
   visit,
   hourlyRate,
   rates,
+  hoursProblem,
   onDone,
 }: {
   open: boolean
@@ -115,6 +126,8 @@ function VisitDialog({
   visit: QuotePatternInput | null
   hourlyRate: number | null
   rates: QuoteRates | null
+  /** Why this visit can't be kept: it takes the visits past the hours per week. */
+  hoursProblem: (visit: QuotePatternInput) => string | null
   onDone: (visit: QuotePatternInput) => void
 }) {
   const [draft, setDraft] = React.useState<QuotePatternInput | null>(visit)
@@ -141,8 +154,9 @@ function VisitDialog({
 
   const handleDone = () => {
     const problems = patternProblems({ ...draft, endTime: end })
-    if (problems.length) {
-      setError(problems[0]!)
+    const overHours = problems.length ? null : hoursProblem({ ...draft, endTime: end })
+    if (problems.length || overHours) {
+      setError(problems[0] ?? overHours)
       return
     }
     onDone({ ...draft, endTime: end, windowEndTime: null, manualChargePerVisit: null, overrideReason: null })
@@ -359,6 +373,7 @@ export function VisitPatternBuilder({
   rates = null,
   focusIndex,
   focusKey,
+  hoursPerWeek = null,
 }: {
   patterns: QuotePatternInput[]
   onChange: (next: QuotePatternInput[]) => void
@@ -371,6 +386,8 @@ export function VisitPatternBuilder({
   /** Visit to open (e.g. from the problem list); focusKey changes on every request. */
   focusIndex?: number
   focusKey?: number
+  /** The enquiry's hours per week: the visits can't add up to more. */
+  hoursPerWeek?: number | null
 }) {
   const { data: roundRows = [] } = useMedicationRounds()
   const rounds = React.useMemo(() => sortMedicationRounds(roundRows.filter(r => r.isActive !== false)), [roundRows])
@@ -400,6 +417,15 @@ export function VisitPatternBuilder({
     if (!rounds.length) list.push({ code: 'ALL', name: 'Visits', window: null, round: null, indexes: byRound.get('ALL') ?? [] })
     return list
   }, [patterns, rounds])
+
+  const full = hoursPerWeek != null && weeklyVisitMinutes(patterns) >= hoursPerWeek * 60
+  const fullTitle = full ? `The visits already use the ${hoursPerWeek} hours a week` : undefined
+  const hoursProblem = (visit: QuotePatternInput, index: number) => {
+    const total = weeklyVisitMinutes([...patterns.filter((_, j) => j !== index), visit])
+    return overWeeklyHours(total, hoursPerWeek)
+      ? `This makes ${hours(total)} a week, more than the ${hoursPerWeek} hours a week allowed. Make the visit shorter or take away some days.`
+      : null
+  }
 
   const toggle = (code: string) =>
     setCollapsed(prev => {
@@ -470,6 +496,8 @@ export function VisitPatternBuilder({
                   variant="outline"
                   size="sm"
                   className="shrink-0 gap-1 rounded-lg border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
+                  disabled={full}
+                  title={fullTitle}
                   onClick={() => addVisit(group.round)}
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -483,11 +511,18 @@ export function VisitPatternBuilder({
                 readOnly ? (
                   <p className="px-4 py-4 text-xs text-muted-foreground">No visit in this time slot.</p>
                 ) : (
-                  <button type="button" onClick={() => addVisit(group.round)} className="flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-primary/5">
+                  <button
+                    type="button"
+                    disabled={full}
+                    onClick={() => addVisit(group.round)}
+                    className="flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-primary/5 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  >
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                       <Plus className="h-4 w-4" aria-hidden />
                     </span>
-                    <span className="text-xs text-muted-foreground">No visit added yet — add the first one for this time slot.</span>
+                    <span className="text-xs text-muted-foreground">
+                      {full ? `No visit added — the ${hoursPerWeek} hours a week are used.` : 'No visit added yet — add the first one for this time slot.'}
+                    </span>
                   </button>
                 )
               ) : (
@@ -555,6 +590,7 @@ export function VisitPatternBuilder({
         visit={editing?.visit ?? null}
         hourlyRate={hourlyRate}
         rates={rates}
+        hoursProblem={visit => hoursProblem(visit, editing?.mode === 'edit' ? editing.index : -1)}
         onDone={visit => {
           if (!editing) return
           onChange(editing.mode === 'add' ? [...patterns, visit] : patterns.map((p, j) => (j === editing.index ? visit : p)))

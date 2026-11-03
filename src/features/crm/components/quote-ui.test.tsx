@@ -4,10 +4,11 @@ import userEvent from '@testing-library/user-event'
 import type { Enquiry } from '@/features/crm/types/crm.types'
 import type { EnquiryQuotations, QuotePricing, QuoteVersion } from '@/features/crm/types/quotation.types'
 
-const { navigate, quotationsState, mutation } = vi.hoisted(() => ({
+const { navigate, quotationsState, mutation, updateEnquiry } = vi.hoisted(() => ({
   navigate: vi.fn(),
   quotationsState: { data: undefined as EnquiryQuotations | undefined },
   mutation: () => ({ mutate: vi.fn(), isPending: false }),
+  updateEnquiry: vi.fn(),
 }))
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }))
 vi.mock('@/features/settings/hooks/useMedicationRounds', () => ({
@@ -19,6 +20,7 @@ vi.mock('@/features/settings/hooks/useMedicationRounds', () => ({
   }),
 }))
 vi.mock('@/features/crm/hooks/useCrm', () => ({
+  useUpdateEnquiry: () => ({ mutate: updateEnquiry, isPending: false }),
   useQuoteFunders: () => ({
     data: [
       { id: 'f-council', name: 'Croydon Council', fundingTypeName: 'Local Authority', payerType: 'LOCAL_AUTHORITY' },
@@ -41,7 +43,8 @@ import { QuoteClientLayoutChoice } from '@/features/crm/components/quote-editor/
 import { VisitSlotsBuilder } from '@/features/crm/components/quote-editor/VisitSlotsBuilder'
 import { QuoteVersionCompare } from '@/features/crm/components/quote-editor/QuoteVersionCompare'
 import { QuoteRatesEditor } from '@/features/crm/components/quote-editor/QuoteRatesEditor'
-import { dayRatesNote, emptyPattern, visitBasePrice } from '@/features/crm/quote-labels'
+import { WeeklyHoursLimit } from '@/features/crm/components/quote-editor/WeeklyHoursLimit'
+import { dayRatesNote, emptyPattern, visitBasePrice, weeklyVisitMinutes } from '@/features/crm/quote-labels'
 
 const enquiry = { id: 'e1', stage: 'OFFER', firstName: 'Jo', lastName: 'Bloggs' } as Enquiry
 const legacy = { unlinked: false, hasLegacyFields: false, weeklyAmount: null, hourlyRate: null, sentAt: null, notes: null, reconciledAt: null, reconcileNote: null }
@@ -144,6 +147,61 @@ describe('VisitPatternBuilder', () => {
     const added = onChange.mock.calls[1][0]
     expect(added).toHaveLength(2)
     expect(added[1]).toMatchObject({ label: 'Lunch', startTime: '12:00', endTime: '12:30', durationMinutes: 30, manualChargePerVisit: null })
+  })
+})
+
+describe('hours per week limit', () => {
+  // 30 min × 7 days = 3.5 h a week.
+  const daily = emptyPattern()
+
+  it('counts the care time of the repeating visits, a 2-carer visit once and one-off visits not at all', () => {
+    expect(weeklyVisitMinutes([daily, { ...daily, carersPerVisit: 2 }])).toBe(420)
+    expect(weeklyVisitMinutes([{ ...daily, frequency: 'FORTNIGHTLY' }, { ...daily, frequency: 'ONE_OFF', oneOffDates: ['2026-12-01'] }])).toBe(105)
+  })
+
+  it('shows the hours used and left, and saves new hours on the enquiry', async () => {
+    const withHours = { ...enquiry, hoursPerWeek: 5 } as Enquiry
+    render(<WeeklyHoursLimit enquiry={withHours} patterns={[daily]} readOnly={false} />)
+    expect(screen.getByTestId('quote-hours-used')).toHaveTextContent('3.5 h of 5 h used · 1.5 h left')
+    const input = screen.getByLabelText('Hours per week')
+    await userEvent.clear(input)
+    await userEvent.type(input, '14')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(updateEnquiry).toHaveBeenCalledWith({ hoursPerWeek: 14 }, expect.anything())
+  })
+
+  it('stops a visit with times going past the hours per week', async () => {
+    const onChange = vi.fn()
+    const { rerender } = render(
+      <VisitPatternBuilder patterns={[daily]} onChange={onChange} readOnly={false} pricing={null} hourlyRate={24} hoursPerWeek={5} />,
+    )
+    // Another daily 30 min visit would make 7 h of the 5 h.
+    await userEvent.click(within(screen.getByTestId('quote-slot-LUNCH')).getAllByRole('button', { name: /Add visit/ })[0]!)
+    await userEvent.click(screen.getByTestId('quote-visit-done'))
+    expect(screen.getByTestId('quote-visit-error')).toHaveTextContent('This makes 7 h a week, more than the 5 hours a week allowed')
+    expect(onChange).not.toHaveBeenCalled()
+    // Three days fit (1.5 h).
+    for (const day of ['Thu', 'Fri', 'Sat', 'Sun']) await userEvent.click(screen.getByRole('checkbox', { name: day }))
+    await userEvent.click(screen.getByTestId('quote-visit-done'))
+    expect(onChange.mock.lastCall![0]).toHaveLength(2)
+
+    // Once the hours are used, no visit can be added.
+    rerender(<VisitPatternBuilder patterns={[daily]} onChange={onChange} readOnly={false} pricing={null} hourlyRate={24} hoursPerWeek={3.5} />)
+    for (const b of within(screen.getByTestId('quote-slot-LUNCH')).getAllByRole('button', { name: /Add visit|hours a week are used/ })) expect(b).toBeDisabled()
+  })
+
+  it('stops a visit slot or a day going past the hours per week', async () => {
+    const onChange = vi.fn()
+    const slot = { ...daily, label: 'Morning visit', daysOfWeek: [1, 2, 3, 4, 5, 6] }
+    const { rerender } = render(<VisitSlotsBuilder patterns={[slot]} onChange={onChange} readOnly={false} hoursPerWeek={4} />)
+    // 3 h used: Sunday still fits; a new slot gets the two days that fit.
+    expect(within(screen.getByRole('group', { name: 'Visit 1 days' })).getByRole('button', { name: 'Sun' })).toBeEnabled()
+    await userEvent.click(screen.getByRole('button', { name: /Add visit/ }))
+    expect(onChange.mock.lastCall![0][1]).toMatchObject({ label: 'Lunch visit', daysOfWeek: [1, 2] })
+
+    rerender(<VisitSlotsBuilder patterns={[slot]} onChange={onChange} readOnly={false} hoursPerWeek={3} />)
+    expect(within(screen.getByRole('group', { name: 'Visit 1 days' })).getByRole('button', { name: 'Sun' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Add visit/ })).toBeDisabled()
   })
 })
 

@@ -6,7 +6,7 @@ import { cn } from '@/shared/lib/utils'
 import { useMedicationRounds } from '@/features/settings/hooks/useMedicationRounds'
 import { sortMedicationRounds, type MedicationRoundLookup } from '@/features/service-users/medication/medication-time-slots'
 import { roundFor } from '@/features/crm/components/quote-editor/VisitPatternBuilder'
-import { emptyPattern } from '@/features/crm/quote-labels'
+import { emptyPattern, overWeeklyHours, weeklyVisitMinutes } from '@/features/crm/quote-labels'
 import type { QuotePatternInput } from '@/features/crm/types/quotation.types'
 
 const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0]
@@ -43,10 +43,13 @@ export function VisitSlotsBuilder({
   patterns,
   onChange,
   readOnly,
+  hoursPerWeek = null,
 }: {
   patterns: QuotePatternInput[]
   onChange: (next: QuotePatternInput[]) => void
   readOnly: boolean
+  /** The enquiry's hours per week: the visits (30 mins each) can't add up to more. */
+  hoursPerWeek?: number | null
 }) {
   const { data: roundRows = [] } = useMedicationRounds()
   const rounds = React.useMemo(() => sortMedicationRounds(roundRows.filter(r => r.isActive !== false)), [roundRows])
@@ -57,6 +60,16 @@ export function VisitSlotsBuilder({
     set(i, { ...p, daysOfWeek: days })
   }
   const unused = rounds.find(r => !patterns.some(p => roundFor(p, rounds)?.code === r.code)) ?? rounds[0]
+  const used = weeklyVisitMinutes(patterns)
+  const fits = (next: QuotePatternInput[]) => !overWeeklyHours(weeklyVisitMinutes(next), hoursPerWeek)
+  // A new slot takes as many days (Monday first) as the hours left allow.
+  const newSlot = (round: MedicationRoundLookup) => {
+    const slot = slotVisit(round)
+    const room = hoursPerWeek == null ? 7 : Math.floor((hoursPerWeek * 60 - used + 0.01) / slot.durationMinutes)
+    return room > 0 ? { ...slot, daysOfWeek: MONDAY_FIRST.slice(0, Math.min(7, room)) } : null
+  }
+  const nextSlot = unused ? newSlot(unused) : null
+  const fullTitle = hoursPerWeek != null ? `The visits already use the ${hoursPerWeek} hours a week` : undefined
 
   // Visits made with times (before switching to a total) take their slot's name, as the client sees it.
   React.useEffect(() => {
@@ -86,8 +99,9 @@ export function VisitSlotsBuilder({
             variant="outline"
             size="sm"
             leftIcon={<Plus className="h-3.5 w-3.5" />}
-            disabled={!unused}
-            onClick={() => unused && onChange([...patterns, slotVisit(unused)])}
+            disabled={!nextSlot}
+            title={unused && !nextSlot ? fullTitle : undefined}
+            onClick={() => nextSlot && onChange([...patterns, nextSlot])}
           >
             Add visit
           </Button>
@@ -135,16 +149,19 @@ export function VisitSlotsBuilder({
                       <div className="flex flex-wrap gap-1" role="group" aria-label={`Visit ${i + 1} days`}>
                         {MONDAY_FIRST.map(d => {
                           const on = p.daysOfWeek.includes(d)
+                          const blocked = !on && !fits(patterns.map((x, j) => (j === i ? { ...x, daysOfWeek: [...x.daysOfWeek, d] } : x)))
                           return (
                             <button
                               key={d}
                               type="button"
                               aria-pressed={on}
-                              disabled={readOnly}
+                              disabled={readOnly || blocked}
+                              title={blocked ? fullTitle : undefined}
                               onClick={() => toggleDay(i, d)}
                               className={cn(
                                 'h-8 min-w-10 rounded-md border px-2 text-xs font-medium transition',
                                 on ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-primary/40',
+                                blocked && 'cursor-not-allowed opacity-50',
                               )}
                             >
                               {DAY_LABELS[d]}

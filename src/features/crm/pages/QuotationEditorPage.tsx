@@ -37,11 +37,20 @@ import {
   useQuoteVersion,
   useUpdateQuoteDraft,
 } from '@/features/crm/hooks/useQuotations'
-import { QUOTE_STATUS_CLASS, QUOTE_TYPE_LABELS, emptyPattern, hours, money } from '@/features/crm/quote-labels'
+import {
+  QUOTE_STATUS_CLASS,
+  QUOTE_TYPE_LABELS,
+  emptyPattern,
+  hours,
+  money,
+  overWeeklyHours,
+  weeklyVisitMinutes,
+} from '@/features/crm/quote-labels'
 import { VisitPatternBuilder, patternProblems } from '@/features/crm/components/quote-editor/VisitPatternBuilder'
 import { QuoteRatesEditor } from '@/features/crm/components/quote-editor/QuoteRatesEditor'
 import { QuoteClientLayoutChoice } from '@/features/crm/components/quote-editor/QuoteClientLayoutChoice'
 import { VisitSlotsBuilder } from '@/features/crm/components/quote-editor/VisitSlotsBuilder'
+import { WeeklyHoursLimit } from '@/features/crm/components/quote-editor/WeeklyHoursLimit'
 import { CostSummary, FundingAndExtras } from '@/features/crm/components/quote-editor/QuotePricingSections'
 import { ResponsesAndActivityPanel, ReviewAndSendPanel } from '@/features/crm/components/quote-editor/QuoteReviewPanels'
 import type { Enquiry } from '@/features/crm/types/crm.types'
@@ -179,7 +188,7 @@ function cleanForm(f: QuoteDraftInput): QuoteDraftInput {
 }
 
 /** Everything that blocks issuing, each tied to the section (and visit) where it is fixed. */
-function collectIssues(form: QuoteDraftInput, pricing: QuotePricing | null): Issue[] {
+function collectIssues(form: QuoteDraftInput, pricing: QuotePricing | null, hoursPerWeek: number | null): Issue[] {
   const out: Issue[] = []
   if (!form.locationId) out.push({ section: 'cost', details: true, field: 'quote-branch', message: 'Choose the branch' })
   if (!form.validUntil) out.push({ section: 'cost', details: true, field: 'quote-valid-until', message: 'Set the valid-until date' })
@@ -191,6 +200,14 @@ function collectIssues(form: QuoteDraftInput, pricing: QuotePricing | null): Iss
   }
   const patterns = form.patterns ?? []
   if (!patterns.length) out.push({ section: 'schedule', message: 'Add at least one visit' })
+  const visitMinutes = weeklyVisitMinutes(patterns)
+  if (overWeeklyHours(visitMinutes, hoursPerWeek)) {
+    out.push({
+      section: 'schedule',
+      field: 'quote-hours-per-week',
+      message: `The visits come to ${hours(visitMinutes)} a week, more than the ${hoursPerWeek} hours a week allowed`,
+    })
+  }
   // Listed first so the server's per-visit copies of this message (filtered below) don't point at a visit.
   // Visits priced by a night or short-visit rate need no hourly rate; the server says which do.
   if (
@@ -318,7 +335,7 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
     ? 'Total amount quote'
     : (form.hourlyRate != null ? `${money(form.hourlyRate)} per carer per hour` : 'No hourly rate yet') +
       (form.rates ? ' + other rates' : '')
-  const issues = editable ? collectIssues(form, pricing) : []
+  const issues = editable ? collectIssues(form, pricing, enquiry.hoursPerWeek) : []
   const issuesBySection = (key: SectionKey) => issues.filter(i => i.section === key).length
 
   const patch = (p: Partial<QuoteDraftInput>) => {
@@ -542,15 +559,15 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
                   <p className="flex items-center gap-2 font-medium"><HeartPulse className="h-4 w-4 text-muted-foreground" aria-hidden />What they asked for</p>
                   <p className="text-muted-foreground">
                     {[
-                      enquiry.hoursPerWeek != null && `${enquiry.hoursPerWeek} hours a week`,
                       enquiry.visitsPerDay != null && `${enquiry.visitsPerDay} visit${enquiry.visitsPerDay === 1 ? '' : 's'} a day`,
                       enquiry.carePlans.length > 0 && enquiry.carePlans.map(c => c.name).join(', '),
                     ]
                       .filter(Boolean)
-                      .join(' · ') || 'No hours or visits recorded on the enquiry.'}
+                      .join(' · ') || 'No visits a day or care plans recorded on the enquiry.'}
                   </p>
                   {enquiry.needs && <p className="whitespace-pre-wrap">{enquiry.needs}</p>}
                 </div>
+                <WeeklyHoursLimit enquiry={enquiry} patterns={form.patterns ?? []} readOnly={!editable} />
                 <QuoteClientLayoutChoice
                   value={form.clientLayout ?? 'DETAILED'}
                   onChange={clientLayout =>
@@ -583,7 +600,12 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
                         </div>
                       </Field>
                     </fieldset>
-                    <VisitSlotsBuilder patterns={form.patterns ?? []} onChange={patterns => patch({ patterns })} readOnly={!editable} />
+                    <VisitSlotsBuilder
+                      patterns={form.patterns ?? []}
+                      onChange={patterns => patch({ patterns })}
+                      readOnly={!editable}
+                      hoursPerWeek={enquiry.hoursPerWeek}
+                    />
                   </>
                 ) : (
                 <>
@@ -614,6 +636,7 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
                   rates={form.rates ?? null}
                   focusIndex={focus?.index}
                   focusKey={focus?.seq}
+                  hoursPerWeek={enquiry.hoursPerWeek}
                 />
                 </>
                 )}

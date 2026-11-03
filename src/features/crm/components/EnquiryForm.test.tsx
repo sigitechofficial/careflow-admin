@@ -42,10 +42,17 @@ describe('EnquiryForm — enquiry or referral', () => {
     await userEvent.type(screen.getByLabelText(/Referring organisation/), 'Croydon Council Adult Social Care')
     await userEvent.type(screen.getByLabelText(/Referral reference/), 'ASC-881')
     await userEvent.type(screen.getByLabelText(/^Role/), 'Social worker')
+    // The hours per week are required too: they cap the quote's visits.
+    await userEvent.click(screen.getByRole('button', { name: 'Create referral' }))
+    expect(toastError).toHaveBeenCalledWith(null, 'Enter the hours per week')
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    await userEvent.type(screen.getByLabelText(/Hours per week/), '14')
     await userEvent.click(screen.getByRole('button', { name: 'Create referral' }))
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'REFERRAL',
+        hoursPerWeek: 14,
         referringOrganisation: 'Croydon Council Adult Social Care',
         referralReference: 'ASC-881',
         referrerRole: 'Social worker',
