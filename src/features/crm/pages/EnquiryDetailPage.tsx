@@ -24,9 +24,10 @@ import { EmptyState, LoadingSpinner } from '@/shared/ui/page-elements'
 import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { CrmSectionLayout } from '@/features/crm/components/CrmSectionLayout'
-import { QuoteSummary } from '@/features/crm/components/QuoteSummaryCard'
+import { QuoteActions, QuoteSummary } from '@/features/crm/components/QuoteSummaryCard'
 import { EnquiryInitialAssessment, useInitialAssessmentAction } from '@/features/crm/components/EnquiryInitialAssessment'
 import { useEnquiryQuotations } from '@/features/crm/hooks/useQuotations'
+import { QUOTE_STATUS_CLASS } from '@/features/crm/quote-labels'
 import {
   useAddEnquiryNote,
   useEnquiry,
@@ -160,8 +161,7 @@ function HeaderShortcuts({ enquiry, canManage }: { enquiry: Enquiry; canManage: 
   const assessment = useInitialAssessmentAction(enquiry, canManage)
   const { data } = useEnquiryQuotations(enquiry.id)
   const quotations = data?.quotations ?? []
-  const currentQuotation = quotations.find(q => q.isCurrent) ?? quotations[0]
-  const current = currentQuotation?.latestVersion
+  const current = (quotations.find(q => q.isCurrent) ?? quotations[0])?.latestVersion
   return (
     <>
       {assessment.visible && (
@@ -174,21 +174,8 @@ function HeaderShortcuts({ enquiry, canManage }: { enquiry: Enquiry; canManage: 
           {assessment.label}
         </Button>
       )}
-      {current && currentQuotation ? (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            navigate({
-              to: '/crm/$enquiryId/quotes/$quotationId/$versionId',
-              params: { enquiryId: enquiry.id, quotationId: currentQuotation.id, versionId: current.id },
-            })
-          }
-        >
-          <PoundSterling className="mr-1.5 h-4 w-4" aria-hidden />
-          View quote
-        </Button>
-      ) : (
+      {/* With a quotation, its actions sit in the quote bar below. */}
+      {!current &&
         canManage &&
         data && (
           <Button
@@ -199,9 +186,33 @@ function HeaderShortcuts({ enquiry, canManage }: { enquiry: Enquiry; canManage: 
             <PoundSterling className="mr-1.5 h-4 w-4" aria-hidden />
             Create quotation
           </Button>
-        )
-      )}
+        )}
     </>
+  )
+}
+
+/** The current quotation with the same actions as the Quote card, reachable without scrolling. */
+function HeaderQuoteBar({ enquiry, canManage }: { enquiry: Enquiry; canManage: boolean }) {
+  const navigate = useNavigate()
+  const { data } = useEnquiryQuotations(enquiry.id)
+  const quotations = data?.quotations ?? []
+  const current = quotations.find(q => q.isCurrent) ?? quotations[0]
+  const v = current?.latestVersion
+  if (!current || !v) return null
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4" data-testid="crm-header-quote-actions">
+      <span className="mr-1 flex items-center gap-2 text-sm font-medium">
+        <PoundSterling className="h-4 w-4 text-muted-foreground" aria-hidden />
+        {v.label}
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${QUOTE_STATUS_CLASS[v.status]}`}>{v.statusLabel}</span>
+      </span>
+      <QuoteActions enquiry={enquiry} q={current} canManage={canManage} asButtons />
+      {canManage && (
+        <Button variant="outline" size="sm" onClick={() => navigate({ to: '/crm/$enquiryId/quotes/new', params: { enquiryId: enquiry.id } })}>
+          Create another quotation
+        </Button>
+      )}
+    </div>
   )
 }
 
@@ -259,6 +270,8 @@ function EnquiryHeader({ enquiry, canManage }: { enquiry: Enquiry; canManage: bo
             )}
           </div>
         </div>
+
+        <HeaderQuoteBar enquiry={enquiry} canManage={canManage} />
 
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg bg-muted/40 px-4 py-3 sm:grid-cols-4">
           <MetaItem label="Branch">

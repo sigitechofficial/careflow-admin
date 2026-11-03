@@ -89,6 +89,9 @@ describe('QuoteSummary (Plan → Quote)', () => {
       expect(screen.getByRole('button', { name })).toBeInTheDocument()
     }
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+    // A sent quote waits for the client: recording the response is highlighted as the next step.
+    expect(screen.getByRole('button', { name: 'Record response' })).toHaveAttribute('data-next', 'true')
+    expect(screen.getByRole('button', { name: 'View' })).not.toHaveAttribute('data-next')
     await userEvent.click(screen.getByRole('button', { name: 'Record response' }))
     expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ search: { section: 'responses' } }))
   })

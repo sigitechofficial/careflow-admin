@@ -4,6 +4,7 @@ import { PoundSterling } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { useAuthStore } from '@/features/auth/store'
 import { STAGE_LABELS } from '@/features/crm/crm-labels'
 import {
   QUOTE_STATUS_CLASS,
@@ -21,9 +22,23 @@ import {
   useReconcileLegacyQuote,
 } from '@/features/crm/hooks/useQuotations'
 import type { Enquiry, EnquiryStage } from '@/features/crm/types/crm.types'
-import type { QuotationListItem, QuoteVersion } from '@/features/crm/types/quotation.types'
+import type { QuotationListItem, QuoteStatus, QuoteVersion } from '@/features/crm/types/quotation.types'
 
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : '—')
+
+type QuoteActionKey = 'view' | 'edit' | 'preview' | 'download' | 'send' | 'revise' | 'response' | 'serviceUser'
+
+/** The action whose turn it is for each status; it is highlighted. */
+const NEXT_ACTION: Partial<Record<QuoteStatus, QuoteActionKey>> = {
+  DRAFT: 'edit',
+  PENDING_APPROVAL: 'view',
+  APPROVED: 'send',
+  SENT: 'response',
+  UNDER_NEGOTIATION: 'response',
+  CHANGES_REQUESTED: 'revise',
+  EXPIRED: 'revise',
+  ACCEPTED: 'serviceUser',
+}
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -63,18 +78,123 @@ function LegacyReview({ enquiry }: { enquiry: Enquiry }) {
   )
 }
 
-function CurrentQuote({ enquiry, q, canManage }: { enquiry: Enquiry; q: QuotationListItem; canManage: boolean }) {
+/**
+ * The current quotation's actions (View, Edit, Preview, Download, Send, Revise, Record response):
+ * text links in the Quote card, outline buttons in the page header.
+ */
+export function QuoteActions({
+  enquiry,
+  q,
+  canManage,
+  asButtons = false,
+}: {
+  enquiry: Enquiry
+  q: QuotationListItem
+  canManage: boolean
+  asButtons?: boolean
+}) {
   const navigate = useNavigate()
+  const canCreateServiceUser = useAuthStore(s => s.can)('service_users.create')
   const v = q.latestVersion as QuoteVersion
   const lastIssued = q.versions.find(x => x.status !== 'DRAFT' && x.status !== 'PENDING_APPROVAL' && x.status !== 'CANCELLED')
   const pdf = useDownloadQuotePdf(enquiry.id, q.id, lastIssued?.id ?? v.id)
   const action = useQuoteAction(enquiry.id, q.id, v.id)
+  // Accepted and not yet an active service user: making one is the next step.
+  const serviceUserDue = v.status === 'ACCEPTED' && canCreateServiceUser && !(enquiry.stage === 'WON' && enquiry.convertedServiceUserId)
   const open = (versionId: string, section?: string) =>
     navigate({
       to: '/crm/$enquiryId/quotes/$quotationId/$versionId',
       params: { enquiryId: enquiry.id, quotationId: q.id, versionId },
       search: section ? { section } : {},
     })
+  const items: Array<{ key: QuoteActionKey; label: string; onClick: () => void; disabled?: boolean }> = [
+    ...(serviceUserDue
+      ? [
+          {
+            key: 'serviceUser' as const,
+            label: 'Create service user',
+            onClick: () =>
+              navigate({
+                to: '/crm/$enquiryId/quotes/$quotationId/$versionId/service-user',
+                params: { enquiryId: enquiry.id, quotationId: q.id, versionId: v.id },
+              }),
+          },
+        ]
+      : []),
+    { key: 'view', label: asButtons ? 'View quote' : 'View', onClick: () => open(v.id) },
+    ...(canManage && v.editable ? [{ key: 'edit' as const, label: asButtons ? 'Edit quote' : 'Edit', onClick: () => open(v.id, 'schedule') }] : []),
+    ...(lastIssued
+      ? [
+          { key: 'preview' as const, label: 'Preview', onClick: () => open(lastIssued.id, 'review') },
+          {
+            key: 'download' as const,
+            label: 'Download',
+            disabled: pdf.isPending,
+            onClick: () => pdf.mutate(undefined, { onError: e => toastApiError(e, 'Could not download the PDF') }),
+          },
+        ]
+      : []),
+    ...(canManage && SENDABLE.includes(v.status) ? [{ key: 'send' as const, label: 'Send', onClick: () => open(v.id, 'review') }] : []),
+    ...(canManage && REVISABLE.includes(v.status)
+      ? [
+          {
+            key: 'revise' as const,
+            label: 'Revise',
+            disabled: action.isPending,
+            onClick: () =>
+              action.mutate({ action: 'revise' }, { onSuccess: d => open(d.id, 'schedule'), onError: e => toastApiError(e, 'Could not revise') }),
+          },
+        ]
+      : []),
+    ...(canManage && RESPONDABLE.includes(v.status)
+      ? [{ key: 'response' as const, label: 'Record response', onClick: () => open(v.id, 'responses') }]
+      : []),
+  ]
+  const next = NEXT_ACTION[v.status]
+  if (asButtons) {
+    return (
+      <>
+        {items.map(i => (
+          <Button
+            key={i.key}
+            variant={i.key === next ? 'default' : 'outline'}
+            size="sm"
+            disabled={i.disabled}
+            onClick={i.onClick}
+            title={i.key === next ? 'Next step' : undefined}
+            data-next={i.key === next || undefined}
+          >
+            {i.label}
+          </Button>
+        ))}
+      </>
+    )
+  }
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+      {items.map(i => (
+        <button
+          key={i.key}
+          type="button"
+          className={
+            i.key === next
+              ? 'rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90'
+              : 'text-xs font-medium text-primary hover:underline'
+          }
+          disabled={i.disabled}
+          onClick={i.onClick}
+          title={i.key === next ? 'Next step' : undefined}
+          data-next={i.key === next || undefined}
+        >
+          {i.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function CurrentQuote({ enquiry, q, canManage }: { enquiry: Enquiry; q: QuotationListItem; canManage: boolean }) {
+  const v = q.latestVersion as QuoteVersion
   const fu = q.summary.followUp
   return (
     <div className="flex flex-col gap-2 text-sm" data-testid="crm-quote-summary">
@@ -97,28 +217,7 @@ function CurrentQuote({ enquiry, q, canManage }: { enquiry: Enquiry; q: Quotatio
       <Row label="Follow-up">
         {fu ? <span className={fu.overdue ? 'font-medium text-red-700' : undefined}>{fu.overdue ? 'Overdue · ' : ''}{fmtDate(fu.dueAt)}</span> : 'None'}
       </Row>
-      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-        <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => open(v.id)}>View</button>
-        {canManage && v.editable && <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => open(v.id, 'schedule')}>Edit</button>}
-        {lastIssued && <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => open(lastIssued.id, 'review')}>Preview</button>}
-        {lastIssued && (
-          <button type="button" className="text-xs font-medium text-primary hover:underline" disabled={pdf.isPending} onClick={() => pdf.mutate(undefined, { onError: e => toastApiError(e, 'Could not download the PDF') })}>
-            Download
-          </button>
-        )}
-        {canManage && SENDABLE.includes(v.status) && <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => open(v.id, 'review')}>Send</button>}
-        {canManage && REVISABLE.includes(v.status) && (
-          <button
-            type="button"
-            className="text-xs font-medium text-primary hover:underline"
-            disabled={action.isPending}
-            onClick={() => action.mutate({ action: 'revise' }, { onSuccess: d => open(d.id, 'schedule'), onError: e => toastApiError(e, 'Could not revise') })}
-          >
-            Revise
-          </button>
-        )}
-        {canManage && RESPONDABLE.includes(v.status) && <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => open(v.id, 'responses')}>Record response</button>}
-      </div>
+      <QuoteActions enquiry={enquiry} q={q} canManage={canManage} />
     </div>
   )
 }
