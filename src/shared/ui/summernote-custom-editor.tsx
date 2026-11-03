@@ -27,6 +27,7 @@ import {
   ChevronDown, Type, Pilcrow, RemoveFormatting,
 } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
+import { DictationButton, dictationChunk } from "@/shared/ui/dictation"
 
 // ── Link mark ────────────────────────────────────────────
 const LinkMark = Mark.create({
@@ -204,6 +205,8 @@ interface SummernoteCustomEditorProps {
   disabled?: boolean
   minHeight?: number
   className?: string
+  /** Show a speech-to-text mic in the toolbar (hidden where the browser has no Web Speech API). */
+  dictation?: boolean
 }
 
 export function SummernoteCustomEditor({
@@ -213,6 +216,7 @@ export function SummernoteCustomEditor({
   disabled,
   minHeight = 200,
   className,
+  dictation,
 }: SummernoteCustomEditorProps) {
   const [fullscreen, setFullscreen] = React.useState(false)
   const [showSource, setShowSource] = React.useState(false)
@@ -290,6 +294,18 @@ export function SummernoteCustomEditor({
 
   const clearFormatting = () => {
     editor.chain().focus().clearNodes().unsetAllMarks().run()
+  }
+
+  // Insert after the selection (selected text is kept), spacing it from its neighbours.
+  const insertDictation = (text: string) => {
+    const pos = editor.state.selection.to
+    const { doc } = editor.state
+    const chunk = dictationChunk(
+      doc.textBetween(Math.max(0, pos - 1), pos, "\n", " "),
+      text,
+      doc.textBetween(pos, Math.min(doc.content.size, pos + 1), "\n", " "),
+    )
+    if (chunk) editor.chain().insertContentAt(pos, { type: "text", text: chunk }).run()
   }
 
   const currentColor = (editor.getAttributes("textStyle").color as string) || "#000000"
@@ -510,6 +526,15 @@ export function SummernoteCustomEditor({
         <Btn label="Source code" active={showSource} onClick={toggleSource}>
           <Code2 className="h-3.5 w-3.5" />
         </Btn>
+        {dictation && (
+          <DictationButton
+            disabled={disabled || showSource}
+            onStart={() => {
+              if (!editor.isFocused) editor.commands.focus("end")
+            }}
+            onText={insertDictation}
+          />
+        )}
         <Btn label={fullscreen ? "Exit fullscreen" : "Fullscreen"} active={fullscreen} onClick={() => setFullscreen(!fullscreen)}>
           {fullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
         </Btn>

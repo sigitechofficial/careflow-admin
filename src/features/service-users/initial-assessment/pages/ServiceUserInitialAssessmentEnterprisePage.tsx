@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { Button } from '@/shared/ui/button'
+import { DictationProvider } from '@/shared/ui/dictation'
 import { Badge } from '@/shared/ui/badge'
 import { cn } from '@/shared/lib/utils'
 import { InitialAssessmentSection12Content } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection12Content'
@@ -441,7 +442,16 @@ function notifyReviewOutcome(visitPlanDraft: VisitPlanDraftOutcome | null | unde
   )
 }
 
+/** Text fields on this page get a speech-to-text mic. */
 export default function ServiceUserInitialAssessmentEnterprisePage() {
+  return (
+    <DictationProvider>
+      <InitialAssessmentEnterprisePageContent />
+    </DictationProvider>
+  )
+}
+
+function InitialAssessmentEnterprisePageContent() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const urlSearch = useRouterState({

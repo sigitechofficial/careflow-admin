@@ -1,5 +1,6 @@
 ﻿import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
+import { DictationTextControl, splitLayoutClasses, useDictationEnabled } from '@/shared/ui/dictation'
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   leftElement?: React.ReactNode
@@ -9,6 +10,9 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, leftElement, rightElement, error, ...props }, ref) => {
+    const dictation =
+      useDictationEnabled() && (type == null || type === 'text' || type === 'search') && !props.readOnly
+
     if (leftElement || rightElement) {
       return (
         <div className="relative flex items-center">
@@ -42,7 +46,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       )
     }
 
-    return (
+    const [layoutClass, controlClass] = dictation ? splitLayoutClasses(className) : ['', className]
+    const input = (
       <input
         type={type}
         className={cn(
@@ -52,11 +57,20 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 focus-visible:border-ring',
           'disabled:cursor-not-allowed disabled:opacity-50',
           error && 'border-destructive focus-visible:ring-destructive/30',
-          className
+          controlClass,
+          dictation && 'pr-9'
         )}
         ref={ref}
         {...props}
       />
+    )
+
+    return dictation ? (
+      <DictationTextControl className={layoutClass} disabled={props.disabled}>
+        {input}
+      </DictationTextControl>
+    ) : (
+      input
     )
   }
 )
