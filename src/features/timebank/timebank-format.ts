@@ -68,7 +68,7 @@ export const VISIT_OUTCOME_TONE: Record<TimebankVisitOutcome, string> = {
   DELIVERED: 'text-emerald-700 dark:text-emerald-400',
   PENDING: 'text-sky-700 dark:text-sky-400',
   SCHEDULED: 'text-muted-foreground',
-  UNABLE_TO_START: 'text-emerald-700 dark:text-emerald-400',
+  UNABLE_TO_START: 'text-foreground',
   AWAITING_CLOCK_OUT: 'text-violet-700 dark:text-violet-400',
   REMOVED_HOURS_REDUCED: 'text-muted-foreground',
   CANCELLED_BY_SERVICE_USER: 'text-amber-700 dark:text-amber-400',

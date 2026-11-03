@@ -380,7 +380,15 @@ export default function TimebankPage() {
                             }}
                           />
                         </td>
-                        <td className="px-3 py-2.5 tabular-nums">{formatMinutes(row.deliveredMinutes)}</td>
+                        <td
+                          className={
+                            row.deliveredMinutes > 0
+                              ? 'px-3 py-2.5 font-medium tabular-nums text-emerald-700 dark:text-emerald-400'
+                              : 'px-3 py-2.5 tabular-nums'
+                          }
+                        >
+                          {formatMinutes(row.deliveredMinutes)}
+                        </td>
                         <td className="px-3 py-2.5 tabular-nums">
                           <MinutesWithVisits minutes={row.pendingMinutes} visits={row.pendingVisits} />
                         </td>
@@ -412,7 +420,7 @@ export default function TimebankPage() {
                           className={
                             row.freeMinutes > 0
                               ? 'px-3 py-2.5 font-medium tabular-nums text-amber-700 dark:text-amber-400'
-                              : 'px-3 py-2.5 tabular-nums text-emerald-700 dark:text-emerald-400'
+                              : 'px-3 py-2.5 tabular-nums'
                           }
                         >
                           {row.freeMinutes <= 0

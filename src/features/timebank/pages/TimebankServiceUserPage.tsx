@@ -408,7 +408,7 @@ export default function TimebankServiceUserPage() {
                           <td
                             className={cn(
                               'px-3 py-2 font-medium tabular-nums',
-                              e.kind === 'RESERVED' ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400',
+                              e.kind === 'RESERVED' ? 'text-amber-700 dark:text-amber-400' : 'text-foreground',
                             )}
                           >
                             {e.kind === 'RESERVED' ? '−' : '+'}
@@ -590,7 +590,14 @@ export default function TimebankServiceUserPage() {
                                 }}
                               />
                             </td>
-                            <td className="px-3 py-2.5 tabular-nums">{formatMinutes(w.deliveredMinutes)}</td>
+                            <td
+                              className={cn(
+                                'px-3 py-2.5 tabular-nums',
+                                w.deliveredMinutes > 0 && 'font-medium text-emerald-700 dark:text-emerald-400',
+                              )}
+                            >
+                              {formatMinutes(w.deliveredMinutes)}
+                            </td>
                             <td className="px-3 py-2.5 tabular-nums">{formatMinutes(w.pendingMinutes)}</td>
                             <td
                               className={cn(
