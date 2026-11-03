@@ -90,6 +90,7 @@ import {
   Sparkles,
   PhoneCall,
   PhoneIncoming,
+  Hourglass,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -908,6 +909,13 @@ const navItems: NavItem[] = [
         href: '/reports/carers',
         permission: 'employees.reports.read',
         navTestId: 'nav-reports-carers',
+      },
+      {
+        label: 'Timebank',
+        icon: <Hourglass className="h-4 w-4" />,
+        href: '/reports/timebank',
+        permission: 'service_users.read',
+        navTestId: 'nav-reports-timebank',
       },
       {
         label: 'ECM reports',

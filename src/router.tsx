@@ -181,6 +181,9 @@ import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesP
 import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
 import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
 import CarerReportsPage from '@/features/employees/pages/CarerReportsPage'
+import TimebankPage from '@/features/timebank/pages/TimebankPage'
+import TimebankServiceUserPage from '@/features/timebank/pages/TimebankServiceUserPage'
+import TimebankCarerPage from '@/features/timebank/pages/TimebankCarerPage'
 import RoleTasksManagePage from '@/features/role-tasks/pages/RoleTasksManagePage'
 import UkPayrollRunsPage from '@/features/payroll/pages/UkPayrollRunsPage'
 import UkPayrollRunDetailPage from '@/features/payroll/pages/UkPayrollRunDetailPage'
@@ -386,6 +389,9 @@ const pageTitles: Record<string, string> = {
   '/checklist': 'Checklist',
   '/my-tasks': 'My tasks',
   '/reports/carers': 'Carer reports',
+  '/reports/timebank': 'Timebank',
+  '/reports/timebank/$serviceUserId': 'Timebank',
+  '/reports/timebank/carers/$employeeId': 'Timebank',
   '/role-tasks': 'Role tasks',
   '/payroll/runs': 'UK payroll runs',
   '/payroll/runs/$runId': 'UK payroll run',
@@ -2272,6 +2278,34 @@ const carerReportsRoute = createRoute({
   component: CarerReportsPage,
 })
 
+const timebankSearch = (raw: Record<string, unknown>): { week?: string; tab?: 'carers' } => ({
+  ...(typeof raw.week === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.week) ? { week: raw.week } : {}),
+  ...(raw.tab === 'carers' ? { tab: 'carers' as const } : {}),
+})
+
+const timebankRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/reports/timebank',
+  validateSearch: timebankSearch,
+  beforeLoad: requirePermission('service_users.read'),
+  component: TimebankPage,
+})
+
+const timebankServiceUserRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/reports/timebank/$serviceUserId',
+  validateSearch: timebankSearch,
+  beforeLoad: requirePermission('service_users.read'),
+  component: TimebankServiceUserPage,
+})
+
+const timebankCarerRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/reports/timebank/carers/$employeeId',
+  beforeLoad: requireAnyPermission('employees.read', 'employees.reports.read'),
+  component: TimebankCarerPage,
+})
+
 // Any office user: tasks given to their roles.
 const myTasksRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -2750,6 +2784,9 @@ const routeTree = rootRoute.addChildren([
     setupChecklistRoute,
     myTasksRoute,
     carerReportsRoute,
+    timebankRoute,
+    timebankServiceUserRoute,
+    timebankCarerRoute,
     roleTasksRoute,
     payrollRunsRoute,
     payrollRunDetailRoute,

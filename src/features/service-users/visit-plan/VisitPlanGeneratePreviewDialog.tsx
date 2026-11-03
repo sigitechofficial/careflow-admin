@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle, Loader2, PiggyBank } from 'lucide-react'
 import type { GenerateSchedulePreview } from '@/features/service-users/visit-plan/types'
 import { formatDate } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
@@ -127,6 +127,16 @@ export function VisitPlanGeneratePreviewDialog({
                 </li>
               ) : null}
             </ul>
+          ) : null}
+
+          {preview && !loading && preview.weeklyHoursTimebank ? (
+            <div
+              className="flex gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-foreground"
+              data-testid="generate-preview-timebank"
+            >
+              <PiggyBank className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <p>{preview.weeklyHoursTimebank}.</p>
+            </div>
           ) : null}
 
           {preview && !loading && preview.weeklyHoursWarning ? (

@@ -26,8 +26,12 @@ function fromServer(server: VisitPlanWeeklyHoursResult): VisitPlanWeeklyHoursSum
   const contractedHours = server.limitWeeklyHours
   const contractedMinutes = contractedHours != null ? Math.round(contractedHours * 60) : null
   const plannedMinutes = server.heaviestWeek?.minutes ?? 0
+  // Hours the busiest week's visits hold from the timebank are paid for: not over.
+  const fromTimebank = busiestWeekTimebankMinutes(server)
   const excessMinutes =
-    contractedMinutes != null && plannedMinutes > contractedMinutes ? plannedMinutes - contractedMinutes : 0
+    contractedMinutes != null && plannedMinutes > contractedMinutes + fromTimebank
+      ? plannedMinutes - contractedMinutes - fromTimebank
+      : 0
   return {
     contractedHours,
     contractedMinutes,
@@ -36,6 +40,11 @@ function fromServer(server: VisitPlanWeeklyHoursResult): VisitPlanWeeklyHoursSum
     isOverContract: excessMinutes > 0,
     isUnderContract: contractedMinutes != null && plannedMinutes < contractedMinutes && plannedMinutes > 0,
   }
+}
+
+function busiestWeekTimebankMinutes(server: VisitPlanWeeklyHoursResult): number {
+  const weekStart = server.heaviestWeek?.weekStart
+  return server.weeks.find((w) => w.weekStart === weekStart)?.timebankMinutes ?? 0
 }
 
 function statusMessage(
@@ -80,6 +89,9 @@ export function VisitPlanWeeklyHoursPanel({
   const sleepInNights = serverSummary
     ? Math.max(0, ...serverSummary.weeks.map((w) => w.sleepInNights))
     : 0
+  const busiestFromTimebank = serverSummary ? busiestWeekTimebankMinutes(serverSummary) : 0
+  const timebank = serverSummary?.timebank ?? null
+  const showTimebank = timebank != null && (timebank.useTimebank || timebank.availableMinutes > 0)
 
   if (summary.plannedMinutes <= 0 && summary.contractedMinutes == null) return null
 
@@ -133,6 +145,19 @@ export function VisitPlanWeeklyHoursPanel({
             <p className="mt-1 text-xs text-muted-foreground">
               Counted from the visits on the rota, this week to {formatDate(serverSummary.edge)} (the rota horizon); the
               last week may be partly made yet.
+            </p>
+          ) : null}
+          {busiestFromTimebank > 0 ? (
+            <p className="mt-1 text-xs text-muted-foreground" data-testid="visit-plan-hours-timebank-week">
+              {formatVisitPlanWeeklyHours(busiestFromTimebank)} of the busiest week is paid from the timebank.
+            </p>
+          ) : null}
+          {showTimebank ? (
+            <p className="mt-1 text-xs text-muted-foreground" data-testid="visit-plan-hours-timebank">
+              Timebank: {formatVisitPlanWeeklyHours(Math.max(0, timebank.availableMinutes))} available
+              {timebank.useTimebank
+                ? ' — used automatically for visits over the weekly hours.'
+                : ' (not used automatically, set in Settings).'}
             </p>
           ) : null}
           {sleepInNights > 0 ? (

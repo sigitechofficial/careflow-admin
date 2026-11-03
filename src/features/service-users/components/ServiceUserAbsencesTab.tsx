@@ -584,7 +584,9 @@ export function ServiceUserAbsencesTab({
               toDate,
             })
             setReturnGenerateOpen(false)
-            const created = `${result.visitsCreated} visit${result.visitsCreated === 1 ? '' : 's'} created.`
+            const created =
+              `${result.visitsCreated} visit${result.visitsCreated === 1 ? '' : 's'} created.` +
+              (result.weeklyHoursTimebank ? ` ${result.weeklyHoursTimebank}.` : '')
             if (result.weeklyHoursWarning) {
               toastWarning('Rota generated — over the weekly hours', `${created} ${result.weeklyHoursWarning}.`)
             } else {

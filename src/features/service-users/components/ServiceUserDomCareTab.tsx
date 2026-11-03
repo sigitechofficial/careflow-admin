@@ -27,6 +27,7 @@ import { ServiceUserHouseholdSummary } from '@/features/service-users/components
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
+import { TimebankBalanceNote } from '@/features/timebank/components/TimebankNotes'
 
 function sectionClass() {
   return 'rounded-xl border border-border bg-card p-6 shadow-sm'
@@ -450,6 +451,9 @@ export function ServiceUserDomCareTab({
                   Also used by the visit plan. Once set, changes need a manager&apos;s approval.
                 </p>
               )}
+              <div className="mt-1">
+                <TimebankBalanceNote serviceUserId={serviceUserId} />
+              </div>
             </div>
             <ServiceUserHoursReviewDialog
               open={hoursReviewTo != null}

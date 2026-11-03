@@ -39,6 +39,7 @@ import {
 import { SERVICE_USER_PROFILE_ROUTE } from '@/features/service-users/service-user-profile-tabs'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { jobScheduleDateIso } from '@/features/scheduling/utils/schedule-jobs-drag.util'
+import { JobTimebankNote } from '@/features/timebank/components/TimebankNotes'
 
 type HubSearch = {
   date?: string
@@ -186,6 +187,7 @@ export default function CarerVisitHubPage() {
       {/* Main + details sidebar */}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-4">
+          <JobTimebankNote scheduledJobId={job.id} />
           <ScheduleVisitWorkspaceContent
             job={job}
             date={date}
