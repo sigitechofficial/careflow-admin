@@ -66,6 +66,8 @@ export type ServiceUserWeeklyHoursSettings = {
   visitsNeedApproval: boolean
   /** Special visits count towards the service user's weekly hours. */
   specialVisitsCount: boolean
+  /** Visits over the weekly hours use the service user's timebank when it covers all the hours over. */
+  useTimebank: boolean
 }
 
 export type OptionalAboutMeField = {

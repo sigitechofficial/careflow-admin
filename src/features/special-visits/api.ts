@@ -80,6 +80,8 @@ export type CreateSpecialVisitResult = {
   id: string | null
   weeklyHoursWarning?: string
   serviceUserHoursApprovalRequested?: string
+  /** Minutes over the service user's weekly hours paid from their timebank. */
+  fromTimebankMinutes?: number
   carerHoursApprovalRequested?: string
   carerHoursWarning?: string
 }

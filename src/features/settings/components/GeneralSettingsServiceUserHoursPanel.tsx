@@ -36,6 +36,7 @@ export function GeneralSettingsServiceUserHoursPanel() {
           changeNeedsApproval: draft.changeNeedsApproval,
           visitsNeedApproval: draft.visitsNeedApproval,
           specialVisitsCount: draft.specialVisitsCount,
+          useTimebank: draft.useTimebank,
         },
       })
       toastSuccess('Saved', 'Service user weekly hours rules updated.')
@@ -105,6 +106,27 @@ export function GeneralSettingsServiceUserHoursPanel() {
           <NoYesToggle
             value={draft.specialVisitsCount}
             onChange={v => set('specialVisitsCount', v)}
+            disabled={disabled}
+            labelOff="No"
+            labelOn="Yes"
+          />
+        </SettingsRow>
+
+        <p className="pt-2 text-sm font-medium text-muted-foreground">Timebank</p>
+        <SettingsRow
+          label="Use timebank hours automatically"
+          hint={[
+            'Yes: when a new visit takes a week over the weekly hours, the hours over come from the service user\'s timebank.',
+            '• Only when the timebank has all of the hours over; otherwise the setting above decides.',
+            '• The hours are taken when the visit is put on the rota and shown on the visit.',
+            '• Cancelled visits, and visits not delivered in full, give their hours back.',
+            '',
+            'No: the timebank is only shown (when it has hours).',
+          ].join('\n')}
+        >
+          <NoYesToggle
+            value={draft.useTimebank}
+            onChange={v => set('useTimebank', v)}
             disabled={disabled}
             labelOff="No"
             labelOn="Yes"

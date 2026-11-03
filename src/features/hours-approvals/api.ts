@@ -21,6 +21,8 @@ export type ExtraVisitRequestPayload = {
   weekStart: string
   weekMinutes: number
   limitWeeklyHours: number | null
+  /** Minutes the week's visits held from the timebank when asked (they count on top of the weekly hours). */
+  timebankMinutes?: number
   slotLabel: string
   startTime: string
   endTime: string
@@ -147,7 +149,7 @@ export type HoursApproval = {
   /** Carer over their hours: what waits for the manager. */
   changes?: HoursRequestChange[]
   /** Pending extra visits only: that week now, with the visit added (it may have changed since the request). */
-  currentWeek?: { weekMinutes: number; limitWeeklyHours: number | null } | null
+  currentWeek?: { weekMinutes: number; limitWeeklyHours: number | null; timebankMinutes?: number } | null
   /** Extra visits (Settings → Dom Rules) and draft plans (always): Reject needs a reason. */
   rejectReasonRequired?: boolean
   reason: string | null

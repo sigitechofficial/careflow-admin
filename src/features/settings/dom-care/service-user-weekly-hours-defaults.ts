@@ -5,4 +5,5 @@ export const DEFAULT_SERVICE_USER_WEEKLY_HOURS_SETTINGS: ServiceUserWeeklyHoursS
   changeNeedsApproval: true,
   visitsNeedApproval: true,
   specialVisitsCount: true,
+  useTimebank: false,
 }

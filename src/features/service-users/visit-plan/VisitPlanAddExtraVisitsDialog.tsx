@@ -328,6 +328,11 @@ export function VisitPlanAddExtraVisitsDialog({
               .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)}`)
               .join(', ')}.`
           : null,
+        result.fromTimebank?.length
+          ? `Hours over the weekly hours taken from the timebank: ${result.fromTimebank
+              .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)} (${formatVisitPlanWeeklyHours(d.minutes)})`)
+              .join(', ')}.`
+          : null,
         result.carerApprovals?.length
           ? `Carer over their weekly hours — sent to a manager, on the visit once approved: ${result.carerApprovals
               .map((d) => `${weekdayLabel(d.date)} ${formatDate(d.date)}`)
@@ -785,6 +790,10 @@ export function VisitPlanAddExtraVisitsDialog({
                             )} of ${formatVisitPlanWeeklyHours(limitMinutes ?? 0)}${
                               isEditing ? '. The visit keeps its current time until a manager approves' : ''
                             }`
+                          : d.ok && d.fromTimebankMinutes
+                          ? `${isEditing ? 'Can be saved' : 'Will be added'} — ${formatVisitPlanWeeklyHours(
+                              d.fromTimebankMinutes,
+                            )} over the weekly hours taken from the timebank`
                           : d.ok
                           ? isEditing
                             ? 'No clash — can be saved'

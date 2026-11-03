@@ -980,9 +980,10 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
       })
       setGeneratePreviewOpen(false)
       const counts =
-        generatePreviewMode === 'regenerate'
+        (generatePreviewMode === 'regenerate'
           ? `${result.visitsCreated} visits created; ${result.visitsSkipped} existing visits synced.`
-          : `${result.visitsCreated} visits created (${result.visitsSkipped} already existed).`
+          : `${result.visitsCreated} visits created (${result.visitsSkipped} already existed).`) +
+        (result.weeklyHoursTimebank ? ` ${result.weeklyHoursTimebank}.` : '')
       if (result.weeklyHoursWarning) {
         toastWarning(
           generatePreviewMode === 'regenerate' ? 'Rota regenerated — over the weekly hours' : 'Rota generated — over the weekly hours',

@@ -78,6 +78,8 @@ export type GenerateSchedulePreview = {
   truncated: boolean
   /** Weeks of this run over the service user's weekly contracted hours, in words (null when none). */
   weeklyHoursWarning?: string | null
+  /** Weeks of this run the timebank will pay for (setting "Use timebank hours automatically"), in words. */
+  weeklyHoursTimebank?: string | null
   /** Settings → Dom Rules refuses generating by hand while the plan is over the hours. */
   weeklyHoursBlocked?: boolean
 }
