@@ -3,7 +3,7 @@ import { Clock } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
 import { useUpdateEnquiry } from '@/features/crm/hooks/useCrm'
 import { hours, overWeeklyHours, weeklyVisitMinutes } from '@/features/crm/quote-labels'
 import type { Enquiry } from '@/features/crm/types/crm.types'
@@ -28,14 +28,25 @@ export function WeeklyHoursLimit({
   React.useEffect(() => setValue(saved != null ? String(saved) : ''), [saved])
 
   const typed = value.trim() === '' ? null : Number(value)
-  const valid = typed != null && typed > 0 && typed <= 168
-  const changed = typed !== saved
   const used = weeklyVisitMinutes(patterns)
+  const changed = typed !== saved
+  // Typed hours below what the visits already use would leave the quote over its contracted hours.
+  const problem = !changed
+    ? null
+    : typed == null || !(typed > 0) || typed > 168
+      ? 'Enter the hours per week, between 0.5 and 168.'
+      : overWeeklyHours(used, typed)
+        ? `The visits already use ${hours(used)} a week. Remove or shorten visits before lowering the contracted hours below that.`
+        : null
   const over = overWeeklyHours(used, saved)
   const left = saved != null ? saved * 60 - used : 0
 
   const save = () => {
-    if (!valid) return
+    if (problem) {
+      toastError('Hours per week not saved', problem)
+      return
+    }
+    if (!changed || typed == null) return
     update.mutate(
       { hoursPerWeek: typed },
       {
@@ -61,7 +72,7 @@ export function WeeklyHoursLimit({
           <div>
             <p className="text-sm font-semibold">Hours per week</p>
             <p className="text-xs text-muted-foreground">
-              From the enquiry. The visits can’t add up to more than this; a visit with 2 carers counts once.
+              The contracted hours from the enquiry. The visits can’t add up to more than this; a visit with 2 carers counts once.
             </p>
           </div>
         </div>
@@ -82,7 +93,8 @@ export function WeeklyHoursLimit({
                 min={0.5}
                 max={168}
                 step={0.5}
-                className={cn('pr-8 tabular-nums', saved == null && 'border-amber-400')}
+                className={cn('pr-8 tabular-nums', problem ? 'border-red-400' : saved == null && 'border-amber-400')}
+                aria-invalid={problem ? true : undefined}
                 aria-label="Hours per week"
                 placeholder="e.g. 14"
                 value={value}
@@ -91,7 +103,7 @@ export function WeeklyHoursLimit({
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">h</span>
             </div>
             {changed && (
-              <Button type="submit" size="sm" disabled={!valid || update.isPending}>
+              <Button type="submit" size="sm" disabled={update.isPending}>
                 {update.isPending ? 'Saving…' : 'Save'}
               </Button>
             )}
@@ -99,6 +111,11 @@ export function WeeklyHoursLimit({
         )}
       </div>
 
+      {problem && (
+        <p role="alert" className="text-sm font-medium text-red-700 dark:text-red-300" data-testid="quote-hours-input-error">
+          {problem}
+        </p>
+      )}
       {saved == null ? (
         <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
           No hours per week on the enquiry yet{readOnly ? '.' : ' — enter them above.'}

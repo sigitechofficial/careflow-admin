@@ -145,6 +145,16 @@ export function weeklyVisitMinutes(patterns: QuotePatternInput[]): number {
 export const overWeeklyHours = (minutes: number, hoursPerWeek: number | null | undefined) =>
   hoursPerWeek != null && minutes > hoursPerWeek * 60 + 0.01
 
+export const OVER_HOURS_TITLE = 'Over the contracted hours'
+
+/** The message when a change would take the visits above the contracted hours. */
+export const overHoursMessage = (minutes: number, hoursPerWeek: number) =>
+  `This makes ${hours(minutes)} a week, above the ${hoursPerWeek} contracted hours a week.`
+
+/** The message when the contracted hours are already used and nothing more fits. */
+export const hoursUsedMessage = (hoursPerWeek: number) =>
+  `The ${hoursPerWeek} contracted hours a week are all used. Shorten or remove a visit, or raise the hours per week.`
+
 /** Minutes from start to end on the clock; an end at or before the start is the next day. */
 export function clockSpan(start: string, end: string): number {
   const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))

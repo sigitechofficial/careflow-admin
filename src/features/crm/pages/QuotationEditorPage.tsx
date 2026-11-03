@@ -205,7 +205,7 @@ function collectIssues(form: QuoteDraftInput, pricing: QuotePricing | null, hour
     out.push({
       section: 'schedule',
       field: 'quote-hours-per-week',
-      message: `The visits come to ${hours(visitMinutes)} a week, more than the ${hoursPerWeek} hours a week allowed`,
+      message: `The visits come to ${hours(visitMinutes)} a week, above the ${hoursPerWeek} contracted hours a week`,
     })
   }
   // Listed first so the server's per-visit copies of this message (filtered below) don't point at a visit.

@@ -3,10 +3,11 @@ import { Clock, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
+import { toastError } from '@/shared/lib/toast'
 import { useMedicationRounds } from '@/features/settings/hooks/useMedicationRounds'
 import { sortMedicationRounds, type MedicationRoundLookup } from '@/features/service-users/medication/medication-time-slots'
 import { roundFor } from '@/features/crm/components/quote-editor/VisitPatternBuilder'
-import { emptyPattern, overWeeklyHours, weeklyVisitMinutes } from '@/features/crm/quote-labels'
+import { OVER_HOURS_TITLE, emptyPattern, hoursUsedMessage, overHoursMessage, overWeeklyHours, weeklyVisitMinutes } from '@/features/crm/quote-labels'
 import type { QuotePatternInput } from '@/features/crm/types/quotation.types'
 
 const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0]
@@ -57,11 +58,16 @@ export function VisitSlotsBuilder({
   const toggleDay = (i: number, d: number) => {
     const p = patterns[i]!
     const days = p.daysOfWeek.includes(d) ? p.daysOfWeek.filter(x => x !== d) : [...p.daysOfWeek, d]
-    set(i, { ...p, daysOfWeek: days })
+    tryChange(patterns.map((x, j) => (j === i ? { ...p, daysOfWeek: days } : x)))
   }
   const unused = rounds.find(r => !patterns.some(p => roundFor(p, rounds)?.code === r.code)) ?? rounds[0]
   const used = weeklyVisitMinutes(patterns)
-  const fits = (next: QuotePatternInput[]) => !overWeeklyHours(weeklyVisitMinutes(next), hoursPerWeek)
+  /** Applies the change, or says why not when it takes the visits above the contracted hours. */
+  const tryChange = (next: QuotePatternInput[]) => {
+    const total = weeklyVisitMinutes(next)
+    if (hoursPerWeek != null && overWeeklyHours(total, hoursPerWeek)) toastError(OVER_HOURS_TITLE, overHoursMessage(total, hoursPerWeek))
+    else onChange(next)
+  }
   // A new slot takes as many days (Monday first) as the hours left allow.
   const newSlot = (round: MedicationRoundLookup) => {
     const slot = slotVisit(round)
@@ -69,7 +75,6 @@ export function VisitSlotsBuilder({
     return room > 0 ? { ...slot, daysOfWeek: MONDAY_FIRST.slice(0, Math.min(7, room)) } : null
   }
   const nextSlot = unused ? newSlot(unused) : null
-  const fullTitle = hoursPerWeek != null ? `The visits already use the ${hoursPerWeek} hours a week` : undefined
 
   // Visits made with times (before switching to a total) take their slot's name, as the client sees it.
   React.useEffect(() => {
@@ -99,9 +104,11 @@ export function VisitSlotsBuilder({
             variant="outline"
             size="sm"
             leftIcon={<Plus className="h-3.5 w-3.5" />}
-            disabled={!nextSlot}
-            title={unused && !nextSlot ? fullTitle : undefined}
-            onClick={() => nextSlot && onChange([...patterns, nextSlot])}
+            disabled={!unused}
+            onClick={() => {
+              if (nextSlot) onChange([...patterns, nextSlot])
+              else if (hoursPerWeek != null) toastError(OVER_HOURS_TITLE, hoursUsedMessage(hoursPerWeek))
+            }}
           >
             Add visit
           </Button>
@@ -149,19 +156,19 @@ export function VisitSlotsBuilder({
                       <div className="flex flex-wrap gap-1" role="group" aria-label={`Visit ${i + 1} days`}>
                         {MONDAY_FIRST.map(d => {
                           const on = p.daysOfWeek.includes(d)
-                          const blocked = !on && !fits(patterns.map((x, j) => (j === i ? { ...x, daysOfWeek: [...x.daysOfWeek, d] } : x)))
+                          const blocked =
+                            !on && overWeeklyHours(weeklyVisitMinutes([...patterns, { ...p, daysOfWeek: [d] }]), hoursPerWeek)
                           return (
                             <button
                               key={d}
                               type="button"
                               aria-pressed={on}
-                              disabled={readOnly || blocked}
-                              title={blocked ? fullTitle : undefined}
+                              disabled={readOnly}
                               onClick={() => toggleDay(i, d)}
                               className={cn(
                                 'h-8 min-w-10 rounded-md border px-2 text-xs font-medium transition',
                                 on ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-primary/40',
-                                blocked && 'cursor-not-allowed opacity-50',
+                                blocked && 'opacity-50',
                               )}
                             >
                               {DAY_LABELS[d]}

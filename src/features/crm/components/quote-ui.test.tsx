@@ -4,13 +4,15 @@ import userEvent from '@testing-library/user-event'
 import type { Enquiry } from '@/features/crm/types/crm.types'
 import type { EnquiryQuotations, QuotePricing, QuoteVersion } from '@/features/crm/types/quotation.types'
 
-const { navigate, quotationsState, mutation, updateEnquiry } = vi.hoisted(() => ({
+const { navigate, quotationsState, mutation, updateEnquiry, toastError } = vi.hoisted(() => ({
+  toastError: vi.fn(),
   navigate: vi.fn(),
   quotationsState: { data: undefined as EnquiryQuotations | undefined },
   mutation: () => ({ mutate: vi.fn(), isPending: false }),
   updateEnquiry: vi.fn(),
 }))
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }))
+vi.mock('@/shared/lib/toast', async importOriginal => ({ ...(await importOriginal<object>()), toastError }))
 vi.mock('@/features/settings/hooks/useMedicationRounds', () => ({
   useMedicationRounds: () => ({
     data: [
@@ -168,6 +170,15 @@ describe('hours per week limit', () => {
     await userEvent.type(input, '14')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(updateEnquiry).toHaveBeenCalledWith({ hoursPerWeek: 14 }, expect.anything())
+
+    // Contracted hours below what the visits use are refused with a message and a toast.
+    updateEnquiry.mockClear()
+    await userEvent.clear(input)
+    await userEvent.type(input, '3')
+    expect(screen.getByTestId('quote-hours-input-error')).toHaveTextContent('The visits already use 3.5 h a week')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(toastError).toHaveBeenLastCalledWith('Hours per week not saved', expect.stringContaining('The visits already use 3.5 h a week'))
+    expect(updateEnquiry).not.toHaveBeenCalled()
   })
 
   it('stops a visit with times going past the hours per week', async () => {
@@ -178,16 +189,19 @@ describe('hours per week limit', () => {
     // Another daily 30 min visit would make 7 h of the 5 h.
     await userEvent.click(within(screen.getByTestId('quote-slot-LUNCH')).getAllByRole('button', { name: /Add visit/ })[0]!)
     await userEvent.click(screen.getByTestId('quote-visit-done'))
-    expect(screen.getByTestId('quote-visit-error')).toHaveTextContent('This makes 7 h a week, more than the 5 hours a week allowed')
+    expect(screen.getByTestId('quote-visit-error')).toHaveTextContent('This makes 7 h a week, above the 5 contracted hours a week')
+    expect(toastError).toHaveBeenLastCalledWith('Over the contracted hours', expect.stringContaining('This makes 7 h a week'))
     expect(onChange).not.toHaveBeenCalled()
     // Three days fit (1.5 h).
     for (const day of ['Thu', 'Fri', 'Sat', 'Sun']) await userEvent.click(screen.getByRole('checkbox', { name: day }))
     await userEvent.click(screen.getByTestId('quote-visit-done'))
     expect(onChange.mock.lastCall![0]).toHaveLength(2)
 
-    // Once the hours are used, no visit can be added.
+    // Once the hours are used, adding a visit says why it can't.
     rerender(<VisitPatternBuilder patterns={[daily]} onChange={onChange} readOnly={false} pricing={null} hourlyRate={24} hoursPerWeek={3.5} />)
-    for (const b of within(screen.getByTestId('quote-slot-LUNCH')).getAllByRole('button', { name: /Add visit|hours a week are used/ })) expect(b).toBeDisabled()
+    await userEvent.click(within(screen.getByTestId('quote-slot-LUNCH')).getAllByRole('button', { name: /Add visit/ })[0]!)
+    expect(toastError).toHaveBeenLastCalledWith('Over the contracted hours', expect.stringContaining('The 3.5 contracted hours a week are all used'))
+    expect(screen.queryByTestId('quote-visit-done')).toBeNull()
   })
 
   it('stops a visit slot or a day going past the hours per week', async () => {
@@ -200,8 +214,12 @@ describe('hours per week limit', () => {
     expect(onChange.mock.lastCall![0][1]).toMatchObject({ label: 'Lunch visit', daysOfWeek: [1, 2] })
 
     rerender(<VisitSlotsBuilder patterns={[slot]} onChange={onChange} readOnly={false} hoursPerWeek={3} />)
-    expect(within(screen.getByRole('group', { name: 'Visit 1 days' })).getByRole('button', { name: 'Sun' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /Add visit/ })).toBeDisabled()
+    const calls = onChange.mock.calls.length
+    await userEvent.click(within(screen.getByRole('group', { name: 'Visit 1 days' })).getByRole('button', { name: 'Sun' }))
+    expect(toastError).toHaveBeenLastCalledWith('Over the contracted hours', 'This makes 3.5 h a week, above the 3 contracted hours a week.')
+    await userEvent.click(screen.getByRole('button', { name: /Add visit/ }))
+    expect(toastError).toHaveBeenLastCalledWith('Over the contracted hours', expect.stringContaining('The 3 contracted hours a week are all used'))
+    expect(onChange).toHaveBeenCalledTimes(calls)
   })
 })
 
