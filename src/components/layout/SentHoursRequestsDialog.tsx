@@ -12,8 +12,15 @@ import { Button } from '@/shared/ui/button'
 import { Label, Textarea } from '@/shared/ui/form-field'
 import { toastApiError, toastInfo, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { useSentHoursRequestsStore } from '@/store/sent-hours-requests.store'
-import { approveSentHours, fetchSentPendingHours, type HoursApproval } from '@/features/hours-approvals/api'
+import {
+  approveSentHours,
+  fetchSentPendingHours,
+  type ContractedHoursImpact,
+  type HoursApproval,
+} from '@/features/hours-approvals/api'
 import { HoursRequestChanges } from '@/features/hours-approvals/components/HoursRequestChanges'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 
 const h = (n: number | null | undefined) => (n == null ? '—' : `${n}h`)
 
@@ -48,6 +55,12 @@ function requestLine(r: HoursApproval): { title: string; detail: string } {
   }
 }
 
+/** Contracted hours going down: rota visits over the new hours that come off the carer when approved. */
+function visitsComingOff(r: HoursApproval): number {
+  if (r.requestType !== 'CONTRACTED_HOURS_CHANGE') return 0
+  return (r.impactSummary as ContractedHoursImpact | null)?.rotaVisitsToUnassign ?? 0
+}
+
 /**
  * After a manager (or Super Admin) sends something over a carer's or service user's weekly hours
  * for approval: approve it now, or leave it on Hours approvals.
@@ -62,6 +75,21 @@ export function SentHoursRequestsDialog() {
   const [shownFor, setShownFor] = useState<string[]>([])
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
+  const { formatDate, formatTime } = useOrganisationDisplayFormat()
+
+  /** The visit a request is about, so several rows for one service user or carer can be told apart. */
+  const visitWhen = (r: HoursApproval): string | null => {
+    const p = r.requestPayload as unknown as
+      | { date?: string; startTime?: string; endTime?: string; start?: string; end?: string }
+      | null
+      | undefined
+    if (p?.date && p.startTime && p.endTime) return `${formatDate(p.date)} · ${p.startTime}–${p.endTime}`
+    if (p?.start && p.end) {
+      const day = dayKeyFromInstant(p.start)
+      return day ? `${formatDate(day)} · ${formatTime(p.start)}–${formatTime(p.end)}` : null
+    }
+    return null
+  }
 
   useEffect(() => {
     if (!ids.length) {
@@ -132,10 +160,18 @@ export function SentHoursRequestsDialog() {
         <div className="max-h-64 space-y-2 overflow-y-auto">
           {rows.map(r => {
             const line = requestLine(r)
+            const when = visitWhen(r)
             return (
               <div key={r.id} className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
                 <p className="font-medium">{line.title}</p>
+                {when ? <p className="text-xs text-foreground">{when}</p> : null}
                 <p className="text-xs text-muted-foreground">{line.detail}</p>
+                {visitsComingOff(r) > 0 ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    {visitsComingOff(r)} upcoming visit{visitsComingOff(r) === 1 ? '' : 's'} over the new hours come
+                    {visitsComingOff(r) === 1 ? 's' : ''} off the carer when approved
+                  </p>
+                ) : null}
                 {r.changes?.length ? <HoursRequestChanges changes={r.changes} /> : null}
               </div>
             )
