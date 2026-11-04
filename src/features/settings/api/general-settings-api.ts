@@ -247,6 +247,8 @@ export type OrganisationGeneralSettings = {
   domRotaHorizonDays: number
   domRotaHorizonMode: RotaHorizonMode
   domAutoExtendRotaRunHour: number
+  /** Most days back Backfill past visits may create; 0 = backfill off. */
+  domMaxBackfillDays: number
   domShowWeeklyHours: boolean
   domShowServiceUserName: boolean
   domShowBlockedCarersInSchedule: boolean

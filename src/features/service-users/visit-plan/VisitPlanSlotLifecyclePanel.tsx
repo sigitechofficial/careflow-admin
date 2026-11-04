@@ -117,12 +117,12 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
         <div>
           <Label className={cn('flex items-center gap-1', contentOverlineClass)}>
             Max backfill days
-            <FieldHelp text="How many days before this call's Start Date may be created via Backfill past visits (0 = none)." />
+            <FieldHelp text="Optional lower limit for this call when using Backfill past visits. 0 = use the organisation limit (Settings → Dom Care)." />
           </Label>
           <Input
             type="number"
             min={0}
-            max={14}
+            max={31}
             disabled={disabled}
             value={slot.allowBackfillDays}
             onChange={(e) => onChange({ allowBackfillDays: Number(e.target.value) || 0 })}

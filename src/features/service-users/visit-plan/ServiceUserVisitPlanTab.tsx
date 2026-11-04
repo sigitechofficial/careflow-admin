@@ -847,7 +847,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
   const isPublishing = update.isPending || activate.isPending
   const planIsLive = workingPlan?.status === 'ACTIVE'
   const hasWeeklyContractedHours = parseWeeklyContractedHours(weeklyHours) !== null
-  const maxSlotBackfillDays = React.useMemo(() => maxEnabledSlotBackfillDays(slots), [slots])
+  const orgMaxBackfillDays = generalSettingsQuery.data?.domMaxBackfillDays ?? 14
+  const maxSlotBackfillDays = React.useMemo(
+    () => maxEnabledSlotBackfillDays(slots, orgMaxBackfillDays),
+    [slots, orgMaxBackfillDays],
+  )
   const rotaStartDate = React.useMemo(
     () => resolveRotaStartIsoDate(slots, workingPlan?.effectiveFrom ?? null),
     [slots, workingPlan?.effectiveFrom],
@@ -902,18 +906,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
       )
       return
     }
-    const savedMaxBackfill = maxEnabledSlotBackfillDays(workingPlan.slots ?? [])
+    const savedMaxBackfill = maxEnabledSlotBackfillDays(workingPlan.slots ?? [], orgMaxBackfillDays)
     if (savedMaxBackfill <= 0) {
       toastApiError(
-        new Error('Max backfill days not saved'),
-        'Set Max backfill days on Morning, then click Record amendment to save — then run Backfill',
-      )
-      return
-    }
-    if (maxSlotBackfillDays <= 0) {
-      toastApiError(
-        new Error('No call slots allow backfill'),
-        'Set Max backfill days on at least one enabled call before backfilling',
+        new Error('Backfill is turned off'),
+        'Set "Allow backfill of past visits" in Settings → Dom Care to allow it',
       )
       return
     }
@@ -951,7 +948,10 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
     try {
       if (generatePreviewMode === 'backfill') {
         if (!rotaStartDate) return
-        const days = Math.min(Math.max(1, backfillDays), maxSlotBackfillDays || 14)
+        const days = Math.min(
+          Math.max(1, backfillDays),
+          maxEnabledSlotBackfillDays(workingPlan.slots ?? [], orgMaxBackfillDays),
+        )
         const result = await generateSchedule.mutateAsync({
           planId: workingPlan.id,
           fromDate: rotaStartDate,
@@ -1634,15 +1634,6 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                     onChange={(e) => setGenerateTo(e.target.value)}
                   />
                 </FormField>
-                <FormField label="Backfill days" className="w-28">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={14}
-                    value={backfillDays}
-                    onChange={(e) => setBackfillDays(Number(e.target.value) || 0)}
-                  />
-                </FormField>
                 <FormField label="Schedule area" className="min-w-[12rem]">
                   <Select
                     value={scheduleAreaId || '__none__'}
@@ -1689,9 +1680,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
             titleAs="h3"
             description={
               <>
-                Create visits for the days <strong>before</strong> rota start (call Start Date). Example: rota
-                starts 6 Aug and days = 5 → creates 1–5 Aug. First set Max backfill days on the call, then{' '}
-                <strong>Record amendment</strong> to save, then backfill. View results in{' '}
+                Optional: create visits for the days <strong>before</strong> rota start (call Start Date), e.g.
+                when care began before the plan was set up. Example: rota starts 6 Aug and days = 5 → creates
+                1–5 Aug. Limited to the days allowed in Settings → Dom Care. View results in{' '}
                 <Link
                   to="/scheduling/schedule-jobs"
                   search={{ date: backfillWindowStart || rotaStartDate || generateFrom }}
@@ -1710,7 +1701,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
               <Input
                 type="number"
                 min={1}
-                max={maxSlotBackfillDays || 14}
+                max={maxSlotBackfillDays || undefined}
                 value={backfillDays}
                 onChange={(e) => setBackfillDays(Number(e.target.value) || 0)}
               />
@@ -1758,12 +1749,13 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
             </p>
           ) : maxSlotBackfillDays <= 0 ? (
             <p className={contentHelperErrorClass}>
-              No enabled call allows backfill. Open a call&apos;s details and set Max backfill days (1–14).
+              Backfill is turned off for your organisation. To allow it, set &quot;Allow backfill of past
+              visits&quot; in Settings → Dom Care.
             </p>
           ) : (
             <p className={contentHelperClass}>
-              Rota start: {rotaStartDate}. Will create: {backfillWindowStart} → {backfillWindowEnd} (slot
-              cap {maxSlotBackfillDays} day{maxSlotBackfillDays === 1 ? '' : 's'}).
+              Rota start: {rotaStartDate}. Will create: {backfillWindowStart} → {backfillWindowEnd} (up to{' '}
+              {maxSlotBackfillDays} day{maxSlotBackfillDays === 1 ? '' : 's'} back).
             </p>
           )}
           </div>

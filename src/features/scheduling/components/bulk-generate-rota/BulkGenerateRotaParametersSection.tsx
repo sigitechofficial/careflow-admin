@@ -24,6 +24,8 @@ type Props = {
   timezoneHint: string
   isFromToday: boolean
   backfillDays: number
+  /** Settings → Dom Care; 0 = backfill off. */
+  maxBackfillDays: number
   scheduleAreaId: string
   generateReadyOnly: boolean
   scheduleAreas: ScheduleAreaRow[]
@@ -46,6 +48,7 @@ export function BulkGenerateRotaParametersSection({
   timezoneHint,
   isFromToday,
   backfillDays,
+  maxBackfillDays,
   scheduleAreaId,
   generateReadyOnly,
   scheduleAreas,
@@ -121,14 +124,22 @@ export function BulkGenerateRotaParametersSection({
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Backfill days</Label>
+          <Label className="text-xs text-muted-foreground">Backfill days (optional)</Label>
           <Input
             type="number"
             min={0}
-            max={14}
-            value={backfillDays}
-            onChange={(e) => onBackfillDaysChange(Number(e.target.value) || 0)}
+            max={maxBackfillDays}
+            value={maxBackfillDays > 0 ? backfillDays : 0}
+            disabled={maxBackfillDays <= 0}
+            onChange={(e) =>
+              onBackfillDaysChange(Math.min(maxBackfillDays, Number(e.target.value) || 0))
+            }
           />
+          <p className="text-xs text-muted-foreground">
+            {maxBackfillDays > 0
+              ? `0 = none. Up to ${maxBackfillDays} days before From (Settings → Dom Care).`
+              : 'Backfill is off (Settings → Dom Care).'}
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Schedule area</Label>

@@ -93,16 +93,25 @@ export function resolveRotaStartIsoDate(
   return planFrom ? planFrom.slice(0, 10) : null
 }
 
+/**
+ * Most days back any enabled call can be backfilled. The organisation limit (Settings → Dom Care,
+ * 0 = backfill off) applies to every call; a call with its own Max backfill days (> 0) is capped
+ * by that too. Mirrors the API's maxAllowedBackfillDays.
+ */
 export function maxEnabledSlotBackfillDays(
   slots: Array<{ isEnabled?: boolean; allowBackfillDays?: number | null }>,
+  orgMaxBackfillDays: number,
 ): number {
+  const orgMax = Math.max(0, Math.floor(Number(orgMaxBackfillDays) || 0))
+  if (orgMax <= 0) return 0
   let max = 0
   for (const slot of slots) {
     if (slot.isEnabled === false) continue
-    const allowed = Math.max(0, Math.floor(Number(slot.allowBackfillDays) || 0))
+    const slotCap = Math.max(0, Math.floor(Number(slot.allowBackfillDays) || 0))
+    const allowed = slotCap > 0 ? Math.min(slotCap, orgMax) : orgMax
     if (allowed > max) max = allowed
   }
-  return Math.min(14, max)
+  return max
 }
 
 export function buildGenerateRotaHorizonOptions(

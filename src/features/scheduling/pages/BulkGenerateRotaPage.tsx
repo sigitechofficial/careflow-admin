@@ -45,6 +45,7 @@ function BulkGenerateRotaPageContent() {
         timezoneHint={page.timezoneHint}
         isFromToday={page.isFromToday}
         backfillDays={page.backfillDays}
+        maxBackfillDays={page.maxBackfillDays}
         scheduleAreaId={page.scheduleAreaId}
         generateReadyOnly={page.generateReadyOnly}
         scheduleAreas={page.scheduleAreas}
