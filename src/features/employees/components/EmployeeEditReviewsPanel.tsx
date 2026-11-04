@@ -14,6 +14,7 @@ import {
 } from '@/features/employees/hooks/useEmployeeReviews'
 import { useUploadEmployeeDocument } from '@/features/employees/hooks/useEmployeeProfileExtras'
 import { SKILL_DOCUMENT_ACCEPT } from '@/features/employees/components/EmployeeSkillDocumentCell'
+import { ReviewStatusBadge } from '@/features/employees/components/ReviewStatusBadge'
 import { Button } from '@/shared/ui/button'
 import { formatDate } from '@/shared/lib/utils'
 import { Input } from '@/shared/ui/input'
@@ -31,11 +32,11 @@ type ReviewTypeOption = {
   defaultIntervalDays?: number | null
 }
 
-function isOverdue(nextDue: string | null | undefined): boolean {
-  if (!nextDue) return false
-  const d = new Date(nextDue)
-  if (Number.isNaN(d.getTime())) return false
-  return d.getTime() < Date.now()
+function intervalLabel(days: number | null | undefined): string {
+  if (!days) return ''
+  if (days % 365 === 0) return days === 365 ? 'yearly' : `every ${days / 365} years`
+  if (days % 7 === 0 && days < 365) return days === 7 ? 'weekly' : `every ${days / 7} weeks`
+  return `every ${days} days`
 }
 
 /** View / upload / replace the supporting document on one review row. */
@@ -165,18 +166,13 @@ export function EmployeeEditReviewsPanel({ employeeId }: { employeeId: string })
         lastDone?: string
         nextDue?: string
         notes?: string
-        status?: string
         documentUrl?: string
       } = { reviewTypeId: reviewTypeId.trim() }
       if (lastDone.trim()) body.lastDone = `${lastDone.trim()}T12:00:00.000Z`
+      // Left empty, the API sets next due from last done + the review type interval.
       if (nextDue.trim()) body.nextDue = `${nextDue.trim()}T12:00:00.000Z`
       if (notes.trim()) body.notes = notes.trim()
       if (file) body.documentUrl = await uploadReviewDocument(file)
-      if (body.nextDue && new Date(body.nextDue).getTime() < Date.now()) {
-        body.status = 'OVERDUE'
-      } else {
-        body.status = 'SCHEDULED'
-      }
       await createMutation.mutateAsync(body)
       setReviewTypeId('')
       setLastDone('')
@@ -236,8 +232,8 @@ export function EmployeeEditReviewsPanel({ employeeId }: { employeeId: string })
     <div className="space-y-4" data-testid="employee-edit-reviews-panel">
       <h2 className="text-sm font-semibold text-foreground">Staff reviews</h2>
       <p className="text-sm text-muted-foreground">
-        Supervision, appraisal, and probation cycles (Reg 18). Next due dates use review type default intervals when
-        last done is set.
+        Supervision, appraisal and probation (CQC Regulation 18). Next due is set from last done and the review
+        type interval (Settings → Review types), e.g. supervision every 90 days (NICE QS123).
       </p>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -259,13 +255,31 @@ export function EmployeeEditReviewsPanel({ employeeId }: { employeeId: string })
                 {reviewTypes.map(rt => (
                   <SelectItem key={rt.id} value={rt.id}>
                     {rt.name}
+                    {rt.defaultIntervalDays ? (
+                      <span className="ml-1 text-muted-foreground">({intervalLabel(rt.defaultIntervalDays)})</span>
+                    ) : null}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Input type="date" value={lastDone} onChange={e => onLastDoneChange(e.target.value)} aria-label="Last done" />
-            <Input type="date" value={nextDue} onChange={e => setNextDue(e.target.value)} aria-label="Next due" />
             <Input placeholder="Notes (optional)" value={notes} onChange={e => setNotes(e.target.value)} />
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground" htmlFor="review-last-done">
+                Last done
+              </label>
+              <Input
+                id="review-last-done"
+                type="date"
+                value={lastDone}
+                onChange={e => onLastDoneChange(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground" htmlFor="review-next-due">
+                Next due (filled from the interval)
+              </label>
+              <Input id="review-next-due" type="date" value={nextDue} onChange={e => setNextDue(e.target.value)} />
+            </div>
             {canUploadDocs ? (
               <div className="space-y-1 sm:col-span-2">
                 <label className="text-xs text-muted-foreground" htmlFor="review-document">
@@ -322,11 +336,13 @@ export function EmployeeEditReviewsPanel({ employeeId }: { employeeId: string })
               reviews.map(row => (
                 <tr key={row.id} className="border-b border-border last:border-0">
                   <td className="px-3 py-2.5 font-medium">{row.reviewType?.name ?? '—'}</td>
-                  <td className="px-3 py-2.5">{row.status ?? '—'}</td>
+                  <td className="px-3 py-2.5">
+                    <ReviewStatusBadge status={row.status} />
+                  </td>
                   <td className="px-3 py-2.5 text-muted-foreground">{formatDate(row.lastDone)}</td>
                   <td
                     className={
-                      isOverdue(row.nextDue)
+                      row.status === 'OVERDUE'
                         ? 'px-3 py-2.5 font-medium text-destructive'
                         : 'px-3 py-2.5 text-muted-foreground'
                     }

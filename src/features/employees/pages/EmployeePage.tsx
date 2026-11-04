@@ -33,6 +33,7 @@ import { StaffListBranchesCell } from '@/features/employees/components/StaffList
 import { StaffListFilters } from '@/features/employees/components/StaffListFilters'
 import { EmployeeNonCoreActivityTab } from '@/features/employees/components/EmployeeNonCoreActivityTab'
 import { EmployeeAllocationsTab } from '@/features/employees/components/EmployeeAllocationsTab'
+import { ReviewStatusBadge } from '@/features/employees/components/ReviewStatusBadge'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import {
@@ -909,11 +910,6 @@ function ReviewStatusTab() {
     return `${p.firstName} ${p.lastName}`.trim()
   }
 
-  const isOverdue = (nextDue: string | null | undefined) => {
-    if (!nextDue) return false
-    return new Date(nextDue).getTime() < Date.now()
-  }
-
   if (overviewQuery.isLoading) {
     return <p className="text-sm text-muted-foreground">Loading review status?</p>
   }
@@ -958,15 +954,13 @@ function ReviewStatusTab() {
             </tr>
           ) : (
             rows.map(row => {
-              const overdue = isOverdue(row.nextDue)
+              const overdue = row.status === 'OVERDUE'
               return (
                 <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                   <td className="px-3 py-2.5 font-medium whitespace-nowrap">{employeeName(row)}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{row.reviewType?.name ?? '?'}</td>
                   <td className="px-3 py-2.5">
-                    <Badge variant={overdue ? 'warning' : 'success'} size="sm">
-                      {row.status ?? (overdue ? 'Overdue' : 'Scheduled')}
-                    </Badge>
+                    <ReviewStatusBadge status={row.status} />
                   </td>
                   <td className="px-3 py-2.5 text-muted-foreground">{formatReviewDate(row.lastDone)}</td>
                   <td className={cn('px-3 py-2.5 font-medium', overdue ? 'text-destructive' : 'text-muted-foreground')}>
