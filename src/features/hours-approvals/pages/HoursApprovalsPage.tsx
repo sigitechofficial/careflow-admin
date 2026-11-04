@@ -156,6 +156,8 @@ function extraWeeklyHoursPayload(row: HoursApproval) {
   return (row.requestPayload ?? null) as unknown as {
     periodStart?: string
     periodEnd?: string
+    /** Several weeks at once (their Mondays). */
+    weekStarts?: string[]
     extraHours?: number
     overMaxWarning?: string
   } | null
@@ -583,7 +585,9 @@ export default function HoursApprovalsPage() {
                               </Badge>
                               <p className="text-xs text-foreground">
                                 +{formatHours(r.extraHours)}
-                                {extraWeeklyHoursPayload(r)?.periodStart
+                                {extraWeeklyHoursPayload(r)?.weekStarts?.length
+                                  ? ` a week · weeks of ${extraWeeklyHoursPayload(r)!.weekStarts!.map(w => formatDate(w)).join(', ')}`
+                                  : extraWeeklyHoursPayload(r)?.periodStart
                                   ? ` · ${formatDate(extraWeeklyHoursPayload(r)!.periodStart!)}${
                                       extraWeeklyHoursPayload(r)!.periodEnd &&
                                       extraWeeklyHoursPayload(r)!.periodEnd !== extraWeeklyHoursPayload(r)!.periodStart

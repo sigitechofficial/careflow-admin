@@ -1,10 +1,9 @@
 import * as React from 'react'
-import { CheckCircle2, Clock, Loader2, PlusCircle, XCircle } from 'lucide-react'
+import { Check, CheckCircle2, Clock, Loader2, PlusCircle, XCircle } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Input } from '@/shared/ui/input'
 import { Label, Textarea } from '@/shared/ui/form-field'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,10 +42,12 @@ import { formatHours } from '@/features/hours-approvals/components/ContractedHou
 /** Permission to give or cancel extra weekly hours. */
 export const EXTRA_HOURS_PERMISSION = 'employees.extra_hours.manage'
 
+// "One day" and "Date range" are switched off for now: extra hours are given by the week.
+// The DAY / RANGE code below is kept for when they come back.
 const PERIODS: { id: ExtraHoursPeriod; label: string }[] = [
-  { id: 'DAY', label: 'One day' },
+  // { id: 'DAY', label: 'One day' },
   { id: 'WEEK', label: 'One week' },
-  { id: 'RANGE', label: 'Date range' },
+  // { id: 'RANGE', label: 'Date range' },
 ]
 
 /** Monday (YYYY-MM-DD) of the week a day is in. */
@@ -148,12 +149,12 @@ function weeksBetween(start: string, end: string): string[] {
   return out
 }
 
-type WeekChoice = 'THIS' | 'NEXT' | 'AFTER' | 'OTHER'
+type ListedWeek = 'THIS' | 'NEXT' | 'AFTER'
 
 /** How many weeks "Another week" offers after the three listed. */
 const OTHER_WEEKS = 8
 
-/** Add extra weekly hours for a day, a week or a date range; shows which waiting requests it approved. */
+/** Add extra weekly hours for one or more weeks; shows which waiting requests it approved. */
 export function AddExtraHoursDialog({
   open,
   onClose,
@@ -166,7 +167,7 @@ export function AddExtraHoursDialog({
   const history = useExtraWeeklyHours(employeeId, open)
   const today = operationalTodayIso()
   const thisMonday = mondayOf(today)
-  const weekStarts: Record<Exclude<WeekChoice, 'OTHER'>, string> = {
+  const weekStarts: Record<ListedWeek, string> = {
     THIS: thisMonday,
     NEXT: addDays(thisMonday, 7),
     AFTER: addDays(thisMonday, 14),
@@ -174,10 +175,13 @@ export function AddExtraHoursDialog({
   /** "Another week": the 8 weeks after the three listed. */
   const otherFrom = addDays(thisMonday, 21)
   const otherWeeks = Array.from({ length: OTHER_WEEKS }, (_, i) => addDays(otherFrom, i * 7))
+  /** Every week that can be picked (Mondays), earliest first. */
+  const pickableWeeks = [...Object.values(weekStarts), ...otherWeeks]
 
   const [period, setPeriod] = React.useState<ExtraHoursPeriod>('WEEK')
-  const [weekChoice, setWeekChoice] = React.useState<WeekChoice>('THIS')
-  const [otherDate, setOtherDate] = React.useState('')
+  /** The weeks picked (Mondays), earliest first. */
+  const [selectedWeeks, setSelectedWeeks] = React.useState<string[]>([])
+  const [showOther, setShowOther] = React.useState(false)
   const [day, setDay] = React.useState('')
   const [rangeFrom, setRangeFrom] = React.useState('')
   const [rangeTo, setRangeTo] = React.useState('')
@@ -189,10 +193,9 @@ export function AddExtraHoursDialog({
     if (!open) return
     const start = defaultDate && defaultDate >= thisMonday ? defaultDate : today
     const startMonday = mondayOf(start)
-    const listed = (Object.entries(weekStarts) as [WeekChoice, string][]).find(([, m]) => m === startMonday)
     setPeriod('WEEK')
-    setWeekChoice(listed ? listed[0] : 'OTHER')
-    setOtherDate(listed ? '' : startMonday)
+    setSelectedWeeks(pickableWeeks.includes(startMonday) ? [startMonday] : [])
+    setShowOther(otherWeeks.includes(startMonday))
     setDay(start)
     setRangeFrom(start)
     setRangeTo(start)
@@ -206,21 +209,28 @@ export function AddExtraHoursDialog({
   const shownExtra = hoursValid ? Math.round(extraHours * 100) / 100 : 0
 
   /** The dates sent, and the weeks they raise. */
-  const chosen = React.useMemo((): { startDate: string; endDate?: string; weeks: string[] } | null => {
-    if (period === 'DAY') return day ? { startDate: day, weeks: [mondayOf(day)] } : null
-    if (period === 'RANGE') {
-      if (!rangeFrom || !rangeTo || rangeTo < rangeFrom) return null
-      return { startDate: rangeFrom, endDate: rangeTo, weeks: weeksBetween(rangeFrom, rangeTo) }
-    }
-    // Another week: the date picked is the week's Monday (weeks run Monday to Sunday).
-    const monday =
-      weekChoice === 'OTHER'
-        ? otherWeeks.includes(otherDate)
-          ? otherDate
-          : ''
-        : weekStarts[weekChoice]
-    return monday ? { startDate: monday, weeks: [monday] } : null
-  }, [period, day, rangeFrom, rangeTo, weekChoice, otherDate, thisMonday, otherFrom, otherWeeks])
+  const chosen = React.useMemo(
+    (): { startDate: string; endDate?: string; weekStarts?: string[]; weeks: string[] } | null => {
+      if (period === 'DAY') return day ? { startDate: day, weeks: [mondayOf(day)] } : null
+      if (period === 'RANGE') {
+        if (!rangeFrom || !rangeTo || rangeTo < rangeFrom) return null
+        return { startDate: rangeFrom, endDate: rangeTo, weeks: weeksBetween(rangeFrom, rangeTo) }
+      }
+      // Weeks run Monday to Sunday; each week picked is sent as its Monday.
+      const weeks = selectedWeeks.filter(w => pickableWeeks.includes(w))
+      return weeks.length ? { startDate: weeks[0]!, weekStarts: weeks, weeks } : null
+    },
+    [period, day, rangeFrom, rangeTo, selectedWeeks, thisMonday],
+  )
+
+  const toggleWeek = (monday: string) =>
+    setSelectedWeeks(prev => (prev.includes(monday) ? prev.filter(w => w !== monday) : [...prev, monday].sort()))
+
+  /** Closing "Another week" drops the later weeks picked there, so nothing hidden is sent. */
+  const toggleOther = () => {
+    if (showOther) setSelectedWeeks(prev => prev.filter(w => !otherWeeks.includes(w)))
+    setShowOther(!showOther)
+  }
 
   // Live preview of the waiting requests, a moment after the last change.
   const previewInput =
@@ -230,6 +240,7 @@ export function AddExtraHoursDialog({
           periodType: period,
           startDate: chosen.startDate,
           endDate: chosen.endDate,
+          weekStarts: chosen.weekStarts,
           extraHours,
         }
       : null
@@ -265,7 +276,7 @@ export function AddExtraHoursDialog({
       return
     }
     if (!chosen) {
-      toastWarning('Choose the dates', 'Pick the day, week or date range for the extra hours.')
+      toastWarning('Choose the weeks', 'Pick at least one week for the extra hours.')
       return
     }
     try {
@@ -274,6 +285,7 @@ export function AddExtraHoursDialog({
         periodType: period,
         startDate: chosen.startDate,
         endDate: chosen.endDate,
+        weekStarts: chosen.weekStarts,
         extraHours,
         reason: reason.trim() || undefined,
       })
@@ -289,35 +301,34 @@ export function AddExtraHoursDialog({
     }
   }
 
-  const weekOption = (choice: WeekChoice, title: string, detail: React.ReactNode) => {
-    const selected = weekChoice === choice
-    return (
-      <button
-        key={choice}
-        type="button"
-        role="radio"
-        aria-checked={selected}
-        disabled={sending}
-        onClick={() => setWeekChoice(choice)}
-        className={`flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors ${
-          selected ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/40'
+  /** A tick-box row: several weeks can be picked. */
+  const weekOption = (key: string, selected: boolean, onToggle: () => void, title: string, detail?: React.ReactNode) => (
+    <button
+      key={key}
+      type="button"
+      role="checkbox"
+      aria-checked={selected}
+      disabled={sending}
+      onClick={onToggle}
+      className={`flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors ${
+        selected ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/40'
+      }`}
+    >
+      <span
+        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+          selected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/60'
         }`}
+        aria-hidden
       >
-        <span
-          className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-            selected ? 'border-primary' : 'border-muted-foreground/60'
-          }`}
-          aria-hidden
-        >
-          {selected ? <span className="h-2 w-2 rounded-full bg-primary" /> : null}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium text-foreground">{title}</span>
-          <span className="block text-xs text-muted-foreground">{detail}</span>
-        </span>
-      </button>
-    )
-  }
+        {selected ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-foreground">{title}</span>
+        {detail ? <span className="block text-xs text-muted-foreground">{detail}</span> : null}
+      </span>
+    </button>
+  )
+  const otherPicked = selectedWeeks.filter(w => otherWeeks.includes(w))
 
   const daysLeft = Math.round(
     (Date.parse(`${addDays(thisMonday, 6)}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000,
@@ -334,7 +345,7 @@ export function AddExtraHoursDialog({
           </DialogTitle>
           <DialogDescription>
             {contractedHours != null ? `Contracted: ${formatHours(contractedHours)} a week. ` : ''}
-            Extra hours raise the weekly limit for the week you pick
+            Extra hours raise the weekly limit for each week you pick
             {preview.data?.needsApproval ? ' once a manager approves them.' : ' and apply straight away.'}
           </DialogDescription>
         </DialogHeader>
@@ -345,7 +356,8 @@ export function AddExtraHoursDialog({
           </DialogBody>
         ) : (
           <DialogBody className="space-y-4">
-            <div className="space-y-1.5">
+            {/* Only one period left (One week): no need to choose. */}
+            <div className={PERIODS.length > 1 ? 'space-y-1.5' : 'hidden'}>
               <Label>For</Label>
               <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Extra hours period">
                 {PERIODS.map(p => (
@@ -367,40 +379,48 @@ export function AddExtraHoursDialog({
 
             {period === 'WEEK' ? (
               <div className="space-y-1.5">
-                <Label>Which week</Label>
-                <div className="space-y-1.5" role="radiogroup" aria-label="Which week">
+                <Label>Which weeks</Label>
+                <p className="text-xs text-muted-foreground">Tick one or more weeks — each week gets the extra hours.</p>
+                <div className="space-y-1.5" role="group" aria-label="Which weeks">
                   {weekOption(
                     'THIS',
+                    selectedWeeks.includes(weekStarts.THIS),
+                    () => toggleWeek(weekStarts.THIS),
                     'This week',
                     today > thisMonday
                       ? `${weekLabel(thisMonday)} · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left (${shortDay(today)} – ${shortDay(addDays(thisMonday, 6))})`
                       : weekLabel(thisMonday),
                   )}
-                  {weekOption('NEXT', 'Next week', weekLabel(weekStarts.NEXT))}
-                  {weekOption('AFTER', 'Week after', weekLabel(weekStarts.AFTER))}
+                  {weekOption(
+                    'NEXT',
+                    selectedWeeks.includes(weekStarts.NEXT),
+                    () => toggleWeek(weekStarts.NEXT),
+                    'Next week',
+                    weekLabel(weekStarts.NEXT),
+                  )}
+                  {weekOption(
+                    'AFTER',
+                    selectedWeeks.includes(weekStarts.AFTER),
+                    () => toggleWeek(weekStarts.AFTER),
+                    'Week after',
+                    weekLabel(weekStarts.AFTER),
+                  )}
                   {weekOption(
                     'OTHER',
-                    'Another week',
-                    otherDate && weekChoice === 'OTHER' && chosen
-                      ? weekLabel(otherDate)
+                    showOther,
+                    toggleOther,
+                    'Other weeks',
+                    otherPicked.length
+                      ? `${otherPicked.length} picked: ${otherPicked.map(weekLabel).join(', ')}`
                       : `${weekLabel(otherFrom)} up to ${weekLabel(otherWeeks[otherWeeks.length - 1]!)}`,
                   )}
                 </div>
-                {weekChoice === 'OTHER' ? (
+                {showOther ? (
                   <div className="space-y-1.5 pt-1">
-                    <Label htmlFor="extra-hours-other-week">Choose the week</Label>
-                    <Select value={otherDate} onValueChange={setOtherDate} disabled={sending}>
-                      <SelectTrigger id="extra-hours-other-week" className="h-9 w-64">
-                        <SelectValue placeholder="Choose a week" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {otherWeeks.map(w => (
-                          <SelectItem key={w} value={w}>
-                            {weekLabel(w)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Choose the weeks</Label>
+                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2" role="group" aria-label="Other weeks">
+                      {otherWeeks.map(w => weekOption(w, selectedWeeks.includes(w), () => toggleWeek(w), weekLabel(w)))}
+                    </div>
                   </div>
                 ) : null}
               </div>
@@ -448,7 +468,9 @@ export function AddExtraHoursDialog({
 
             <div className="space-y-1.5">
               <Label htmlFor="extra-hours-value">
-                {period === 'RANGE' ? 'Extra hours for each week' : 'Extra hours for that week'}
+                {period === 'RANGE' || (chosen && chosen.weeks.length > 1)
+                  ? 'Extra hours for each week'
+                  : 'Extra hours for that week'}
               </Label>
               <Input
                 id="extra-hours-value"
@@ -468,8 +490,9 @@ export function AddExtraHoursDialog({
               <div className="rounded-md bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
                 {chosen.weeks.length > 1 ? (
                   <p className="mb-1">
-                    This range touches {chosen.weeks.length} weeks ({shortDay(chosen.weeks[0]!)} –{' '}
-                    {shortDay(addDays(chosen.weeks[chosen.weeks.length - 1]!, 6))}).
+                    {period === 'RANGE'
+                      ? `This range touches ${chosen.weeks.length} weeks (${shortDay(chosen.weeks[0]!)} – ${shortDay(addDays(chosen.weeks[chosen.weeks.length - 1]!, 6))}).`
+                      : `${chosen.weeks.length} weeks picked.`}
                     {hoursValid ? ` Each week gets +${formatHours(shownExtra)}.` : ' Each week gets the extra hours.'}
                   </p>
                 ) : null}

@@ -426,6 +426,8 @@ export async function grantExtraWeeklyHours(body: {
   periodType: ExtraHoursPeriod
   startDate: string
   endDate?: string
+  /** WEEK only: several weeks at once (their Mondays). */
+  weekStarts?: string[]
   extraHours: number
   reason?: string
 }): Promise<{ message: string; outcome: ExtraHoursOutcome | null; sentForApproval: boolean }> {
