@@ -13,7 +13,11 @@ import {
   updateCareForm,
   uploadCareFormIcon,
 } from '@/features/care-pathway/api/form-builder.api'
-import { updateFormSelections } from '@/features/care-pathway/api/form-selection.api'
+import {
+  updateCarePlanRequiredAssessments,
+  updateFormSelections,
+} from '@/features/care-pathway/api/form-selection.api'
+import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { createPathwayAction, deletePathwayAction } from '@/features/care-pathway/api/pathway-actions.api'
 import {
   createPathwayChecklist,
@@ -105,6 +109,18 @@ export function useUpdateFormSelections() {
     mutationFn: updateFormSelections,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: carePathwayKeys.formSelections() })
+    },
+  })
+}
+
+export function useUpdateCarePlanRequiredAssessments() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: updateCarePlanRequiredAssessments,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: carePathwayKeys.carePlanRequiredAssessments() })
+      // Initial Assessment summaries list the required assessments.
+      void qc.invalidateQueries({ queryKey: initialAssessmentKeys.all() })
     },
   })
 }

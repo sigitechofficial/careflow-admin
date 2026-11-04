@@ -198,6 +198,15 @@ export default function ServiceUserCarePlanPage() {
     }
   }, [carePlanForms, instancesByFormId, recommendations, acceptedFormIds])
 
+  // A link to a section (e.g. "Do assessment" → #care-plans-assessment-risk) arrives before the
+  // page has loaded, so the router cannot scroll to it yet: scroll once the content is shown.
+  React.useEffect(() => {
+    if (loading) return
+    const id = window.location.hash.slice(1)
+    if (!id) return
+    document.getElementById(id)?.scrollIntoView({ block: 'start' })
+  }, [loading])
+
   React.useEffect(() => {
     if (!import.meta.env.DEV || loading) return
     // Temporary overview debug — remove once Live refresh is confirmed in QA.

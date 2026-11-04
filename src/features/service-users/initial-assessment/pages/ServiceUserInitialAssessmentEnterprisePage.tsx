@@ -58,6 +58,7 @@ import { InitialAssessmentCarePlanRecommendationsPanel } from '@/features/servic
 import { InitialAssessmentAttachmentsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentAttachmentsPanel'
 import { InitialAssessmentTranscriptionPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTranscriptionPanel'
 import type { AiFillTarget } from '@/features/service-users/initial-assessment/components/InitialAssessmentAiFillReview'
+import { InitialAssessmentRequiredAssessmentsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentRequiredAssessmentsPanel'
 import { InitialAssessmentSchedulePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSchedulePanel'
 import { InitialAssessmentSectionComment } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionComment'
 import { InitialAssessmentBlockingBanner } from '@/features/service-users/initial-assessment/components/InitialAssessmentBlockingBanner'
@@ -3357,6 +3358,10 @@ function InitialAssessmentEnterprisePageContent() {
                 canDecide={(canReview || canUpdate) && submission?.status === 'REVIEWED'}
                 canCreate={canUpdate}
                 onGoToSection={(n) => goToSection(n)}
+              />
+              <InitialAssessmentRequiredAssessmentsPanel
+                serviceUserId={selectedId}
+                items={summaryQuery.data?.requiredAssessments ?? []}
               />
               <InitialAssessmentActionsPanel
                 serviceUserId={selectedId}

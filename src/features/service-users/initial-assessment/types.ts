@@ -263,8 +263,18 @@ export type InitialAssessmentSubmissionSummary = {
     falls: InitialAssessmentClinicalSnapshot['falls']
   }
   carePlanRecommendations: CarePlanRecommendation[]
+  /** Assessments the organisation requires for the recommended (not declined) care plans. */
+  requiredAssessments?: InitialAssessmentRequiredAssessment[]
   agencySettings: InitialAssessmentAgencySettings
   careActivation: CareActivationStatus
+}
+
+export type InitialAssessmentRequiredAssessment = {
+  assessmentFormId: string
+  assessmentFormName: string
+  requiredBy: Array<{ carePathwayFormId: string; carePlanName: string }>
+  /** Latest completion of this assessment for the service user; null when it has not been done. */
+  lastCompletedAt: string | null
 }
 
 export type CareActivationStatus = {

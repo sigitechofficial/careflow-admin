@@ -14,6 +14,8 @@ export const carePathwayKeys = {
 
   formSelections: () => [...carePathwayKeys.all(), 'form-selections'] as const,
 
+  carePlanRequiredAssessments: () => [...carePathwayKeys.all(), 'care-plan-required-assessments'] as const,
+
   selectableForms: (
     listPath: 'care-plans' | 'assessments' | 'service-forms' | 'staff-forms',
     params?: { search?: string; limit?: number; page?: number },

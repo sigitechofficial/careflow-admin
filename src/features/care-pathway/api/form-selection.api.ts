@@ -44,6 +44,30 @@ export async function updateFormSelections(body: {
   return res.data
 }
 
+/** Assessment forms an organisation requires for one care plan form. */
+export type CarePlanRequiredAssessments = {
+  carePlanFormId: string
+  assessmentFormIds: string[]
+}
+
+export async function fetchCarePlanRequiredAssessments(): Promise<CarePlanRequiredAssessments[]> {
+  const res = await apiJson<ApiEnvelope<CarePlanRequiredAssessments[]>>(
+    '/form-selection/care-plan-required-assessments',
+    { method: 'GET' },
+  )
+  return res.data ?? []
+}
+
+export async function updateCarePlanRequiredAssessments(
+  body: CarePlanRequiredAssessments,
+): Promise<CarePlanRequiredAssessments> {
+  const res = await apiJson<ApiEnvelope<CarePlanRequiredAssessments>>(
+    `/form-selection/care-plan-required-assessments/${encodeURIComponent(body.carePlanFormId)}`,
+    { method: 'PUT', body: JSON.stringify({ assessmentFormIds: body.assessmentFormIds }) },
+  )
+  return res.data
+}
+
 export async function listSelectableForms(
   type: 'care-plans' | 'assessments' | 'service-forms' | 'staff-forms',
   params?: { search?: string; limit?: number; page?: number },
