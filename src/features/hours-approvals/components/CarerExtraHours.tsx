@@ -34,6 +34,7 @@ import {
   useCancelExtraWeeklyHours,
   useExtraWeeklyHours,
   useExtraWeeklyHoursPreview,
+  useExtraWeeklyHoursRequests,
   useGrantExtraWeeklyHours,
 } from '@/features/hours-approvals/hooks'
 import type { ExtraHoursOutcome, ExtraHoursPeriod, ExtraWeeklyHours } from '@/features/hours-approvals/types'
@@ -645,11 +646,50 @@ export function ExtraHoursHistory({ employeeId }: { employeeId: string }) {
   }
   const canManage = useAuthStore(s => s.can(EXTRA_HOURS_PERMISSION))
   const query = useExtraWeeklyHours(employeeId)
+  const requestsQuery = useExtraWeeklyHoursRequests(employeeId)
   const cancel = useCancelExtraWeeklyHours()
   const [toCancel, setToCancel] = React.useState<ExtraWeeklyHours | null>(null)
   const [cancelReason, setCancelReason] = React.useState('')
+  const [pastOpen, setPastOpen] = React.useState(false)
   const rows = query.data ?? []
-  const active = rows.filter(r => !r.cancelledAt)
+  const requests = requestsQuery.data ?? []
+  const thisMonday = mondayOf(operationalTodayIso())
+  const thisSunday = addDays(thisMonday, 6)
+  // Requests and given hours in one list, newest first.
+  const items = [
+    ...rows.map(r => ({ kind: 'given' as const, at: r.grantedAt, start: r.startDate, end: r.endDate, row: r })),
+    ...requests.map(r => ({
+      kind: 'request' as const,
+      at: r.requestedAt,
+      start: r.startDate,
+      end: r.endDate ?? r.startDate,
+      row: r,
+    })),
+  ].sort((a, b) => b.at.localeCompare(a.at))
+  // Past = every day before this week's Monday; this week and later stay on the card.
+  const pastItems = items.filter(i => i.end != null && i.end < thisMonday)
+  const currentItems = items.filter(i => !(i.end != null && i.end < thisMonday))
+  const thisWeek = items.filter(i => i.start != null && i.end != null && i.start <= thisSunday && i.end >= thisMonday)
+  const weekCount = {
+    approved: thisWeek.filter(i => i.kind === 'given' && !i.row.cancelledAt).length,
+    waiting: thisWeek.filter(i => i.kind === 'request' && i.row.status === 'PENDING').length,
+    cancelled: thisWeek.filter(i => i.kind === 'given' && i.row.cancelledAt).length,
+    rejected: thisWeek.filter(i => i.kind === 'request' && i.row.status === 'REJECTED').length,
+  }
+  const weekHours = thisWeek.reduce(
+    (sum, i) => (i.kind === 'given' && !i.row.cancelledAt ? sum + i.row.extraHours : sum),
+    0,
+  )
+  const periodText = (periodType: ExtraHoursPeriod | null, start: string | null, end: string | null, extraHours: number | null) => {
+    if (!periodType || !start) return extraHours != null ? `+${formatHours(extraHours)}` : 'Extra hours'
+    const last = end ?? start
+    const weeks = periodType === 'RANGE' ? weeksBetween(start, last).length : 0
+    return (
+      `+${extraHours != null ? formatHours(extraHours) : '—'}${periodType === 'RANGE' ? ' a week' : ''} · ` +
+      `${PERIOD_LABEL[periodType]} ${start === last ? formatDate(start) : `${formatDate(start)} – ${formatDate(last)}`}` +
+      (periodType === 'RANGE' ? ` · ${weeks} week${weeks === 1 ? '' : 's'}` : '')
+    )
+  }
 
   const confirmCancel = async () => {
     if (!toCancel) return
@@ -663,67 +703,113 @@ export function ExtraHoursHistory({ employeeId }: { employeeId: string }) {
     }
   }
 
-  if (query.isLoading) {
+  const renderItem = (item: (typeof items)[number]) => {
+    if (item.kind === 'request') {
+      const q = item.row
+      return (
+        <li key={q.id} className="flex flex-wrap items-start justify-between gap-2 px-3 py-2" data-testid="extra-hours-request">
+          <div className="space-y-0.5">
+            <p className="font-medium text-foreground">{periodText(q.periodType, q.startDate, q.endDate, q.extraHours)}</p>
+            <p className="text-muted-foreground">
+              Requested by {q.requestedByName ?? '—'} on {formatDateTime(q.requestedAt)}
+              {q.reason ? ` · ${q.reason}` : ''}
+            </p>
+            {q.status === 'PENDING' ? (
+              <p className="text-muted-foreground">Nothing changes until a manager approves it (Hours approvals).</p>
+            ) : (
+              <p className="text-muted-foreground">
+                Rejected by {q.decidedByName ?? '—'}
+                {q.decidedAt ? ` on ${formatDateTime(q.decidedAt)}` : ''}
+                {q.decisionNotes ? ` · ${q.decisionNotes}` : ''}
+              </p>
+            )}
+          </div>
+          <Badge variant={q.status === 'PENDING' ? 'warning' : 'destructive'}>
+            {q.status === 'PENDING' ? 'Waiting for approval' : 'Rejected'}
+          </Badge>
+        </li>
+      )
+    }
+    const r = item.row
+    return (
+      <li key={r.id} className="flex flex-wrap items-start justify-between gap-2 px-3 py-2">
+        <div className="space-y-0.5">
+          <p className="font-medium text-foreground">{periodText(r.periodType, r.startDate, r.endDate, r.extraHours)}</p>
+          <p className="text-muted-foreground">
+            Given by {r.grantedByName ?? '—'} on {formatDateTime(r.grantedAt)}
+            {r.reason ? ` · ${r.reason}` : ''}
+          </p>
+          {r.outcome?.approved.length ? (
+            <p className="text-muted-foreground">
+              Approved {r.outcome.approved.length} waiting request{r.outcome.approved.length === 1 ? '' : 's'}
+              {r.cancelledAt ? '' : " — can't be cancelled, as it approved a request"}
+            </p>
+          ) : null}
+          {r.cancelledAt ? (
+            <p className="text-muted-foreground">
+              Cancelled by {r.cancelledByName ?? '—'} on {formatDateTime(r.cancelledAt)}
+              {r.cancelReason ? ` · ${r.cancelReason}` : ''}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant={r.cancelledAt ? 'secondary' : 'success'}>{r.cancelledAt ? 'Cancelled' : 'Active'}</Badge>
+          {canManage && !r.cancelledAt && !r.outcome?.approved.length ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => setToCancel(r)}
+            >
+              Cancel
+            </Button>
+          ) : null}
+        </div>
+      </li>
+    )
+  }
+
+  if (query.isLoading || requestsQuery.isLoading) {
     return <p className="text-xs text-muted-foreground">Loading extra hours…</p>
   }
-  if (!rows.length) {
+  if (!items.length) {
     return <p className="text-xs text-muted-foreground">No extra hours given yet.</p>
   }
   return (
     <div className="space-y-2" data-testid="extra-hours-history">
-      <p className="text-xs text-muted-foreground">
-        Given {rows.length} time{rows.length === 1 ? '' : 's'} ({active.length} active).
-      </p>
-      <ul className="divide-y divide-border rounded-md border border-border text-xs">
-        {rows.map(r => (
-          <li key={r.id} className="flex flex-wrap items-start justify-between gap-2 px-3 py-2">
-            <div className="space-y-0.5">
-              <p className="font-medium text-foreground">
-                +{formatHours(r.extraHours)}
-                {r.periodType === 'RANGE' ? ' a week' : ''} · {PERIOD_LABEL[r.periodType]}{' '}
-                {r.startDate === r.endDate
-                  ? formatDate(r.startDate)
-                  : `${formatDate(r.startDate)} – ${formatDate(r.endDate)}`}
-                {r.periodType === 'RANGE'
-                  ? (() => {
-                      const n = weeksBetween(r.startDate, r.endDate).length
-                      return ` · ${n} week${n === 1 ? '' : 's'}`
-                    })()
-                  : ''}
-              </p>
-              <p className="text-muted-foreground">
-                Given by {r.grantedByName ?? '—'} on {formatDateTime(r.grantedAt)}
-                {r.reason ? ` · ${r.reason}` : ''}
-              </p>
-              {r.outcome?.approved.length ? (
-                <p className="text-muted-foreground">
-                  Approved {r.outcome.approved.length} waiting request{r.outcome.approved.length === 1 ? '' : 's'}
-                </p>
-              ) : null}
-              {r.cancelledAt ? (
-                <p className="text-muted-foreground">
-                  Cancelled by {r.cancelledByName ?? '—'} on {formatDateTime(r.cancelledAt)}
-                  {r.cancelReason ? ` · ${r.cancelReason}` : ''}
-                </p>
-              ) : null}
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={r.cancelledAt ? 'secondary' : 'success'}>{r.cancelledAt ? 'Cancelled' : 'Active'}</Badge>
-              {canManage && !r.cancelledAt && !r.outcome?.approved.length ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => setToCancel(r)}
-                >
-                  Cancel
-                </Button>
-              ) : null}
-            </div>
-          </li>
-        ))}
-      </ul>
+      <div className="rounded-md border border-border bg-background/60 px-3 py-2 text-xs" data-testid="extra-hours-this-week">
+        <p className="font-medium text-foreground">
+          This week ({formatDate(thisMonday)} – {formatDate(thisSunday)}): {weekHours > 0 ? `+${formatHours(weekHours)} extra` : 'no extra hours'}
+        </p>
+        <p className="mt-0.5 text-muted-foreground">
+          Total {thisWeek.length} · Approved {weekCount.approved} · Waiting for approval {weekCount.waiting} · Cancelled{' '}
+          {weekCount.cancelled} · Rejected {weekCount.rejected}
+        </p>
+      </div>
+      {currentItems.length ? (
+        <ul className="divide-y divide-border rounded-md border border-border text-xs">{currentItems.map(renderItem)}</ul>
+      ) : (
+        <p className="text-xs text-muted-foreground">No extra hours for this week or later.</p>
+      )}
+      {pastItems.length ? (
+        <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setPastOpen(true)}>
+          See past extra hours ({pastItems.length})
+        </Button>
+      ) : null}
+      <Dialog open={pastOpen} onOpenChange={setPastOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader className="px-6 py-5 pr-12">
+            <DialogTitle>Past extra hours</DialogTitle>
+            <DialogDescription className="pt-1">
+              Extra hours and requests for weeks before {formatDate(thisMonday)}, newest first.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="px-6 py-5">
+            <ul className="divide-y divide-border rounded-md border border-border text-xs">{pastItems.map(renderItem)}</ul>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
       <AlertDialog open={Boolean(toCancel)} onOpenChange={next => (!next && !cancel.isPending ? setToCancel(null) : undefined)}>
         <AlertDialogContent>
           <AlertDialogHeader>

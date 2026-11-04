@@ -216,6 +216,29 @@ export async function approveHours(id: string, notes?: string): Promise<string |
   return res.message
 }
 
+/** Of the requests just sent, the ones by the signed-in user still waiting for a manager. */
+export async function fetchSentPendingHours(ids: string[]): Promise<HoursApproval[]> {
+  const res = await apiJson<ApiEnvelope<HoursApproval[]>>('/hours-approvals/sent/pending', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  })
+  return res.data ?? []
+}
+
+export type ApproveSentResult = { id: string; approved: boolean; message: string | null }
+
+/** "Approve now" for requests the signed-in manager just sent (the reason is optional). */
+export async function approveSentHours(
+  ids: string[],
+  reason?: string,
+): Promise<{ message?: string; results: ApproveSentResult[] }> {
+  const res = await apiJson<ApiEnvelope<{ results: ApproveSentResult[] }>>('/hours-approvals/sent/approve', {
+    method: 'POST',
+    body: JSON.stringify(reason ? { ids, reason } : { ids }),
+  })
+  return { message: res.message, results: res.data?.results ?? [] }
+}
+
 export async function rejectHours(id: string, notes?: string): Promise<void> {
   await apiJson<ApiEnvelope<unknown>>(`/hours-approvals/${id}/reject`, {
     method: 'POST',
@@ -367,6 +390,34 @@ export async function fetchExtraWeeklyHours(
     method: 'GET',
     ...init,
   })
+  return res.data ?? []
+}
+
+/** An extra-hours request still waiting for a manager, or rejected (approved ones are ExtraWeeklyHours). */
+export type ExtraWeeklyHoursRequest = {
+  id: string
+  status: 'PENDING' | 'REJECTED'
+  periodType: ExtraHoursPeriod | null
+  startDate: string | null
+  endDate: string | null
+  extraHours: number | null
+  reason: string | null
+  requestedByName: string | null
+  requestedAt: string
+  decidedByName: string | null
+  decidedAt: string | null
+  decisionNotes: string | null
+}
+
+export async function fetchExtraWeeklyHoursRequests(
+  employeeId: string,
+  init?: RequestInit,
+): Promise<ExtraWeeklyHoursRequest[]> {
+  const q = new URLSearchParams({ employeeId })
+  const res = await apiJson<ApiEnvelope<ExtraWeeklyHoursRequest[]>>(
+    `/hours-approvals/extra-hours/requests?${q.toString()}`,
+    { method: 'GET', ...init },
+  )
   return res.data ?? []
 }
 

@@ -7,6 +7,7 @@ import {
   deleteAllHoursApprovals,
   fetchContractedHoursPreview,
   fetchExtraWeeklyHours,
+  fetchExtraWeeklyHoursRequests,
   fetchHoursHistory,
   fetchHoursApprovals,
   fetchPendingContractedHoursChange,
@@ -145,6 +146,15 @@ export function useExtraWeeklyHours(employeeId: string, enabled = true) {
   return useQuery({
     queryKey: keys.extraHours(employeeId),
     queryFn: ({ signal }) => fetchExtraWeeklyHours(employeeId, { signal }),
+    enabled: enabled && Boolean(employeeId),
+  })
+}
+
+/** The carer's extra-hours requests waiting for a manager, or rejected, newest first. */
+export function useExtraWeeklyHoursRequests(employeeId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...keys.extraHours(employeeId), 'requests'] as const,
+    queryFn: ({ signal }) => fetchExtraWeeklyHoursRequests(employeeId, { signal }),
     enabled: enabled && Boolean(employeeId),
   })
 }
