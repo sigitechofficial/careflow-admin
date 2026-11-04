@@ -36,6 +36,14 @@ vi.mock('@/features/service-users/initial-assessment/hooks/useInitialAssessmentE
   useInitialAssessmentAttachmentFile: () => ({ mutateAsync: fileMutate, isPending: false }),
 }))
 
+vi.mock('@/features/service-users/initial-assessment/components/InitialAssessmentAiFillReview', () => ({
+  InitialAssessmentAiFillReview: ({ transcript, target }: { transcript: string; target: { tabTitle: string } }) => (
+    <div data-testid="ia-ai-fill-stub">
+      {target.tabTitle}: {transcript}
+    </div>
+  ),
+}))
+
 import { InitialAssessmentAttachmentsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentAttachmentsPanel'
 
 describe('InitialAssessmentAttachmentsPanel', () => {
@@ -64,5 +72,22 @@ describe('InitialAssessmentAttachmentsPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Play recording' }))
     expect(fileMutate).toHaveBeenCalledWith({ submissionId: 's1', attachmentId: 'a1' })
     expect(await screen.findByTestId('ia-recording-player')).toHaveAttribute('src', 'blob:recording')
+  })
+
+  it('opens a saved transcript in a dialog that offers to fill the open tab with AI again', async () => {
+    // jsdom's Blob has no text(); browsers do.
+    fileMutate.mockResolvedValue({ text: async () => 'Carer: Do you need help with meals?' })
+    const target = { tabTitle: 'Nutrition', questions: [], answers: {}, editable: true, onApply: vi.fn() }
+    render(
+      <InitialAssessmentAttachmentsPanel serviceUserId="su1" submissionId="s1" canUpdate editable fillTarget={target} />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: /Attachments/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Open transcript' }))
+
+    expect(fileMutate).toHaveBeenCalledWith({ submissionId: 's1', attachmentId: 'a2' })
+    const dialog = await screen.findByTestId('ia-saved-transcript-dialog')
+    expect(dialog).toHaveTextContent('Carer: Do you need help with meals?')
+    expect(screen.getByTestId('ia-ai-fill-stub')).toHaveTextContent('Nutrition: Carer: Do you need help with meals?')
+    expect(screen.getByRole('button', { name: 'Open in new tab' })).toBeInTheDocument()
   })
 })

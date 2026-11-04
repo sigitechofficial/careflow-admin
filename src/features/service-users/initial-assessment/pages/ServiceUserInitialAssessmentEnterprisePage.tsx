@@ -18,6 +18,8 @@ import { fetchServiceUserBodyMap } from '@/features/service-users/body-map/api'
 import { type ServiceUserDetail, type ServiceUserListRow } from '@/features/service-users/types'
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
+import { useDebouncedValue } from '@/features/policies/hooks/useDebouncedValue'
+import { Combobox } from '@/shared/ui/combobox'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useServiceUserDomCare, useServiceUserAllergies } from '@/features/service-users/hooks/useServiceUserTabs'
@@ -31,13 +33,6 @@ import {
   plainTextFromHtml,
   readInitialAssessmentTextareaValue,
 } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/ui/select'
 import { Button } from '@/shared/ui/button'
 import { DictationProvider } from '@/shared/ui/dictation'
 import { Badge } from '@/shared/ui/badge'
@@ -62,6 +57,7 @@ import { InitialAssessmentActionsPanel } from '@/features/service-users/initial-
 import { InitialAssessmentCarePlanRecommendationsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCarePlanRecommendationsPanel'
 import { InitialAssessmentAttachmentsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentAttachmentsPanel'
 import { InitialAssessmentTranscriptionPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTranscriptionPanel'
+import type { AiFillTarget } from '@/features/service-users/initial-assessment/components/InitialAssessmentAiFillReview'
 import { InitialAssessmentSchedulePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSchedulePanel'
 import { InitialAssessmentSectionComment } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionComment'
 import { InitialAssessmentBlockingBanner } from '@/features/service-users/initial-assessment/components/InitialAssessmentBlockingBanner'
@@ -311,6 +307,7 @@ import {
 } from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
 import type {
   InitialAssessmentAnswerInput,
+  InitialAssessmentFlaggedItem,
   InitialAssessmentQuestion,
   InitialAssessmentSection,
   VisitPlanDraftOutcome,
@@ -499,17 +496,22 @@ function InitialAssessmentEnterprisePageContent() {
   const hasApi = !!getApiBaseUrl()
   const { locationId: globalLocationId } = useGlobalLocationScope()
 
+  const [serviceUserSearch, setServiceUserSearch] = React.useState('')
+  const debouncedServiceUserSearch = useDebouncedValue(serviceUserSearch.trim(), 300)
   const listParams = React.useMemo(
     () => ({
       limit: 100,
       sortBy: 'lastName' as const,
       sortOrder: 'asc' as const,
       locationId: globalLocationId ?? undefined,
+      // The API matches each field separately, so "John Smith" would match nothing: send the first
+      // word and let the picker narrow the rest against the full label.
+      search: debouncedServiceUserSearch.split(/\s+/)[0] || undefined,
     }),
-    [globalLocationId],
+    [globalLocationId, debouncedServiceUserSearch],
   )
 
-  const { data: listData, isLoading: listLoading } = useServiceUsers(
+  const { data: listData, isLoading: listLoading, isFetching: listFetching } = useServiceUsers(
     listParams,
     hasApi && canRead,
   )
@@ -1360,6 +1362,20 @@ function InitialAssessmentEnterprisePageContent() {
     [sections, visibleQuestionsBySection],
   )
 
+  /** The tab a care plan trigger's question is on, else its section's tab. */
+  const triggerTabId = React.useCallback(
+    (trigger: InitialAssessmentFlaggedItem) =>
+      HOLISTIC_ASSESSMENT_TABS.find((t) =>
+        questionsForDocumentTab(t, sections, visibleQuestionsBySection).some((q) => q.id === trigger.questionId),
+      )?.id ??
+      holisticTabForValidationIssue(
+        { sectionNumber: trigger.section?.sectionNumber ?? 1, message: '' },
+        sections,
+        visibleQuestionsBySection,
+      ),
+    [sections, visibleQuestionsBySection],
+  )
+
   React.useEffect(() => {
     if (sections.length === 0) return
     if (!holisticTabById(activeHolisticTab)) {
@@ -1564,6 +1580,17 @@ function InitialAssessmentEnterprisePageContent() {
     },
     [sections],
   )
+
+  /** The open form tab, so a transcript (new or saved in attachments) can fill its fields. */
+  const transcriptFillTarget: AiFillTarget = {
+    tabTitle: currentHolisticTab.title,
+    questions: transcriptFillQuestions,
+    answers: draftAnswers,
+    editable,
+    onApply: (answers) => {
+      for (const a of answers) onAnswerChange(a.questionId, a)
+    },
+  }
 
   // QA Demo Data (dev/QA only): merge GENERATED section values into the editable form IN MEMORY.
   // No persistence — nothing is saved, no submission is created, nothing is submitted. The user
@@ -3145,22 +3172,26 @@ function InitialAssessmentEnterprisePageContent() {
           Service user <span className="text-destructive">*</span>
         </Label>
         {showServiceUserPicker ? (
-          <Select value={selectedId || '_none'} onValueChange={(v) => onCustomerChange(v === '_none' ? '' : v)}>
-            <SelectTrigger id="ia-enterprise-su">
-              <SelectValue placeholder="Select a service user…" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_none">Select a service user…</SelectItem>
-              {selectedId && !selectedInList && detailQuery.data ? (
-                <SelectItem value={selectedId}>{serviceUserDetailLabel(detailQuery.data)}</SelectItem>
-              ) : null}
-              {serviceUsers.map((su) => (
-                <SelectItem key={su.id} value={su.id}>
-                  {customerLabel(su)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            id="ia-enterprise-su"
+            data-testid="ia-enterprise-su-picker"
+            value={selectedId}
+            onChange={(id) => {
+              if (id) onCustomerChange(id)
+            }}
+            allowDeselect={false}
+            options={[
+              ...(selectedId && !selectedInList && detailQuery.data
+                ? [{ value: selectedId, label: serviceUserDetailLabel(detailQuery.data) }]
+                : []),
+              ...serviceUsers.map((su) => ({ value: su.id, label: customerLabel(su) })),
+            ]}
+            onSearchChange={setServiceUserSearch}
+            loading={listFetching}
+            placeholder="Select a service user…"
+            searchPlaceholder="Search by name or service user number…"
+            emptyText={listFetching ? 'Searching…' : 'No service users match.'}
+          />
         ) : (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -3419,6 +3450,7 @@ function InitialAssessmentEnterprisePageContent() {
                 activeSection={currentHolisticTab.enterpriseSection}
                 canUpdate={canUpdate}
                 editable={editable}
+                fillTarget={canUpdate ? transcriptFillTarget : undefined}
               />
 
               <InitialAssessmentTranscriptionPanel
@@ -3426,15 +3458,7 @@ function InitialAssessmentEnterprisePageContent() {
                 submissionId={submissionId}
                 // A recording is saved to the assessment, so only while it can still be changed.
                 canUpdate={canUpdate && editable}
-                fillTarget={{
-                  tabTitle: currentHolisticTab.title,
-                  questions: transcriptFillQuestions,
-                  answers: draftAnswers,
-                  editable,
-                  onApply: (answers) => {
-                    for (const a of answers) onAnswerChange(a.questionId, a)
-                  },
-                }}
+                fillTarget={transcriptFillTarget}
               />
 
               <div
@@ -3974,6 +3998,12 @@ function InitialAssessmentEnterprisePageContent() {
         validating={validateQuery.isLoading}
         flaggedRiskCount={riskQuery.data?.count}
         carePlanTriggerCount={triggersQuery.data?.count}
+        carePlanTriggers={triggersQuery.data?.items}
+        triggerTabLabel={(t) => holisticTabRef(triggerTabId(t))}
+        onGoToTrigger={(t) => {
+          setSubmitModalOpen(false)
+          goToHolisticTab(triggerTabId(t))
+        }}
         openActionsCount={openActionsCount}
         onGoToSection={(n, message) => {
           setSubmitModalOpen(false)

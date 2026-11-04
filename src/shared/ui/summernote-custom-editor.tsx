@@ -13,7 +13,9 @@ import { Table } from "@tiptap/extension-table"
 import TableRow from "@tiptap/extension-table-row"
 import TableCell from "@tiptap/extension-table-cell"
 import TableHeader from "@tiptap/extension-table-header"
-import { Mark, mergeAttributes } from "@tiptap/core"
+import { Extension, Mark, mergeAttributes } from "@tiptap/core"
+import { Plugin, PluginKey } from "@tiptap/pm/state"
+import { Decoration, DecorationSet } from "@tiptap/pm/view"
 import {
   Bold, Italic, UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -30,6 +32,55 @@ import { cn } from "@/shared/lib/utils"
 import { DictationButton, dictationChunk } from "@/shared/ui/dictation"
 
 // ── Link mark ────────────────────────────────────────────
+const dictationPreviewKey = new PluginKey<string>("dictationPreview")
+
+/**
+ * Shows the words being dictated, before the phrase is finished, in grey at the caret. It is a
+ * decoration, not content: it never reaches the HTML, onChange or the undo history.
+ */
+const DictationPreview = Extension.create({
+  name: "dictationPreview",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin<string>({
+        key: dictationPreviewKey,
+        state: {
+          init: () => "",
+          apply: (tr, previous) => {
+            const next: unknown = tr.getMeta(dictationPreviewKey)
+            return typeof next === "string" ? next : previous
+          },
+        },
+        props: {
+          // Hides the placeholder while dictated words are shown (it would sit on top of them).
+          attributes: (state): Record<string, string> =>
+            dictationPreviewKey.getState(state) ? { class: "dictating" } : {},
+          decorations(state) {
+            const text = dictationPreviewKey.getState(state)
+            if (!text) return null
+            const pos = state.selection.to
+            const shown = dictationChunk(state.doc.textBetween(Math.max(0, pos - 1), pos, "\n", " "), text, "")
+            if (!shown) return null
+            return DecorationSet.create(state.doc, [
+              Decoration.widget(
+                pos,
+                () => {
+                  const span = document.createElement("span")
+                  span.className = "text-muted-foreground italic"
+                  span.dataset.dictationInterim = ""
+                  span.textContent = shown
+                  return span
+                },
+                { side: 1, key: `dictation:${shown}` },
+              ),
+            ])
+          },
+        },
+      }),
+    ]
+  },
+})
+
 const LinkMark = Mark.create({
   name: "link",
   inclusive: false,
@@ -240,6 +291,7 @@ export function SummernoteCustomEditor({
       TableRow,
       TableCell,
       TableHeader,
+      DictationPreview,
     ],
     content: value ?? "",
     editable: !disabled,
@@ -306,6 +358,11 @@ export function SummernoteCustomEditor({
       doc.textBetween(pos, Math.min(doc.content.size, pos + 1), "\n", " "),
     )
     if (chunk) editor.chain().insertContentAt(pos, { type: "text", text: chunk }).run()
+  }
+
+  const showDictationPreview = (text: string) => {
+    if (editor.isDestroyed) return
+    editor.view.dispatch(editor.state.tr.setMeta(dictationPreviewKey, text))
   }
 
   const currentColor = (editor.getAttributes("textStyle").color as string) || "#000000"
@@ -393,6 +450,7 @@ export function SummernoteCustomEditor({
               if (!editor.isFocused) editor.commands.focus("end")
             }}
             onText={insertDictation}
+            onInterim={showDictationPreview}
           />
         )}
       </div>
@@ -564,6 +622,7 @@ export function SummernoteCustomEditor({
               "[&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left",
               "[&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none",
               "[&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0",
+              "[&_.ProseMirror.dictating_p.is-editor-empty:first-child::before]:hidden",
               "[&_.ProseMirror_blockquote]:border-l-4 [&_.ProseMirror_blockquote]:border-primary/30 [&_.ProseMirror_blockquote]:pl-3 [&_.ProseMirror_blockquote]:text-muted-foreground",
               "[&_.ProseMirror_a]:text-primary [&_.ProseMirror_a]:underline",
               "[&_.ProseMirror_img]:max-w-full [&_.ProseMirror_img]:rounded-lg [&_.ProseMirror_img]:my-2",

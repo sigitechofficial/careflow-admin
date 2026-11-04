@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ChevronDown, ChevronRight, FileAudio, FileText, Image, Loader2, Paperclip, Play, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, ChevronRight, ExternalLink, FileAudio, FileText, Image, Loader2, Paperclip, Play, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import {
   Dialog,
@@ -26,6 +26,10 @@ import {
   useInitialAssessmentAttachments,
   useUploadInitialAssessmentAttachment,
 } from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
+import {
+  InitialAssessmentAiFillReview,
+  type AiFillTarget,
+} from '@/features/service-users/initial-assessment/components/InitialAssessmentAiFillReview'
 import type {
   InitialAssessmentAttachment,
   InitialAssessmentAttachmentCategory,
@@ -63,6 +67,8 @@ type Props = {
   activeSection?: number
   canUpdate: boolean
   editable: boolean
+  /** The open form tab, so a saved transcript can fill its fields again with AI. */
+  fillTarget?: AiFillTarget
 }
 
 function formatBytes(n: number) {
@@ -73,10 +79,19 @@ function formatBytes(n: number) {
 
 /**
  * A recording or transcript, read through the permission-checked endpoint: the recording plays
- * here, the transcript opens in a new tab.
+ * here; the transcript opens in a dialog that can fill the open form tab from it again with AI.
  */
-function ConversationFile({ serviceUserId, att }: { serviceUserId: string; att: InitialAssessmentAttachment }) {
+function ConversationFile({
+  serviceUserId,
+  att,
+  fillTarget,
+}: {
+  serviceUserId: string
+  att: InitialAssessmentAttachment
+  fillTarget?: AiFillTarget
+}) {
   const [audioUrl, setAudioUrl] = React.useState<string | null>(null)
+  const [transcript, setTranscript] = React.useState<string | null>(null)
   const file = useInitialAssessmentAttachmentFile(serviceUserId)
   React.useEffect(() => () => {
     if (audioUrl) URL.revokeObjectURL(audioUrl)
@@ -85,16 +100,21 @@ function ConversationFile({ serviceUserId, att }: { serviceUserId: string; att: 
   const open = async () => {
     try {
       const blob = await file.mutateAsync({ submissionId: att.submissionId, attachmentId: att.id })
-      const url = URL.createObjectURL(blob)
       if (att.category === 'CONVERSATION_RECORDING') {
-        setAudioUrl(url)
+        setAudioUrl(URL.createObjectURL(blob))
       } else {
-        window.open(url, '_blank', 'noopener')
-        window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+        setTranscript(await blob.text())
       }
     } catch (err) {
       toastApiError(err, 'Could not open the file')
     }
+  }
+
+  const openInNewTab = () => {
+    if (transcript === null) return
+    const url = URL.createObjectURL(new Blob([transcript], { type: 'text/plain;charset=utf-8' }))
+    window.open(url, '_blank', 'noopener')
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 
   if (audioUrl) {
@@ -104,15 +124,50 @@ function ConversationFile({ serviceUserId, att }: { serviceUserId: string; att: 
     )
   }
   return (
-    <button
-      type="button"
-      className="inline-flex items-center gap-1 text-xs text-teal-700 hover:underline disabled:opacity-60 dark:text-teal-400"
-      disabled={file.isPending}
-      onClick={() => void open()}
-    >
-      {file.isPending ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : att.category === 'CONVERSATION_RECORDING' ? <Play className="h-3 w-3" aria-hidden /> : null}
-      {att.category === 'CONVERSATION_RECORDING' ? 'Play recording' : 'Open transcript'}
-    </button>
+    <>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 text-xs text-teal-700 hover:underline disabled:opacity-60 dark:text-teal-400"
+        disabled={file.isPending}
+        onClick={() => void open()}
+      >
+        {file.isPending ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : att.category === 'CONVERSATION_RECORDING' ? <Play className="h-3 w-3" aria-hidden /> : null}
+        {att.category === 'CONVERSATION_RECORDING' ? 'Play recording' : 'Open transcript'}
+      </button>
+      <Dialog open={transcript !== null} onOpenChange={(next) => !next && setTranscript(null)}>
+        <DialogContent size="xl" data-testid="ia-saved-transcript-dialog">
+          <DialogHeader>
+            <DialogTitle>{att.label || 'Transcript'}</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="flex flex-col gap-3">
+            {transcript?.trim() ? (
+              <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-md border border-input bg-muted/30 px-3 py-2 font-sans text-sm leading-relaxed">
+                {transcript}
+              </pre>
+            ) : (
+              <p className="text-sm text-muted-foreground">This transcript is empty.</p>
+            )}
+            {fillTarget && transcript?.trim() ? (
+              <InitialAssessmentAiFillReview
+                serviceUserId={serviceUserId}
+                submissionId={att.submissionId}
+                transcript={transcript}
+                target={fillTarget}
+              />
+            ) : null}
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={openInNewTab}>
+              <ExternalLink className="mr-1 h-4 w-4" />
+              Open in new tab
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setTranscript(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -131,6 +186,7 @@ export function InitialAssessmentAttachmentsPanel({
   activeSection,
   canUpdate,
   editable,
+  fillTarget,
 }: Props) {
   const fileRef = React.useRef<HTMLInputElement>(null)
   // Closed by default; open to see the files.
@@ -273,7 +329,7 @@ export function InitialAssessmentAttachmentsPanel({
                         {new Date(att.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                       </td>
                       <td className="px-3 py-2">
-                        {isConversation ? <ConversationFile serviceUserId={serviceUserId} att={att} /> : null}
+                        {isConversation ? <ConversationFile serviceUserId={serviceUserId} att={att} fillTarget={fillTarget} /> : null}
                         {href ? (
                           <a
                             href={href}

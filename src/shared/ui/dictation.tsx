@@ -105,12 +105,28 @@ function toastRecognitionError(error: string) {
     toastError('No microphone found', 'Connect a microphone and try again.')
   } else if (error === 'network') {
     toastError('Dictation unavailable', 'The speech service could not be reached. Check your connection.')
+  } else if (error === 'language-not-supported') {
+    toastError('Dictation unavailable', 'This browser cannot recognise English (UK) speech.')
   }
 }
+
+/** Errors after which listening again would only fail again. */
+const FATAL_RECOGNITION_ERRORS = new Set([
+  'not-allowed',
+  'service-not-allowed',
+  'audio-capture',
+  'network',
+  'language-not-supported',
+])
 
 export interface DictationButtonProps {
   /** Called once per finished phrase. */
   onText: (text: string) => void
+  /**
+   * Words heard so far in the phrase still being spoken (not final yet), so they can be shown
+   * while the user talks; '' once the phrase is finished or dictation stops.
+   */
+  onInterim?: (text: string) => void
   /** Called just before recording starts (e.g. to focus the field). */
   onStart?: () => void
   disabled?: boolean
@@ -120,14 +136,20 @@ export interface DictationButtonProps {
 }
 
 /** Toggles browser speech-to-text (en-GB). Renders nothing where the Web Speech API is missing. */
-export function DictationButton({ onText, onStart, disabled, withText, className }: DictationButtonProps) {
+export function DictationButton({ onText, onInterim, onStart, disabled, withText, className }: DictationButtonProps) {
   const [recording, setRecording] = React.useState(false)
   const recognitionRef = React.useRef<SpeechRecognitionLike | null>(null)
   const onTextRef = React.useRef(onText)
   onTextRef.current = onText
+  const onInterimRef = React.useRef(onInterim)
+  onInterimRef.current = onInterim
 
   const stop = React.useCallback(() => {
-    recognitionRef.current?.stop()
+    // Cleared first, so onend knows the user stopped it and does not listen again.
+    const rec = recognitionRef.current
+    recognitionRef.current = null
+    rec?.stop()
+    onInterimRef.current?.('')
     setRecording(false)
   }, [])
 
@@ -148,20 +170,44 @@ export function DictationButton({ onText, onStart, disabled, withText, className
   if (!Ctor) return null
 
   const start = () => {
-    activeRecognition?.stop()
+    // Another field's mic stops; clearing activeRecognition first stops it from listening again.
+    const previous = activeRecognition
+    activeRecognition = null
+    previous?.stop()
     const rec = new Ctor()
     rec.lang = 'en-GB'
     rec.continuous = true
-    rec.interimResults = false
+    // Partial words arrive while the user speaks; only finished phrases go into the field.
+    rec.interimResults = true
+    let fatal = false
     rec.onresult = (event) => {
+      let interim = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i]
         const transcript = result?.[0]?.transcript ?? ''
-        if (result?.isFinal && transcript.trim()) onTextRef.current(transcript)
+        if (result?.isFinal) {
+          if (transcript.trim()) onTextRef.current(transcript)
+        } else {
+          interim += transcript
+        }
       }
+      onInterimRef.current?.(interim.trim())
     }
-    rec.onerror = (event) => toastRecognitionError(event.error)
+    rec.onerror = (event) => {
+      if (FATAL_RECOGNITION_ERRORS.has(event.error)) fatal = true
+      toastRecognitionError(event.error)
+    }
     rec.onend = () => {
+      onInterimRef.current?.('')
+      // Browsers end recognition after a pause in speech; keep listening until the user presses Stop.
+      if (!fatal && recognitionRef.current === rec && activeRecognition === rec) {
+        try {
+          rec.start()
+          return
+        } catch {
+          /* could not listen again: treat as stopped */
+        }
+      }
       if (activeRecognition === rec) activeRecognition = null
       if (recognitionRef.current === rec) {
         recognitionRef.current = null

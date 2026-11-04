@@ -1,9 +1,9 @@
 import * as React from 'react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/form-field'
-import { DictationProvider, dictationChunk, splitLayoutClasses } from '@/shared/ui/dictation'
+import { DictationButton, DictationProvider, dictationChunk, splitLayoutClasses } from '@/shared/ui/dictation'
 
 class FakeRecognition {
   static last: FakeRecognition | null = null
@@ -14,11 +14,13 @@ class FakeRecognition {
   onerror: ((event: { error: string }) => void) | null = null
   onend: (() => void) | null = null
   started = false
+  starts = 0
   constructor() {
     FakeRecognition.last = this
   }
   start() {
     this.started = true
+    this.starts += 1
   }
   stop() {
     this.started = false
@@ -27,8 +29,8 @@ class FakeRecognition {
   abort() {
     this.stop()
   }
-  say(transcript: string) {
-    const result = Object.assign([{ transcript }], { isFinal: true })
+  say(transcript: string, isFinal = true) {
+    const result = Object.assign([{ transcript }], { isFinal })
     this.onresult?.({ resultIndex: 0, results: [result] })
   }
 }
@@ -114,5 +116,43 @@ describe('dictation mic', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
     act(() => FakeRecognition.last?.say('Lunch call.'))
     expect(textarea).toHaveValue('Morning call. Lunch call. Evening call.')
+  })
+
+  it('reports words as they are spoken and keeps listening after a pause until Stop', () => {
+    const onText = vi.fn()
+    const onInterim = vi.fn()
+    render(<DictationButton onText={onText} onInterim={onInterim} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    expect(rec.interimResults).toBe(true)
+
+    act(() => rec.say('needs help', false))
+    expect(onInterim).toHaveBeenLastCalledWith('needs help')
+    expect(onText).not.toHaveBeenCalled()
+    act(() => rec.say('needs help with meals'))
+    expect(onText).toHaveBeenCalledWith('needs help with meals')
+    expect(onInterim).toHaveBeenLastCalledWith('')
+
+    // The browser ends recognition after silence: it listens again, still recording.
+    act(() => rec.onend?.())
+    expect(rec.starts).toBe(2)
+    expect(screen.getByRole('button', { name: 'Stop dictation' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop dictation' }))
+    expect(rec.starts).toBe(2)
+    expect(rec.started).toBe(false)
+    expect(screen.getByRole('button', { name: 'Dictate (speech to text)' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('does not listen again after the microphone is blocked', () => {
+    render(<DictationButton onText={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    act(() => {
+      rec.onerror?.({ error: 'not-allowed' })
+      rec.onend?.()
+    })
+    expect(rec.starts).toBe(1)
+    expect(screen.getByRole('button', { name: 'Dictate (speech to text)' })).toHaveAttribute('aria-pressed', 'false')
   })
 })
