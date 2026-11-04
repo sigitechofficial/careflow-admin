@@ -18,6 +18,8 @@ type Options = {
   locationIds?: string[]
   /** Keep these employees visible even when outside the branch filter (e.g. current assignee). */
   includeEmployeeIds?: string[]
+  /** Pickers only: hide inactive carers (the API refuses them), except `includeEmployeeIds`. */
+  activeOnly?: boolean
 }
 
 function stableLocationIdsKey(locationIds: string[] | undefined): string {
@@ -51,10 +53,12 @@ export function useScheduleEmployeesCatalog(options: Options = {}) {
   })
 
   const allEmployees = query.data ?? []
+  const activeOnly = options.activeOnly ?? false
 
   const employees = React.useMemo(() => {
-    const scoped = filterEmployeesByBranchLocations(allEmployees, locationIds)
-    if (!includeEmployeeIds.length || !locationIds.length) return scoped
+    const pool = activeOnly ? allEmployees.filter((employee) => employee.isActive) : allEmployees
+    const scoped = filterEmployeesByBranchLocations(pool, locationIds)
+    if (!includeEmployeeIds.length || (!locationIds.length && !activeOnly)) return scoped
     const byId = new Map(scoped.map((row) => [row.id, row]))
     for (const id of includeEmployeeIds) {
       if (byId.has(id)) continue
@@ -62,7 +66,7 @@ export function useScheduleEmployeesCatalog(options: Options = {}) {
       if (row) byId.set(id, row)
     }
     return [...byId.values()]
-  }, [allEmployees, locationIds, includeEmployeeIds])
+  }, [allEmployees, activeOnly, locationIds, includeEmployeeIds])
 
   const catalogById = React.useMemo(() => {
     const map = new Map<string, EmployeeListRow>()

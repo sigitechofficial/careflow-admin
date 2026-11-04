@@ -18,6 +18,8 @@ import { fetchServiceUserBodyMap } from '@/features/service-users/body-map/api'
 import { type ServiceUserDetail, type ServiceUserListRow } from '@/features/service-users/types'
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
+import { useDebouncedValue } from '@/features/policies/hooks/useDebouncedValue'
+import { Combobox } from '@/shared/ui/combobox'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useServiceUserDomCare, useServiceUserAllergies } from '@/features/service-users/hooks/useServiceUserTabs'
@@ -31,14 +33,8 @@ import {
   plainTextFromHtml,
   readInitialAssessmentTextareaValue,
 } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/ui/select'
 import { Button } from '@/shared/ui/button'
+import { DictationProvider } from '@/shared/ui/dictation'
 import { Badge } from '@/shared/ui/badge'
 import { cn } from '@/shared/lib/utils'
 import { InitialAssessmentSection12Content } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection12Content'
@@ -60,6 +56,9 @@ import { InitialAssessmentRiskRecordsPanel } from '@/features/service-users/init
 import { InitialAssessmentActionsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentActionsPanel'
 import { InitialAssessmentCarePlanRecommendationsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCarePlanRecommendationsPanel'
 import { InitialAssessmentAttachmentsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentAttachmentsPanel'
+import { InitialAssessmentTranscriptionPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTranscriptionPanel'
+import type { AiFillTarget } from '@/features/service-users/initial-assessment/components/InitialAssessmentAiFillReview'
+import { InitialAssessmentRequiredAssessmentsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentRequiredAssessmentsPanel'
 import { InitialAssessmentSchedulePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSchedulePanel'
 import { InitialAssessmentSectionComment } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionComment'
 import { InitialAssessmentBlockingBanner } from '@/features/service-users/initial-assessment/components/InitialAssessmentBlockingBanner'
@@ -217,6 +216,10 @@ import { InitialAssessmentCareActivationPanel } from '@/features/service-users/i
 import { InitialAssessmentQuestionField } from '@/features/service-users/initial-assessment/components/InitialAssessmentQuestionField'
 import { sectionProgress, overallAssessmentProgress, formatSectionNavMeta, type SectionProgressContext } from '@/features/service-users/initial-assessment/utils/section-progress'
 import {
+  nextImportantSection,
+  type NextImportantSection,
+} from '@/features/service-users/initial-assessment/utils/next-important-section'
+import {
   applyPrefillToDraftAnswers,
   buildPrefillMap,
   hasAssessmentAnswer,
@@ -305,6 +308,7 @@ import {
 } from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
 import type {
   InitialAssessmentAnswerInput,
+  InitialAssessmentFlaggedItem,
   InitialAssessmentQuestion,
   InitialAssessmentSection,
   VisitPlanDraftOutcome,
@@ -440,7 +444,16 @@ function notifyReviewOutcome(visitPlanDraft: VisitPlanDraftOutcome | null | unde
   )
 }
 
+/** Text fields on this page get a speech-to-text mic. */
 export default function ServiceUserInitialAssessmentEnterprisePage() {
+  return (
+    <DictationProvider>
+      <InitialAssessmentEnterprisePageContent />
+    </DictationProvider>
+  )
+}
+
+function InitialAssessmentEnterprisePageContent() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const urlSearch = useRouterState({
@@ -484,17 +497,22 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const hasApi = !!getApiBaseUrl()
   const { locationId: globalLocationId } = useGlobalLocationScope()
 
+  const [serviceUserSearch, setServiceUserSearch] = React.useState('')
+  const debouncedServiceUserSearch = useDebouncedValue(serviceUserSearch.trim(), 300)
   const listParams = React.useMemo(
     () => ({
       limit: 100,
       sortBy: 'lastName' as const,
       sortOrder: 'asc' as const,
       locationId: globalLocationId ?? undefined,
+      // The API matches each field separately, so "John Smith" would match nothing: send the first
+      // word and let the picker narrow the rest against the full label.
+      search: debouncedServiceUserSearch.split(/\s+/)[0] || undefined,
     }),
-    [globalLocationId],
+    [globalLocationId, debouncedServiceUserSearch],
   )
 
-  const { data: listData, isLoading: listLoading } = useServiceUsers(
+  const { data: listData, isLoading: listLoading, isFetching: listFetching } = useServiceUsers(
     listParams,
     hasApi && canRead,
   )
@@ -623,6 +641,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const sectionCommentsLocalEditRef = React.useRef(false)
   const sectionCommentDraftRef = React.useRef<Record<string, string>>({})
   const saveSectionInProgressRef = React.useRef(false)
+  /** Shown under the form after "Save section"; `next: null` means nothing important is left. */
+  const [nextSectionSuggestion, setNextSectionSuggestion] = React.useState<{
+    fromTabId: number
+    next: NextImportantSection | null
+  } | null>(null)
   const submissionMetadataRef = React.useRef<Record<string, unknown>>({})
   const skinIntegrityLocalEditRef = React.useRef(false)
   const skinIntegrityPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1340,6 +1363,20 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [sections, visibleQuestionsBySection],
   )
 
+  /** The tab a care plan trigger's question is on, else its section's tab. */
+  const triggerTabId = React.useCallback(
+    (trigger: InitialAssessmentFlaggedItem) =>
+      HOLISTIC_ASSESSMENT_TABS.find((t) =>
+        questionsForDocumentTab(t, sections, visibleQuestionsBySection).some((q) => q.id === trigger.questionId),
+      )?.id ??
+      holisticTabForValidationIssue(
+        { sectionNumber: trigger.section?.sectionNumber ?? 1, message: '' },
+        sections,
+        visibleQuestionsBySection,
+      ),
+    [sections, visibleQuestionsBySection],
+  )
+
   React.useEffect(() => {
     if (sections.length === 0) return
     if (!holisticTabById(activeHolisticTab)) {
@@ -1442,6 +1479,14 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [currentHolisticTab, sections],
   )
 
+  // Fill-from-transcript scope: every question on the open tab, including follow-ups that only
+  // show once their gate is answered (the transcript may answer both at once).
+  const transcriptFillQuestions = React.useMemo(() => {
+    const allBySection = new Map(sections.map((s) => [s.sectionNumber, s.questions] as const))
+    const tabQuestions = questionsForDocumentTab(currentHolisticTab, sections, allBySection)
+    return excludeQuestionIds.size ? tabQuestions.filter((q) => !excludeQuestionIds.has(q.id)) : tabQuestions
+  }, [currentHolisticTab, sections, excludeQuestionIds])
+
   // QA Demo Data: does the ACTIVE tab already hold answers or worksheet data?
   // Drives the overwrite confirm; only ever inspects the current tab, never other sections.
   const currentTabHasDemoData = React.useMemo(() => {
@@ -1536,6 +1581,17 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     },
     [sections],
   )
+
+  /** The open form tab, so a transcript (new or saved in attachments) can fill its fields. */
+  const transcriptFillTarget: AiFillTarget = {
+    tabTitle: currentHolisticTab.title,
+    questions: transcriptFillQuestions,
+    answers: draftAnswers,
+    editable,
+    onApply: (answers) => {
+      for (const a of answers) onAnswerChange(a.questionId, a)
+    },
+  }
 
   // QA Demo Data (dev/QA only): merge GENERATED section values into the editable form IN MEMORY.
   // No persistence — nothing is saved, no submission is created, nothing is submitted. The user
@@ -2523,8 +2579,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     gaveUp: boolean
   }>({ attempt: 0, timer: null, failing: false, gaveUp: false })
   const persistTabAnswersRef = React.useRef<
-    (questions: InitialAssessmentQuestion[], silent?: boolean) => Promise<void>
-  >(async () => undefined)
+    (questions: InitialAssessmentQuestion[], silent?: boolean) => Promise<boolean>
+  >(async () => false)
   const currentTabQuestionsRef = React.useRef(currentTabQuestions)
   currentTabQuestionsRef.current = currentTabQuestions
 
@@ -2615,8 +2671,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   }, [retryAutosaveNow])
 
   const persistTabAnswers = React.useCallback(
-    async (questions: InitialAssessmentQuestion[], silent = false) => {
-      if (!submissionId || !editable || !canUpdate) return
+    async (questions: InitialAssessmentQuestion[], silent = false): Promise<boolean> => {
+      if (!submissionId || !editable || !canUpdate) return false
       const extraIds = [...syncSaveQuestionIdsRef.current]
       const syncedQuestions = sections
         .flatMap((s) => s.questions)
@@ -2643,7 +2699,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           setSaveIndicator('saved')
           toastSuccess('Saved', `${tabLabel} saved.`)
         }
-        return
+        return true
       }
       setSaveIndicator('saving')
       const savedQuestionIds = answers.map((a) => a.questionId)
@@ -2660,6 +2716,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         setSaveIndicator('saved')
         markAutosaveRecovered()
         if (!silent) toastSuccess('Saved', `${tabLabel} saved.`)
+        return true
       } catch (e) {
         // Dirty ids are still set; keep the synced extras too so the retry saves the same answers.
         for (const id of pendingSyncIds) syncSaveQuestionIdsRef.current.add(id)
@@ -2669,6 +2726,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           setSaveIndicator('error')
           toastApiError(e, 'Save failed')
         }
+        return false
       }
     },
     [
@@ -2711,6 +2769,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const saveSection = async () => {
     if (!currentSection) return
     saveSectionInProgressRef.current = true
+    let saved = false
     sectionCommentsLocalEditRef.current = true
     try {
       if (document.activeElement instanceof HTMLElement) {
@@ -2720,7 +2779,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       const commentText = resolveSectionCommentText(activeHolisticTab)
       await flushHolisticTabMetadata()
       await persistSectionComment(activeHolisticTab, commentText)
-      await persistTabAnswers(
+      saved = await persistTabAnswers(
         [
           ...currentTabQuestions,
           ...demoFillQuestions.filter((q) => demoFilledQuestionIdsRef.current.has(q.id)),
@@ -2730,6 +2789,31 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     } finally {
       saveSectionInProgressRef.current = false
       sectionCommentsLocalEditRef.current = false
+    }
+    if (saved) {
+      // Point the assessor at the section that matters most next (from the live tab statuses).
+      // Same per-tab required counts as the side nav ("N required").
+      const requiredMissing = new Map<number, number>()
+      for (const tab of HOLISTIC_ASSESSMENT_TABS) {
+        const enterprise = sections.find((sec) => sec.sectionNumber === tab.enterpriseSection)
+        if (!enterprise) continue
+        const prog = sectionProgress(
+          { ...enterprise, questions: questionsForDocumentTab(tab, sections, visibleQuestionsBySection) },
+          draftAnswers,
+          sections,
+          progressContext,
+        )
+        requiredMissing.set(tab.id, Math.max(0, prog.requiredTotal - prog.requiredAnswered))
+      }
+      const next = nextImportantSection({
+        tabs: HOLISTIC_ASSESSMENT_TABS,
+        currentTabId: activeHolisticTab,
+        navStatus: rawHolisticTabNavStatus,
+        requiredMissing,
+        specialistRelevance: specialistRelevanceByTab,
+      })
+      setNextSectionSuggestion({ fromTabId: activeHolisticTab, next })
+      if (next) toastInfo('Next important section', `Tab ${next.displayNumber} — ${next.title}`)
     }
   }
 
@@ -3089,22 +3173,26 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           Service user <span className="text-destructive">*</span>
         </Label>
         {showServiceUserPicker ? (
-          <Select value={selectedId || '_none'} onValueChange={(v) => onCustomerChange(v === '_none' ? '' : v)}>
-            <SelectTrigger id="ia-enterprise-su">
-              <SelectValue placeholder="Select a service user…" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_none">Select a service user…</SelectItem>
-              {selectedId && !selectedInList && detailQuery.data ? (
-                <SelectItem value={selectedId}>{serviceUserDetailLabel(detailQuery.data)}</SelectItem>
-              ) : null}
-              {serviceUsers.map((su) => (
-                <SelectItem key={su.id} value={su.id}>
-                  {customerLabel(su)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            id="ia-enterprise-su"
+            data-testid="ia-enterprise-su-picker"
+            value={selectedId}
+            onChange={(id) => {
+              if (id) onCustomerChange(id)
+            }}
+            allowDeselect={false}
+            options={[
+              ...(selectedId && !selectedInList && detailQuery.data
+                ? [{ value: selectedId, label: serviceUserDetailLabel(detailQuery.data) }]
+                : []),
+              ...serviceUsers.map((su) => ({ value: su.id, label: customerLabel(su) })),
+            ]}
+            onSearchChange={setServiceUserSearch}
+            loading={listFetching}
+            placeholder="Select a service user…"
+            searchPlaceholder="Search by name or service user number…"
+            emptyText={listFetching ? 'Searching…' : 'No service users match.'}
+          />
         ) : (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -3271,6 +3359,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 canCreate={canUpdate}
                 onGoToSection={(n) => goToSection(n)}
               />
+              <InitialAssessmentRequiredAssessmentsPanel
+                serviceUserId={selectedId}
+                items={summaryQuery.data?.requiredAssessments ?? []}
+              />
               <InitialAssessmentActionsPanel
                 serviceUserId={selectedId}
                 submissionId={submissionId}
@@ -3363,6 +3455,15 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 activeSection={currentHolisticTab.enterpriseSection}
                 canUpdate={canUpdate}
                 editable={editable}
+                fillTarget={canUpdate ? transcriptFillTarget : undefined}
+              />
+
+              <InitialAssessmentTranscriptionPanel
+                serviceUserId={selectedId}
+                submissionId={submissionId}
+                // A recording is saved to the assessment, so only while it can still be changed.
+                canUpdate={canUpdate && editable}
+                fillTarget={transcriptFillTarget}
               />
 
               <div
@@ -3798,6 +3899,42 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         }}
                         onBlur={(tabId, text) => void persistSectionComment(tabId, text)}
                       />
+                      {editable && canUpdate && nextSectionSuggestion?.fromTabId === activeHolisticTab ? (
+                        <div
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-950 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100"
+                          role="status"
+                          data-testid="ia-next-important-section"
+                        >
+                          {nextSectionSuggestion.next ? (
+                            <>
+                              <div className="min-w-0">
+                                <p className="font-medium">
+                                  Next important section: Tab {nextSectionSuggestion.next.displayNumber} —{' '}
+                                  {nextSectionSuggestion.next.title}
+                                </p>
+                                <p className="text-xs text-sky-900/80 dark:text-sky-200/80">{nextSectionSuggestion.next.reason}</p>
+                              </div>
+                              <div className="flex shrink-0 gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => goToHolisticTab(nextSectionSuggestion.next!.tabId)}
+                                  data-testid="ia-next-important-section-go"
+                                >
+                                  Go to Tab {nextSectionSuggestion.next.displayNumber}
+                                </Button>
+                                <Button type="button" size="sm" variant="ghost" onClick={() => setNextSectionSuggestion(null)}>
+                                  Dismiss
+                                </Button>
+                              </div>
+                            </>
+                          ) : (
+                            <p className="font-medium">
+                              No important sections are left to complete — review the assessment and submit it.
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
                       {editable && canUpdate ? (
                         <div className="flex flex-wrap gap-2 border-t border-border pt-4">
                           <Button type="button" onClick={() => void saveSection()} disabled={saveMutation.isPending}>
@@ -3866,6 +4003,12 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         validating={validateQuery.isLoading}
         flaggedRiskCount={riskQuery.data?.count}
         carePlanTriggerCount={triggersQuery.data?.count}
+        carePlanTriggers={triggersQuery.data?.items}
+        triggerTabLabel={(t) => holisticTabRef(triggerTabId(t))}
+        onGoToTrigger={(t) => {
+          setSubmitModalOpen(false)
+          goToHolisticTab(triggerTabId(t))
+        }}
         openActionsCount={openActionsCount}
         onGoToSection={(n, message) => {
           setSubmitModalOpen(false)

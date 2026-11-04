@@ -299,7 +299,7 @@ export default function IncidentsListPage() {
         }
       />
 
-      <PolicyContextPanel moduleType="INCIDENT" collapsible />
+      <PolicyContextPanel moduleType="INCIDENT" />
 
       <div className="flex flex-wrap gap-2" aria-label="Incident summary">
         {summaryChips.map((chip) => (

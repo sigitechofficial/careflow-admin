@@ -44,15 +44,15 @@ type Props = {
 }
 
 const OUTCOME_LABEL = {
-  has_capacity: 'Has capacity to make this decision',
-  lacks_capacity: 'Lacks capacity to make this decision (at this time)',
+  has_capacity: 'I have capacity to make this decision',
+  lacks_capacity: 'I lack capacity to make this decision (at this time)',
 } as const
 
 const FUNCTIONAL: Array<{ key: 'understand' | 'retain' | 'weigh' | 'communicate'; label: string }> = [
-  { key: 'understand', label: 'Can the person understand the information relevant to the decision?' },
-  { key: 'retain', label: 'Can they retain it long enough to make the decision?' },
-  { key: 'weigh', label: 'Can they use or weigh it as part of deciding?' },
-  { key: 'communicate', label: 'Can they communicate their decision (by any means)?' },
+  { key: 'understand', label: 'Can I understand the information relevant to the decision?' },
+  { key: 'retain', label: 'Can I retain that information long enough to make the decision?' },
+  { key: 'weigh', label: 'Can I use or weigh that information as part of making the decision?' },
+  { key: 'communicate', label: 'Can I communicate my decision (by talking or any other means)?' },
 ]
 
 const toBool = (v?: YesNo) => (v === 'yes' ? true : v === 'no' ? false : null)
@@ -212,17 +212,17 @@ function DecisionCard({
 
         {text(
           'relevantInformation',
-          'Information given',
-          'The options, and what could happen if they decide one way, the other, or not at all.',
+          'The information I was given',
+          'The options, and what could happen if I decide one way, the other, or not at all.',
         )}
         {text(
           'practicableSteps',
-          'Steps taken to help them decide',
-          'e.g. best time of day, hearing aids / glasses, simple words or pictures, someone they trust present.',
+          'Steps taken to help me decide',
+          'e.g. the best time of day for me, my hearing aids / glasses, simple words or pictures, someone I trust present.',
         )}
 
         <div className="space-y-3">
-          <p className="text-sm font-semibold">Can they make this decision?</p>
+          <p className="text-sm font-semibold">Can I make this decision?</p>
           {FUNCTIONAL.map((f) => (
             <div key={f.key} className="space-y-1">
               {yesNo(f.key, f.label)}
@@ -233,17 +233,17 @@ function DecisionCard({
 
         {anyUnable ? (
           <div className="space-y-3">
-            {yesNo('impairment', 'Is there an impairment of, or disturbance in, the functioning of the mind or brain?')}
-            {r.impairment === 'yes' ? text('impairmentDetails', 'Impairment (e.g. diagnosis, delirium, intoxication)') : null}
+            {yesNo('impairment', 'Is there an impairment of, or disturbance in, the functioning of my mind or brain?')}
+            {r.impairment === 'yes' ? text('impairmentDetails', 'My impairment (e.g. diagnosis, delirium, intoxication)') : null}
             {r.impairment === 'yes'
-              ? yesNo('causativeNexus', 'Is the inability to decide because of that impairment?')
+              ? yesNo('causativeNexus', 'Am I unable to decide because of that impairment?')
               : null}
           </div>
         ) : null}
 
         <div className="space-y-1">
           <Label className={IA_QUESTION_LABEL_CLASS}>Outcome for this decision</Label>
-          {indicated ? <p className={IA_HINT_CLASS}>The answers indicate: {OUTCOME_LABEL[indicated].toLowerCase()}.</p> : null}
+          {indicated ? <p className={IA_HINT_CLASS}>The answers indicate: {OUTCOME_LABEL[indicated]}.</p> : null}
           <Select
             value={r.outcome ?? ''}
             disabled={disabled}
@@ -263,13 +263,13 @@ function DecisionCard({
         </div>
 
         <div className="space-y-3">
-          <p className="text-sm font-semibold">The person&apos;s views (always recorded)</p>
-          {text('wishes', 'Their wishes about this decision')}
-          {text('feelings', 'Feelings')}
-          {text('beliefsValues', 'Beliefs and values')}
-          {text('previousWishes', 'Past wishes (e.g. said before, written down, advance decision)')}
-          {yesNo('objection', 'Do they object (in words or behaviour)?')}
-          {r.objection === 'yes' ? text('objectionDetails', 'How do they object?') : null}
+          <p className="text-sm font-semibold">My views (always recorded)</p>
+          {text('wishes', 'My wishes about this decision')}
+          {text('feelings', 'My feelings')}
+          {text('beliefsValues', 'My beliefs and values')}
+          {text('previousWishes', 'My past wishes (e.g. said before, written down, advance decision)')}
+          {yesNo('objection', 'Do I object (in words or behaviour)?')}
+          {r.objection === 'yes' ? text('objectionDetails', 'How do I object?') : null}
         </div>
 
         {lacks ? (

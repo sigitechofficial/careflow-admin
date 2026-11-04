@@ -26,7 +26,9 @@ import { usePayrollOverview } from '@/features/payroll/hooks/usePayroll'
 import { useRecruitmentSummary } from '@/features/hr/recruitment/hooks/useRecruitment'
 import { useSetupChecklist } from '@/features/setup-checklist/hooks'
 import { useMedicationOverview } from '@/features/emar/hooks/useEmar'
-import { usePolicyAcknowledgementSummary } from '@/features/policies/hooks/usePolicies'
+import { usePathwaySummary } from '@/features/specialist-pathways/hooks/useSpecialistPathways'
+import { PATHWAY_META } from '@/features/specialist-pathways/pathway-specs'
+import { useSafeguardingSummary } from '@/features/safeguarding/hooks/useSafeguarding'
 import {
   useAdminOverview,
   useAssessmentReviewQueue,
@@ -688,9 +690,9 @@ function QualityInsights() {
   const inc = useIncidentStats(locationId ?? undefined, canInc)
   const fb = useFeedbackSummary()
   const policies = usePolicyReviews(30, can('policies.read'))
-  const signed = usePolicyAcknowledgementSummary(can('policies.read'))
-  const sd = signed.data
   const bodyMapAlerts = useBodyMapGovernanceAlerts(can('service_users.read'))
+  const canSg = can('safeguarding.read', 'safeguarding.manage')
+  const sg = useSafeguardingSummary(locationId ?? undefined, canSg)
   const d = inc.data
   const f = canFeedback ? fb.data : undefined
   return (
@@ -723,8 +725,6 @@ function QualityInsights() {
             <Kpi label="Published policies" value={policies.data ? n0(policies.data.byStatus?.PUBLISHED) : undefined} art="ledger" loading={policies.isLoading} to="/policies" hint={`${n0(policies.data?.byStatus?.DRAFT)} in draft`} />
             <Kpi label="Policies awaiting approval" value={n0(policies.data?.byStatus?.IN_REVIEW) + n0(policies.data?.byStatus?.APPROVED)} art="fountain-pen" tone={attn(n0(policies.data?.byStatus?.IN_REVIEW) + n0(policies.data?.byStatus?.APPROVED), 'warn')} loading={policies.isLoading} to="/policies" hint={`${n0(policies.data?.byStatus?.IN_REVIEW)} in review · ${n0(policies.data?.byStatus?.APPROVED)} approved, not published`} />
             <Kpi label="Policies due for review (30 days)" value={policies.data?.count} art="calendar" tone={attn(policies.data?.overdue, 'bad')} loading={policies.isLoading} to="/policies" hint={`${n0(policies.data?.overdue)} overdue`} />
-            <Kpi label="Policies read and signed" value={sd?.pct === null || sd?.pct === undefined ? (sd ? null : undefined) : `${sd.pct}%`} progress={sd?.pct} art="fountain-pen" tone={sd?.pct === null || sd?.pct === undefined ? 'neutral' : sd.pct >= 95 ? 'good' : sd.pct >= 80 ? 'warn' : 'bad'} loading={signed.isLoading} to="/policies/acknowledgements" hint={sd ? `${sd.acknowledged} of ${sd.required} signatures across ${sd.policiesRequiringAcknowledgement} policies` : undefined} />
-            <Kpi label="Staff with policies to sign" value={sd?.staffWithOutstanding} art="busts-in-silhouette" tone={attn(sd?.staffWithOutstanding, 'warn')} loading={signed.isLoading} to="/policies/acknowledgements" hint={sd ? `Of ${sd.staffInScope} staff with a sign-in` : undefined} />
             <Kpi label="Published without a review date" value={policies.data?.publishedNoReviewDate} art="warning" tone={attn(policies.data?.publishedNoReviewDate, 'warn')} loading={policies.isLoading} to="/policies" hint="Will never come up for review" />
           </>
         ) : null}
@@ -733,7 +733,9 @@ function QualityInsights() {
         ) : null}
         <Planned label="Audits due" art="magnifying-glass-tilted-right" needs="An audit schedule per location with due dates." />
         <Planned label="Mock CQC rating" art="glowing-star" needs="Mock inspections scored against the five key questions." />
-        <Planned label="Open safeguarding cases" art="heart-hands" needs="A dedicated safeguarding case record." />
+        {canSg ? (
+          <Kpi label="Open safeguarding cases" value={sg.data?.open} art="heart-hands" tone={attn(sg.data?.laPending, 'bad')} loading={sg.isLoading} to="/safeguarding" hint={sg.data ? `${sg.data.laPending} LA referral and ${sg.data.cqcPending} CQC decisions pending` : undefined} />
+        ) : null}
         <Planned label="High risks on the register" art="stop-sign" needs="An organisational risk register with scores." />
         <Planned label="CQC notifications pending" art="outbox-tray" needs="Statutory notifications tracked from incidents to submission." />
       </Group>
@@ -953,6 +955,70 @@ function ReportsInsights() {
   )
 }
 
+/* ─── Safeguarding ───────────────────────────────────────────────────────── */
+
+function SafeguardingInsights() {
+  const can = useCan()
+  const { locationId } = useGlobalLocationScope()
+  const ok = can('safeguarding.read', 'safeguarding.manage')
+  const q = useSafeguardingSummary(locationId ?? undefined, ok)
+  const d = ok ? q.data : undefined
+  const L = q.isLoading
+  if (!ok) return null
+  const pctTone: Tone = d?.auditPct == null ? 'neutral' : d.auditPct >= 90 ? 'good' : d.auditPct >= 70 ? 'warn' : 'bad'
+  return (
+    <>
+      <Group title="Open concerns" description="Safeguarding cases still being managed">
+        <Kpi label="Open cases" value={d?.open} art="heart-hands" loading={L} to="/safeguarding" hint={`${n0(d?.total)} recorded in total`} />
+        <Kpi label="High risk" value={d?.highRisk} art="red-exclamation-mark" tone={attn(d?.highRisk, 'bad')} loading={L} to="/safeguarding" />
+        <Kpi label="New this month" value={d?.newThisMonth} art="spiral-calendar" loading={L} to="/safeguarding" />
+      </Group>
+      <Group title="Reporting & follow-up" description="What CQC checks first: prompt referral decisions and active case management">
+        <Kpi label="LA referral pending" value={d?.laPending} art="outbox-tray" tone={attn(d?.laPending, 'bad')} loading={L} to="/safeguarding" />
+        <Kpi label="CQC decision pending" value={d?.cqcPending} art="classical-building" tone={attn(d?.cqcPending, 'bad')} loading={L} to="/safeguarding" />
+        <Kpi label="Reviews overdue" value={d?.reviewsOverdue} art="alarm-clock" tone={attn(d?.reviewsOverdue, 'warn')} loading={L} to="/safeguarding" />
+        <Kpi label="No case lead" value={d?.noLead} art="busts-in-silhouette" tone={attn(d?.noLead, 'warn')} loading={L} to="/safeguarding" />
+        <Kpi label="Records audit" value={d?.auditPct == null ? null : `${d.auditPct}%`} progress={d?.auditPct} art="clipboard" tone={pctTone} loading={L} to="/safeguarding" hint="CQC records checklist across all cases" />
+      </Group>
+    </>
+  )
+}
+
+/* ─── Specialist pathways ────────────────────────────────────────────────── */
+
+function SpecialistPathwaysInsights() {
+  const can = useCan()
+  const { locationId } = useGlobalLocationScope()
+  const ok = can('specialist_pathways.read')
+  const q = usePathwaySummary(locationId ?? undefined, ok)
+  const d = ok ? q.data : undefined
+  const L = q.isLoading
+  if (!ok) return null
+  const t = d?.totals
+  return (
+    <>
+      <Group title="All pathways" description="Open cases and what needs attention">
+        <Kpi label="Open cases" value={t?.open} art="heart-hands" loading={L} hint={`${n0(t?.closed)} closed`} />
+        <Kpi label="Reviews overdue" value={t?.reviewsOverdue} art="alarm-clock" tone={attn(t?.reviewsOverdue, 'bad')} loading={L} />
+        <Kpi label="Plans awaiting approval" value={t?.plansAwaitingApproval} art="writing-hand" tone={attn(t?.plansAwaitingApproval, 'warn')} loading={L} />
+        <Kpi label="Very high risks" value={t?.highRisks} art="red-exclamation-mark" tone={attn(t?.highRisks, 'bad')} loading={L} hint="Open risks scoring 15 or more" />
+      </Group>
+      {Object.values(PATHWAY_META).map(m => {
+        const p = d?.byPathway[m.type]
+        const to = `/specialist-pathways/${m.slug}`
+        return (
+          <Group key={m.type} title={m.label} description={`${n0(p?.open)} open · ${n0(p?.closed)} closed`}>
+            <Kpi label="Open cases" value={p?.open} art="clipboard" loading={L} to={to} />
+            <Kpi label="Reviews overdue" value={p?.reviewsOverdue} art="alarm-clock" tone={attn(p?.reviewsOverdue, 'bad')} loading={L} to={to} />
+            <Kpi label="Plans awaiting approval" value={p?.plansAwaitingApproval} art="writing-hand" tone={attn(p?.plansAwaitingApproval, 'warn')} loading={L} to={to} />
+            <Kpi label="Very high risks" value={p?.highRisks} art="red-exclamation-mark" tone={attn(p?.highRisks, 'bad')} loading={L} to={to} />
+          </Group>
+        )
+      })}
+    </>
+  )
+}
+
 /* ─── Registry ───────────────────────────────────────────────────────────── */
 
 const INSIGHTS: Record<string, () => React.ReactElement | null> = {
@@ -966,6 +1032,8 @@ const INSIGHTS: Record<string, () => React.ReactElement | null> = {
   administration: AdministrationInsights,
   messages: MessagesInsights,
   reports: ReportsInsights,
+  'specialist-pathways': SpecialistPathwaysInsights,
+  safeguarding: SafeguardingInsights,
 }
 
 export function hasModuleInsights(slug: string): boolean {

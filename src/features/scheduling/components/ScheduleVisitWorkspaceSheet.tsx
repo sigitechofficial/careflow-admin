@@ -18,10 +18,17 @@ import { schedulingKeys } from '@/features/scheduling/keys'
 import { serviceUserLabel, formatJobTimeRange } from '@/features/scheduling/utils/scheduling-format'
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { cn } from '@/shared/lib/utils'
 import {
   formatOrganisationIsoDate,
 } from '@/shared/lib/organisation-display-format.store'
 import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
+import { ScheduleJobStatusBadge } from '@/features/scheduling/components/schedule-filters/ScheduleJobStatusBadge'
+import { JobTimebankNote } from '@/features/timebank/components/TimebankNotes'
+
+/** Cancelled reads grey in lists; in the workspace header it must stand out (dark mode too). */
+const HEADER_CANCELLED_CLASS =
+  'border-red-300 bg-red-100 text-red-900 dark:border-red-500 dark:bg-red-900/70 dark:text-red-50'
 
 type Props = {
   open: boolean
@@ -82,6 +89,13 @@ export function ScheduleVisitWorkspaceSheet({
         <SheetHeader className="border-b border-border px-6 py-4 text-left">
           <SheetTitle className="flex flex-wrap items-center gap-2">
             Visit workspace
+            <ScheduleJobStatusBadge
+              status={liveJob.status}
+              className={cn(
+                'px-2.5 py-0.5 text-xs',
+                liveJob.status === 'CANCELLED' || liveJob.status === 'CALLED_OFF' ? HEADER_CANCELLED_CLASS : undefined,
+              )}
+            />
             <span
               className="inline-flex items-center rounded border border-dashed border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground"
               title="Visit times, clock in/out, and log timestamps use the organisation operational timezone"
@@ -102,6 +116,9 @@ export function ScheduleVisitWorkspaceSheet({
           </SheetDescription>
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4">
+          <div className="mb-3 empty:hidden">
+            <JobTimebankNote scheduledJobId={job.id} />
+          </div>
           <ScheduleVisitWorkspaceContent
             job={job}
             date={date}

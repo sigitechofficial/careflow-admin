@@ -90,7 +90,7 @@ export function InitialAssessmentTherapyAideMemoirePanel({ value, disabled, onCh
 
           <section className="space-y-4 rounded-sm border border-slate-300 p-4 dark:border-slate-600">
             <InitialAssessmentYesNoCardField
-              label="Is further referral required?"
+              label="Do I need a further referral?"
               name="therapy-further-referral"
               value={value.furtherReferralRequired ?? null}
               disabled={disabled}
@@ -103,7 +103,7 @@ export function InitialAssessmentTherapyAideMemoirePanel({ value, disabled, onCh
               }
             />
             <InitialAssessmentYesNoCardField
-              label="Referral completed?"
+              label="Has my referral been made?"
               name="therapy-referral-completed"
               value={value.referralCompleted ?? null}
               disabled={disabled || value.furtherReferralRequired !== true}
@@ -117,7 +117,7 @@ export function InitialAssessmentTherapyAideMemoirePanel({ value, disabled, onCh
             />
             <div>
               <Label htmlFor="therapy-referral-date" className={IA_QUESTION_LABEL_CLASS}>
-                Date
+                Date my referral was made
               </Label>
               <Input
                 id="therapy-referral-date"
@@ -134,7 +134,7 @@ export function InitialAssessmentTherapyAideMemoirePanel({ value, disabled, onCh
             </div>
             <div>
               <Label htmlFor="therapy-additional-comments" className={IA_QUESTION_LABEL_CLASS}>
-                Additional comments
+                Anything else about my therapy needs
               </Label>
               <Textarea
                 id="therapy-additional-comments"

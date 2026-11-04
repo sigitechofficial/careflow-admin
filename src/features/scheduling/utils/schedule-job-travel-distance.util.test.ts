@@ -10,8 +10,11 @@ import {
   haversineDistanceKm,
   hasTravelGapConflict,
   jobGeoCoordinates,
+  rowTravelPairs,
+  travelBetween,
   travelConflictFromPreviousJobIds,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
+import { drivingLegKey, useDrivingTravelStore } from '@/features/scheduling/utils/driving-travel.store'
 
 function job(
   id: string,
@@ -41,8 +44,11 @@ function job(
 }
 
 describe('schedule-job-travel-distance', () => {
-  it('formats sub-kilometre distances in metres', () => {
-    expect(formatTravelDistanceKm(0.042)).toBe('42 m')
+  it('formats distances in miles', () => {
+    expect(formatTravelDistanceKm(0.042)).toBe('< 0.1 mi')
+    expect(formatTravelDistanceKm(10)).toBe('6.2 mi')
+    expect(formatTravelDistanceKm(32)).toBe('19.9 mi')
+    expect(formatTravelDistanceKm(28.51)).toBe('17.7 mi')
   })
 
   it('computes London sample distance (~4.5 km)', () => {
@@ -52,6 +58,17 @@ describe('schedule-job-travel-distance', () => {
     )
     expect(km).toBeGreaterThan(4)
     expect(km).toBeLessThan(5.5)
+  })
+
+  it('estimates road miles and minutes like the API (careflow-api visit-travel-distance.util.spec)', () => {
+    // Keep in step with the API: 10 km straight line × 1.35 = 13.5 road km ≈ 8.4 mi, 29 min at 28 km/h.
+    useDrivingTravelStore.setState({ legs: {}, version: 0 })
+    const chingford = { lat: 51.632, lng: 0.001 }
+    const tenKmSouth = { lat: 51.5421, lng: 0.001 }
+    const leg = travelBetween(chingford, tenKmSouth)
+    expect(leg.travelSource).toBe('ESTIMATE')
+    expect(formatTravelDistanceKm(leg.distanceKm)).toBe('8.4 mi')
+    expect(leg.travelMinutes).toBe(29)
   })
 
   it('builds next-visit travel detail for the following job on the row', () => {
@@ -66,7 +83,7 @@ describe('schedule-job-travel-distance', () => {
     const detail = buildNextVisitTravelDetail(first, [first, second])
     expect(detail?.nextClientLabel).toBe('Margaret Hughes')
     expect(detail?.nextVisitTimeLabel).toBe('11:00')
-    expect(detail?.distanceLabel).toMatch(/km$/)
+    expect(detail?.distanceLabel).toMatch(/mi$/)
     expect(detail?.travelMinutes).toBeGreaterThan(0)
     expect(detail?.travelLabel).toMatch(/^~\d+ min$/)
   })
@@ -151,6 +168,26 @@ describe('schedule-job-travel-distance', () => {
     const legOne = buildNextVisitTravelDetail(first, [first, second, third])?.distanceKm ?? 0
     const legTwo = buildNextVisitTravelDetail(second, [first, second, third])?.distanceKm ?? 0
     expect(totalKm).toBeCloseTo(legOne + legTwo, 5)
-    expect(formatTravelDistanceKm(totalKm)).toMatch(/km$/)
+    expect(formatTravelDistanceKm(totalKm)).toMatch(/mi$/)
+  })
+
+  it('uses the Google driving route once it has arrived, the estimate until then', () => {
+    const first = job('su-1', '2026-06-15T09:00:00.000Z', 51.5074, -0.1278, { firstName: 'Enid', lastName: 'M' }, '2026-06-15T09:30:00.000Z')
+    const second = job('su-2', '2026-06-15T10:00:00.000Z', 51.52, -0.1, { firstName: 'Joan', lastName: 'W' })
+    const rowJobs = [first, second]
+    const from = jobGeoCoordinates(first)!
+    const to = jobGeoCoordinates(second)!
+
+    useDrivingTravelStore.setState({ legs: {}, version: 0 })
+    expect(buildNextVisitTravelDetail(first, rowJobs)?.travelSource).toBe('ESTIMATE')
+    expect(rowTravelPairs(rowJobs)).toEqual([{ from, to }])
+
+    useDrivingTravelStore.setState({
+      legs: { [drivingLegKey(from, to)]: { km: 4.2, minutes: 17, source: 'GOOGLE' } },
+      version: 1,
+    })
+    const detail = buildNextVisitTravelDetail(first, rowJobs)
+    expect(detail).toMatchObject({ distanceKm: 4.2, travelMinutes: 17, travelSource: 'GOOGLE' })
+    useDrivingTravelStore.setState({ legs: {}, version: 0 })
   })
 })

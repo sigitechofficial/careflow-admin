@@ -27,11 +27,11 @@ import { Input } from '@/shared/ui/input'
 import { cn, formatDate } from '@/shared/lib/utils'
 
 const GIVER_FIELD_LABELS: Record<Exclude<ConsentGiver, 'service_user'>, { name: string; relationship: string }> = {
-  lpa: { name: 'Attorney name', relationship: 'Relationship to the service user' },
-  deputy: { name: 'Deputy name', relationship: 'Relationship / role' },
-  court_order: { name: 'Authorised person', relationship: 'Relationship / role' },
+  lpa: { name: 'Attorney name', relationship: 'Their relationship to me' },
+  deputy: { name: 'Deputy name', relationship: 'Their relationship to me, or their role' },
+  court_order: { name: 'Authorised person', relationship: 'Their relationship to me, or their role' },
   best_interest: { name: 'Best interest decision made by', relationship: 'Role' },
-  capacity_to_be_assessed: { name: 'Consent given by', relationship: 'Relationship / role' },
+  capacity_to_be_assessed: { name: 'Consent given by', relationship: 'Their relationship to me, or their role' },
 }
 
 type Props = {
@@ -130,7 +130,7 @@ export function InitialAssessmentConsentPhotographyPanel({
     <>
       <InitialAssessmentSection12FieldRow>
         <fieldset className="space-y-2">
-          <legend className={IA_QUESTION_LABEL_CLASS}>Will clinical photographs be needed?</legend>
+          <legend className={IA_QUESTION_LABEL_CLASS}>Will photographs of my skin, wounds or pressure areas be needed?</legend>
           {bare ? <p className={IA_HINT_CLASS}>{PHOTOGRAPHY_HINT}</p> : null}
           <div className="flex flex-wrap items-center gap-5" role="radiogroup">
             {PHOTOGRAPHY_NEEDED_OPTIONS.map((opt) => (
@@ -236,7 +236,7 @@ export function InitialAssessmentConsentPhotographyPanel({
               onChange={(e) => setAgreed(e.target.checked)}
               data-testid="ia-photography-statements-agreed"
             />
-            The statements above were explained and consent to clinical photography was given.
+            The statements above were explained to me and consent to clinical photography was given.
           </label>
 
           <div className="grid gap-3 sm:grid-cols-[1fr_1fr_10rem]">

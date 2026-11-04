@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import {
+  History,
   Home,
   Users,
   Calendar,
@@ -21,6 +22,7 @@ import {
   ClipboardList,
   UserRoundPlus,
   LayoutGrid,
+  FileSpreadsheet,
   FileText,
   FileSearch,
   List,
@@ -86,6 +88,9 @@ import {
   AlertTriangle,
   Shield,
   Sparkles,
+  PhoneCall,
+  PhoneIncoming,
+  Hourglass,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -376,6 +381,22 @@ const navItems: NavItem[] = [
       planned("Visits", "Voice notes to text", <Mic className="h-4 w-4" />, "Turn carers' voice notes into written visit notes."),
       { section: 'Visits', label: 'Employee Operation Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/in-progress', ready: false },
       { section: 'Visits', label: 'Service Overview', icon: <Eye className="h-4 w-4" />, href: '/in-progress', ready: false },
+      {
+        section: 'On-call',
+        label: 'On-call rota',
+        icon: <PhoneCall className="h-4 w-4" />,
+        href: '/on-call/rota',
+        permission: 'on_call.read',
+        navTestId: 'nav-on-call-rota',
+      },
+      {
+        section: 'On-call',
+        label: 'Out-of-hours calls',
+        icon: <PhoneIncoming className="h-4 w-4" />,
+        href: '/on-call/calls',
+        permission: 'on_call.read',
+        navTestId: 'nav-on-call-calls',
+      },
     ],
   },
   {
@@ -445,11 +466,27 @@ const navItems: NavItem[] = [
       },
       {
         section: 'Time & absence',
+        label: 'Hours & visits history',
+        icon: <History className="h-4 w-4" />,
+        href: '/hours-history',
+        anyPermission: ['hours_approvals.read', 'hours_approvals.manage'],
+        navTestId: 'nav-hours-history',
+      },
+      {
+        section: 'Time & absence',
         label: 'Absence tracker',
         icon: <CalendarOff className="h-4 w-4" />,
         href: '/employee/absences',
         anyPermission: ['employees.read', 'employees.reports.read'],
         navTestId: 'nav-employee-absences',
+      },
+      {
+        section: 'Time & absence',
+        label: 'Timesheets',
+        icon: <FileSpreadsheet className="h-4 w-4" />,
+        href: '/employee/timesheets',
+        anyPermission: ['ecm.read', 'ecm.monitor'],
+        navTestId: 'nav-employee-timesheets',
       },
       planned("Recruitment", "Recruitment", <Briefcase className="h-4 w-4" />, "Vacancies, candidates, interviews and offers."),
       planned("Development", "Supervision & appraisals", <MessagesSquare className="h-4 w-4" />, "One-to-one and group supervision records, appraisals and follow-up actions."),
@@ -459,6 +496,70 @@ const navItems: NavItem[] = [
       //   { section: 'Recruitment', label: 'Recruitment', href: '/hr/recruitment', anyPermission: ['hr.vacancies.read', 'hr.candidates.read'], navTestId: 'nav-hr-recruitment' },
       //   { section: 'Recruitment', label: 'Vacancies', href: '/hr/vacancies', permission: 'hr.vacancies.read', navTestId: 'nav-hr-vacancies' },
       //   { section: 'Recruitment', label: 'Candidates', href: '/hr/candidates', permission: 'hr.candidates.read', navTestId: 'nav-hr-candidates' },
+    ],
+  },
+  // Specialist Pathways is hidden from the sidebar for now; the pages and routes still work.
+  // Uncomment this item to show it again.
+  //   {
+  //     label: 'Specialist Pathways',
+  //     icon: <HeartHandshake className="h-5 w-5" />,
+  //     href: '/apps/specialist-pathways',
+  //     children: [
+  //       {
+  //         section: 'Pathways',
+  //         label: 'Learning Disability',
+  //         icon: <ClipboardList className="h-4 w-4" />,
+  //         href: '/specialist-pathways/learning-disability',
+  //         permission: 'specialist_pathways.read',
+  //         navTestId: 'nav-specialist-pathways-ld',
+  //       },
+  //       {
+  //         section: 'Pathways',
+  //         label: 'Dementia',
+  //         icon: <ClipboardList className="h-4 w-4" />,
+  //         href: '/specialist-pathways/dementia',
+  //         permission: 'specialist_pathways.read',
+  //         navTestId: 'nav-specialist-pathways-dementia',
+  //       },
+  //       {
+  //         section: 'Pathways',
+  //         label: 'End of Life',
+  //         icon: <ClipboardList className="h-4 w-4" />,
+  //         href: '/specialist-pathways/end-of-life',
+  //         permission: 'specialist_pathways.read',
+  //         navTestId: 'nav-specialist-pathways-eol',
+  //       },
+  //       {
+  //         section: 'Pathways',
+  //         label: 'Children & Young People',
+  //         icon: <ClipboardList className="h-4 w-4" />,
+  //         href: '/specialist-pathways/children',
+  //         permission: 'specialist_pathways.read',
+  //         navTestId: 'nav-specialist-pathways-children',
+  //       },
+  //       {
+  //         section: 'Pathways',
+  //         label: 'Supported Living',
+  //         icon: <ClipboardList className="h-4 w-4" />,
+  //         href: '/specialist-pathways/supported-living',
+  //         permission: 'specialist_pathways.read',
+  //         navTestId: 'nav-specialist-pathways-sl',
+  //       },
+  //     ],
+  //   },
+  {
+    label: 'CRM',
+    icon: <Inbox className="h-5 w-5" />,
+    href: '/crm',
+    children: [
+      {
+        section: 'CRM',
+        label: 'Enquiry',
+        icon: <Inbox className="h-4 w-4" />,
+        href: '/crm',
+        permission: 'crm.read',
+        navTestId: 'nav-crm-enquiries',
+      },
     ],
   },
   {
@@ -540,12 +641,36 @@ const navItems: NavItem[] = [
     icon: <ShieldCheck className="h-5 w-5" />,
     href: '/incidents/dashboard',
     children: [
+      {
+        section: 'Compliance',
+        label: 'Compliance dashboard',
+        icon: <ShieldCheck className="h-4 w-4" />,
+        href: '/compliance',
+        anyPermission: [
+          'employees.compliance.reports.read',
+          'learning.dashboard.read',
+          'policies.read',
+          'safeguarding.read',
+          'safeguarding.manage',
+          'incidents.read',
+          'complaints.read',
+          'specialist_pathways.read',
+        ],
+        navTestId: 'nav-compliance-dashboard',
+      },
       { section: 'Incidents', label: 'Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/incidents/dashboard', permission: 'incidents.read' },
       { section: 'Incidents', label: 'All Incidents', icon: <Eye className="h-4 w-4" />, href: '/incidents/view', permission: 'incidents.read' },
       { section: 'Incidents', label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
       { section: 'Incidents', label: 'Complaints & Compliments', icon: <MessageSquareWarning className="h-4 w-4" />, href: '/incidents/feedback', permission: 'complaints.read', navTestId: 'nav-complaints-compliments' },
-      planned("Incidents", "Safeguarding cases", <ShieldAlert className="h-4 w-4" />, "Dedicated safeguarding cases with a chronology, actions and evidence."),
       { section: 'Incidents', label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read', hideForRoles: ['super_admin'] },
+      {
+        section: 'Safeguarding',
+        label: 'Safeguarding cases',
+        icon: <ShieldAlert className="h-4 w-4" />,
+        href: '/safeguarding',
+        permission: 'safeguarding.read',
+        navTestId: 'nav-safeguarding-cases',
+      },
       {
         section: 'Policies & procedures',
         label: 'Policy Library',
@@ -554,22 +679,7 @@ const navItems: NavItem[] = [
         permission: 'policies.read',
         navTestId: 'nav-policies-library',
       },
-      {
-        section: 'Policies & procedures',
-        label: 'My policies to read',
-        icon: <PenLine className="h-4 w-4" />,
-        href: '/policies/to-read',
-        permission: 'policies.read',
-        navTestId: 'nav-policies-to-read',
-      },
-      {
-        section: 'Policies & procedures',
-        label: 'Read and sign tracking',
-        icon: <ListChecks className="h-4 w-4" />,
-        href: '/policies/acknowledgements',
-        permission: 'policies.read',
-        navTestId: 'nav-policies-acknowledgements',
-      },
+      planned("Policies & procedures", "Signature requests", <PenLine className="h-4 w-4" />, "Send documents to staff to read and sign, and track who has signed."),
       planned("Governance", "Audits", <ClipboardList className="h-4 w-4" />, "An audit library, custom audits and due dates for each location."),
       planned("Governance", "Mock CQC inspection", <Scale className="h-4 w-4" />, "Work through the five key questions and quality statements and get a mock rating for each service."),
       planned("Governance", "Action plans & evidence", <ListChecks className="h-4 w-4" />, "One action plan for audits, incidents and complaints, with linked evidence."),
@@ -799,6 +909,13 @@ const navItems: NavItem[] = [
         href: '/reports/carers',
         permission: 'employees.reports.read',
         navTestId: 'nav-reports-carers',
+      },
+      {
+        label: 'Timebank',
+        icon: <Hourglass className="h-4 w-4" />,
+        href: '/reports/timebank',
+        permission: 'service_users.read',
+        navTestId: 'nav-reports-timebank',
       },
       {
         label: 'ECM reports',
@@ -1669,41 +1786,47 @@ function ModuleSidebar() {
           </div>
         ) : null}
 
-        {/* ── Hover fly-out (desktop): floating card; the transparent left padding bridges the gap from the rail ── */}
-        {showFlyout && flyoutModule && flyoutMeta ? (
-          <div
-            role="menu"
-            aria-label={`${flyoutModule.label} pages`}
-            data-testid="sidebar-flyout"
-            onMouseEnter={cancelClose}
-            onMouseLeave={scheduleClose}
-            onFocus={cancelClose}
-            onBlur={scheduleClose}
-            className="absolute inset-y-0 left-[76px] z-[60] hidden py-2.5 pl-2 lg:flex"
-          >
-            <div className="flex w-[280px] flex-col overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar shadow-2xl ring-1 ring-black/5 animate-in fade-in-0 slide-in-from-left-1 duration-150">
-              <ModulePanelHeader
-                module={flyoutModule}
-                onNavigate={() => {
-                  setOpenModule(flyoutModule.label)
-                  setHoverModule(undefined)
-                }}
-              />
-              <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
-                <ul className="space-y-0.5">
-                  <NavChildList
-                    variant="panel"
-                    items={flyoutModule.children!}
-                    pathname={pathname}
-                    search={search}
-                    onNavigate={() => setHoverModule(undefined)}
-                  />
-                </ul>
-              </nav>
-            </div>
-          </div>
-        ) : null}
       </aside>
+
+      {/* ── Hover fly-out (desktop): floating card portaled to the body so it escapes the sidebar's
+           stacking context and always sits above page content (e.g. the schedule board's sticky
+           columns use z-[60]). The transparent left padding bridges the gap from the rail. ── */}
+      {showFlyout && flyoutModule && flyoutMeta && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              role="menu"
+              aria-label={`${flyoutModule.label} pages`}
+              data-testid="sidebar-flyout"
+              onMouseEnter={cancelClose}
+              onMouseLeave={scheduleClose}
+              onFocus={cancelClose}
+              onBlur={scheduleClose}
+              className="fixed inset-y-0 left-[76px] z-[70] hidden py-2.5 pl-2 lg:flex"
+            >
+              <div className="flex w-[280px] flex-col overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar shadow-2xl ring-1 ring-black/5 animate-in fade-in-0 slide-in-from-left-1 duration-150">
+                <ModulePanelHeader
+                  module={flyoutModule}
+                  onNavigate={() => {
+                    setOpenModule(flyoutModule.label)
+                    setHoverModule(undefined)
+                  }}
+                />
+                <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
+                  <ul className="space-y-0.5">
+                    <NavChildList
+                      variant="panel"
+                      items={flyoutModule.children!}
+                      pathname={pathname}
+                      search={search}
+                      onNavigate={() => setHoverModule(undefined)}
+                    />
+                  </ul>
+                </nav>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </TooltipProvider>
   )
 }

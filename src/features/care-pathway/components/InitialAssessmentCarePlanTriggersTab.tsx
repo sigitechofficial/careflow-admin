@@ -32,6 +32,7 @@ const WHEN_OPTIONS: { value: CarePlanRuleConditionWhen; label: string }[] = [
   { value: 'not_answered', label: 'Not answered' },
   { value: 'select_equals', label: 'Select equals value' },
   { value: 'text_contains', label: 'Text contains' },
+  { value: 'adl_score_gte', label: 'ADL worksheet score at least' },
 ]
 
 const emptyCondition = (): CarePlanRuleCondition => ({ when: 'yes' })
@@ -143,7 +144,11 @@ export function InitialAssessmentCarePlanTriggersTab() {
         label: label.trim() || undefined,
         matchMode,
         conditions: conditions.filter(
-          (c) => c.fieldKey?.trim() || c.specRef?.trim() || c.questionTextContains?.trim(),
+          (c) =>
+            c.fieldKey?.trim() ||
+            c.specRef?.trim() ||
+            c.questionTextContains?.trim() ||
+            (c.when === 'adl_score_gte' && c.adlActivity?.trim()),
         ),
         suppressLegacyArea: suppressLegacyArea.trim() || undefined,
       }
@@ -367,9 +372,20 @@ export function InitialAssessmentCarePlanTriggersTab() {
                     ))}
                   </SelectContent>
                 </Select>
-                {(cond.when === 'select_equals' || cond.when === 'text_contains') && (
+                {cond.when === 'adl_score_gte' && (
                   <Input
-                    placeholder="Value"
+                    placeholder="ADL activity id (e.g. bathing, dressing_undressing, grooming)"
+                    value={cond.adlActivity ?? ''}
+                    onChange={(e) => {
+                      setConditions(patchCondition(conditions, idx, { adlActivity: e.target.value }))
+                    }}
+                  />
+                )}
+                {(cond.when === 'select_equals' ||
+                  cond.when === 'text_contains' ||
+                  cond.when === 'adl_score_gte') && (
+                  <Input
+                    placeholder={cond.when === 'adl_score_gte' ? 'Minimum score (0–4)' : 'Value'}
                     value={cond.value ?? ''}
                     onChange={(e) => {
                       setConditions(patchCondition(conditions, idx, { value: e.target.value }))

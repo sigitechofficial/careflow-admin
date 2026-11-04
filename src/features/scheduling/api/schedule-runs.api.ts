@@ -124,24 +124,69 @@ export async function deleteScheduleRun(id: string, init?: RequestInit) {
 export type SyncScheduleRunCarerPayload = {
   force?: boolean
   unallocateEmployeeId?: string
+  /** On single-carer visits, take off whoever holds the visit so the run carer gets it. */
+  replaceExisting?: boolean
 }
 
 export type SyncScheduleRunCarerResult = {
   run: ScheduleRunRow
   warnings?: Array<{ jobId: string; message: string }>
+  /** Visits over the carer's weekly hours, waiting for a manager on Hours approvals. */
+  approvalRequested?: Array<{ jobId: string; approvalId: string | null }>
+  /** Visits the run carer is now on. */
+  synced?: number
 }
 
 export async function syncScheduleRunCarer(
   id: string,
   payload: SyncScheduleRunCarerPayload = {},
   init?: RequestInit,
-) {
-  const res = await apiJson<ApiEnvelope<ScheduleRunRow> & { warnings?: SyncScheduleRunCarerResult['warnings'] }>(
-    `/schedule-runs/${id}/sync-carer`,
-    { method: 'POST', body: JSON.stringify(payload), ...init },
-  )
+): Promise<SyncScheduleRunCarerResult> {
+  const res = await apiJson<ApiEnvelope<ScheduleRunRow>>(`/schedule-runs/${id}/sync-carer`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    ...init,
+  })
+  // The details come back in meta (only message, data and meta reach the client).
+  const meta = (res.meta ?? {}) as Omit<SyncScheduleRunCarerResult, 'run'>
   return {
     run: res.data!,
-    warnings: res.warnings,
+    warnings: meta.warnings,
+    approvalRequested: meta.approvalRequested,
+    synced: meta.synced,
   }
+}
+
+/** One visit of a run: what putting the chosen carer on it would do (nothing is saved). */
+export type RunCarerPreviewVisit = {
+  jobId: string
+  outcome: 'ALREADY' | 'ALLOCATE' | 'NEEDS_APPROVAL' | 'BLOCKED'
+  message: string | null
+  overWeeklyHours: boolean
+  /** Carers the run carer would take the place of. */
+  replaceNames: string[]
+}
+
+export type RunCarerPreview = {
+  visits: RunCarerPreviewVisit[]
+  weeks: Array<{
+    weekStart: string
+    beforeHours: number
+    afterHours: number
+    limitHours: number | null
+    extraHours: number
+  }>
+  maxHours: number
+}
+
+export async function previewRunCarer(
+  body: { employeeId: string; visitIds: string[]; replaceExisting?: boolean; releaseEmployeeId?: string },
+  init?: RequestInit,
+): Promise<RunCarerPreview> {
+  const res = await apiJson<ApiEnvelope<RunCarerPreview>>('/schedule-runs/carer-preview', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    ...init,
+  })
+  return res.data
 }

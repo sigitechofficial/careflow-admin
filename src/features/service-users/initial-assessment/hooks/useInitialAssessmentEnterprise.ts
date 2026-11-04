@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  fetchInitialAssessmentAttachmentFile,
   createInitialAssessmentSubmission,
   fetchDefaultInitialAssessmentTemplate,
   fetchInitialAssessmentTemplate,
@@ -24,6 +25,9 @@ import {
   fetchInitialAssessmentAttachments,
   uploadInitialAssessmentAttachment,
   deleteInitialAssessmentAttachment,
+  startInitialAssessmentTranscription,
+  fetchInitialAssessmentTranscription,
+  suggestInitialAssessmentAnswersFromTranscript,
   fetchInitialAssessmentRiskRecords,
   createInitialAssessmentRiskRecord,
   updateInitialAssessmentRiskRecord,
@@ -314,6 +318,51 @@ export function useUploadInitialAssessmentAttachment(serviceUserId: string, subm
         queryKey: initialAssessmentKeys.attachments(serviceUserId, submissionId),
       })
     },
+  })
+}
+
+export function useStartInitialAssessmentTranscription(serviceUserId: string, submissionId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ file, fileName }: { file: Blob; fileName: string }) =>
+      startInitialAssessmentTranscription(serviceUserId, submissionId, file, fileName),
+    // The recording is saved to the assessment's attachments as soon as it is uploaded.
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: initialAssessmentKeys.attachments(serviceUserId, submissionId) }),
+  })
+}
+
+/** AI reads the transcript and suggests answers; nothing is saved until they are applied to the form. */
+export function useSuggestInitialAssessmentAnswers(serviceUserId: string, submissionId: string) {
+  return useMutation({
+    mutationFn: (body: Parameters<typeof suggestInitialAssessmentAnswersFromTranscript>[2]) =>
+      suggestInitialAssessmentAnswersFromTranscript(serviceUserId, submissionId, body),
+  })
+}
+
+/** Polls every 2s until Whisper has finished (or failed). */
+export function useInitialAssessmentTranscription(
+  serviceUserId: string,
+  submissionId: string,
+  jobId: string | null,
+) {
+  return useQuery({
+    queryKey: initialAssessmentKeys.transcription(serviceUserId, submissionId, jobId ?? ''),
+    queryFn: ({ signal }) =>
+      fetchInitialAssessmentTranscription(serviceUserId, submissionId, jobId!, { signal }),
+    enabled: Boolean(serviceUserId && submissionId && jobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'DONE' || status === 'FAILED' || query.state.error ? false : 2000
+    },
+  })
+}
+
+/** Reads an attachment's file (recordings and transcripts are only served through this endpoint). */
+export function useInitialAssessmentAttachmentFile(serviceUserId: string) {
+  return useMutation({
+    mutationFn: ({ submissionId, attachmentId }: { submissionId: string; attachmentId: string }) =>
+      fetchInitialAssessmentAttachmentFile(serviceUserId, submissionId, attachmentId),
   })
 }
 

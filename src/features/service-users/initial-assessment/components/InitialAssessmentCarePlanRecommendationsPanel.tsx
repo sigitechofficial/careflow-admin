@@ -63,33 +63,44 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [dialogOpen, setDialogOpen] = React.useState(false)
-  const [activeRec, setActiveRec] = React.useState<CarePlanRecommendation | null>(null)
+  // Every recommendation the open dialog decides: a grouped card decides all of its recommendations.
+  const [activeRecs, setActiveRecs] = React.useState<CarePlanRecommendation[]>([])
   const [creatingFormId, setCreatingFormId] = React.useState<string | null>(null)
-  const [mode, setMode] = React.useState<'accept' | 'decline'>('accept')
+  const [mode, setMode] = React.useState<DecisionMode>('accept')
   const [reason, setReason] = React.useState('')
   const reviewPending = submissionStatus === 'SUBMITTED'
   const [proceedAnyway, setProceedAnyway] = React.useState(false)
   const [pendingCreateFormId, setPendingCreateFormId] = React.useState<string | null>(null)
 
   const decideMutation = useMutation({
-    mutationFn: (input: { recommendationId: string; decision: 'accepted' | 'declined'; reason?: string }) =>
-      decideInitialAssessmentCarePlanRecommendation(
-        serviceUserId,
-        submissionId!,
-        input.recommendationId,
-        { decision: input.decision, reason: input.reason },
-      ),
+    mutationFn: async (input: {
+      recommendationIds: string[]
+      decision: 'accepted' | 'declined' | 'deferred'
+      reason?: string
+    }) => {
+      for (const recommendationId of input.recommendationIds) {
+        await decideInitialAssessmentCarePlanRecommendation(serviceUserId, submissionId!, recommendationId, {
+          decision: input.decision,
+          reason: input.reason,
+        })
+      }
+    },
     onSuccess: () => {
-      void qc.invalidateQueries({
-        queryKey: initialAssessmentKeys.summary(serviceUserId, submissionId ?? ''),
-      })
-      void qc.invalidateQueries({
-        queryKey: initialAssessmentKeys.acceptedCarePlans(serviceUserId),
-      })
       toastSuccess('Updated', 'Care plan recommendation decision saved.')
       setDialogOpen(false)
       setReason('')
-      setActiveRec(null)
+      setActiveRecs([])
+    },
+    // Refresh even after a partial failure so every card shows what was actually saved.
+    onSettled: () => {
+      void qc.invalidateQueries({
+        queryKey: initialAssessmentKeys.summary(serviceUserId, submissionId ?? ''),
+      })
+      // Accepting creates or links a care plan.
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.carePlan(serviceUserId) })
+      void qc.invalidateQueries({
+        queryKey: initialAssessmentKeys.acceptedCarePlans(serviceUserId),
+      })
     },
     onError: (e) => toastApiError(e, 'Could not save decision'),
   })
@@ -118,6 +129,12 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
     onSettled: () => setCreatingFormId(null),
   })
 
+  const openCarePlan = (formId: string) =>
+    void navigate({
+      to: '/service-users/$serviceUserId/care-plan/forms/$formId',
+      params: { serviceUserId, formId },
+    })
+
   const requestCreate = (formId: string) => {
     if (reviewPending && !proceedAnyway) {
       setPendingCreateFormId(formId)
@@ -133,8 +150,8 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
     if (formId) void createDraftMutation.mutateAsync(formId)
   }
 
-  const openDialog = (rec: CarePlanRecommendation, nextMode: 'accept' | 'decline') => {
-    setActiveRec(rec)
+  const openDialog = (recs: CarePlanRecommendation[], nextMode: DecisionMode) => {
+    setActiveRecs(recs)
     setMode(nextMode)
     setReason('')
     setDialogOpen(true)
@@ -265,7 +282,7 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => openDialog(primary, 'decline')}
+                            onClick={() => openDialog(group.recs, 'decline')}
                           >
                             Decline
                           </Button>
@@ -273,7 +290,15 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => openDialog(primary, 'accept')}
+                            onClick={() => openDialog(group.recs, 'defer')}
+                          >
+                            Defer
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDialog(group.recs, 'accept')}
                           >
                             Accept
                           </Button>
@@ -314,10 +339,12 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                         className={
                           rec.status === 'accepted'
                             ? 'rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
-                            : 'rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200'
+                            : rec.status === 'deferred'
+                              ? 'rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+                              : 'rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200'
                         }
                       >
-                        {rec.status === 'accepted' ? 'Accepted' : 'Declined'}
+                        {rec.status === 'accepted' ? 'Accepted' : rec.status === 'deferred' ? 'Deferred' : 'Declined'}
                       </span>
                     ) : null}
                   </div>
@@ -354,6 +381,17 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                   {rec.status === 'declined' && rec.declineReason ? (
                     <p className="mt-2 text-xs text-muted-foreground">Decline reason: {rec.declineReason}</p>
                   ) : null}
+                  {rec.status === 'deferred' && rec.decisionReason ? (
+                    <p className="mt-2 text-xs text-muted-foreground">Deferred: {rec.decisionReason}</p>
+                  ) : null}
+                  {rec.linkedCarePlan ? (
+                    <p className="mt-2 text-xs text-muted-foreground" data-testid="ia-care-plan-linked-plan">
+                      Care plan: {linkedCarePlanLabel(rec.linkedCarePlan)}
+                      {rec.status !== 'accepted' && rec.linkedCarePlanReviewRequired
+                        ? ' — kept after this decision changed; review whether it is still needed.'
+                        : ''}
+                    </p>
+                  ) : null}
                   {!grid || openTriggers.has(rec.id) ? (
                   <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                     {rec.triggers.slice(0, grid ? rec.triggers.length : triggerLimit).map((t) => (
@@ -368,17 +406,27 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                   </ul>
                   ) : null}
                 </div>
-                {canDecide && submissionId && rec.status === 'pending' ? (
+                {canDecide && submissionId && (rec.status === 'pending' || rec.status === 'deferred') ? (
                   <div className={cn('flex flex-wrap gap-2', grid && 'sm:shrink-0 sm:justify-end')}>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => openDialog(rec, 'decline')}
+                      onClick={() => openDialog([rec], 'decline')}
                     >
                       Decline
                     </Button>
-                    <Button type="button" size="sm" onClick={() => openDialog(rec, 'accept')}>
+                    {rec.status === 'pending' ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openDialog([rec], 'defer')}
+                      >
+                        Defer
+                      </Button>
+                    ) : null}
+                    <Button type="button" size="sm" onClick={() => openDialog([rec], 'accept')}>
                       Accept
                     </Button>
                     {canCreate ? (
@@ -389,6 +437,19 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                         label={createLabel}
                       />
                     ) : null}
+                  </div>
+                ) : rec.linkedCarePlan ? (
+                  <div className={cn(grid ? 'flex justify-end sm:shrink-0' : 'contents')}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      data-testid="open-linked-care-plan"
+                      onClick={() => openCarePlan(rec.linkedCarePlan!.carePathwayFormId)}
+                    >
+                      Open Care Plan
+                    </Button>
                   </div>
                 ) : rec.status === 'declined' ? null : canCreate || rec.status === 'accepted' ? (
                   <div className={cn(grid ? 'flex justify-end sm:shrink-0' : 'contents')}>
@@ -438,22 +499,29 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
       <InitialAssessmentCarePlanDecisionDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={activeRec?.title ?? ''}
+        title={activeRecs.map((r) => r.title).join(', ')}
         mode={mode}
         reason={reason}
         onReasonChange={setReason}
         submitting={decideMutation.isPending}
         onConfirm={() => {
-          if (!activeRec) return
+          if (activeRecs.length === 0) return
           void decideMutation.mutateAsync({
-            recommendationId: activeRec.id,
-            decision: mode === 'accept' ? 'accepted' : 'declined',
-            reason: mode === 'decline' ? reason.trim() : undefined,
+            recommendationIds: activeRecs.map((r) => r.id),
+            decision: mode === 'accept' ? 'accepted' : mode === 'defer' ? 'deferred' : 'declined',
+            reason: mode === 'accept' ? undefined : reason.trim(),
           })
         }}
       />
     </>
   )
+}
+
+type DecisionMode = 'accept' | 'decline' | 'defer'
+
+function linkedCarePlanLabel(plan: NonNullable<CarePlanRecommendation['linkedCarePlan']>): string {
+  if (plan.status === 'PUBLISHED') return plan.hasDraft ? 'Published (draft changes in progress)' : 'Published'
+  return 'Draft'
 }
 
 function CreateCarePlanButton({

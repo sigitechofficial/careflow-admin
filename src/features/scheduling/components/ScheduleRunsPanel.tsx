@@ -8,6 +8,7 @@ import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useSche
 import { collectJobServiceUserLocationIds } from '@/features/scheduling/utils/employee-branch-scope.util'
 import type { ScheduleRunRow, ScheduleRunStatus, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { ScheduleRunEditDialog } from '@/features/scheduling/components/ScheduleRunEditDialog'
+import { runCarerOutcomeText } from '@/features/scheduling/components/RunCarerPreviewPanel'
 import { ScheduleRunsTable } from '@/features/scheduling/components/ScheduleRunsTable'
 import { ScheduleRunsMapView } from '@/features/scheduling/components/ScheduleRunsMapView'
 import {
@@ -110,6 +111,7 @@ export function ScheduleRunsPanel({
   const employeesQuery = useScheduleEmployeesCatalog({
     locationIds: serviceUserLocationIds,
     includeEmployeeIds,
+    activeOnly: true,
   })
 
   const carerComboboxOptions = React.useMemo(
@@ -221,11 +223,13 @@ export function ScheduleRunsPanel({
 
   const handleSyncCarer = async (run: ScheduleRunRow) => {
     try {
-      await mutations.syncCarer.mutateAsync({
+      const synced = await mutations.syncCarer.mutateAsync({
         id: run.id,
         payload: { force: true },
       })
-      toastSuccess('Run carer assigned to visits')
+      const outcome = runCarerOutcomeText(synced)
+      if (outcome.tone === 'warning') toastWarning('Run carer', outcome.text)
+      else toastSuccess('Run carer assigned to visits', outcome.text)
       onChanged?.()
     } catch (error) {
       toastApiError(error, 'Could not assign run carer to visits')
@@ -270,19 +274,25 @@ export function ScheduleRunsPanel({
           description: editNotes.trim() || undefined,
         },
       })
-      if (editEmployeeId) {
-        await mutations.syncCarer.mutateAsync({
-          id: editRun.id,
-          payload: {
-            force: true,
-            unallocateEmployeeId: editRun.employeeId ?? undefined,
-          },
-        })
-      }
+      const synced = editEmployeeId
+        ? await mutations.syncCarer.mutateAsync({
+            id: editRun.id,
+            payload: {
+              force: true,
+              unallocateEmployeeId: editRun.employeeId ?? undefined,
+            },
+          })
+        : null
       if (editRun.status === 'DRAFT') {
         await mutations.update.mutateAsync({ id: editRun.id, payload: { status: 'PUBLISHED' } })
       }
-      toastSuccess('Run saved and schedule updated')
+      if (synced) {
+        const outcome = runCarerOutcomeText(synced)
+        if (outcome.tone === 'warning') toastWarning('Run saved', outcome.text)
+        else toastSuccess('Run saved and schedule updated', outcome.text)
+      } else {
+        toastSuccess('Run saved and schedule updated')
+      }
       closeEditRun()
       onChanged?.()
     } catch (error) {

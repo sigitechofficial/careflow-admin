@@ -6,6 +6,7 @@ import {
   deleteScheduleRun,
   getScheduleRun,
   listScheduleRuns,
+  previewRunCarer,
   reorderScheduleRunJobs,
   removeJobFromScheduleRun,
   syncScheduleRunCarer,
@@ -87,8 +88,22 @@ export function useScheduleRunMutations(date: string) {
   const syncCarer = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload?: SyncScheduleRunCarerPayload }) =>
       syncScheduleRunCarer(id, payload),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      void invalidate()
+      // Visits over the carer's weekly hours become requests on Hours approvals.
+      void queryClient.invalidateQueries({ queryKey: ['hours-approvals'] })
+    },
   })
 
   return { create, update, addJobs, removeJob, reorderJobs, cancel, remove, syncCarer, invalidate }
+}
+
+/** What putting a carer on these run visits would do: weekly hours and checks (nothing saved). */
+export function useRunCarerPreview(input: Parameters<typeof previewRunCarer>[0] | null) {
+  return useQuery({
+    queryKey: [...schedulingKeys.all(), 'run-carer-preview', input] as const,
+    queryFn: ({ signal }) => previewRunCarer(input!, { signal }),
+    enabled: input != null && input.visitIds.length > 0,
+    staleTime: 0,
+  })
 }

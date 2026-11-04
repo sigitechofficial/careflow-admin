@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, CheckCircle2, Clock, Info, ShieldAlert, Star, UserX } from 'lucide-react'
+import { AlertTriangle, CalendarOff, CheckCircle2, Clock, Info, ShieldAlert, Star, UserX } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import {
   contentBadgeClass,
@@ -10,11 +10,51 @@ import {
   contentTitleClass,
 } from '@/shared/ui/content-section'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import type { VisitPlanCarerCandidate, VisitPlanCarerFit } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import { buildCarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/visit-plan-carer-availability-display.util'
 import { VisitPlanCarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/VisitPlanCarerAvailabilityBreakdown'
 import { formatVisitPlanCarerRoleLine } from '@/features/scheduling/utils/schedule-carer-suggest.util'
+import { summarizeCarerWeeklyHours } from '@/features/service-users/visit-plan/visit-plan-carer-weekly-hours.util'
+
+/** "This week: Xh assigned · limit Yh · Zh left" — amber at the limit, red when over. */
+export function VisitPlanCarerWeeklyHoursLine({
+  candidate,
+  includesThisVisit,
+  className,
+}: {
+  candidate: VisitPlanCarerCandidate
+  includesThisVisit: boolean
+  className?: string
+}) {
+  const { formatDate } = useOrganisationDisplayFormat()
+  const summary = summarizeCarerWeeklyHours(
+    candidate,
+    includesThisVisit,
+    candidate.weeklyHoursWeekStart ? `Week of ${formatDate(candidate.weeklyHoursWeekStart)}` : null,
+  )
+  if (!summary) return null
+  const { text, tone } = summary
+  return (
+    <p
+      className={cn(
+        contentHelperClass,
+        tone === 'atLimit' && 'font-medium text-amber-700 dark:text-amber-300',
+        tone === 'over' && 'font-medium text-red-700 dark:text-red-300',
+        className,
+      )}
+      data-testid="carer-weekly-hours-line"
+    >
+      {text}
+    </p>
+  )
+}
+
+function formatTimeOffRange(fromIso: string, toIso: string): string {
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  return `${fmt(fromIso)} – ${fmt(toIso)}`
+}
 
 function fitStyles(fit: VisitPlanCarerFit) {
   if (fit === 'good') {
@@ -26,13 +66,13 @@ function fitStyles(fit: VisitPlanCarerFit) {
   return 'border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100'
 }
 
-function fitLabel(fit: VisitPlanCarerFit) {
+export function fitLabel(fit: VisitPlanCarerFit) {
   if (fit === 'good') return 'Good match'
   if (fit === 'partial') return 'Partial match'
   return 'Poor match'
 }
 
-function dayChipTone(
+export function dayChipTone(
   day: number,
   availability: VisitPlanCarerCandidate['availability'],
 ): string {
@@ -50,7 +90,7 @@ function dayChipTone(
 }
 
 /** Per-day availability detail shown when hovering a day chip. */
-function dayStatus(
+export function dayStatus(
   day: number,
   availability: VisitPlanCarerCandidate['availability'],
 ): { label: string; detail: string } {
@@ -185,6 +225,46 @@ export function VisitPlanCarerCandidateDetails({
 
   return (
     <div className={cn('min-w-0 flex-1', compact ? 'space-y-2' : 'space-y-3')}>
+      {c.timeOff ? (
+        <div
+          className={cn(
+            'flex items-start gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium',
+            c.timeOff.blocks
+              ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100'
+              : 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100',
+          )}
+        >
+          <CalendarOff className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span>
+            On {c.timeOff.label} {formatTimeOffRange(c.timeOff.from, c.timeOff.to)}
+            {c.timeOff.blocks
+              ? ' — won’t be assigned for visits in this period'
+              : ' — still assignable under your current settings'}
+          </span>
+        </div>
+      ) : null}
+      {(() => {
+        if (slotDaysOfWeek.length === 0) return null
+        const outsideHours =
+          !c.availability.timeWindowOk || c.availability.unavailableDays.length > 0
+        if (!outsideHours) return null
+        const everyDay = c.availability.availableDays.length === 0
+        return (
+          <div
+            className={cn(
+              'flex items-start gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium',
+              'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100',
+            )}
+          >
+            <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span>
+              Visit time is outside this carer’s working hours
+              {everyDay ? ' on every day' : ' on some days'} — won’t be auto-assigned
+              {everyDay ? ' ' : ' on those days '}when the rota respects working patterns
+            </span>
+          </div>
+        )
+      })()}
       {!availabilityOnly ? (
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -243,34 +323,10 @@ export function VisitPlanCarerCandidateDetails({
               </span>
             ) : null}
           </div>
-          {(() => {
-            const roleLine = formatVisitPlanCarerRoleLine(c.role, c.jobTitle) || 'Employee'
-            const hoursSet = c.contractedWeeklyHours != null || c.allowedWeeklyHours != null
-            const hoursText = hoursSet
-              ? `Weekly hours: ~${c.projectedWeeklyHours ?? c.assignedWeeklyHours ?? 0}h projected ·${
-                  c.allowedWeeklyHours != null && c.allowedWeeklyHours !== c.contractedWeeklyHours
-                    ? ` approved ${c.allowedWeeklyHours}h`
-                    : ` contracted ${c.contractedWeeklyHours ?? c.allowedWeeklyHours}h`
-                }`
-              : 'Contracted weekly hours not set'
-            const hoursClass = cn(
-              contentHelperClass,
-              hoursSet && c.exceedsContractedHours && 'font-medium text-amber-700 dark:text-amber-300',
-            )
-            if (compact) {
-              return (
-                <p className={contentHelperClass}>
-                  {roleLine} · <span className={hoursClass}>{hoursText}</span>
-                </p>
-              )
-            }
-            return (
-              <>
-                <p className={contentHelperClass}>{roleLine}</p>
-                <p className={hoursClass}>{hoursText}</p>
-              </>
-            )
-          })()}
+          <p className={contentHelperClass}>
+            {formatVisitPlanCarerRoleLine(c.role, c.jobTitle) || 'Employee'}
+          </p>
+          <VisitPlanCarerWeeklyHoursLine candidate={c} includesThisVisit={isAssigned} />
         </div>
       ) : null}
 

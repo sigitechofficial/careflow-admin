@@ -27,6 +27,7 @@ export function useVisitReconciliations(filters?: {
   search?: string
   status?: VisitReconciliationStatus
   hasExceptions?: boolean
+  payOverCharge?: boolean
   serviceUserId?: string
   employeeId?: string
   locationId?: string

@@ -52,6 +52,7 @@ export function SurveyRecipientsPanel({
     filter === 'all' ? true : filter === 'completed' ? r.status === 'COMPLETED' : r.status !== 'COMPLETED',
   )
   const forServiceUsers = targetKind === 'SERVICE_USER'
+  const forPublic = targetKind === 'PUBLIC'
 
   return (
     <section className={cn('rounded-xl border border-border bg-card', className)}>
@@ -95,7 +96,9 @@ export function SurveyRecipientsPanel({
         </div>
       ) : named.length === 0 ? (
         <p className="p-4 text-sm text-muted-foreground">
-          Not sent to anyone yet. Use Send or schedule on the survey page.
+          {forPublic
+            ? 'This is a public link survey — responses come in through the shared link and are not tied to named recipients.'
+            : 'Not sent to anyone yet. Use Send or schedule on the survey page.'}
         </p>
       ) : rows.length === 0 ? (
         <p className="p-4 text-sm text-muted-foreground">No recipients match this filter.</p>

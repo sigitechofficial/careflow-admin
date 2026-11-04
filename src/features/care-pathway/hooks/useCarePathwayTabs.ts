@@ -1,7 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { listCarePlanTextCategories, listCarePlanTextTemplates } from '@/features/care-pathway/api/care-plan-text.api'
 import { listCareForms, getCareForm } from '@/features/care-pathway/api/form-builder.api'
-import { fetchFormSelections, listSelectableForms } from '@/features/care-pathway/api/form-selection.api'
+import {
+  fetchCarePlanRequiredAssessments,
+  fetchFormSelections,
+  listSelectableForms,
+} from '@/features/care-pathway/api/form-selection.api'
 import { listPathwayActions, listPathwayChecklistsBrief } from '@/features/care-pathway/api/pathway-actions.api'
 import { listPathwayChecklists } from '@/features/care-pathway/api/pathway-checklists.api'
 import { listCarePictures } from '@/features/care-pathway/api/picture-gallery.api'
@@ -40,6 +44,15 @@ export function useFormSelections(enabled = true) {
   return useQuery({
     queryKey: carePathwayKeys.formSelections(),
     queryFn: () => fetchFormSelections(),
+    enabled,
+    staleTime: STALE_TIME,
+  })
+}
+
+export function useCarePlanRequiredAssessments(enabled = true) {
+  return useQuery({
+    queryKey: carePathwayKeys.carePlanRequiredAssessments(),
+    queryFn: () => fetchCarePlanRequiredAssessments(),
     enabled,
     staleTime: STALE_TIME,
   })

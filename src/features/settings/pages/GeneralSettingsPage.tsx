@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Home,
   Info,
+  Megaphone,
   ListChecks,
   Scale,
   Settings,
@@ -30,6 +31,7 @@ import { GeneralSettingsAlertsPanel } from '@/features/settings/components/Gener
 import { GeneralSettingsCriticalInformationPanel } from '@/features/settings/components/GeneralSettingsCriticalInformationPanel'
 import { GeneralSettingsAppSettingPanel } from '@/features/settings/components/GeneralSettingsAppSettingPanel'
 import { GeneralSettingsPrivacyPanel } from '@/features/settings/components/GeneralSettingsPrivacyPanel'
+import { GeneralSettingsCarerNotificationsPanel } from '@/features/settings/components/GeneralSettingsCarerNotificationsPanel'
 
 export type GeneralSettingsTabId =
   | 'general'
@@ -44,6 +46,7 @@ export type GeneralSettingsTabId =
   | 'alerts'
   | 'critical-information'
   | 'app-setting'
+  | 'carer-notifications'
   | 'privacy'
 
 const GENERAL_SETTINGS_TABS: { id: GeneralSettingsTabId; label: string; Icon: LucideIcon }[] = [
@@ -59,6 +62,7 @@ const GENERAL_SETTINGS_TABS: { id: GeneralSettingsTabId; label: string; Icon: Lu
   { id: 'alerts', label: 'Alerts', Icon: Bell },
   { id: 'critical-information', label: 'Critical Information', Icon: Info },
   { id: 'app-setting', label: 'App Setting', Icon: Smartphone },
+  { id: 'carer-notifications', label: 'Carer Notifications', Icon: Megaphone },
   { id: 'privacy', label: 'Privacy', Icon: Shield },
 ]
 
@@ -143,6 +147,7 @@ export default function GeneralSettingsPage() {
           {activeTab === 'alerts' && <GeneralSettingsAlertsPanel />}
           {activeTab === 'critical-information' && <GeneralSettingsCriticalInformationPanel />}
           {activeTab === 'app-setting' && <GeneralSettingsAppSettingPanel />}
+          {activeTab === 'carer-notifications' && <GeneralSettingsCarerNotificationsPanel />}
           {activeTab === 'privacy' && <GeneralSettingsPrivacyPanel />}
         </div>
       </div>

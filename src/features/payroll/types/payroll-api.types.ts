@@ -125,7 +125,6 @@ export type CreateEmployeePayAgreementInput = {
   scheduleId?: string | null
   payCardId?: string | null
   annualSalary?: number | null
-  contractedHours?: number | null
   hourlyRateOverride?: number | null
   salaryEntryPeriod?: SalaryEntryPeriod | null
   salaryEntryAmount?: number | null

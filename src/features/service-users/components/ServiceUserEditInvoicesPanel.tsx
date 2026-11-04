@@ -18,7 +18,6 @@ import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 import { downloadInvoiceRunExport } from '@/features/billing/api/invoice-runs.api'
 import { useServiceUserInvoices } from '@/features/billing/hooks/useInvoiceRuns'
-import { useResolveServiceUserInvoiceTemplate } from '@/features/billing/hooks/useInvoiceTemplates'
 import {
   BillingStatusBadge,
   InvoiceRunStatusBadge,
@@ -374,7 +373,6 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
   const profileQuery = useServiceUser(serviceUserId)
   const updateMutation = useUpdateServiceUser(serviceUserId)
   const invoicesQuery = useServiceUserInvoices(serviceUserId, canRead)
-  const templateQuery = useResolveServiceUserInvoiceTemplate(serviceUserId, undefined, canRead)
   const [selectedRun, setSelectedRun] = React.useState<InvoiceRunRow | null>(null)
   const [exportingRunId, setExportingRunId] = React.useState<string | null>(null)
   const [subTab, setSubTab] = React.useState<InvoicesSubTab>('transactions')
@@ -393,8 +391,6 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
     'Service user'
   const cadence: InvoiceCadence =
     profile?.invoiceBillingFrequency === 'MONTHLY' ? 'MONTHLY' : 'WEEKLY'
-  const resolvedTemplate = templateQuery.data?.invoiceTemplate
-  const templateSource = templateQuery.data?.source
 
   /**
    * Open balance = money still owed across this client's invoices.
@@ -683,21 +679,6 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
               <p className="mt-0.5 font-medium text-foreground">
                 {cadence === 'MONTHLY' ? 'Monthly' : 'Weekly'}
               </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Invoice template</p>
-              <p className="mt-0.5 font-medium text-foreground">
-                {resolvedTemplate?.name
-                  ? resolvedTemplate.name
-                  : templateQuery.isLoading
-                    ? '…'
-                    : 'Not set'}
-              </p>
-              {templateSource && templateSource !== 'NONE' ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  via {templateSource.replace(/_/g, ' ').toLowerCase()}
-                </p>
-              ) : null}
             </div>
           </div>
 

@@ -85,3 +85,37 @@ export function BulkGenerateRotaResultPatternWarningBanner({
     </div>
   )
 }
+
+export function BulkGenerateRotaResultWeeklyHoursBanner({
+  totals,
+}: {
+  totals: BulkGenerateVisitPlanScheduleResponse['totals']
+}) {
+  const warnings = totals.weeklyHoursWarnings ?? []
+  if (!warnings.length) return null
+  const skipped = warnings.filter((w) => w.endsWith('(skipped)')).length
+
+  return (
+    <div
+      className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+      data-testid="bulk-rota-weekly-hours-warning"
+    >
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <div className="space-y-2">
+          <p className="font-semibold">
+            {warnings.length} plan{warnings.length === 1 ? '' : 's'} over the service user&apos;s weekly contracted
+            hours
+            {skipped ? ` — ${skipped} skipped` : ''}
+          </p>
+          <p className="text-amber-900/90 dark:text-amber-100/90">
+            {skipped === warnings.length
+              ? 'No visits were made for these plans. Fix the visit plan or the weekly hours, then generate again.'
+              : 'Visits within the hours were made. Visits over the hours either went to Hours approvals (made once a manager approves) or were made with a warning (Settings → Dom Rules).'}
+          </p>
+          <WarningList warnings={warnings} overflowClassName="text-amber-800/80 dark:text-amber-200/80" />
+        </div>
+      </div>
+    </div>
+  )
+}

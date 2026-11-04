@@ -1,4 +1,8 @@
-import type { DomAllocationRuleBehavior, DomCareAllocationRule } from '@/features/settings/types'
+import type {
+  DomAllocationRuleBehavior,
+  DomCareAllocationRule,
+  DomWeeklyHoursRuleOptions,
+} from '@/features/settings/types'
 
 export const ALLOCATION_BEHAVIOR_OPTIONS: {
   value: DomAllocationRuleBehavior
@@ -9,10 +13,36 @@ export const ALLOCATION_BEHAVIOR_OPTIONS: {
   { value: 'REQUEST_CONFIRMATION', label: 'Request confirmation' },
 ]
 
+/** Carer over their weekly hours (visit plans, rota board, extra and special visits). */
+export const WEEKLY_HOURS_RULE_KEY = 'carer_over_weekly_hours'
+
+/** A carer's maximum weekly hours when their Employment "Maximum weekly hours" is blank. */
+export const DEFAULT_CARER_MAX_WEEKLY_HOURS = 60
+
+export const DEFAULT_WEEKLY_HOURS_RULE_OPTIONS: DomWeeklyHoursRuleOptions = {
+  allowOverMax: 'NO',
+  countCalledOff: true,
+  contractedChangeNeedsApproval: true,
+  extraHoursNeedApproval: false,
+}
+
 export const DEFAULT_DOM_CARE_ALLOCATION_RULES: DomCareAllocationRule[] = [
   { key: 'visit_time_tolerance', label: 'Visit Time Tolerance', behavior: 'DONT_ALLOW', minutes: null },
   { key: 'carer_on_holiday', label: 'Carer on holiday', behavior: 'DONT_ALLOW', minutes: null },
   { key: 'carer_on_nca', label: 'Carer on NCA', behavior: 'DONT_ALLOW', minutes: null },
+  { key: 'carer_on_leave', label: 'Carer on leave or sick', behavior: 'DONT_ALLOW', minutes: null },
+  {
+    key: 'medication_not_trained',
+    label: 'Medication visit, carer not medication trained',
+    behavior: 'REQUEST_CONFIRMATION',
+    minutes: null,
+  },
+  {
+    key: 'missing_client_skills',
+    label: "Carer missing client's required skills",
+    behavior: 'REQUEST_CONFIRMATION',
+    minutes: null,
+  },
   {
     key: 'carer_blocked_su_on_run',
     label: 'Carer blocked with 1 SU on run or job allocated to',
@@ -39,10 +69,18 @@ export const DEFAULT_DOM_CARE_ALLOCATION_RULES: DomCareAllocationRule[] = [
     behavior: 'REQUEST_CONFIRMATION',
     minutes: null,
   },
+  {
+    key: WEEKLY_HOURS_RULE_KEY,
+    label: 'Carer over weekly hours',
+    behavior: 'MANAGER_APPROVAL',
+    minutes: 0,
+    weeklyHours: { ...DEFAULT_WEEKLY_HOURS_RULE_OPTIONS },
+  },
 ]
 
+/** For the weekly-hours rule, `minutes` is the grace allowed over the limit. */
 export function ruleSupportsMinutes(key: string): boolean {
-  return key === 'allow_overlap' || key === 'time_between_jobs'
+  return key === 'allow_overlap' || key === 'time_between_jobs' || key === WEEKLY_HOURS_RULE_KEY
 }
 
 export function mergeAllocationRules(saved: DomCareAllocationRule[]): DomCareAllocationRule[] {
@@ -54,6 +92,7 @@ export function mergeAllocationRules(saved: DomCareAllocationRule[]): DomCareAll
       ...def,
       behavior: row.behavior,
       minutes: ruleSupportsMinutes(def.key) ? (row.minutes ?? def.minutes) : null,
+      ...(def.weeklyHours ? { weeklyHours: { ...def.weeklyHours, ...row.weeklyHours } } : {}),
     }
   })
 }

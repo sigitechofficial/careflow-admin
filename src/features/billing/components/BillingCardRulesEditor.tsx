@@ -1346,7 +1346,6 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     const isCustom = !matched
     // Pay cards: a named period shows its days and times as one line; From / Until open on request.
     const compact = mode === 'pay' && !isCustom
-    const fieldLabelClass = 'text-xs font-medium text-foreground/90'
     const isPeriodTaken = (code: PayTimePeriodCode) => {
       if (matched?.code === code) return false
       // Only treat a named period as taken when another rule is already that period
@@ -1419,9 +1418,10 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
         </td>
 
         <td className="border-b border-border px-3 py-2.5 align-top">
-          <div className="space-y-2">
+          {/* Label, day and From – Until sit on one line. */}
+          <div className="flex items-center gap-2">
             {isCustom ? (
-              <label className="block space-y-1 text-sm">
+              <label className="block min-w-[10rem] flex-1 text-sm">
                 <span className="sr-only">Label</span>
                 <Input
                   value={rule.label ?? ''}
@@ -1433,7 +1433,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             ) : null}
 
             {isCustom ? (
-              <label className="block space-y-1 text-sm">
+              <label className="block w-36 shrink-0 text-sm">
                 <span className="sr-only">Applies on</span>
                 <select
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -1473,11 +1473,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             ) : null}
 
             {compact ? null : (
-              <div className="grid grid-cols-2 gap-2">
-                <label className="block space-y-1 text-sm">
-                  <span className={fieldLabelClass}>
-                    From <span className="text-destructive" aria-hidden>*</span>
-                  </span>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <label className="block w-32 text-sm">
+                  <span className="sr-only">From</span>
                   <Input
                     type="time"
                     value={normalizeBillingTimeInput(rule.startTime)}
@@ -1495,10 +1493,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                     required
                   />
                 </label>
-                <label className="block space-y-1 text-sm">
-                  <span className={fieldLabelClass}>
-                    Until <span className="text-destructive" aria-hidden>*</span>
-                  </span>
+                <span className="text-muted-foreground" aria-hidden>–</span>
+                <label className="block w-32 text-sm">
+                  <span className="sr-only">Until</span>
                   <Input
                     type="time"
                     value={normalizeBillingTimeInput(rule.endTime)}
@@ -1831,14 +1828,14 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             }
             return (
               <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                <table className="w-full min-w-[980px] border-collapse text-left text-sm">
                   <thead>
                     <tr className="bg-muted/40">
-                      <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-4">
+                      <th className="w-56 border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-4">
                         When this rate applies
                       </th>
                       <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Days &amp; times
+                        Days &amp; times (from – until)
                       </th>
                       {mode === 'pay' ? (
                         <th className="border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">

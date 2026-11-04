@@ -16,6 +16,8 @@ import { queryClient } from '@/app/query-client'
 import { DevUiTraceChip } from '@/dev/DevUiTraceChip'
 import { traceUi } from '@/dev/ui-trace'
 import { AppToaster } from '@/components/layout/AppToaster'
+import { CarerHoursStopDialog } from '@/components/layout/CarerHoursStopDialog'
+import { SentHoursRequestsDialog } from '@/components/layout/SentHoursRequestsDialog'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ScrollToTopOnNavigate } from '@/components/layout/ScrollToTopOnNavigate'
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
@@ -128,7 +130,18 @@ import SurveysPage from '@/features/surveys/pages/SurveysPage'
 import SurveyBuilderPage from '@/features/surveys/pages/SurveyBuilderPage'
 import SurveyResponsesPage from '@/features/surveys/pages/SurveyResponsesPage'
 import TakeSurveyPage from '@/features/surveys/pages/TakeSurveyPage'
+import PathwayCasesListPage from '@/features/specialist-pathways/pages/PathwayCasesListPage'
+import PathwayCaseDetailPage from '@/features/specialist-pathways/pages/PathwayCaseDetailPage'
+import SafeguardingListPage from '@/features/safeguarding/pages/SafeguardingListPage'
+import SafeguardingCaseDetailPage from '@/features/safeguarding/pages/SafeguardingCaseDetailPage'
+import EnquiryBoardPage from '@/features/crm/pages/EnquiryBoardPage'
+import EnquiryDetailPage from '@/features/crm/pages/EnquiryDetailPage'
+import EnquiryNewPage from '@/features/crm/pages/EnquiryNewPage'
+import EnquiryEditPage from '@/features/crm/pages/EnquiryEditPage'
+import QuotationEditorPage from '@/features/crm/pages/QuotationEditorPage'
+import QuoteServiceUserPage from '@/features/crm/pages/QuoteServiceUserPage'
 import HoursApprovalsPage from '@/features/hours-approvals/pages/HoursApprovalsPage'
+import HoursHistoryPage from '@/features/hours-approvals/pages/HoursHistoryPage'
 import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
 import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
 import IncidentsDashboardPage from '@/features/incidents/pages/IncidentsDashboardPage'
@@ -169,6 +182,9 @@ import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesP
 import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
 import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
 import CarerReportsPage from '@/features/employees/pages/CarerReportsPage'
+import TimebankPage from '@/features/timebank/pages/TimebankPage'
+import TimebankServiceUserPage from '@/features/timebank/pages/TimebankServiceUserPage'
+import TimebankCarerPage from '@/features/timebank/pages/TimebankCarerPage'
 import RoleTasksManagePage from '@/features/role-tasks/pages/RoleTasksManagePage'
 import UkPayrollRunsPage from '@/features/payroll/pages/UkPayrollRunsPage'
 import UkPayrollRunDetailPage from '@/features/payroll/pages/UkPayrollRunDetailPage'
@@ -190,8 +206,7 @@ import PolicyDetailPage from '@/features/policies/pages/PolicyDetailPage'
 import PolicyEditPage from '@/features/policies/pages/PolicyEditPage'
 import PolicyCategoriesPage from '@/features/policies/pages/PolicyCategoriesPage'
 import PolicyTagsPage from '@/features/policies/pages/PolicyTagsPage'
-import MyPoliciesToReadPage from '@/features/policies/pages/MyPoliciesToReadPage'
-import PolicyAcknowledgementsPage from '@/features/policies/pages/PolicyAcknowledgementsPage'
+import ComplianceDashboardPage from '@/features/compliance/pages/ComplianceDashboardPage'
 import { validatePolicyLibrarySearch } from '@/features/policies/policy-routes'
 import {
   BILLING_SECTION_PATHS,
@@ -216,7 +231,10 @@ import ServiceUserHoursPage from '@/features/service-users/pages/ServiceUserHour
 import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
 import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
 import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
+import EmployeeTimesheetsPage from '@/features/employees/pages/EmployeeTimesheetsPage'
 import SpecialVisitsPage from '@/features/special-visits/pages/SpecialVisitsPage'
+import OnCallRotaPage from '@/features/on-call/pages/OnCallRotaPage'
+import OutOfHoursCallsPage from '@/features/on-call/pages/OutOfHoursCallsPage'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
 import {
   ROLES_PERMISSIONS_SUB_IDS,
@@ -302,7 +320,10 @@ const pageTitles: Record<string, string> = {
   '/employee/staff-list': 'Employee',
   '/employee/hours': 'Employee hours',
   '/employee/absences': 'Absence tracker',
+  '/employee/timesheets': 'Timesheets',
   '/special-visits': 'Special visits',
+  '/on-call/rota': 'On-call rota',
+  '/on-call/calls': 'Out-of-hours calls',
   '/employee/compliance': 'Compliance board',
   '/employee/review-status': 'Employee',
   '/employee/skills': 'Employee',
@@ -369,10 +390,24 @@ const pageTitles: Record<string, string> = {
   '/checklist': 'Checklist',
   '/my-tasks': 'My tasks',
   '/reports/carers': 'Carer reports',
+  '/reports/timebank': 'Timebank',
+  '/reports/timebank/$serviceUserId': 'Timebank',
+  '/reports/timebank/carers/$employeeId': 'Timebank',
   '/role-tasks': 'Role tasks',
   '/payroll/runs': 'UK payroll runs',
   '/payroll/runs/$runId': 'UK payroll run',
   '/payroll/payslips': 'Payslips',
+  '/specialist-pathways/$pathway': 'Specialist pathway',
+  '/specialist-pathways/$pathway/$caseId': 'Pathway case',
+  '/safeguarding': 'Safeguarding',
+  '/safeguarding/$caseId': 'Safeguarding case',
+  '/crm': 'Enquiries & Referrals',
+  '/crm/$enquiryId': 'Enquiry',
+  '/crm/new': 'New enquiry or referral',
+  '/crm/$enquiryId/edit': 'Edit enquiry',
+  '/crm/$enquiryId/quotes/new': 'New quotation',
+  '/crm/$enquiryId/quotes/$quotationId/$versionId': 'Quotation',
+  '/crm/$enquiryId/quotes/$quotationId/$versionId/service-user': 'Create service user',
   '/learning/dashboard': 'Learning dashboard',
   '/learning/courses': 'Learning courses',
   '/learning/courses/new': 'New course',
@@ -390,8 +425,7 @@ const pageTitles: Record<string, string> = {
   '/policies/$policyId/edit': 'Edit policy',
   '/policies/categories': 'Policy categories',
   '/policies/tags': 'Policy tags',
-  '/policies/to-read': 'My policies to read',
-  '/policies/acknowledgements': 'Read and sign tracking',
+  '/compliance': 'Compliance dashboard',
   '/medication/exceptions': 'Missed & refused doses',
   '/medication/late': 'Late doses',
   '/medication/administered': 'Administration log',
@@ -559,7 +593,7 @@ function AppRootShell() {
   const employeeManagementWide =
     /^\/employee(?:\/(?:staff-list|hours|compliance|review-status|skills|non-core-activity|reports|add)|\/[^/]+\/edit)?$/.test(
       pathname,
-    ) || pathname === '/hours-approvals'
+    ) || pathname === '/hours-approvals' || pathname === '/hours-history'
   const serviceUserHoursWide = pathname === '/service-users/hours'
   const contentLayout =
     fullBleed ? 'full' : employeeManagementWide || serviceUserHoursWide ? 'wide' : 'default'
@@ -570,6 +604,8 @@ function AppRootShell() {
       <CompanyBrandingBootstrap />
       <OrganisationDisplayFormatProvider>
         <AppToaster />
+        <CarerHoursStopDialog />
+        <SentHoursRequestsDialog />
         <UrgentOfficeAlertHost />
         <DevUiTraceChip />
         <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
@@ -922,6 +958,14 @@ const serviceUsersAddRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/add',
   beforeLoad: requirePermission('service_users.create'),
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { firstName?: string; lastName?: string; dob?: string; enquiryId?: string } => ({
+    firstName: typeof search.firstName === 'string' ? search.firstName : undefined,
+    lastName: typeof search.lastName === 'string' ? search.lastName : undefined,
+    dob: typeof search.dob === 'string' ? search.dob : undefined,
+    enquiryId: typeof search.enquiryId === 'string' ? search.enquiryId : undefined,
+  }),
   loader: ({ context: { queryClient: qc } }) => {
     void qc.prefetchQuery({
       queryKey: serviceUserKeys.lookups(),
@@ -1118,6 +1162,14 @@ const serviceUsersVisitPlanRoute = createRoute({
 const serviceUsersActivityRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/activity',
+  validateSearch: (
+    raw: Record<string, unknown>,
+  ): { tab?: 'upcoming' | 'cancelled' | 'rejected' | 'completed' } => ({
+    tab:
+      raw.tab === 'upcoming' || raw.tab === 'cancelled' || raw.tab === 'rejected' || raw.tab === 'completed'
+        ? raw.tab
+        : undefined,
+  }),
   beforeLoad: requireAnyPermission('service_users.read', 'scheduled_visits.read'),
   loader: ({ context: { queryClient: qc }, params: { serviceUserId } }) => {
     prefetchServiceUserProfile(qc, serviceUserId)
@@ -1427,6 +1479,14 @@ const employeeAbsencesRoute = createRoute({
   component: EmployeeAbsencesPage,
 })
 
+const employeeTimesheetsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/employee/timesheets',
+  // Visit rows come from the ECM visits table.
+  beforeLoad: requireAnyPermission('ecm.read', 'ecm.monitor'),
+  component: EmployeeTimesheetsPage,
+})
+
 const parentalLeaveRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/parental-leave',
@@ -1441,6 +1501,20 @@ const specialVisitsRoute = createRoute({
   path: '/special-visits',
   beforeLoad: requireAnyPermission('employees.read', 'employees.reports.read'),
   component: SpecialVisitsPage,
+})
+
+const onCallRotaRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/on-call/rota',
+  beforeLoad: requireAnyPermission('on_call.read'),
+  component: OnCallRotaPage,
+})
+
+const outOfHoursCallsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/on-call/calls',
+  beforeLoad: requireAnyPermission('on_call.read'),
+  component: OutOfHoursCallsPage,
 })
 
 const employeeComplianceRoute = createRoute({
@@ -1667,6 +1741,13 @@ const hoursApprovalsRoute = createRoute({
   component: HoursApprovalsPage,
 })
 
+const hoursHistoryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hours-history',
+  beforeLoad: requireAnyPermission('hours_approvals.read', 'hours_approvals.manage'),
+  component: HoursHistoryPage,
+})
+
 const incidentsListRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/incidents/view',
@@ -1875,6 +1956,7 @@ const GENERAL_SETTINGS_TAB_IDS: GeneralSettingsTabId[] = [
   'alerts',
   'critical-information',
   'app-setting',
+  'carer-notifications',
   'privacy',
 ]
 
@@ -2198,6 +2280,34 @@ const carerReportsRoute = createRoute({
   component: CarerReportsPage,
 })
 
+const timebankSearch = (raw: Record<string, unknown>): { week?: string; tab?: 'carers' } => ({
+  ...(typeof raw.week === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.week) ? { week: raw.week } : {}),
+  ...(raw.tab === 'carers' ? { tab: 'carers' as const } : {}),
+})
+
+const timebankRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/reports/timebank',
+  validateSearch: timebankSearch,
+  beforeLoad: requirePermission('service_users.read'),
+  component: TimebankPage,
+})
+
+const timebankServiceUserRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/reports/timebank/$serviceUserId',
+  validateSearch: timebankSearch,
+  beforeLoad: requirePermission('service_users.read'),
+  component: TimebankServiceUserPage,
+})
+
+const timebankCarerRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/reports/timebank/carers/$employeeId',
+  beforeLoad: requireAnyPermission('employees.read', 'employees.reports.read'),
+  component: TimebankCarerPage,
+})
+
 // Any office user: tasks given to their roles.
 const myTasksRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -2339,6 +2449,103 @@ const learningSettingsRoute = createRoute({
   component: LearningSettingsPage,
 })
 
+const specialistPathwaysIndexRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/specialist-pathways',
+  beforeLoad: () => {
+    throw redirect({ to: '/specialist-pathways/$pathway', params: { pathway: 'learning-disability' } })
+  },
+})
+
+const specialistPathwaysListRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/specialist-pathways/$pathway',
+  beforeLoad: requirePermission('specialist_pathways.read'),
+  component: PathwayCasesListPage,
+})
+
+const specialistPathwaysCaseRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/specialist-pathways/$pathway/$caseId',
+  beforeLoad: requirePermission('specialist_pathways.read'),
+  component: PathwayCaseDetailPage,
+})
+
+const safeguardingListRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/safeguarding',
+  beforeLoad: requirePermission('safeguarding.read'),
+  component: SafeguardingListPage,
+})
+
+const safeguardingCaseRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/safeguarding/$caseId',
+  beforeLoad: requirePermission('safeguarding.read'),
+  component: SafeguardingCaseDetailPage,
+})
+
+const crmBoardRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm',
+  beforeLoad: requirePermission('crm.read'),
+  component: EnquiryBoardPage,
+})
+
+const crmEnquiryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/$enquiryId',
+  beforeLoad: requirePermission('crm.read'),
+  component: EnquiryDetailPage,
+})
+
+const crmNewEnquiryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/new',
+  beforeLoad: requirePermission('crm.manage'),
+  // ?kind=REFERRAL starts the form as a referral ("New referral").
+  validateSearch: (raw: Record<string, unknown>): { kind?: 'REFERRAL' } =>
+    raw.kind === 'REFERRAL' ? { kind: 'REFERRAL' } : {},
+  component: EnquiryNewPage,
+})
+
+const crmEditEnquiryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/$enquiryId/edit',
+  // `focus`: a field label to open the form on; `returnTo`: a CRM page to go back to after saving.
+  validateSearch: (raw: Record<string, unknown>): { focus?: string; returnTo?: string } => {
+    const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+    const returnTo = text(raw.returnTo)
+    return { focus: text(raw.focus), returnTo: returnTo?.startsWith('/crm/') ? returnTo : undefined }
+  },
+  beforeLoad: requirePermission('crm.manage'),
+  component: EnquiryEditPage,
+})
+
+const crmNewQuotationRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/$enquiryId/quotes/new',
+  beforeLoad: requirePermission('crm.manage'),
+  component: QuotationEditorPage,
+})
+
+const crmQuotationRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/$enquiryId/quotes/$quotationId/$versionId',
+  validateSearch: (search: Record<string, unknown>): { section?: string } => ({
+    section: typeof search.section === 'string' ? search.section : undefined,
+  }),
+  beforeLoad: requirePermission('crm.read'),
+  component: QuotationEditorPage,
+})
+
+const crmQuoteServiceUserRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/$enquiryId/quotes/$quotationId/$versionId/service-user',
+  beforeLoad: requirePermission('crm.manage'),
+  component: QuoteServiceUserPage,
+})
+
 const policiesLibraryRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/policies',
@@ -2368,18 +2575,23 @@ const policyTagsRoute = createRoute({
   component: PolicyTagsPage,
 })
 
-const myPoliciesToReadRoute = createRoute({
-  getParentRoute: () => appShellRoute,
-  path: '/policies/to-read',
-  beforeLoad: requirePermission('policies.read'),
-  component: MyPoliciesToReadPage,
-})
+/** Unified compliance view; each area card is gated by its own read permission. */
+const COMPLIANCE_DASHBOARD_PERMISSIONS: Permission[] = [
+  'employees.compliance.reports.read',
+  'learning.dashboard.read',
+  'policies.read',
+  'safeguarding.read',
+  'safeguarding.manage',
+  'incidents.read',
+  'complaints.read',
+  'specialist_pathways.read',
+]
 
-const policyAcknowledgementsRoute = createRoute({
+const complianceDashboardRoute = createRoute({
   getParentRoute: () => appShellRoute,
-  path: '/policies/acknowledgements',
-  beforeLoad: requirePermission('policies.read'),
-  component: PolicyAcknowledgementsPage,
+  path: '/compliance',
+  beforeLoad: requireAnyPermission(...COMPLIANCE_DASHBOARD_PERMISSIONS),
+  component: ComplianceDashboardPage,
 })
 
 const policyDetailRoute = createRoute({
@@ -2495,8 +2707,11 @@ const routeTree = rootRoute.addChildren([
     employeeStaffListRoute,
     employeeHoursRoute,
     employeeAbsencesRoute,
+    employeeTimesheetsRoute,
     parentalLeaveRoute,
     specialVisitsRoute,
+    onCallRotaRoute,
+    outOfHoursCallsRoute,
     employeeComplianceRoute,
     employeeReviewStatusRoute,
     employeeSkillsRoute,
@@ -2520,6 +2735,7 @@ const routeTree = rootRoute.addChildren([
     surveyBuilderRoute,
     surveyResponsesRoute,
     hoursApprovalsRoute,
+    hoursHistoryRoute,
     incidentsDashboardRoute,
     incidentsListRoute,
     incidentsRaiseRoute,
@@ -2576,6 +2792,9 @@ const routeTree = rootRoute.addChildren([
     setupChecklistRoute,
     myTasksRoute,
     carerReportsRoute,
+    timebankRoute,
+    timebankServiceUserRoute,
+    timebankCarerRoute,
     roleTasksRoute,
     payrollRunsRoute,
     payrollRunDetailRoute,
@@ -2592,12 +2811,23 @@ const routeTree = rootRoute.addChildren([
     learningExternalTrainingRoute,
     learningReportsRoute,
     learningSettingsRoute,
+    specialistPathwaysIndexRoute,
+    specialistPathwaysListRoute,
+    specialistPathwaysCaseRoute,
+    safeguardingListRoute,
+    safeguardingCaseRoute,
+    crmBoardRoute,
+    crmNewEnquiryRoute,
+    crmEnquiryRoute,
+    crmEditEnquiryRoute,
+    crmNewQuotationRoute,
+    crmQuotationRoute,
+    crmQuoteServiceUserRoute,
     policiesLibraryRoute,
     policyNewRoute,
     policyCategoriesRoute,
     policyTagsRoute,
-    myPoliciesToReadRoute,
-    policyAcknowledgementsRoute,
+    complianceDashboardRoute,
     policyDetailRoute,
     policyEditRoute,
   ]),

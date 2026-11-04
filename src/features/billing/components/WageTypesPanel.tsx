@@ -8,6 +8,9 @@ import { Badge } from '@/shared/ui/badge'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { useUpdateWageType, useWageTypes } from '@/features/billing/hooks/useWageTypes'
+import { TravelGapSettingsCard } from '@/features/billing/components/TravelGapSettingsCard'
+import { SectionInfoTip } from '@/features/billing/components/SectionInfoTip'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import {
   CALCULATION_METHOD_LABELS,
   WAGE_TYPE_CATEGORY_LABELS,
@@ -138,9 +141,22 @@ export function WageTypesPanel() {
   return (
     <div className="space-y-6" data-testid="wage-types-panel">
       <ContentSectionHeader
-        title="Wage types"
-        description="UK domiciliary care pay components. Codes are fixed; you can rename them or switch them off. 'On pay card' types are set as rates on each pay card."
+        title={
+          <TooltipProvider delayDuration={150}>
+            <span className="inline-flex items-center gap-1.5">
+              Wage types
+              <SectionInfoTip label="wage types">
+                UK domiciliary care pay components. Codes are fixed; you can rename them or switch them off. &lsquo;On
+                pay card&rsquo; types are set as rates on each pay card.
+              </SectionInfoTip>
+            </span>
+          </TooltipProvider>
+        }
       />
+
+      <TooltipProvider delayDuration={150}>
+        <TravelGapSettingsCard canManage={canManage} />
+      </TooltipProvider>
 
       {wageTypesQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading wage types…</p> : null}
       {wageTypesQuery.error ? (

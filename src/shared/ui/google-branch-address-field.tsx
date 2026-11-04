@@ -8,6 +8,7 @@ import {
   loadGoogleMapsPlaces,
   parseGooglePlaceFormatted,
   type GoogleAutocompletePrediction,
+  type GoogleGeocoderApi,
 } from '@/shared/lib/google-maps'
 
 export type GoogleBranchAddressMeta = {
@@ -31,6 +32,8 @@ type Props = {
   countryRestriction?: string | string[]
   disabled?: boolean
   placeholder?: string
+  /** Line under the field when Google Places is on. */
+  helpText?: string
   className?: string
 }
 
@@ -45,6 +48,7 @@ export function GoogleBranchAddressField({
   countryRestriction = 'gb',
   disabled,
   placeholder = 'Start typing an address…',
+  helpText = 'Powered by Google Places — pick a suggestion to fill the branch address.',
   className,
 }: Props) {
   const wrapRef = React.useRef<HTMLDivElement>(null)
@@ -85,6 +89,7 @@ export function GoogleBranchAddressField({
         ) => void,
       ) => void
     }
+    geocoder: GoogleGeocoderApi | null
   } | null>(null)
 
   const updateMenuPos = React.useCallback(() => {
@@ -109,6 +114,7 @@ export function GoogleBranchAddressField({
         servicesRef.current = {
           autocomplete: new google.maps.places.AutocompleteService(),
           places: new google.maps.places.PlacesService(attr),
+          geocoder: google.maps.Geocoder ? new google.maps.Geocoder() : null,
         }
         setReady(true)
         setError(null)
@@ -217,15 +223,31 @@ export function GoogleBranchAddressField({
             return
           }
           const parsed = parseGooglePlaceFormatted(place)
-          onChange(parsed.formattedAddress || prediction.description, {
-            city: parsed.city || undefined,
-            country: parsed.country || undefined,
-            postcode: parsed.postcode || undefined,
-            addressLine1: parsed.addressLine1 || undefined,
-            addressLine2: parsed.addressLine2 || undefined,
-            county: parsed.county || undefined,
-            lat: parsed.lat,
-            lng: parsed.lng,
+          const emit = (postcode: string) =>
+            onChange(parsed.formattedAddress || prediction.description, {
+              city: parsed.city || undefined,
+              country: parsed.country || undefined,
+              postcode: postcode || undefined,
+              addressLine1: parsed.addressLine1 || undefined,
+              addressLine2: parsed.addressLine2 || undefined,
+              county: parsed.county || undefined,
+              lat: parsed.lat,
+              lng: parsed.lng,
+            })
+          const geocoder = servicesRef.current?.geocoder
+          if (parsed.postcode || parsed.lat == null || parsed.lng == null || !geocoder) {
+            emit(parsed.postcode)
+            return
+          }
+          // A street or area has no postcode of its own: take the nearest one to its position.
+          setSearching(true)
+          geocoder.geocode({ location: { lat: parsed.lat, lng: parsed.lng } }, (results, geoStatus) => {
+            setSearching(false)
+            const nearest =
+              geoStatus === 'OK'
+                ? (results ?? []).map(r => parseGooglePlaceFormatted(r).postcode).find(Boolean)
+                : undefined
+            emit(nearest ?? '')
           })
         },
       )
@@ -337,9 +359,7 @@ export function GoogleBranchAddressField({
       {menu}
 
       {configured ? (
-        <p className="text-xs text-muted-foreground">
-          Powered by Google Places — pick a suggestion to fill the branch address.
-        </p>
+        <p className="text-xs text-muted-foreground">{helpText}</p>
       ) : (
         <p className="text-xs text-muted-foreground">
           Add <code className="text-[11px]">VITE_GOOGLE_MAPS_API_KEY</code> to enable address

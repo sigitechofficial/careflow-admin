@@ -71,19 +71,27 @@ const SLOT_OPTION_DEFAULTS = {
 function normalizeSlot(slot: VisitPlanSlot): VisitPlanSlot {
   const carerAssignments = Array.isArray(slot.carerAssignments) ? slot.carerAssignments : []
   const exceptions = Array.isArray(slot.exceptions) ? slot.exceptions : []
+  // Default (all-days) carers only: day-specific rows must not become the slot's default
+  // carer, or a later save would give that carer every day of the visit.
   const assignedFromRows = [
-    ...new Set(carerAssignments.map((a) => a.employeeId?.trim()).filter((id): id is string => Boolean(id))),
+    ...new Set(
+      carerAssignments
+        .filter((a) => a.dayOfWeek == null)
+        .map((a) => a.employeeId?.trim())
+        .filter((id): id is string => Boolean(id)),
+    ),
   ]
   return {
     ...SLOT_OPTION_DEFAULTS,
     ...slot,
     daysOfWeek: Array.isArray(slot.daysOfWeek) ? slot.daysOfWeek : [],
     linkedCarePlanFormIds: Array.isArray(slot.linkedCarePlanFormIds) ? slot.linkedCarePlanFormIds : [],
-    assignedEmployeeIds: assignedFromRows.length
-      ? assignedFromRows
-      : Array.isArray(slot.assignedEmployeeIds)
-        ? slot.assignedEmployeeIds
-        : [],
+    assignedEmployeeIds:
+      assignedFromRows.length || carerAssignments.length
+        ? assignedFromRows
+        : Array.isArray(slot.assignedEmployeeIds)
+          ? slot.assignedEmployeeIds
+          : [],
     carerAssignments,
     exceptions,
   }
@@ -224,14 +232,84 @@ export async function updateServiceUserVisitPlan(
   },
 ) {
   const res = await apiJson<
-    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: ScheduleImpactSummary }
+    ApiEnvelope<ServiceUserVisitPlan> & {
+      /** Only data / meta / message reach the client: these come in meta. */
+      meta?: {
+        scheduleImpact?: ScheduleImpactSummary
+        heldTimeChanges?: VisitPlanHeldTimeChange[]
+        /** Settings → Dom Rules (no approval): carers assigned over their weekly hours. */
+        carerHoursWarnings?: string[]
+      }
+    }
   >(`/service-users/${serviceUserId}/visit-plans/${planId}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   })
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
-  return { plan, scheduleImpact: res.scheduleImpact }
+  return {
+    plan,
+    scheduleImpact: res.meta?.scheduleImpact,
+    heldTimeChanges: res.meta?.heldTimeChanges ?? [],
+    carerHoursWarnings: res.meta?.carerHoursWarnings ?? [],
+    message: res.message,
+  }
+}
+
+/** A longer visit that keeps its current time until a manager approves the new one. */
+export type VisitPlanHeldTimeChange = {
+  slotId: string
+  slotLabel: string
+  fromStart: string
+  fromEnd: string
+  toStart: string
+  toEnd: string
+}
+
+export type VisitPlanWeekHours = {
+  /** Monday of the week, YYYY-MM-DD. */
+  weekStart: string
+  /** Visit minutes counted against the weekly contracted hours (double-up per org setting). */
+  minutes: number
+  visits: number
+  /** Sleeping nights in the week — their hours are included in `minutes`. */
+  sleepInNights: number
+  /** Minutes visits of the week hold from the service user's timebank (on top of the weekly hours). */
+  timebankMinutes?: number
+}
+
+export type VisitPlanWeeklyHoursResult = {
+  /** The service user's timebank (Settings → Dom Rules "Use timebank hours automatically"). */
+  timebank?: { useTimebank: boolean; availableMinutes: number } | null
+  mode: 'COMBINED' | 'FIXED'
+  weeks: VisitPlanWeekHours[]
+  heaviestWeek: VisitPlanWeekHours | null
+  /** The service user's approved weekly contracted hours (null when not set). */
+  limitWeeklyHours: number | null
+  overLimitWeeks: VisitPlanWeekHours[]
+  /**
+   * Settings → Dom Rules: visits over the hours go to Hours approvals (made once approved) when
+   * true, or are made with a warning. Counted from the rota, this week to the rota horizon.
+   */
+  visitsNeedApproval?: boolean
+  /** Today and the last day counted (the rota horizon). */
+  today?: string
+  edge?: string
+}
+
+
+/** Weekly hours for an unsaved visit schedule, counted on the server (nothing is saved). */
+export async function previewVisitPlanWeeklyHours(
+  serviceUserId: string,
+  planId: string,
+  slots: VisitPlanSlotInput[],
+  init?: RequestInit,
+): Promise<VisitPlanWeeklyHoursResult> {
+  const res = await apiJson<ApiEnvelope<VisitPlanWeeklyHoursResult>>(
+    `/service-users/${serviceUserId}/visit-plans/${planId}/weekly-hours-preview`,
+    { method: 'POST', body: JSON.stringify({ slots }), ...init },
+  )
+  return res.data
 }
 
 export async function previewVisitPlanAmendmentImpact(
@@ -364,14 +442,19 @@ export async function activateServiceUserVisitPlan(
   body?: { reactivationReason?: string; cancelEndedPlanJobs?: boolean },
 ) {
   const res = await apiJson<
-    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: ScheduleImpactSummary }
+    ApiEnvelope<ServiceUserVisitPlan> & { meta?: { scheduleImpact?: ScheduleImpactSummary } }
   >(`/service-users/${serviceUserId}/visit-plans/${planId}/activate`, {
     method: 'POST',
     body: JSON.stringify(body ?? {}),
   })
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
-  return { plan, scheduleImpact: res.scheduleImpact }
+  // Settings → Dom Rules (no approval): the message carries "Warning: … over their weekly hours".
+  const carerHoursWarnings = (res.message ?? '')
+    .split('Warning: ')
+    .slice(1)
+    .map(w => w.trim().replace(/\.$/, ''))
+  return { plan, scheduleImpact: res.meta?.scheduleImpact, carerHoursWarnings }
 }
 
 export type EndVisitPlanPayload = {
@@ -398,14 +481,14 @@ export async function suspendServiceUserVisitPlan(
   body: SuspendVisitPlanPayload,
 ) {
   const res = await apiJson<
-    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } }
+    ApiEnvelope<ServiceUserVisitPlan> & { meta?: { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } } }
   >(`/service-users/${serviceUserId}/visit-plans/${planId}/suspend`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
-  return { plan, scheduleImpact: res.scheduleImpact }
+  return { plan, scheduleImpact: res.meta?.scheduleImpact }
 }
 
 export async function previewVisitPlanEndScheduleImpact(
@@ -442,14 +525,14 @@ export async function endServiceUserVisitPlan(
   body: EndVisitPlanPayload,
 ) {
   const res = await apiJson<
-    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } }
+    ApiEnvelope<ServiceUserVisitPlan> & { meta?: { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } } }
   >(`/service-users/${serviceUserId}/visit-plans/${planId}/end`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
-  return { plan, scheduleImpact: res.scheduleImpact }
+  return { plan, scheduleImpact: res.meta?.scheduleImpact }
 }
 
 export async function prefillVisitPlanFromDomCare(serviceUserId: string, planId: string) {
@@ -481,6 +564,10 @@ export async function generateScheduleFromVisitPlan(
       fromDate: string
       toDate: string
       backfillDays?: number
+      /** Weeks of this run over the service user's weekly contracted hours (Settings → Dom Rules: warning only). */
+      weeklyHoursWarning?: string
+      /** Hours this run took from the timebank for visits over the weekly hours, in words. */
+      weeklyHoursTimebank?: string
     }>
   >(
     `/service-users/${serviceUserId}/visit-plans/${planId}/generate-schedule`,

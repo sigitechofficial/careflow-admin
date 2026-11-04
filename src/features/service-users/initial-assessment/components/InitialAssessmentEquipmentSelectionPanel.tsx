@@ -77,7 +77,7 @@ export function InitialAssessmentEquipmentSelectionPanel({ value, waterlow, disa
         <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1 sm:col-span-2" data-testid="ia-equipment-waterlow-readonly">
-              <p className={IA_QUESTION_LABEL_CLASS}>Waterlow score and risk band</p>
+              <p className={IA_QUESTION_LABEL_CLASS}>My Waterlow score and risk band</p>
               {waterlowScore > 0 ? (
                 <p className="text-sm">
                   <span className={cn('rounded px-2 py-0.5 font-medium', band.className)}>
@@ -93,7 +93,7 @@ export function InitialAssessmentEquipmentSelectionPanel({ value, waterlow, disa
             </div>
             <div className="space-y-1 sm:col-span-2">
               <Label htmlFor="equipment-selection-equipment" className={IA_QUESTION_LABEL_CLASS}>
-                Equipment selected / in use
+                Pressure-relieving equipment selected for me / that I use
               </Label>
               <Input
                 id="equipment-selection-equipment"
@@ -108,14 +108,14 @@ export function InitialAssessmentEquipmentSelectionPanel({ value, waterlow, disa
           <div className="grid gap-4 sm:grid-cols-2">
             <YesNoField
               name="equipment-selection-in-place"
-              label="Is the recommended equipment already in place?"
+              label="Is the equipment recommended for me already in place?"
               value={value.equipmentInPlace}
               disabled={disabled}
               onChange={(equipmentInPlace) => patch({ equipmentInPlace })}
             />
             <YesNoField
               name="equipment-selection-ot"
-              label="OT / equipment referral required?"
+              label="Do I need an OT or equipment referral?"
               value={value.otReferralRequired}
               disabled={disabled}
               onChange={(otReferralRequired) => patch({ otReferralRequired })}
@@ -124,7 +124,7 @@ export function InitialAssessmentEquipmentSelectionPanel({ value, waterlow, disa
 
           <div className="space-y-1">
             <Label htmlFor="equipment-selection-notes" className={IA_QUESTION_LABEL_CLASS}>
-              Notes
+              Anything else about my pressure-relieving equipment
             </Label>
             <Textarea
               id="equipment-selection-notes"
@@ -155,7 +155,7 @@ export function InitialAssessmentEquipmentSelectionPanel({ value, waterlow, disa
                     <HolisticAssessmentTableCell className="align-top font-medium text-sm">
                       {row.riskLevel}
                       <span className="mt-0.5 block font-normal text-muted-foreground">
-                        ({row.scoreRange}){current ? ' — this person' : ''}
+                        ({row.scoreRange}){current ? ' — my band' : ''}
                       </span>
                     </HolisticAssessmentTableCell>
                     <HolisticAssessmentTableCell className="align-top text-sm">

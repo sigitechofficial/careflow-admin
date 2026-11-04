@@ -28,7 +28,7 @@ export const SKIN_INTEGRITY_CHECK_BODY_PARTS: ReadonlyArray<{ id: string; label:
 ]
 
 export const SKIN_INTEGRITY_CHECK_COMPLETION_NOTES =
-  'Inspect all areas labelled and complete condition of each – state whether erythema present (blanching or non-blanching), moisture lesions, blister, discolouration, pressure ulcers (with category if able to state).'
+  'Please inspect all of the areas listed and record the condition of my skin at each one – state whether erythema is present (blanching or non-blanching), moisture lesions, blisters, discolouration or pressure ulcers (with the category if you are able to state it).'
 
 export function defaultSkinIntegrityCheckRows(): SkinIntegrityCheckRow[] {
   return SKIN_INTEGRITY_CHECK_BODY_PARTS.map((part) => ({

@@ -22,12 +22,29 @@ import {
   useCarePlanCompose,
   useCarePlanInstance,
   useCarePlanPublishedVersion,
+  useCarePlanApprovalActions,
+  useCarePlanLifecycleAction,
+  useCarePlanRisks,
+  useCarePlanRisksAction,
+  useCarePlanTaskReconciliation,
+  useCarePlanTaskReconciliationAction,
   usePublishCarePlan,
   useSaveCarePlanDraft,
 } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
 import { CarePlanEvidencePanel } from '@/features/service-users/care-plans/components/CarePlanEvidencePanel'
 import { CarePlanFactsheetPanel } from '@/features/service-users/care-plans/components/CarePlanFactsheetPanel'
 import { CarePlanPublishDialog } from '@/features/service-users/care-plans/components/CarePlanPublishDialog'
+import { CarePlanApprovalPanel } from '@/features/service-users/care-plans/components/CarePlanApprovalPanel'
+import { CarePlanLifecyclePanel } from '@/features/service-users/care-plans/components/CarePlanLifecyclePanel'
+import {
+  CarePlanRiskReviewPanel,
+  type RiskReviewActionInput,
+} from '@/features/service-users/care-plans/components/CarePlanRiskReviewPanel'
+import {
+  CarePlanTaskReconciliationPanel,
+  type ReconciliationActionInput,
+} from '@/features/service-users/care-plans/components/CarePlanTaskReconciliationPanel'
+import { carePlanApprovalView } from '@/features/service-users/care-plans/care-plan-approval-state'
 import { hasPublishableCarePlanValues } from '@/features/service-users/care-plans/care-plan-publish.util'
 import { CarePlanIaHistoryPanel } from '@/features/service-users/care-plans/components/CarePlanIaHistoryPanel'
 import {
@@ -77,6 +94,7 @@ export default function ServiceUserCarePlanFormPage() {
   const formId = params.formId ?? ''
   const navigate = useNavigate()
   const canUpdate = useAuthStore((s) => s.can('service_users.update'))
+  const canApprove = useAuthStore((s) => s.can('service_users.care_plan.approve'))
   const apiConfigured = Boolean(getApiBaseUrl())
 
   const { profile, form: formQuery, isLoading, error: loadErrorObj } = useCarePlanFormPage(
@@ -114,7 +132,20 @@ export default function ServiceUserCarePlanFormPage() {
   )
   const saveDraftMutation = useSaveCarePlanDraft(serviceUserId, formId)
   const publishMutation = usePublishCarePlan(serviceUserId, formId)
+  const approvalActions = useCarePlanApprovalActions(serviceUserId, formId)
   const actorId = useAuthStore((s) => s.user?.id)
+  const approval = carePlanApprovalView(instanceQuery.data)
+  const lifecycleAction = useCarePlanLifecycleAction(serviceUserId, formId)
+  const hasPublished = Boolean(instanceQuery.data?.latestPublishedVersion)
+  const reconciliationQuery = useCarePlanTaskReconciliation(serviceUserId, formId, apiConfigured && hasPublished)
+  const reconciliationAction = useCarePlanTaskReconciliationAction(serviceUserId, formId)
+  const risksQuery = useCarePlanRisks(serviceUserId, formId, apiConfigured && Boolean(instanceQuery.data?.id))
+  const risksAction = useCarePlanRisksAction(serviceUserId, formId)
+  const archived = instanceQuery.data?.lifecycle?.status === 'ARCHIVED'
+  // While a draft awaits approval nobody edits it, and archived plans are read-only (the API refuses both).
+  const canEdit = canUpdate && !approval.locked && !archived
+  const approvalBusy =
+    approvalActions.submit.isPending || approvalActions.approve.isPending || approvalActions.requestChanges.isPending
   const explicitSuggestions = isExplicitSuggestionCompose(composeQuery.data)
   /** Published "View plan" must not show IA suggestion cards; draft edit keeps them. */
   const showIaSuggestions = shouldShowCarePlanIaSuggestions(instanceQuery.data?.displayStatus)
@@ -279,7 +310,9 @@ export default function ServiceUserCarePlanFormPage() {
       )
       return
     }
-    void persistDraft(values, composedFrom)
+    // An approved draft is published as approved, without re-saving it.
+    const saveFirst = approval.footerAction === 'publish_approved' ? Promise.resolve(null) : persistDraft(values, composedFrom)
+    void saveFirst
       .then(() =>
         publishMutation.mutateAsync({
           gapAcknowledged: payload.gapAcknowledged,
@@ -304,6 +337,74 @@ export default function ServiceUserCarePlanFormPage() {
         })
       })
       .catch((e) => toastApiError(e, 'Could not publish care plan'))
+  }
+
+  const onSubmitForApproval = () => {
+    if (!hasPublishableCarePlanValues(values)) {
+      toastApiError(new Error('Add care plan field values before submitting for approval.'), 'Could not submit')
+      return
+    }
+    void persistDraft(values, composedFrom)
+      .then(() => approvalActions.submit.mutateAsync())
+      .then(() => toastSuccess('Submitted for approval', 'A manager can now approve the care plan or request changes.'))
+      .catch((e) => toastApiError(e, 'Could not submit for approval'))
+  }
+
+  const onApprove = () => {
+    const hash = instanceQuery.data?.draft?.approval?.contentHash
+    if (!hash) return
+    void approvalActions.approve
+      .mutateAsync(hash)
+      .then(() => toastSuccess('Care plan approved', 'It can now be published.'))
+      .catch((e) => toastApiError(e, 'Could not approve'))
+  }
+
+  const onRequestChanges = (reason: string) => {
+    void approvalActions.requestChanges
+      .mutateAsync(reason)
+      .then(() => toastSuccess('Changes requested', 'The draft is back with its author.'))
+      .catch((e) => toastApiError(e, 'Could not request changes'))
+  }
+
+  const onLifecycleAction = (
+    action: 'suspend' | 'resume' | 'archive',
+    input: { reason: string; reviewConfirmed?: boolean },
+  ) => {
+    const done = { suspend: 'Care plan suspended', resume: 'Care plan resumed', archive: 'Care plan archived' }
+    void lifecycleAction
+      .mutateAsync({ action, ...input })
+      .then(() => toastSuccess(done[action]))
+      .catch((e) => toastApiError(e, `Could not ${action} the care plan`))
+  }
+
+  const onRiskReviewAction = (input: RiskReviewActionInput) => {
+    void risksAction
+      .mutateAsync(input)
+      .then(() => toastSuccess(input.action === 'resolve_flag' ? 'Review recorded' : 'Care plan risks updated'))
+      .catch((e) => toastApiError(e, 'Could not update care plan risks'))
+  }
+
+  const onReconciliationAction = (input: ReconciliationActionInput) => {
+    void reconciliationAction
+      .mutateAsync(input)
+      .then(() => toastSuccess('Visit task reconciliation updated'))
+      .catch((e) => toastApiError(e, 'Could not update visit task reconciliation'))
+  }
+
+  /** Footer action: plain publish, Submit for Approval, or Publish Approved Plan. */
+  const onFooterPublish = () => {
+    if (approval.footerAction === 'submit') return onSubmitForApproval()
+    if (approval.footerAction === 'publish_approved') {
+      // Publish exactly what was approved; local edits would need a new approval.
+      if (approval.hasUnsavedChanges(values)) {
+        toastApiError(
+          new Error('You changed the plan after it was approved. Save it and submit it for approval again.'),
+          'Could not publish',
+        )
+        return
+      }
+    }
+    setPublishOpen(true)
   }
 
   const backToList = () => {
@@ -371,7 +472,7 @@ export default function ServiceUserCarePlanFormPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => void refreshFromSources()}
-                disabled={composeQuery.isFetching || saveDraftMutation.isPending}
+                disabled={composeQuery.isFetching || saveDraftMutation.isPending || !canEdit}
               >
                 {explicitSuggestions ? 'Refresh suggestions' : 'Refresh from IA / profile'}
               </Button>
@@ -418,6 +519,33 @@ export default function ServiceUserCarePlanFormPage() {
         )}
         {!workspaceLoading && !error && form && valuesHydrated && (
           <>
+            <CarePlanLifecyclePanel
+              lifecycle={instanceQuery.data?.lifecycle}
+              published={Boolean(instanceQuery.data?.latestPublishedVersion)}
+              canManage={canApprove}
+              busy={lifecycleAction.isPending}
+              onAction={onLifecycleAction}
+            />
+
+            <CarePlanRiskReviewPanel
+              data={risksQuery.data}
+              canManage={canApprove && !archived}
+              busy={risksAction.isPending}
+              onAction={onRiskReviewAction}
+            />
+
+            {approval.showPanel ? (
+              <CarePlanApprovalPanel
+                approval={instanceQuery.data?.draft?.approval}
+                publishedVersionNumber={instanceQuery.data?.latestPublishedVersion?.versionNumber}
+                canApprove={canApprove}
+                actorId={actorId}
+                busy={approvalBusy}
+                onApprove={onApprove}
+                onRequestChanges={onRequestChanges}
+              />
+            ) : null}
+
             <CarePlanEvidencePanel
               evidence={composeQuery.data?.evidence ?? []}
               gaps={composeQuery.data?.gaps ?? []}
@@ -435,7 +563,7 @@ export default function ServiceUserCarePlanFormPage() {
                 form={form}
                 values={values}
                 onChange={onValuesChange}
-                readOnly={!canUpdate}
+                readOnly={!canEdit}
               />
             ) : null}
 
@@ -445,11 +573,12 @@ export default function ServiceUserCarePlanFormPage() {
               form={form}
               values={values}
               onChange={onValuesChange}
-              disabled={!canUpdate}
+              disabled={!canEdit}
               onCancel={backToList}
-              onPublish={() => setPublishOpen(true)}
+              onPublish={onFooterPublish}
+              publishLabel={approval.footerLabel}
               onSaveDraft={onSaveDraft}
-              saving={saveDraftMutation.isPending || publishMutation.isPending}
+              saving={saveDraftMutation.isPending || publishMutation.isPending || approvalBusy}
               suggestions={showIaSuggestions ? composeQuery.data?.suggestions : undefined}
               ignoredSuggestionIds={showIaSuggestions ? readIgnoredSuggestionIds(composedFrom) : undefined}
               composedFrom={composedFrom}
@@ -462,6 +591,15 @@ export default function ServiceUserCarePlanFormPage() {
             />
 
             <CarePlanVersionHistoryPanel serviceUserId={serviceUserId} formId={formId} />
+
+            {hasPublished ? (
+              <CarePlanTaskReconciliationPanel
+                data={reconciliationQuery.data}
+                canManage={canApprove && !archived}
+                busy={reconciliationAction.isPending}
+                onAction={onReconciliationAction}
+              />
+            ) : null}
           </>
         )}
       </div>

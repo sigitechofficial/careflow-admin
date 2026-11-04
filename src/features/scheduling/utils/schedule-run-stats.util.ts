@@ -1,6 +1,7 @@
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
   buildNextVisitTravelDetail,
+  formatTravelDistanceKm,
   sortJobsByStartTime,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import {
@@ -36,13 +37,6 @@ function formatRunDurationLabel(totalMinutes: number): string {
   const hourPart = `${h} hour${h === 1 ? '' : 's'}`
   if (m === 0) return hourPart
   return `${hourPart}, ${m} minute${m === 1 ? '' : 's'}`
-}
-
-function formatMiles(km: number): string {
-  if (!Number.isFinite(km) || km <= 0) return '0 miles'
-  const miles = km * 0.621371
-  if (miles < 0.1) return '< 0.1 miles'
-  return `${miles.toFixed(2)} miles`
 }
 
 export function computeScheduleRunStats(
@@ -90,7 +84,7 @@ export function computeScheduleRunStats(
         : '—',
     travelTimeDisplayLabel: formatRunDurationLabel(travelMinutes),
     travelDistanceKm,
-    travelDistanceLabel: formatMiles(travelDistanceKm),
+    travelDistanceLabel: travelDistanceKm > 0 ? formatTravelDistanceKm(travelDistanceKm) : '0 mi',
     travelPercentOfRostered,
     travelPercentDisplayLabel,
     waitMinutes,

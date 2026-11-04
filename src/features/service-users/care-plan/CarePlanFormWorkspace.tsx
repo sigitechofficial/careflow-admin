@@ -1001,12 +1001,15 @@ export function CarePlanFormFooter({
   onSaveDraft,
   saving,
   disabled,
+  publishLabel = 'Publish Care Plan',
 }: {
   onCancel: () => void
   onPublish: () => void
   onSaveDraft: () => void
   saving?: boolean
   disabled?: boolean
+  /** e.g. "Submit for Approval" / "Publish Approved Plan" when approval is required. */
+  publishLabel?: string
 }) {
   return (
     <div
@@ -1017,7 +1020,7 @@ export function CarePlanFormFooter({
         Cancel
       </Button>
       <Button type="button" onClick={onPublish} disabled={saving || disabled}>
-        Publish Care Plan
+        {publishLabel}
       </Button>
       <Button type="button" onClick={onSaveDraft} disabled={saving || disabled}>
         Save Care Plan As Draft
@@ -1035,6 +1038,7 @@ export function CarePlanFormWorkspace({
   disabled,
   onCancel,
   onPublish,
+  publishLabel,
   onSaveDraft,
   saving,
   suggestions,
@@ -1055,6 +1059,7 @@ export function CarePlanFormWorkspace({
   disabled?: boolean
   onCancel: () => void
   onPublish: () => void
+  publishLabel?: string
   onSaveDraft: () => void
   saving?: boolean
   suggestions?: CarePlanFieldSuggestion[]
@@ -1192,6 +1197,7 @@ export function CarePlanFormWorkspace({
           onPublish={onPublish}
           onSaveDraft={onSaveDraft}
           saving={saving}
+          publishLabel={publishLabel}
         />
       )}
     </div>

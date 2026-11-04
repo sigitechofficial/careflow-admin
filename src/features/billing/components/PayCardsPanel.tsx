@@ -17,6 +17,7 @@ import { ApiError } from '@/shared/api/api-client'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
 import {
   Dialog,
@@ -30,6 +31,7 @@ import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { PayCardAssignDialog } from '@/features/billing/components/PayCardAssignDialog'
 import { PayCardConflictsBanner } from '@/features/billing/components/PayCardConflictNotice'
 import { RateCardStatusBadge } from '@/features/billing/components/BillingStatusBadge'
+import { SectionInfoTip } from '@/features/billing/components/SectionInfoTip'
 import {
   useDeletePayCard,
   usePayCard,
@@ -280,8 +282,17 @@ export function PayCardsPanel() {
   return (
     <div className="space-y-6">
       <ContentSectionHeader
-        title="Carer pay cards"
-        description="Reusable pay rate templates. Set branch, role, or employment type criteria, then bulk-assign carers here or override on each employee profile."
+        title={
+          <TooltipProvider delayDuration={150}>
+            <span className="inline-flex items-center gap-1.5">
+              Carer pay cards
+              <SectionInfoTip label="carer pay cards">
+                Reusable pay rate templates. Set branch, role, or employment type criteria, then bulk-assign
+                carers here or override on each employee profile.
+              </SectionInfoTip>
+            </span>
+          </TooltipProvider>
+        }
         action={
           canManage ? (
             <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={openCreate}>

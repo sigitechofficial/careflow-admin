@@ -2,6 +2,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { fetchWithResilience, type FetchResilienceOptions } from '@/shared/api/http-client'
 import { formatApiErrorMessage } from '@/shared/api/api-error-format'
+import { useSentHoursRequestsStore } from '@/store/sent-hours-requests.store'
 
 export { getApiBaseUrl } from '@/shared/lib/api-base'
 export type { FetchResilienceOptions } from '@/shared/api/http-client'
@@ -76,6 +77,14 @@ function buildRequestHeaders(init: RequestInit, token: string | null): Headers {
   return headers
 }
 
+/** Requests this call sent for manager approval: a manager can approve them at once (SentHoursRequestsDialog). */
+function offerSentHoursRequests(body: unknown) {
+  const ids = (body as { meta?: { hoursRequestIds?: unknown } } | null)?.meta?.hoursRequestIds
+  if (!Array.isArray(ids) || !ids.length) return
+  if (!useAuthStore.getState().can('hours_approvals.manage')) return
+  useSentHoursRequestsStore.getState().offer(ids.filter((id): id is string => typeof id === 'string'))
+}
+
 /** JSON request to CareAdmin API (Bearer from auth store when present). */
 export async function apiJson<T>(
   path: string,
@@ -121,6 +130,7 @@ export async function apiJson<T>(
       const msg = formatApiErrorMessage(body, fallback)
       throw new ApiError(msg || fallback, res.status, body)
     }
+    offerSentHoursRequests(body)
     return body as T
   }
   throw new ApiError('Request failed', 0)

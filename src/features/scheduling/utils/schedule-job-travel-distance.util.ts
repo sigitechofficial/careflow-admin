@@ -2,6 +2,7 @@ import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { jobRotaTimeRange } from '@/features/scheduling/utils/schedule-job-hover-details.util'
 import { jobDurationMinutes } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
+import { drivingLegFor } from '@/features/scheduling/utils/driving-travel.store'
 
 export type GeoCoordinates = {
   lat: number
@@ -14,6 +15,8 @@ export type NextVisitTravelDetail = {
   distanceLabel: string
   travelMinutes: number
   travelLabel: string
+  /** GOOGLE = driving route from the API; ESTIMATE = worked out from the straight-line distance. */
+  travelSource: TravelSource
   nextClientLabel: string
   nextVisitTimeLabel: string
   gapMinutes: number
@@ -64,11 +67,12 @@ export function haversineDistanceKm(from: GeoCoordinates, to: GeoCoordinates): n
   return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+/** Shown in miles (UK), one decimal like visit reconciliation; distances are kept in km internally. */
 export function formatTravelDistanceKm(distanceKm: number): string {
   if (!Number.isFinite(distanceKm) || distanceKm < 0) return '—'
-  if (distanceKm < 0.1) return `${Math.round(distanceKm * 1000)} m`
-  if (distanceKm < 10) return `${distanceKm.toFixed(1)} km`
-  return `${Math.round(distanceKm)} km`
+  const miles = distanceKm * 0.621371
+  if (miles < 0.1) return '< 0.1 mi'
+  return `${miles.toFixed(1)} mi`
 }
 
 /** Estimates driving time from straight-line (haversine) distance. */
@@ -76,6 +80,29 @@ export function estimateTravelMinutesFromStraightLineKm(straightLineKm: number):
   if (!Number.isFinite(straightLineKm) || straightLineKm <= 0) return 0
   const roadKm = straightLineKm * ROAD_DISTANCE_FACTOR
   return Math.max(1, Math.round((roadKm / AVERAGE_DRIVING_SPEED_KMH) * 60))
+}
+
+export type TravelSource = 'GOOGLE' | 'ESTIMATE'
+
+/**
+ * Distance and driving time between two visits: Google's driving route once the API has answered
+ * (see driving-travel.store), otherwise the straight-line estimate.
+ */
+export function travelBetween(
+  from: GeoCoordinates,
+  to: GeoCoordinates,
+): { distanceKm: number; travelMinutes: number; travelSource: TravelSource } {
+  const leg = drivingLegFor(from, to)
+  if (leg?.source === 'GOOGLE') {
+    return { distanceKm: leg.km, travelMinutes: leg.minutes, travelSource: 'GOOGLE' }
+  }
+  const straightLineKm = haversineDistanceKm(from, to)
+  // Road distance, the same estimate the API uses for visit pay (its minutes come from it too).
+  return {
+    distanceKm: straightLineKm * ROAD_DISTANCE_FACTOR,
+    travelMinutes: estimateTravelMinutesFromStraightLineKm(straightLineKm),
+    travelSource: 'ESTIMATE',
+  }
 }
 
 export function formatTravelDurationMinutes(minutes: number): string {
@@ -190,8 +217,7 @@ export function buildNextVisitTravelDetail(
   const to = jobGeoCoordinates(nextJob)
   if (!from || !to) return null
 
-  const distanceKm = haversineDistanceKm(from, to)
-  const travelMinutes = estimateTravelMinutesFromStraightLineKm(distanceKm)
+  const { distanceKm, travelMinutes, travelSource } = travelBetween(from, to)
   const nextVisitTimeLabel = jobRotaTimeRange(nextJob).start
   const rota = jobRotaTimeRange(job)
   const bufferMinutes = Math.max(0, options?.bufferMinutes ?? 0)
@@ -207,6 +233,7 @@ export function buildNextVisitTravelDetail(
     distanceLabel: formatTravelDistanceKm(distanceKm),
     travelMinutes,
     travelLabel: formatTravelDurationMinutes(travelMinutes),
+    travelSource,
     nextClientLabel: serviceUserLabel(nextJob.serviceUser),
     nextVisitTimeLabel,
     gapMinutes,
@@ -216,6 +243,22 @@ export function buildNextVisitTravelDetail(
     lateByMinutes,
     estimatedArrivalLabel,
   }
+}
+
+/** Journeys on a carer row: home to the first visit (when known), then visit to visit. */
+export function rowTravelPairs(
+  rowJobs: TimelineJob[],
+  carerCoordinates?: GeoCoordinates | null,
+): { from: GeoCoordinates; to: GeoCoordinates }[] {
+  const points: (GeoCoordinates | null)[] = sortJobsByStartTime(rowJobs).map(jobGeoCoordinates)
+  if (points.length) points.unshift(carerCoordinates ?? null)
+  const pairs: { from: GeoCoordinates; to: GeoCoordinates }[] = []
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const from = points[i]
+    const to = points[i + 1]
+    if (from && to) pairs.push({ from, to })
+  }
+  return pairs
 }
 
 /** Sum straight-line leg distances between consecutive jobs on a carer row. */

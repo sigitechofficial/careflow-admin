@@ -37,6 +37,7 @@ import {
   CarePathwaySignatureField,
 } from '@/features/service-users/care-plan/CarePathwayMediaFields'
 import { CarePlanRichTextField } from '@/features/service-users/care-plan/CarePlanRichTextField'
+import { carePlanFieldLabel } from '@/features/service-users/care-plan/care-plan-first-person-labels'
 
 function fieldKey(sectionId: string, fieldId: string) {
   return `${sectionId}:${fieldId}`
@@ -200,12 +201,12 @@ function CarePathwayFieldInput({
   )
 }
 
-function SectionTextBlock({ field }: { field: CareFormFieldRow }) {
+function SectionTextBlock({ field, label }: { field: CareFormFieldRow; label: string }) {
   return (
     <div className="rounded-sm border border-sky-100 bg-sky-50/40 px-3 py-3 text-sm leading-relaxed text-muted-foreground">
-      {field.label?.trim() ? <p className="font-medium text-foreground">{field.label}</p> : null}
+      {label.trim() ? <p className="font-medium text-foreground">{label}</p> : null}
       {field.helpText?.trim() ? (
-        <p className={field.label?.trim() ? 'mt-2' : undefined}>{field.helpText}</p>
+        <p className={label.trim() ? 'mt-2' : undefined}>{field.helpText}</p>
       ) : null}
     </div>
   )
@@ -239,6 +240,9 @@ export function CarePathwayFormRenderer({
   onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onEditSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
 }) {
+  const isCarePlan = form.formType === 'CARE_PLAN'
+  const displayLabel = (label: string) => (isCarePlan ? carePlanFieldLabel(label) : label)
+
   const setFieldValue = (sectionId: string, field: CareFormFieldRow, next: string | boolean) => {
     onChange({ ...values, [fieldKey(sectionId, field.id)]: next })
   }
@@ -292,7 +296,7 @@ export function CarePathwayFormRenderer({
                   ) : (
                     visibleFields.map(field => {
                       if (field.fieldType === 'SECTION_TEXT') {
-                        return <SectionTextBlock key={field.id} field={field} />
+                        return <SectionTextBlock key={field.id} field={field} label={displayLabel(field.label)} />
                       }
 
                       const key = fieldKey(section.id, field.id)
@@ -306,7 +310,7 @@ export function CarePathwayFormRenderer({
                       return (
                         <CarePlanReviewRow
                           key={field.id}
-                          label={field.label}
+                          label={displayLabel(field.label)}
                           required={field.required}
                           helpText={tooltip}
                           category={section.title}

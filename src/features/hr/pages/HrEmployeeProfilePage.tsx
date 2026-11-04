@@ -65,7 +65,6 @@ export default function HrEmployeeProfilePage() {
       jobTitleId: profile.employment.jobTitleId ?? undefined,
       contractTypeId: profile.employment.contractTypeId ?? undefined,
       careWorkforceCategory: profile.employment.careWorkforceCategory ?? undefined,
-      contractedHours: profile.employment.contractedHours ?? undefined,
       branchTeam: profile.employment.branchTeam ?? '',
       branchLocationId: profile.employment.branchLocationId ?? undefined,
       reportingManagerId: profile.employment.reportingManagerId ?? undefined,
@@ -276,19 +275,14 @@ export default function HrEmployeeProfilePage() {
                 </select>
               </Field>
               <Field label="Contracted hours (weekly)">
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  value={form.contractedHours ?? ''}
-                  disabled={!canEdit}
-                  onChange={e =>
-                    setForm(f => ({
-                      ...f,
-                      contractedHours: e.target.value ? Number(e.target.value) : undefined,
-                    }))
-                  }
-                />
+                <Input type="number" value={profile.employment.contractedHours ?? ''} disabled readOnly />
+                <span className="block text-xs text-muted-foreground">
+                  Edit via the{' '}
+                  <Link to="/employee/$employeeId/edit" params={{ employeeId }} search={{ tab: 'employment' }} className="text-primary hover:underline">
+                    employee record
+                  </Link>
+                  .
+                </span>
               </Field>
               <Field label="Employment start date">
                 <Input

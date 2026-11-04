@@ -24,6 +24,7 @@ export async function fetchVisitReconciliations(params?: {
   search?: string
   status?: VisitReconciliationStatus
   hasExceptions?: boolean
+  payOverCharge?: boolean
   serviceUserId?: string
   employeeId?: string
   locationId?: string
@@ -37,6 +38,7 @@ export async function fetchVisitReconciliations(params?: {
   if (params?.search?.trim()) qs.set('search', params.search.trim())
   if (params?.status) qs.set('status', params.status)
   if (params?.hasExceptions != null) qs.set('hasExceptions', String(params.hasExceptions))
+  if (params?.payOverCharge) qs.set('payOverCharge', 'true')
   if (params?.serviceUserId) qs.set('serviceUserId', params.serviceUserId)
   if (params?.employeeId) qs.set('employeeId', params.employeeId)
   if (params?.locationId) qs.set('locationId', params.locationId)

@@ -23,6 +23,8 @@ export const initialAssessmentKeys = {
     [...initialAssessmentKeys.submission(serviceUserId, submissionId), 'actions'] as const,
   attachments: (serviceUserId: string, submissionId: string) =>
     [...initialAssessmentKeys.submission(serviceUserId, submissionId), 'attachments'] as const,
+  transcription: (serviceUserId: string, submissionId: string, jobId: string) =>
+    [...initialAssessmentKeys.submission(serviceUserId, submissionId), 'transcription', jobId] as const,
   riskRecords: (serviceUserId: string, submissionId: string) =>
     [...initialAssessmentKeys.submission(serviceUserId, submissionId), 'risk-records'] as const,
   summary: (serviceUserId: string, submissionId: string) =>

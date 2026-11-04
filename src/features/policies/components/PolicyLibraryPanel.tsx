@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from '@/shared/ui/dropdown-menu'
 import { useAuthStore } from '@/features/auth/store'
-import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { PolicyStatusBadge } from '@/features/policies/components/PolicyStatusBadge'
 import { PolicyConfirmDialog } from '@/features/policies/components/PolicyConfirmDialog'
 import { PolicyPublishSummary } from '@/features/policies/components/PolicyPublishSummary'
@@ -34,8 +33,6 @@ export function PolicyLibraryPanel() {
   const canArchive = useAuthStore(s => s.can('policies.archive'))
   const canPublish = useAuthStore(s => s.can('policies.publish'))
   const userId = useAuthStore(s => s.user?.id)
-  const { locationId: globalLocationId, isLocked: headerLocationLocked } =
-    useGlobalLocationScope()
   const navigate = useNavigate({ from: POLICY_PATHS.library })
   const search = useSearch({ strict: false }) as PolicyLibrarySearch
   const lookups = usePolicyLookups()
@@ -71,16 +68,6 @@ export function PolicyLibraryPanel() {
     })
   }
 
-  const effectiveLocationId = globalLocationId ?? search.locationId
-
-  React.useEffect(() => {
-    if (!globalLocationId) return
-    if (search.locationId === globalLocationId) return
-    patchSearch({ locationId: globalLocationId, page: undefined })
-    // Sync URL branch filter to header Location when scoped.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when header location changes
-  }, [globalLocationId])
-
   const categoriesQuery = usePolicyCategories({ limit: 100, isActive: true })
   const listQuery = usePolicies({
     page: search.page ?? 1,
@@ -91,7 +78,7 @@ export function PolicyLibraryPanel() {
     ownerId: search.owner === 'mine' ? userId : undefined,
     reviewDateFrom: search.reviewDateFrom,
     reviewDateTo: search.reviewDateTo,
-    locationId: effectiveLocationId,
+    locationId: search.locationId,
     serviceTypeCode: search.serviceTypeCode,
   })
 
@@ -104,7 +91,7 @@ export function PolicyLibraryPanel() {
       search.owner ||
       search.reviewDateFrom ||
       search.reviewDateTo ||
-      effectiveLocationId ||
+      search.locationId ||
       search.serviceTypeCode,
   )
 
@@ -168,18 +155,14 @@ export function PolicyLibraryPanel() {
         />
         <Combobox
           className="w-48"
-          value={effectiveLocationId ?? ''}
-          onChange={v => {
-            if (globalLocationId) return
-            patchSearch({ locationId: v || undefined, page: undefined })
-          }}
+          value={search.locationId ?? ''}
+          onChange={v => patchSearch({ locationId: v || undefined, page: undefined })}
           options={[
             { value: '', label: 'All branches' },
             ...lookups.locations.map(l => ({ value: l.id, label: l.name })),
           ]}
           placeholder="Branch"
           aria-label="Branch"
-          disabled={Boolean(globalLocationId) || headerLocationLocked}
         />
         <Combobox
           className="w-48"

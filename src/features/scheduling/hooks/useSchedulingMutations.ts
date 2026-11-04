@@ -242,7 +242,7 @@ export function useAllocateJob() {
       }),
     onSuccess: (result) => {
       invalidateSchedulingQueries(qc)
-      invalidateVisitPlanForAllocation(qc, result.data)
+      invalidateVisitPlanForAllocation(qc, result.data ?? undefined)
     },
   })
 }

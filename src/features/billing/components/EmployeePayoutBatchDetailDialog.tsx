@@ -49,7 +49,7 @@ export function EmployeePayoutBatchDetailDialog({
   // Approving and recording the bank payment are separate powers from preparing a batch.
   const canApprove = useAuthStore(s => s.can('billing.employee_payouts.approve'))
   const canSettle = useAuthStore(s => s.can('billing.employee_payouts.settle'))
-  const currentUserId = useAuthStore(s => s.user?.id)
+  const currentUserId = useAuthStore(s => s.makerCheckerUserId())
 
   const busy = approve.isPending || markPaid.isPending || cancel.isPending
   const status = detail?.status ?? batch?.status

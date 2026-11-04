@@ -134,22 +134,11 @@ export function CourseFormDialog({ open, onOpenChange, course, onCreated }: Prop
                 placeholder="Select category"
               />
             </FormField>
-            <FormField
-              label="Course type"
-              hint={
-                watch('courseType') === 'POLICY'
-                  ? 'Policies are read and signed in the Policy Library (Quality & Compliance). Keep a course here only for training about a policy, and link it from the policy.'
-                  : undefined
-              }
-            >
+            <FormField label="Course type">
               <Combobox
                 value={watch('courseType') ?? 'COURSE'}
                 onChange={v => setValue('courseType', v as LearningCourseInput['courseType'])}
-                // Read-and-sign belongs in the Policy Library; 'Policy' only stays for existing courses.
-                options={LEARNING_COURSE_TYPE_OPTIONS.filter(o => o.value !== 'POLICY' || watch('courseType') === 'POLICY').map(o => ({
-                  value: o.value,
-                  label: o.value === 'POLICY' ? 'Policy (legacy: use the Policy Library)' : o.label,
-                }))}
+                options={LEARNING_COURSE_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
                 allowDeselect={false}
               />
             </FormField>

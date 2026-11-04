@@ -113,6 +113,19 @@ export type BankHolidayImportResult = {
  */
 export type HolidayPremiumBasis = 'BOTH' | 'ACTUAL_DAY' | 'STATUTORY_DAY'
 
+/** Limits (minutes) for paying the gap between two visits as waiting or travel time. */
+/** GAP = the gap limits; DISTANCE = the drive between the two addresses, same day only. */
+export type TravelPayBasis = 'GAP' | 'DISTANCE'
+
+export type TravelGapSettings = {
+  /** False = gaps are never paid automatically; only travel entered on a visit is paid. */
+  enabled: boolean
+  basis: TravelPayBasis
+  waitingGapMinutes: number
+  breakGapMinutes: number
+  wentHomeGapMinutes: number
+}
+
 export const HOLIDAY_PREMIUM_BASIS_OPTIONS: { value: HolidayPremiumBasis; title: string; description: string }[] = [
   {
     value: 'BOTH',
@@ -176,4 +189,11 @@ export type PayPreviewResult = {
   bankHolidays: Array<{ date: string; name: string }>
   wageTypes: WageTypeCode[]
   warnings: string[]
+}
+
+/** Carer pay: priority per day type (higher wins); `custom` = the organisation has set its own. */
+export type DayPriority = {
+  custom: boolean
+  priorities: Record<string, number>
+  defaults: Record<string, number>
 }

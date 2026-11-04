@@ -13,7 +13,8 @@ const MARQUEE_THRESHOLD_PX = 8
 
 type Options = {
   jobsById: Map<string, TimelineJob>
-  onSelectionComplete: (jobs: TimelineJob[]) => void
+  /** Editable visits in the box (some may already be in a run) and where the pointer let go. */
+  onSelectionComplete: (jobs: TimelineJob[], point: { x: number; y: number }) => void
   minJobs?: number
 }
 
@@ -54,36 +55,23 @@ export function useScheduleJobsMarqueeSelect({
   )
 
   const finishMarquee = React.useCallback(
-    (rect: ClientRect | null) => {
+    (rect: ClientRect | null, point: { x: number; y: number }) => {
       if (!rect) return
       const root = boardRoot()
       if (!root) return
       const ids = collectJobIdsInMarqueeRect(root, rect)
-      const jobs = ids
+      const eligible = ids
         .map((id) => jobsById.get(id))
         .filter((job): job is TimelineJob => Boolean(job))
-      const eligible = jobs
         .filter((job) => !isScheduleJobReadOnly(job))
-        .filter((job) => !job.scheduleRunId)
 
       if (ids.length >= minJobs && eligible.length < minJobs) {
-        const inRun = jobs.filter((job) => job.scheduleRunId).length
-        if (inRun > 0) {
-          toastWarning(
-            'Visits already in a run',
-            'Some selected visits are already assigned to a run. Select ungrouped visits only.',
-          )
-        } else {
-          toastWarning(
-            'Select more visits',
-            `Drag to select at least ${minJobs} visits to create a run.`,
-          )
-        }
+        toastWarning('Select more visits', `Drag to select at least ${minJobs} visits that can still be changed.`)
         return
       }
 
       if (eligible.length >= minJobs) {
-        onSelectionComplete(eligible)
+        onSelectionComplete(eligible, point)
       }
     },
     [boardRoot, jobsById, minJobs, onSelectionComplete],
@@ -143,7 +131,7 @@ export function useScheduleJobsMarqueeSelect({
       setPreviewJobIds(new Set())
 
       if (rect) {
-        finishMarquee(rect)
+        finishMarquee(rect, { x: event.clientX, y: event.clientY })
       }
     }
 

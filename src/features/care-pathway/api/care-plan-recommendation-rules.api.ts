@@ -7,11 +7,14 @@ export type CarePlanRuleConditionWhen =
   | 'not_answered'
   | 'select_equals'
   | 'text_contains'
+  | 'adl_score_gte'
 
 export type CarePlanRuleCondition = {
   fieldKey?: string
   specRef?: string
   questionTextContains?: string
+  /** ADL worksheet activity id, for `adl_score_gte` (e.g. bathing). */
+  adlActivity?: string
   when: CarePlanRuleConditionWhen
   value?: string
 }

@@ -21,7 +21,8 @@ export function SettingsHint({ text }: { text: string }) {
             <Info className="h-3 w-3" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+        {/* Line breaks in the text show as new lines (longer hints are written in short lines). */}
+        <TooltipContent side="top" className="max-w-sm whitespace-pre-line text-xs leading-relaxed">
           {text}
         </TooltipContent>
       </Tooltip>

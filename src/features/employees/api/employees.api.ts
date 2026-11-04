@@ -672,19 +672,37 @@ export type CreateNonCoreActivityPayload = {
   onCallForPeriod?: boolean
   notes?: string
   applyToSchedule?: boolean
+  /** Pay each removed visit at its visit rate (pending pay items) instead of paying the activity. */
+  payRemovedVisits?: boolean
+}
+
+/** A visit the carer was taken off, and the pay item created for it (none when it could not be priced). */
+export type RemovedVisitPay = {
+  scheduledJobId: string
+  jobName: string
+  amount: number | null
+  payItemId: string | null
+  problem?: string
 }
 
 export async function createEmployeeNonCoreActivity(
   employeeId: string,
   body: CreateNonCoreActivityPayload,
-): Promise<{ data: EmployeeNonCoreActivityRow; scheduleImpact?: ScheduleImpactSummary }> {
+): Promise<{
+  data: EmployeeNonCoreActivityRow
+  scheduleImpact?: ScheduleImpactSummary
+  removedVisitPay?: RemovedVisitPay[]
+}> {
   const res = await apiJson<
-    ApiEnvelope<EmployeeNonCoreActivityRow> & { scheduleImpact?: ScheduleImpactSummary }
+    ApiEnvelope<EmployeeNonCoreActivityRow> & {
+      scheduleImpact?: ScheduleImpactSummary
+      removedVisitPay?: RemovedVisitPay[]
+    }
   >(`/employees/${employeeId}/non-core-activities`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
-  return { data: res.data, scheduleImpact: res.scheduleImpact }
+  return { data: res.data, scheduleImpact: res.scheduleImpact, removedVisitPay: res.removedVisitPay }
 }
 
 export async function updateEmployeeNonCoreActivity(
@@ -781,6 +799,8 @@ export type EmployeeDocumentRow = {
   fileSize: number
   mimeType: string
   uploadedDate: string
+  complianceTypeId: string | null
+  complianceType: { id: string; name: string } | null
   tags: string[]
 }
 
@@ -801,7 +821,7 @@ function parseEnvelopeFromFetch(body: unknown): ApiEnvelope<EmployeeDocumentRow>
 export async function uploadEmployeeDocument(
   employeeId: string,
   file: File,
-  opts?: { name?: string; description?: string },
+  opts?: { name?: string; description?: string; complianceTypeId?: string },
 ): Promise<EmployeeDocumentRow> {
   const base = getApiBaseUrl()
   if (!base) {
@@ -818,6 +838,7 @@ export async function uploadEmployeeDocument(
   const title = (opts?.name ?? file.name).trim()
   if (title) form.append('name', title)
   if (opts?.description?.trim()) form.append('description', opts.description.trim())
+  if (opts?.complianceTypeId) form.append('complianceTypeId', opts.complianceTypeId)
 
   const res = await fetch(url, { method: 'POST', headers, body: form })
   const text = await res.text()

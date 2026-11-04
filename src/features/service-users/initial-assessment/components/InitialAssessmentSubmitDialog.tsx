@@ -13,6 +13,7 @@ import {
   isSkippableIncompleteValidationMessage,
   type ValidationIssue,
 } from '@/features/service-users/initial-assessment/utils/submit-validation'
+import type { InitialAssessmentFlaggedItem } from '@/features/service-users/initial-assessment/types'
 
 type Props = {
   open: boolean
@@ -25,6 +26,11 @@ type Props = {
   validating?: boolean
   flaggedRiskCount?: number
   carePlanTriggerCount?: number
+  /** The answers that triggered a care plan, listed under the count. */
+  carePlanTriggers?: InitialAssessmentFlaggedItem[]
+  /** Label for the tab a trigger's question is on (e.g. "Tab 5"). */
+  triggerTabLabel?: (trigger: InitialAssessmentFlaggedItem) => string
+  onGoToTrigger?: (trigger: InitialAssessmentFlaggedItem) => void
   openActionsCount?: number
   onGoToSection: (sectionNumber: number, message?: string) => void
   /** Label for the tab an issue lives on (e.g. "Tab 14"); falls back to the § number. */
@@ -45,6 +51,9 @@ export function InitialAssessmentSubmitDialog({
   validating,
   flaggedRiskCount,
   carePlanTriggerCount,
+  carePlanTriggers,
+  triggerTabLabel,
+  onGoToTrigger,
   openActionsCount,
   onGoToSection,
   issueTabLabel,
@@ -94,7 +103,40 @@ export function InitialAssessmentSubmitDialog({
                   <li>{flaggedRiskCount} flagged risk{flaggedRiskCount > 1 ? 's' : ''} will sync to the risk matrix</li>
                 ) : null}
                 {carePlanTriggerCount != null && carePlanTriggerCount > 0 ? (
-                  <li>{carePlanTriggerCount} care plan trigger{carePlanTriggerCount > 1 ? 's' : ''} identified</li>
+                  <li>
+                    {carePlanTriggerCount} care plan trigger{carePlanTriggerCount > 1 ? 's' : ''} identified
+                    {carePlanTriggers?.length ? (
+                      <ul
+                        className="ms-5 mt-1 max-h-48 space-y-1 overflow-y-auto rounded-md border border-teal-200 bg-teal-50/60 p-2 text-teal-950 dark:border-teal-900 dark:bg-teal-950/30 dark:text-teal-100"
+                        data-testid="ia-submit-care-plan-triggers"
+                      >
+                        {carePlanTriggers.map((t) => (
+                          <li key={t.answerId} className="flex flex-wrap items-baseline gap-x-2">
+                            <span>{t.questionText}</span>
+                            {t.section?.carePlanArea ? (
+                              <span className="text-xs text-muted-foreground">{t.section.carePlanArea}</span>
+                            ) : null}
+                            {onGoToTrigger ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="link"
+                                className="h-auto p-0 text-teal-800 dark:text-teal-300"
+                                onClick={() => onGoToTrigger(t)}
+                              >
+                                {triggerTabLabel?.(t) ?? 'Go to question'}
+                              </Button>
+                            ) : null}
+                          </li>
+                        ))}
+                        {carePlanTriggerCount > carePlanTriggers.length ? (
+                          <li className="text-muted-foreground">
+                            +{carePlanTriggerCount - carePlanTriggers.length} more
+                          </li>
+                        ) : null}
+                      </ul>
+                    ) : null}
+                  </li>
                 ) : null}
                 {openActionsCount != null && openActionsCount > 0 ? (
                   <li>{openActionsCount} open action{openActionsCount > 1 ? 's' : ''} on the register</li>

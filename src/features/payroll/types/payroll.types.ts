@@ -245,6 +245,8 @@ export type EmployeePayrollSetupRow = {
   payrollNumber: string | null
   nationalInsuranceNo: string | null
   defaultPayCardId: string | null
+  /** From the employee's record (Edit employee); pay agreements and holiday rules keep a copy. */
+  contractedWeeklyHours?: number | null
   employmentStartDate?: string | null
   employmentEndDate?: string | null
   profile: EmployeePayrollProfile | null

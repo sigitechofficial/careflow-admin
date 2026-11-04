@@ -160,8 +160,20 @@ export type CarePlanRecommendation = {
   title: string
   triggerCount: number
   triggers: Array<{ questionId: string; questionText: string; specRef?: string }>
-  status: 'pending' | 'accepted' | 'declined'
+  status: 'pending' | 'accepted' | 'declined' | 'deferred'
   declineReason?: string | null
+  /** Reason recorded with the latest decision (decline, defer, or accept note). */
+  decisionReason?: string | null
+  /** Care plan created or linked when this recommendation was accepted (kept if later changed). */
+  carePlanInstanceId?: string | null
+  linkedCarePlan?: {
+    instanceId: string
+    carePathwayFormId: string
+    status: 'DRAFT' | 'PUBLISHED'
+    hasDraft: boolean
+  }
+  /** An accepted, linked recommendation was later declined or deferred: review the linked plan. */
+  linkedCarePlanReviewRequired?: boolean
   decidedAt?: string | null
   carePathwayFormId?: string
   carePathwayFormName?: string
@@ -251,8 +263,18 @@ export type InitialAssessmentSubmissionSummary = {
     falls: InitialAssessmentClinicalSnapshot['falls']
   }
   carePlanRecommendations: CarePlanRecommendation[]
+  /** Assessments the organisation requires for the recommended (not declined) care plans. */
+  requiredAssessments?: InitialAssessmentRequiredAssessment[]
   agencySettings: InitialAssessmentAgencySettings
   careActivation: CareActivationStatus
+}
+
+export type InitialAssessmentRequiredAssessment = {
+  assessmentFormId: string
+  assessmentFormName: string
+  requiredBy: Array<{ carePathwayFormId: string; carePlanName: string }>
+  /** Latest completion of this assessment for the service user; null when it has not been done. */
+  lastCompletedAt: string | null
 }
 
 export type CareActivationStatus = {
@@ -309,6 +331,10 @@ export type InitialAssessmentAttachmentCategory =
   | 'WOUND_PHOTO'
   | 'EMERGENCY_DOCUMENT'
   | 'OTHER'
+  /** Recorded assessment conversation; served only through the permission-checked file endpoint. */
+  | 'CONVERSATION_RECORDING'
+  /** Whisper transcript (.txt) of a recorded conversation. */
+  | 'CONVERSATION_TRANSCRIPT'
 
 export type InitialAssessmentAttachment = {
   id: string
@@ -368,4 +394,61 @@ export type InitialAssessmentRiskRecord = {
   createdAt: string
   updatedAt: string
   responsiblePerson?: { id: string; email: string; firstName: string | null; lastName: string | null } | null
+}
+
+export type InitialAssessmentTranscriptionStatus = 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED'
+
+/** Speech-to-text job (Whisper on the API server). Kept in memory for 2 hours, not saved. */
+export type InitialAssessmentTranscription = {
+  id: string
+  fileName: string
+  status: InitialAssessmentTranscriptionStatus
+  /** Seconds of audio processed so far / total audio length. */
+  done: number
+  duration: number | null
+  /** Place in the queue while QUEUED (1 = next). */
+  position: number
+  text: string | null
+  language: string | null
+  segments: { start: number; end: number; text: string }[]
+  error: string | null
+  /** The recording kept in the assessment's attachments, and its saved transcript once done. */
+  recordingAttachmentId: string | null
+  transcriptAttachmentId: string | null
+}
+
+/** An answer suggested by AI from a conversation transcript; applied to the form only after review. */
+export type InitialAssessmentAiFillSuggestion = {
+  questionId: string
+  questionText: string
+  questionType: InitialAssessmentQuestionType
+  answer: InitialAssessmentAnswerInput
+  /** Readable answer (option labels, dd/mm/yyyy dates). */
+  display: string
+  /** Quote from the transcript the answer is based on. */
+  evidence: string
+}
+
+/** Tokens and estimated cost (USD) of one AI fill request. */
+export type InitialAssessmentAiFillUsage = {
+  model: string
+  inputTokens: number
+  outputTokens: number
+  costUsd: number
+}
+
+/** AI fill usage on the API since it last started. */
+export type InitialAssessmentAiFillUsageTotals = {
+  requests: number
+  inputTokens: number
+  outputTokens: number
+  costUsd: number
+  since: string
+}
+
+export type InitialAssessmentAiFillResult = {
+  suggestions: InitialAssessmentAiFillSuggestion[]
+  questionCount: number
+  usage: InitialAssessmentAiFillUsage
+  totals: InitialAssessmentAiFillUsageTotals
 }

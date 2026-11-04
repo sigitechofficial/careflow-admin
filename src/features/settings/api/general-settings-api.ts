@@ -39,7 +39,36 @@ export type DomCareShiftDefinition = {
   sortOrder: number
 }
 
-export type DomAllocationRuleBehavior = 'DONT_ALLOW' | 'ALWAYS_ALLOW' | 'REQUEST_CONFIRMATION'
+export type DomAllocationRuleBehavior =
+  | 'DONT_ALLOW'
+  | 'ALWAYS_ALLOW'
+  | 'REQUEST_CONFIRMATION'
+  | 'MANAGER_APPROVAL'
+
+/** Above a carer's maximum weekly hours (Employment; blank = 60h): never, or as the approval setting says. */
+export type WeeklyHoursOverMax = 'NO' | 'YES'
+
+export type DomWeeklyHoursRuleOptions = {
+  /** Above the carer's maximum weekly hours (default NO). */
+  allowOverMax: WeeklyHoursOverMax
+  /** Called-off visits count in the carer's weekly hours (default true). */
+  countCalledOff: boolean
+  /** Changing contracted weekly hours needs manager approval (default true). */
+  contractedChangeNeedsApproval: boolean
+  /** Adding extra weekly hours needs manager approval (default false). */
+  extraHoursNeedApproval: boolean
+}
+
+export type ServiceUserWeeklyHoursSettings = {
+  /** Changing a service user's weekly hours (up or down) waits for a manager. The first value never does. */
+  changeNeedsApproval: boolean
+  /** New visits over the weekly hours go to Hours approvals (made once approved); No = made with a warning. */
+  visitsNeedApproval: boolean
+  /** Special visits count towards the service user's weekly hours. */
+  specialVisitsCount: boolean
+  /** Visits over the weekly hours use the service user's timebank when it covers all the hours over. */
+  useTimebank: boolean
+}
 
 export type OptionalAboutMeField = {
   key: string
@@ -142,6 +171,8 @@ export type DomCareAllocationRule = {
   label: string
   behavior: DomAllocationRuleBehavior
   minutes: number | null
+  /** Only on the weekly-hours rule. */
+  weeklyHours?: DomWeeklyHoursRuleOptions
 }
 
 export type RotaHorizonMode = 'FIXED_DAYS' | 'CALENDAR_MONTH'
@@ -229,6 +260,7 @@ export type OrganisationGeneralSettings = {
   domLateVisitZoneAlerts: DomLateVisitZoneAlert[]
   domCareShiftDefinitions: DomCareShiftDefinition[]
   domCareAllocationRules: DomCareAllocationRule[]
+  serviceUserWeeklyHoursSettings?: ServiceUserWeeklyHoursSettings
   incidentDetailsEditableMinutes: number
   incidentDisplayHours: number
   incidentDefaultStatus: IncidentDefaultStatus

@@ -7,6 +7,8 @@ import {
 } from '@/features/service-users/components/ServiceUserModuleHeader'
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
 import { ServiceUserEditInvoicesPanel } from '@/features/service-users/components/ServiceUserEditInvoicesPanel'
+import { ServiceUserFundingUsageCard } from '@/features/billing/components/ServiceUserFundingUsageCard'
+import { useAuthStore } from '@/features/auth/store'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { resolveServiceUserIdFromParams } from '@/features/service-users/service-user-route-id'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
@@ -17,6 +19,7 @@ export default function ServiceUserInvoicesModulePage() {
   const serviceUserId = resolveServiceUserIdFromParams(params.serviceUserId)
   const apiConfigured = Boolean(getApiBaseUrl())
   const profileQuery = useServiceUser(serviceUserId ?? '')
+  const canSeeFundingUsage = useAuthStore(s => s.can('billing.visit_reconciliations.read' as never))
 
   if (!serviceUserId) {
     return (
@@ -56,6 +59,11 @@ export default function ServiceUserInvoicesModulePage() {
       <ServiceUserModuleTabs serviceUserId={serviceUserId} shellLayout="wide" />
 
       <div className={SERVICE_USER_MODULE_CONTENT_WIDE_CLASS}>
+        {canSeeFundingUsage ? (
+          <div className="mb-4">
+            <ServiceUserFundingUsageCard serviceUserId={serviceUserId} />
+          </div>
+        ) : null}
         <ServiceUserEditInvoicesPanel serviceUserId={serviceUserId} />
       </div>
     </div>

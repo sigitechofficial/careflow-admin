@@ -24,3 +24,24 @@ export function visitPlanCarerCandidateCardClass(options: {
       'cursor-pointer',
   )
 }
+
+/** Compact list row in the carer picker (rows sit inside one bordered list). */
+export function visitPlanCarerPickerRowClass(options: {
+  selected: boolean
+  blocked: boolean
+  rotaConflict: boolean
+  complianceBlocked?: boolean
+  atLimit?: boolean
+  justAssigned?: boolean
+}): string {
+  const unavailable = options.blocked || options.rotaConflict || options.complianceBlocked
+  return cn(
+    'px-3 py-2.5 transition-colors duration-200',
+    options.selected ? 'bg-sky-50/70 dark:bg-sky-950/40' : 'bg-card',
+    options.justAssigned && 'animate-assign-flash',
+    unavailable && !options.selected && 'bg-red-50/40 dark:bg-red-950/15',
+    options.atLimit && !options.selected && 'opacity-75',
+    !unavailable && !options.atLimit && 'cursor-pointer',
+    !unavailable && !options.atLimit && !options.selected && 'hover:bg-muted/40',
+  )
+}

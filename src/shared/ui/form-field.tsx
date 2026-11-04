@@ -2,6 +2,7 @@
 import * as LabelPrimitive from '@radix-ui/react-label'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/shared/lib/utils'
+import { DictationTextControl, splitLayoutClasses, useDictationEnabled } from '@/shared/ui/dictation'
 import {
   contentHelperClass,
   contentHelperErrorClass,
@@ -36,7 +37,9 @@ export interface TextareaProps
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, error, ...props }, ref) => {
-    return (
+    const dictation = useDictationEnabled() && !props.readOnly
+    const [layoutClass, controlClass] = dictation ? splitLayoutClasses(className) : ['', className]
+    const textarea = (
       <textarea
         className={cn(
           'flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
@@ -45,11 +48,20 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring',
           'disabled:cursor-not-allowed disabled:opacity-50',
           error && 'border-destructive focus-visible:ring-destructive/30',
-          className
+          controlClass,
+          dictation && 'pr-9'
         )}
         ref={ref}
         {...props}
       />
+    )
+
+    return dictation ? (
+      <DictationTextControl multiline className={layoutClass} disabled={props.disabled}>
+        {textarea}
+      </DictationTextControl>
+    ) : (
+      textarea
     )
   }
 )

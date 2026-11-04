@@ -4,6 +4,7 @@ export type CarePathwayTabId =
   | 'form-selection'
   | 'care-plan-text'
   | 'ia-care-plan-triggers'
+  | 'required-assessments'
   | 'checklists'
   | 'actions'
   | 'gallery'
@@ -14,6 +15,7 @@ export const CARE_PATHWAY_TAB_IDS: CarePathwayTabId[] = [
   'form-selection',
   'care-plan-text',
   'ia-care-plan-triggers',
+  'required-assessments',
   'checklists',
   'actions',
   'gallery',

@@ -1,10 +1,11 @@
-export type SurveyTargetKind = 'EMPLOYEE' | 'SERVICE_USER'
+export type SurveyTargetKind = 'EMPLOYEE' | 'SERVICE_USER' | 'PUBLIC'
 export type SurveyStatus = 'DRAFT' | 'ACTIVE' | 'CLOSED'
 export type SurveyRecurrence = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
 
 export const SURVEY_TARGET_KIND_LABELS: Record<SurveyTargetKind, string> = {
   EMPLOYEE: 'Employees',
   SERVICE_USER: 'Service users',
+  PUBLIC: 'Public',
 }
 
 /** Who answered a service-user survey. */
@@ -76,6 +77,8 @@ export type SurveyListItem = {
   recurrence: SurveyRecurrence | null
   clonedFromId: string | null
   locationIds: string[]
+  roleIds: string[]
+  isTemplate: boolean
   shareToken: string
   questionCount: number
   recipientCount: number
@@ -113,6 +116,8 @@ export type SurveyDetail = {
   recurrence: SurveyRecurrence | null
   clonedFromId: string | null
   locationIds: string[]
+  roleIds: string[]
+  isTemplate: boolean
   shareToken: string
   createdById: string | null
   createdByName: string | null
@@ -277,6 +282,7 @@ export type SubmitSurveyResponseInput = {
 export type SurveyListFilters = {
   status?: SurveyStatus
   targetKind?: SurveyTargetKind
+  isTemplate?: boolean
 }
 
 export type CreateSurveyInput = {
@@ -289,6 +295,8 @@ export type CreateSurveyInput = {
   distributeAt?: string | null
   recurrence?: SurveyRecurrence | null
   locationIds?: string[]
+  roleIds?: string[]
+  isTemplate?: boolean
 }
 
 export type UpdateSurveyInput = Partial<Omit<CreateSurveyInput, 'opensAt' | 'closesAt' | 'description'>> & {

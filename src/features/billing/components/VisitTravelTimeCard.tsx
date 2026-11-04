@@ -13,7 +13,9 @@ import {
 } from '@/features/billing/api/travel-disruptions.api'
 
 const MIN_NOTE_LENGTH = 5
-const selectClass = 'h-9 rounded-md border border-input bg-background px-2 text-sm'
+const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-2 text-sm'
+const fieldClass = 'flex flex-col gap-1.5 text-xs'
+const labelClass = 'font-medium text-foreground/90'
 const time = (iso: string) => formatOpsClockTime(iso)
 const STATUS_LABELS = { PENDING: 'Awaiting approval', APPROVED: 'Approved', REJECTED: 'Rejected' } as const
 
@@ -99,43 +101,52 @@ export function VisitTravelTimeCard({ visitReconciliationId, visitDate }: { visi
       {data.visit.paySettled ? (
         <p className="text-xs text-muted-foreground">Pay for this visit is settled: travel time is corrected with a pay correction.</p>
       ) : canManage ? (
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="space-y-1 text-xs">
-            <span className="font-medium text-foreground/90">What the time was</span>
-            <select className={selectClass} value={category} onChange={e => setCategory(e.target.value as TravelCategory)} aria-label="Travel category">
-              {(Object.keys(TRAVEL_CATEGORY_LABELS) as TravelCategory[]).map(key => (
-                <option key={key} value={key}>
-                  {TRAVEL_CATEGORY_LABELS[key]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1 text-xs">
-            <span className="font-medium text-foreground/90">From</span>
-            <Input type="time" value={from} onChange={e => setFrom(e.target.value)} className="w-28" aria-label="Interval start" />
-          </label>
-          <label className="space-y-1 text-xs">
-            <span className="font-medium text-foreground/90">To</span>
-            <Input type="time" value={to} onChange={e => setTo(e.target.value)} className="w-28" aria-label="Interval end" />
-          </label>
-          <label className="space-y-1 text-xs">
-            <span className="font-medium text-foreground/90">How it is known</span>
-            <select className={selectClass} value={evidence} onChange={e => setEvidence(e.target.value as TravelEvidence)} aria-label="Evidence">
-              <option value="RECORDED">Recorded (reported)</option>
-              <option value="VERIFIED">Verified against evidence</option>
-              <option value="ESTIMATED">Estimated</option>
-            </select>
-          </label>
+        <div className="space-y-3 border-t border-border pt-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className={fieldClass}>
+              <span className={labelClass}>What the time was</span>
+              <select className={selectClass} value={category} onChange={e => setCategory(e.target.value as TravelCategory)} aria-label="Travel category">
+                {(Object.keys(TRAVEL_CATEGORY_LABELS) as TravelCategory[]).map(key => (
+                  <option key={key} value={key}>
+                    {TRAVEL_CATEGORY_LABELS[key]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={fieldClass}>
+              <span className={labelClass}>How it is known</span>
+              <select className={selectClass} value={evidence} onChange={e => setEvidence(e.target.value as TravelEvidence)} aria-label="Evidence">
+                <option value="RECORDED">Recorded (reported)</option>
+                <option value="VERIFIED">Verified against evidence</option>
+                <option value="ESTIMATED">Estimated</option>
+              </select>
+            </label>
+            <label className={fieldClass}>
+              <span className={labelClass}>From</span>
+              <Input type="time" value={from} onChange={e => setFrom(e.target.value)} aria-label="Interval start" />
+            </label>
+            <label className={fieldClass}>
+              <span className={labelClass}>To</span>
+              <Input type="time" value={to} onChange={e => setTo(e.target.value)} aria-label="Interval end" />
+            </label>
+          </div>
           {policyCategory ? (
-            <label className="flex items-center gap-2 pb-2 text-xs">
+            <label className="flex items-center gap-2 text-xs">
               <input type="checkbox" checked={payable} onChange={e => setPayable(e.target.checked)} aria-label="Paid under the employer's policy" />
               <span>Paid under the employer’s policy</span>
             </label>
           ) : null}
-          <label className="min-w-[200px] flex-1 space-y-1 text-xs">
-            <span className="font-medium text-foreground/90">Note</span>
-            <Input value={note} onChange={e => setNote(e.target.value)} maxLength={500} aria-label="Interval note" />
+          <label className={fieldClass}>
+            <span className={labelClass}>Note</span>
+            <Input
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              maxLength={500}
+              placeholder={`What happened (at least ${MIN_NOTE_LENGTH} characters)`}
+              aria-label="Interval note"
+            />
           </label>
+          <div className="flex justify-end">
           <Button
             size="sm"
             disabled={!valid || record.isPending}
@@ -161,6 +172,7 @@ export function VisitTravelTimeCard({ visitReconciliationId, visitDate }: { visi
           >
             {record.isPending ? 'Recording…' : 'Record interval'}
           </Button>
+          </div>
         </div>
       ) : null}
     </div>

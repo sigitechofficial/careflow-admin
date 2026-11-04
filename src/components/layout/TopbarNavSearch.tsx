@@ -7,6 +7,7 @@ import {
   inspectorOnlyNavItems,
 } from '@/components/layout/Sidebar'
 import type { NavItem } from '@/components/layout/sidebar-types'
+import { useRecordSearch, type RecordSearchHit } from '@/components/layout/useRecordSearch'
 import { useAuthStore } from '@/features/auth/store'
 import { cn } from '@/shared/lib/utils'
 import { Input } from '@/shared/ui/input'
@@ -78,8 +79,8 @@ function filterHits(hits: NavSearchHit[], query: string): NavSearchHit[] {
     .slice(0, 40)
 }
 
-function groupHits(hits: NavSearchHit[]): { section: string; items: NavSearchHit[] }[] {
-  const map = new Map<string, NavSearchHit[]>()
+function groupHits<T extends { section: string }>(hits: T[]): { section: string; items: T[] }[] {
+  const map = new Map<string, T[]>()
   for (const hit of hits) {
     const list = map.get(hit.section) ?? []
     list.push(hit)
@@ -114,11 +115,42 @@ function navigateToHit(
   void navigate({ to: hit.href })
 }
 
+/** Database matches (service users, employees, …) shown above the menu matches. */
+function RecordGroups({
+  groups,
+  onSelect,
+}: {
+  groups: { section: string; items: RecordSearchHit[] }[]
+  onSelect: (hit: RecordSearchHit) => void
+}) {
+  return (
+    <>
+      {groups.map(group => (
+        <CommandGroup key={`records:${group.section}`} heading={group.section}>
+          {group.items.map(hit => (
+            <CommandItem
+              key={hit.id}
+              value={hit.id}
+              onSelect={() => onSelect(hit)}
+              className="cursor-pointer"
+            >
+              <span className="min-w-0 flex-1 truncate">{hit.label}</span>
+              {hit.detail ? (
+                <span className="ml-2 shrink-0 text-[10px] text-muted-foreground">{hit.detail}</span>
+              ) : null}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      ))}
+    </>
+  )
+}
+
 type TopbarNavSearchProps = {
   className?: string
 }
 
-/** Desktop inline search over sidebar tabs / sub-tabs. */
+/** Desktop inline search over database records and sidebar tabs / sub-tabs. */
 export function TopbarNavSearch({ className }: TopbarNavSearchProps) {
   const navigate = useNavigate()
   const allHits = useNavSearchHits()
@@ -129,6 +161,8 @@ export function TopbarNavSearch({ className }: TopbarNavSearchProps) {
 
   const filtered = React.useMemo(() => filterHits(allHits, query), [allHits, query])
   const grouped = React.useMemo(() => groupHits(filtered), [filtered])
+  const records = useRecordSearch(query)
+  const recordGroups = React.useMemo(() => groupHits(records.hits), [records.hits])
   const showPanel = open && (query.trim().length > 0 || filtered.length > 0)
 
   React.useEffect(() => {
@@ -157,6 +191,13 @@ export function TopbarNavSearch({ className }: TopbarNavSearchProps) {
     inputRef.current?.blur()
   }
 
+  const selectRecord = (hit: RecordSearchHit) => {
+    void navigate({ to: hit.href })
+    setQuery('')
+    setOpen(false)
+    inputRef.current?.blur()
+  }
+
   return (
     <div ref={rootRef} className={cn('relative flex-1 max-w-sm', className)}>
       <Input
@@ -167,10 +208,10 @@ export function TopbarNavSearch({ className }: TopbarNavSearchProps) {
           setOpen(true)
         }}
         onFocus={() => setOpen(true)}
-        placeholder="Search menu…"
+        placeholder="Search records or menu…"
         leftElement={<Search className="h-3.5 w-3.5" />}
         className="h-8 text-xs bg-muted/50 border-transparent focus-visible:bg-background focus-visible:border-input"
-        aria-label="Search sidebar menu"
+        aria-label="Search records and menu"
         data-testid="topbar-nav-search"
         autoComplete="off"
       />
@@ -181,8 +222,12 @@ export function TopbarNavSearch({ className }: TopbarNavSearchProps) {
           data-testid="topbar-nav-search-results"
         >
           <Command shouldFilter={false} className="rounded-none border-0 bg-transparent">
-            <CommandList className="max-h-72">
-              <CommandEmpty>No matching menu items.</CommandEmpty>
+            <CommandList className="max-h-96">
+              <CommandEmpty>{records.pending ? 'Searching…' : 'No results found.'}</CommandEmpty>
+              <RecordGroups groups={recordGroups} onSelect={selectRecord} />
+              {records.pending && records.hits.length === 0 && filtered.length > 0 ? (
+                <p className="px-3 py-2 text-[11px] text-muted-foreground">Searching records…</p>
+              ) : null}
               {grouped.map(group => (
                 <CommandGroup key={group.section} heading={group.section}>
                   {group.items.map(hit => (
@@ -219,9 +264,17 @@ export function TopbarNavSearchMobile() {
 
   const filtered = React.useMemo(() => filterHits(allHits, query), [allHits, query])
   const grouped = React.useMemo(() => groupHits(filtered), [filtered])
+  const records = useRecordSearch(query)
+  const recordGroups = React.useMemo(() => groupHits(records.hits), [records.hits])
 
   const selectHit = (hit: NavSearchHit) => {
     navigateToHit(navigate, hit)
+    setQuery('')
+    setOpen(false)
+  }
+
+  const selectRecord = (hit: RecordSearchHit) => {
+    void navigate({ to: hit.href })
     setQuery('')
     setOpen(false)
   }
@@ -254,7 +307,7 @@ export function TopbarNavSearchMobile() {
               autoFocus
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search menu…"
+              placeholder="Search records or menu…"
               leftElement={<Search className="h-3.5 w-3.5" />}
               className="h-9 border-transparent bg-muted/40"
               data-testid="topbar-nav-search-mobile-input"
@@ -262,7 +315,8 @@ export function TopbarNavSearchMobile() {
           </div>
           <Command shouldFilter={false} className="rounded-none border-0">
             <CommandList className="max-h-[60vh]">
-              <CommandEmpty>No matching menu items.</CommandEmpty>
+              <CommandEmpty>{records.pending ? 'Searching…' : 'No results found.'}</CommandEmpty>
+              <RecordGroups groups={recordGroups} onSelect={selectRecord} />
               {grouped.map(group => (
                 <CommandGroup key={group.section} heading={group.section}>
                   {group.items.map(hit => (

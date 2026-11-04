@@ -5,4 +5,5 @@ export const complaintKeys = {
   list: (params: FeedbackListParams) => [...complaintKeys.all(), 'list', params] as const,
   summary: () => [...complaintKeys.all(), 'summary'] as const,
   detail: (id: string) => [...complaintKeys.all(), 'detail', id] as const,
+  investigators: (id: string) => [...complaintKeys.all(), 'investigators', id] as const,
 }

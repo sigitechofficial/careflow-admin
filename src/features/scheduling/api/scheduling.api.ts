@@ -57,6 +57,18 @@ export async function getJobsDayTimeline(date: string, params: { scheduleBatchId
   return { jobs: res.data?.jobs ?? [], meta: res.meta as PaginationMeta | undefined }
 }
 
+export type TravelLegPoint = { lat: number; lng: number }
+export type TravelLeg = { km: number; minutes: number; source: 'GOOGLE' | 'ESTIMATE' }
+
+/** Driving distance and time of each journey, in the order asked (null = same place). Up to 200 per call. */
+export async function getTravelLegs(pairs: { from: TravelLegPoint; to: TravelLegPoint }[]) {
+  const res = await apiJson<ApiEnvelope<(TravelLeg | null)[]>>('/schedule-timelines/travel-legs', {
+    method: 'POST',
+    body: JSON.stringify({ pairs }),
+  })
+  return res.data ?? []
+}
+
 export async function getServiceUsersWeekTimeline(
   weekStart: string,
   params: { limit?: number } = {},
@@ -727,7 +739,11 @@ export async function allocateJob(
     method: 'POST',
     body: JSON.stringify(body),
   })
-  return { message: res.message, data: res.data! }
+  // Carer over their weekly hours (Settings → Dom Rules: manager approval): not allocated yet.
+  if ((res.meta as { approvalRequested?: boolean } | undefined)?.approvalRequested || !res.data) {
+    return { message: res.message, data: null, approvalRequested: true as const }
+  }
+  return { message: res.message, data: res.data, approvalRequested: false as const }
 }
 
 export type TeamCarerCheck = {
@@ -759,10 +775,13 @@ export async function allocateJobTeam(
     requiresConfirmation?: boolean
     leadEmployeeId?: string
     carers?: TeamCarerCheck[]
+    approvalRequests?: Array<{ employeeId: string; name: string; approvalId: string }>
   }
   return {
     message: res.message,
     data: res.data ?? [],
+    /** Carers over their weekly hours sent to a manager (not on the visit yet). */
+    approvalRequests: meta.approvalRequests ?? [],
     requiresConfirmation: Boolean(meta.requiresConfirmation),
     leadEmployeeId: meta.leadEmployeeId ?? body.leadEmployeeId,
   }

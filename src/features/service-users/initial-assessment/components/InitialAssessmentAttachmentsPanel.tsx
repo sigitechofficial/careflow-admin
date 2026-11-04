@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { FileText, Image, Loader2, Paperclip, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, ChevronRight, ExternalLink, FileAudio, FileText, Image, Loader2, Paperclip, Play, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import {
   Dialog,
@@ -22,10 +22,18 @@ import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
   useDeleteInitialAssessmentAttachment,
+  useInitialAssessmentAttachmentFile,
   useInitialAssessmentAttachments,
   useUploadInitialAssessmentAttachment,
 } from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
-import type { InitialAssessmentAttachmentCategory } from '@/features/service-users/initial-assessment/types'
+import {
+  InitialAssessmentAiFillReview,
+  type AiFillTarget,
+} from '@/features/service-users/initial-assessment/components/InitialAssessmentAiFillReview'
+import type {
+  InitialAssessmentAttachment,
+  InitialAssessmentAttachmentCategory,
+} from '@/features/service-users/initial-assessment/types'
 
 const CATEGORY_LABELS: Record<InitialAssessmentAttachmentCategory, string> = {
   ASSESSMENT_PICTURE: 'Assessment picture (§1)',
@@ -35,7 +43,15 @@ const CATEGORY_LABELS: Record<InitialAssessmentAttachmentCategory, string> = {
   WOUND_PHOTO: 'Wound photo (§11)',
   EMERGENCY_DOCUMENT: 'Emergency document (§13)',
   OTHER: 'Other',
+  CONVERSATION_RECORDING: 'Conversation recording',
+  CONVERSATION_TRANSCRIPT: 'Conversation transcript',
 }
+
+/** Saved from "Conversation to text", not uploaded here; their files have no public link. */
+const CONVERSATION_CATEGORIES: InitialAssessmentAttachmentCategory[] = ['CONVERSATION_RECORDING', 'CONVERSATION_TRANSCRIPT']
+const UPLOAD_CATEGORIES = (Object.keys(CATEGORY_LABELS) as InitialAssessmentAttachmentCategory[]).filter(
+  (c) => !CONVERSATION_CATEGORIES.includes(c),
+)
 
 const CATEGORY_SECTION: Partial<Record<InitialAssessmentAttachmentCategory, number>> = {
   ASSESSMENT_PICTURE: 1,
@@ -51,12 +67,108 @@ type Props = {
   activeSection?: number
   canUpdate: boolean
   editable: boolean
+  /** The open form tab, so a saved transcript can fill its fields again with AI. */
+  fillTarget?: AiFillTarget
 }
 
 function formatBytes(n: number) {
   if (n < 1024) return `${n} B`
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
   return `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
+
+/**
+ * A recording or transcript, read through the permission-checked endpoint: the recording plays
+ * here; the transcript opens in a dialog that can fill the open form tab from it again with AI.
+ */
+function ConversationFile({
+  serviceUserId,
+  att,
+  fillTarget,
+}: {
+  serviceUserId: string
+  att: InitialAssessmentAttachment
+  fillTarget?: AiFillTarget
+}) {
+  const [audioUrl, setAudioUrl] = React.useState<string | null>(null)
+  const [transcript, setTranscript] = React.useState<string | null>(null)
+  const file = useInitialAssessmentAttachmentFile(serviceUserId)
+  React.useEffect(() => () => {
+    if (audioUrl) URL.revokeObjectURL(audioUrl)
+  }, [audioUrl])
+
+  const open = async () => {
+    try {
+      const blob = await file.mutateAsync({ submissionId: att.submissionId, attachmentId: att.id })
+      if (att.category === 'CONVERSATION_RECORDING') {
+        setAudioUrl(URL.createObjectURL(blob))
+      } else {
+        setTranscript(await blob.text())
+      }
+    } catch (err) {
+      toastApiError(err, 'Could not open the file')
+    }
+  }
+
+  const openInNewTab = () => {
+    if (transcript === null) return
+    const url = URL.createObjectURL(new Blob([transcript], { type: 'text/plain;charset=utf-8' }))
+    window.open(url, '_blank', 'noopener')
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  }
+
+  if (audioUrl) {
+    return (
+      // eslint-disable-next-line jsx-a11y/media-has-caption -- a recorded conversation; its transcript is saved alongside
+      <audio controls autoPlay src={audioUrl} className="mt-1 h-9 w-full max-w-md" data-testid="ia-recording-player" />
+    )
+  }
+  return (
+    <>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 text-xs text-teal-700 hover:underline disabled:opacity-60 dark:text-teal-400"
+        disabled={file.isPending}
+        onClick={() => void open()}
+      >
+        {file.isPending ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : att.category === 'CONVERSATION_RECORDING' ? <Play className="h-3 w-3" aria-hidden /> : null}
+        {att.category === 'CONVERSATION_RECORDING' ? 'Play recording' : 'Open transcript'}
+      </button>
+      <Dialog open={transcript !== null} onOpenChange={(next) => !next && setTranscript(null)}>
+        <DialogContent size="xl" data-testid="ia-saved-transcript-dialog">
+          <DialogHeader>
+            <DialogTitle>{att.label || 'Transcript'}</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="flex flex-col gap-3">
+            {transcript?.trim() ? (
+              <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-md border border-input bg-muted/30 px-3 py-2 font-sans text-sm leading-relaxed">
+                {transcript}
+              </pre>
+            ) : (
+              <p className="text-sm text-muted-foreground">This transcript is empty.</p>
+            )}
+            {fillTarget && transcript?.trim() ? (
+              <InitialAssessmentAiFillReview
+                serviceUserId={serviceUserId}
+                submissionId={att.submissionId}
+                transcript={transcript}
+                target={fillTarget}
+              />
+            ) : null}
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={openInNewTab}>
+              <ExternalLink className="mr-1 h-4 w-4" />
+              Open in new tab
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setTranscript(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
 }
 
 function categoryForSection(section?: number): InitialAssessmentAttachmentCategory {
@@ -74,8 +186,11 @@ export function InitialAssessmentAttachmentsPanel({
   activeSection,
   canUpdate,
   editable,
+  fillTarget,
 }: Props) {
   const fileRef = React.useRef<HTMLInputElement>(null)
+  // Closed by default; open to see the files.
+  const [open, setOpen] = React.useState(false)
   const [uploadOpen, setUploadOpen] = React.useState(false)
   const [category, setCategory] = React.useState<InitialAssessmentAttachmentCategory>('OTHER')
   const [label, setLabel] = React.useState('')
@@ -120,6 +235,7 @@ export function InitialAssessmentAttachmentsPanel({
         sectionNumber: CATEGORY_SECTION[category] ?? activeSection,
       })
       toastSuccess('Uploaded', selectedFile.name)
+      setOpen(true)
       setUploadOpen(false)
       resetUploadForm()
     } catch (err) {
@@ -129,18 +245,28 @@ export function InitialAssessmentAttachmentsPanel({
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Paperclip className="h-4 w-4 text-muted-foreground" />
+      <div className="rounded-xl border border-border bg-card shadow-sm" data-testid="ia-attachments-panel">
+        <div className={`flex flex-wrap items-center justify-between gap-2 px-4 py-3 ${open ? 'border-b' : ''}`}>
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? (
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            )}
+            <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
             <div>
               <h3 className="text-sm font-semibold">Attachments</h3>
               <p className="text-xs text-muted-foreground">
-                MCA docs, photos, discharge summaries — {attachments.length} file
+                MCA docs, photos, discharge summaries, recordings — {attachments.length} file
                 {attachments.length === 1 ? '' : 's'}
               </p>
             </div>
-          </div>
+          </button>
           {canUpload ? (
             <Button type="button" size="sm" variant="outline" onClick={openUploadModal}>
               <Upload className="mr-1 h-4 w-4" />
@@ -149,7 +275,7 @@ export function InitialAssessmentAttachmentsPanel({
           ) : null}
         </div>
 
-        {attachmentsQuery.isLoading ? (
+        {!open ? null : attachmentsQuery.isLoading ? (
           <div className="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading attachments…
@@ -160,48 +286,82 @@ export function InitialAssessmentAttachmentsPanel({
             {canUpload ? 'Click Upload to add assessment photos, MCA forms, or discharge documents.' : null}
           </p>
         ) : (
-          <ul className="divide-y">
-            {attachments.map((att) => {
-              const href = resolveMediaUrl(att.fileUrl)
-              const isImage = att.mimeType.startsWith('image/')
-              return (
-                <li key={att.id} className="flex items-start gap-3 px-4 py-3 text-sm">
-                  <span className="mt-0.5 text-muted-foreground">
-                    {isImage ? <Image className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{att.label?.trim() || att.originalName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {CATEGORY_LABELS[att.category]}
-                      {att.sectionNumber ? ` · §${att.sectionNumber}` : ''} · {formatBytes(att.fileSize)}
-                    </div>
-                    {href ? (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-teal-700 hover:underline dark:text-teal-400"
-                      >
-                        Open file
-                      </a>
-                    ) : null}
-                  </div>
-                  {canUpdate && editable ? (
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="shrink-0 text-destructive"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => void deleteMutation.mutateAsync(att.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  ) : null}
-                </li>
-              )
-            })}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+                  <th className="px-3 py-2">File</th>
+                  <th className="px-3 py-2">Type</th>
+                  <th className="px-3 py-2">Size</th>
+                  <th className="px-3 py-2">Added</th>
+                  <th className="px-3 py-2">Open</th>
+                  {canUpdate && editable ? <th className="w-12 px-3 py-2"><span className="sr-only">Remove</span></th> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {attachments.map((att) => {
+                  const isConversation = CONVERSATION_CATEGORIES.includes(att.category)
+                  const href = isConversation ? null : resolveMediaUrl(att.fileUrl)
+                  const isImage = att.mimeType.startsWith('image/')
+                  const name = att.label?.trim() || att.originalName
+                  return (
+                    <tr key={att.id} className="border-b align-top last:border-b-0">
+                      <td className="px-3 py-2">
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-muted-foreground">
+                            {isImage ? (
+                              <Image className="h-4 w-4" />
+                            ) : att.category === 'CONVERSATION_RECORDING' ? (
+                              <FileAudio className="h-4 w-4" />
+                            ) : (
+                              <FileText className="h-4 w-4" />
+                            )}
+                          </span>
+                          <span className="font-medium">{name}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {CATEGORY_LABELS[att.category]}
+                        {att.sectionNumber ? ` · §${att.sectionNumber}` : ''}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatBytes(att.fileSize)}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                        {new Date(att.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
+                      <td className="px-3 py-2">
+                        {isConversation ? <ConversationFile serviceUserId={serviceUserId} att={att} fillTarget={fillTarget} /> : null}
+                        {href ? (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-teal-700 hover:underline dark:text-teal-400"
+                          >
+                            Open file
+                          </a>
+                        ) : null}
+                      </td>
+                      {canUpdate && editable ? (
+                        <td className="px-3 py-1.5 text-right">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive"
+                            aria-label={`Remove ${name}`}
+                            disabled={deleteMutation.isPending}
+                            onClick={() => void deleteMutation.mutateAsync(att.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      ) : null}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -224,7 +384,7 @@ export function InitialAssessmentAttachmentsPanel({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(CATEGORY_LABELS) as InitialAssessmentAttachmentCategory[]).map((key) => (
+                  {UPLOAD_CATEGORIES.map((key) => (
                     <SelectItem key={key} value={key}>
                       {CATEGORY_LABELS[key]}
                     </SelectItem>

@@ -658,14 +658,14 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
           : readOnly
           ? `${formatJobTimeRange(job)} · This job cannot be edited — click to view details`
           : travelConflictFromPrevious
-            ? `${formatJobTimeRange(job)} · Not enough travel time from the previous visit — hover for details · click to manage`
+            ? `${formatJobTimeRange(job)} · Not enough travel time from the previous visit — hover for details · click to open visit workspace`
           : excessContracted
-          ? `${formatJobTimeRange(job)} · Exceeds weekly contracted hours from visit plan — click to manage carers · drag to move`
+          ? `${formatJobTimeRange(job)} · Exceeds weekly contracted hours from visit plan — click to open visit workspace · drag to move`
           : outsidePattern
-            ? `${formatJobTimeRange(job)} · Outside carer working pattern — click to manage carers · drag to move`
+            ? `${formatJobTimeRange(job)} · Outside carer working pattern — click to open visit workspace · drag to move`
           : overAllocated
-            ? `${formatJobTimeRange(job)} · More carers assigned than required — over booked · click to manage`
-            : `${formatJobTimeRange(job)} · ${labelLines.join(' · ')} · click to manage carers · drag to move`
+            ? `${formatJobTimeRange(job)} · More carers assigned than required — over booked · click to open visit workspace`
+            : `${formatJobTimeRange(job)} · ${labelLines.join(' · ')} · click to open visit workspace · drag to move`
       }
       onPointerDown={readOnly ? undefined : (event) => onPointerDown(job, sourceRow, event)}
       onClick={(event) => {

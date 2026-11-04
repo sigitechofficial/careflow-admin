@@ -155,7 +155,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader
           title="Assessment of Mental Capacity Check List"
-          subtitle="This form is used to assess whether or not the client has the mental capacity to make key decisions affecting his / her daily living needs and chosen lifestyle."
+          subtitle="This form is used to assess whether or not I have the mental capacity to make key decisions about my daily living needs and chosen lifestyle."
         />
 
         <div className="space-y-6 border-t border-slate-200 bg-white dark:bg-card dark:border-slate-700">
@@ -170,7 +170,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({
 
             {shortCircuit ? (
               <p className={cn('text-sm', IA_HINT_CLASS)}>
-                Both screening questions are No — the client has appropriate mental capacity. Sign and
+                Both screening questions are No — I have appropriate mental capacity. Please sign and
                 date section C below; detailed questions are not required.
               </p>
             ) : null}
@@ -341,7 +341,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({
             </div>
 
             <p className="text-sm font-semibold text-foreground">
-              Client / family member / advocate (as appropriate)
+              Me, or my family member / advocate (as appropriate)
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -372,7 +372,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({
               </div>
               <div className="space-y-1">
                 <Label htmlFor="mca-checklist-rep-relationship" className={IA_QUESTION_LABEL_CLASS}>
-                  Relationship to client
+                  Relationship to me
                 </Label>
                 <Input
                   id="mca-checklist-rep-relationship"

@@ -71,8 +71,23 @@ export async function fetchSpecialVisitSummary({
   return res.data
 }
 
-export async function createSpecialVisit(body: CreateSpecialVisitBody): Promise<{ id: string }> {
-  const res = await apiJson<ApiEnvelope<{ id: string }>>('/special-visits', {
+/**
+ * `weeklyHoursWarning`: the visit takes the service user's week over the weekly contracted hours (Settings → Dom Rules: warning only).
+ * `serviceUserHoursApprovalRequested`: over the service user's weekly hours and waiting for a manager — not made yet (`id` null).
+ * `carerHoursApprovalRequested` / `carerHoursWarning`: the carer goes over their contracted weekly hours.
+ */
+export type CreateSpecialVisitResult = {
+  id: string | null
+  weeklyHoursWarning?: string
+  serviceUserHoursApprovalRequested?: string
+  /** Minutes over the service user's weekly hours paid from their timebank. */
+  fromTimebankMinutes?: number
+  carerHoursApprovalRequested?: string
+  carerHoursWarning?: string
+}
+
+export async function createSpecialVisit(body: CreateSpecialVisitBody): Promise<CreateSpecialVisitResult> {
+  const res = await apiJson<ApiEnvelope<CreateSpecialVisitResult>>('/special-visits', {
     method: 'POST',
     body: JSON.stringify(body),
   })

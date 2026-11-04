@@ -17,10 +17,11 @@ import {
   contentTitleClass,
 } from '@/shared/ui/content-section'
 import { cn, formatDate, formatDateTime } from '@/shared/lib/utils'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import {
   useActiveServiceUserVisitPlan,
   useServiceUserVisitPlanMutations,
+  useVisitPlanWeeklyHoursPreview,
   useServiceUserVisitPlans,
 } from '@/features/service-users/visit-plan/hooks'
 import type {
@@ -39,12 +40,14 @@ import { useMedicationRounds } from '@/features/settings/hooks/useMedicationRoun
 import { VisitPlanSlotAdvancedPanel } from '@/features/service-users/visit-plan/VisitPlanSlotAdvancedPanel'
 import { VisitPlanSlotLifecyclePanel } from '@/features/service-users/visit-plan/VisitPlanSlotLifecyclePanel'
 import { VisitPlanSlotCarerByDayPanel } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDayPanel'
+import { VisitPlanSectionToggle, useVisitPlanSectionOpen } from '@/features/service-users/visit-plan/VisitPlanSectionToggle'
 import { VisitPlanDateChangesSection } from '@/features/service-users/visit-plan/VisitPlanDateChangesSection'
 import { VisitPlanSlotGroups } from '@/features/service-users/visit-plan/VisitPlanSlotGroups'
 import { VisitPlanVisitDialog } from '@/features/service-users/visit-plan/VisitPlanVisitDialog'
 import { VisitPlanUnsavedChangesGuard } from '@/features/service-users/visit-plan/components/VisitPlanUnsavedChangesGuard'
 import { useVisitPlanDateChanges } from '@/features/service-users/visit-plan/visit-plan-date-changes.api'
 import { VisitPlanWeeklyHoursPanel } from '@/features/service-users/visit-plan/VisitPlanWeeklyHoursPanel'
+import { VisitPlanVisitHoursCheck } from '@/features/service-users/visit-plan/VisitPlanVisitHoursCheck'
 import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
 import { VisitPlanSlotAdditionalDetailsPanel } from '@/features/service-users/visit-plan/VisitPlanSlotAdditionalDetailsPanel'
 import { VisitPlanSlotDetailsSheet } from '@/features/service-users/visit-plan/VisitPlanSlotDetailsSheet'
@@ -82,6 +85,7 @@ import { VisitPlanActivateDialog } from '@/features/service-users/visit-plan/Vis
 import { VisitPlanGeneratePreviewDialog } from '@/features/service-users/visit-plan/VisitPlanGeneratePreviewDialog'
 import { VisitPlanWorkingPatternSyncDialog } from '@/features/service-users/visit-plan/VisitPlanWorkingPatternSyncDialog'
 import { VisitPlanConfirmGate } from '@/features/service-users/visit-plan/components/VisitPlanConfirmGate'
+import { describeAmendmentImpactAction } from '@/features/service-users/visit-plan/visit-plan-amendment-impact.util'
 import {
   previewVisitPlanAmendmentImpact,
   previewVisitPlanCarerSyncPattern,
@@ -96,6 +100,7 @@ import {
   buildGenerateRotaHorizonOptions,
   maxEnabledSlotBackfillDays,
   resolveBackfillWindowEnd,
+  generateRotaHorizonLabel,
   resolveBackfillWindowStart,
   resolveGenerateRotaToDate,
   resolveRotaStartIsoDate,
@@ -111,6 +116,11 @@ import {
 import { parseWeeklyContractedHours } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import { useServiceUserDomCare } from '@/features/service-users/hooks/useServiceUserTabs'
+import { usePendingServiceUserHoursChange } from '@/features/hours-approvals/hooks'
+import {
+  ServiceUserHoursPendingNotice,
+  ServiceUserHoursReviewDialog,
+} from '@/features/hours-approvals/components/ServiceUserHoursApproval'
 import {
   Select,
   SelectContent,
@@ -235,6 +245,18 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
   const { data: medicationRounds = [], isLoading: medicationRoundsLoading } = useMedicationRounds()
   const scheduleAreasQuery = useScheduleAreas()
   const domCareQuery = useServiceUserDomCare(serviceUserId)
+  const pendingHoursQuery = usePendingServiceUserHoursChange(serviceUserId)
+  // Each page section can be closed to keep the page short (remembered in this browser).
+  const [carePackageOpen, toggleCarePackage] = useVisitPlanSectionOpen('carePackage')
+  const [scheduleOpen, toggleSchedule] = useVisitPlanSectionOpen('schedule')
+  const [saveStepOpen, toggleSaveStep] = useVisitPlanSectionOpen('saveStep')
+  const [regenerateOpen, toggleRegenerate] = useVisitPlanSectionOpen('regenerate')
+  const [backfillOpen, toggleBackfill] = useVisitPlanSectionOpen('backfill')
+  const [amendmentHistoryOpen, toggleAmendmentHistory] = useVisitPlanSectionOpen('amendmentHistory', false)
+  const pendingHours = pendingHoursQuery.data ?? null
+  // Once the DOM Care tab has weekly hours, the plan shows them read-only; they change only there.
+  const domWeeklyHours = domCareQuery.data?.weeklyContractedHours ?? ''
+  const hoursFromDomCare = parseWeeklyContractedHours(domWeeklyHours) !== null
   const generalSettingsQuery = useGeneralSettings()
   const rotaHorizonOptions = React.useMemo(
     () => buildGenerateRotaHorizonOptions(generalSettingsQuery.data),
@@ -253,6 +275,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
 
   const [slots, setSlots] = React.useState<VisitPlanSlot[]>([])
   const [weeklyHours, setWeeklyHours] = React.useState('')
+  /** New weekly hours waiting to be sent for manager approval (dialog open). */
+  const [hoursReviewTo, setHoursReviewTo] = React.useState<number | null>(null)
   const [numberOfCarers, setNumberOfCarers] = React.useState(1)
   const [notes, setNotes] = React.useState('')
   const [amendmentReason, setAmendmentReason] = React.useState('')
@@ -341,6 +365,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
   const dateChangeCountBySlotId = React.useMemo(() => {
     const counts = new Map<string, number>()
     for (const change of dateChangesQuery.data?.changes ?? []) {
+      // A waiting or rejected extra-visit request has no visit row yet.
+      if (!change.visitPlanSlotId) continue
       counts.set(change.visitPlanSlotId, (counts.get(change.visitPlanSlotId) ?? 0) + 1)
     }
     return counts
@@ -372,6 +398,10 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
     setNumberOfCarers(workingPlan.numberOfCarers)
     setNotes(workingPlan.notes ?? '')
   }, [workingPlan?.id, workingPlan?.updatedAt, medicationRounds, careContext.loneWorkerTwoCarerRequired])
+
+  React.useEffect(() => {
+    if (hoursFromDomCare) setWeeklyHours(domWeeklyHours)
+  }, [hoursFromDomCare, domWeeklyHours, workingPlan?.id, workingPlan?.updatedAt, medicationRounds])
 
   React.useEffect(() => {
     if (!slots.length) return
@@ -475,6 +505,37 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
     input.focus({ preventScroll: true })
   }
 
+  const slotsInput = React.useMemo(() => toSlotInput(slots), [slots])
+  const weeklyHoursPreview = useVisitPlanWeeklyHoursPreview(serviceUserId, workingPlan?.id, slotsInput)
+  const savedWeeklyHours = workingPlan?.weeklyContractedHours ?? ''
+  const weeklyHoursDirty =
+    Boolean(workingPlan) && parseWeeklyContractedHours(weeklyHours) !== parseWeeklyContractedHours(savedWeeklyHours)
+
+  /** Weekly hours on a saved plan: a change goes to a manager; matching DOM Care saves straight away. */
+  const handleSaveWeeklyHours = async () => {
+    if (!workingPlan?.id) return
+    const next = parseWeeklyContractedHours(weeklyHours)
+    if (next === null) {
+      toastApiError(new Error('Enter a valid number of hours'), 'Could not save weekly hours')
+      return
+    }
+    const domHours = parseWeeklyContractedHours(domCareQuery.data?.weeklyContractedHours)
+    if (domHours !== null && domHours === next) {
+      try {
+        await update.mutateAsync({
+          planId: workingPlan.id,
+          amendmentReason: 'Weekly contracted hours matched to the DOM Care tab',
+          weeklyContractedHours: weeklyHours.trim(),
+        })
+        toastSuccess('Weekly hours saved', 'Now the same as the DOM Care tab.')
+      } catch (e) {
+        toastApiError(e, 'Could not save weekly hours')
+      }
+      return
+    }
+    setHoursReviewTo(next)
+  }
+
   const handleCreate = async () => {
     if (parseWeeklyContractedHours(weeklyHours) === null) {
       toastApiError(
@@ -523,7 +584,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
     await update.mutateAsync({
       planId,
       amendmentReason: reason,
-      weeklyContractedHours: weeklyHours || null,
+      // Weekly hours change only through the Save button next to the field (manager approval).
+      weeklyContractedHours: workingPlan.weeklyContractedHours ?? null,
       numberOfCarers,
       notes,
       slots: toSlotInput(slots),
@@ -570,7 +632,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
 
   const buildAmendmentPayload = (reason: string) => ({
     amendmentReason: reason,
-    weeklyContractedHours: weeklyHours || null,
+    weeklyContractedHours: workingPlan?.weeklyContractedHours ?? null,
     numberOfCarers,
     notes,
     slots: toSlotInput(slots),
@@ -642,6 +704,24 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
       const parts: string[] = []
       if (impact?.jobsCancelled) parts.push(`${impact.jobsCancelled} cancelled`)
       if (impact?.jobsRescheduled) parts.push(`${impact.jobsRescheduled} rescheduled`)
+      if (result.heldTimeChanges.length) {
+        // A longer visit that takes a carer over their weekly hours keeps its time until approved.
+        toastWarning(
+          'Amendment recorded — new time waits for a manager',
+          `${result.heldTimeChanges
+            .map((c) => `${c.slotLabel} ${c.fromStart}–${c.fromEnd} → ${c.toStart}–${c.toEnd}`)
+            .join(', ')}: a carer would go over their weekly hours. The visit keeps its current time until a manager approves it in Hours approvals.${parts.length ? ` Rota updated: ${parts.join(', ')}.` : ''}`,
+        )
+        return
+      }
+      if (result.carerHoursWarnings.length) {
+        // Settings → Dom Rules: no approval needed — assigned, with a warning.
+        toastWarning(
+          'Amendment recorded — carer over weekly hours',
+          `${result.carerHoursWarnings.join('. ')}.${parts.length ? ` Rota updated: ${parts.join(', ')}.` : ''}`,
+        )
+        return
+      }
       toastSuccess(
         'Amendment recorded',
         parts.length ? `Rota updated: ${parts.join(', ')}.` : 'Change saved for CQC audit.',
@@ -669,6 +749,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
       setActivateDialogOpen(false)
       setAmendmentReason('')
       const cancelled = result.scheduleImpact?.jobsCancelled ?? 0
+      if (result.carerHoursWarnings.length) {
+        toastWarning('Carer over weekly hours', `${result.carerHoursWarnings.join('. ')}.`)
+      }
       toastSuccess(
         workingPlan.status === 'SUSPENDED' ? 'Authorised package re-activated' : 'Authorised package activated',
         cancelled > 0
@@ -896,12 +979,19 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
         respectWorkingPatternOnSync: respect,
       })
       setGeneratePreviewOpen(false)
-      toastSuccess(
-        generatePreviewMode === 'regenerate' ? 'Rota regenerated' : 'Rota generated',
-        generatePreviewMode === 'regenerate'
+      const counts =
+        (generatePreviewMode === 'regenerate'
           ? `${result.visitsCreated} visits created; ${result.visitsSkipped} existing visits synced.`
-          : `${result.visitsCreated} visits created (${result.visitsSkipped} already existed).`,
-      )
+          : `${result.visitsCreated} visits created (${result.visitsSkipped} already existed).`) +
+        (result.weeklyHoursTimebank ? ` ${result.weeklyHoursTimebank}.` : '')
+      if (result.weeklyHoursWarning) {
+        toastWarning(
+          generatePreviewMode === 'regenerate' ? 'Rota regenerated — over the weekly hours' : 'Rota generated — over the weekly hours',
+          `${counts} ${result.weeklyHoursWarning}.`,
+        )
+      } else {
+        toastSuccess(generatePreviewMode === 'regenerate' ? 'Rota regenerated' : 'Rota generated', counts)
+      }
     } catch (e) {
       toastApiError(
         e,
@@ -967,8 +1057,14 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
             </span>
           }
           titleClassName="text-sky-600 dark:text-sky-400"
-          action={workingPlan ? statusBadge(workingPlan.status) : null}
+          action={
+            <div className="flex items-center gap-2">
+              {workingPlan ? statusBadge(workingPlan.status) : null}
+              <VisitPlanSectionToggle open={carePackageOpen} onToggle={toggleCarePackage} label="care package" />
+            </div>
+          }
         />
+        <div hidden={!carePackageOpen} className="space-y-4">
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <FormField
@@ -980,13 +1076,50 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 : undefined
             }
           >
-            <Input
-              ref={weeklyHoursInputRef}
-              value={weeklyHours}
-              onChange={(e) => setWeeklyHours(e.target.value)}
-              placeholder="e.g. 14"
-              required={!workingPlan}
-            />
+            <div className="flex gap-2">
+              <Input
+                ref={weeklyHoursInputRef}
+                value={weeklyHours}
+                onChange={(e) => setWeeklyHours(e.target.value)}
+                placeholder="e.g. 14"
+                required={!workingPlan}
+                readOnly={hoursFromDomCare}
+                disabled={!hoursFromDomCare && Boolean(workingPlan && pendingHours)}
+              />
+              {workingPlan && !pendingHours && !hoursFromDomCare ? (
+                <Button
+                  type="button"
+                  disabled={!weeklyHoursDirty || update.isPending}
+                  onClick={() => void handleSaveWeeklyHours()}
+                >
+                  Save
+                </Button>
+              ) : null}
+            </div>
+            {workingPlan && pendingHours ? (
+              <ServiceUserHoursPendingNotice pending={pendingHours} currentHours={savedWeeklyHours} />
+            ) : null}
+            {hoursFromDomCare ? (
+              <p className={cn('mt-1 flex items-start gap-1.5', contentHelperClass)} data-testid="visit-plan-hours-from-dom">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>
+                  From the service user&apos;s profile. To change contracted hours, go to the{' '}
+                  <Link
+                    to="/service-users/$serviceUserId"
+                    params={{ serviceUserId }}
+                    search={{ tab: 'dom' }}
+                    className="font-medium text-sky-700 underline underline-offset-2 dark:text-sky-400"
+                  >
+                    DOM Care tab
+                  </Link>
+                  .
+                </span>
+              </p>
+            ) : workingPlan && !pendingHours ? (
+              <p className={cn('mt-1', contentHelperClass)}>
+                Changes need a manager&apos;s approval and also update the DOM Care tab.
+              </p>
+            ) : null}
           </FormField>
           <FormField label="Carers per visit (default)">
             <VisitPlanCarersCountInput value={numberOfCarers} onCommit={setNumberOfCarers} />
@@ -1033,12 +1166,24 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
         ) : domCareQuery.isLoading ? (
           <p className={cn('mt-3', contentHelperClass)}>Loading contract profile…</p>
         ) : null}
+        <ServiceUserHoursReviewDialog
+          open={hoursReviewTo != null}
+          serviceUserId={serviceUserId}
+          fromHours={savedWeeklyHours || null}
+          toHours={hoursReviewTo ?? 0}
+          onClose={() => {
+            setHoursReviewTo(null)
+            setWeeklyHours(savedWeeklyHours)
+          }}
+        />
         <VisitPlanWeeklyHoursPanel
           className="mt-4"
+          serverSummary={workingPlan ? (weeklyHoursPreview.data ?? null) : null}
           slots={slots}
           weeklyContractedHours={weeklyHours}
           anchorIso={workingPlan?.effectiveFrom}
         />
+        </div>
       </ContentCard>
 
       <VisitPlanIaPreferredVisitTimesPanel serviceUserId={serviceUserId} />
@@ -1071,7 +1216,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
             </>
           }
           className="mb-4"
+          action={<VisitPlanSectionToggle open={scheduleOpen} onToggle={toggleSchedule} label="visit schedule" />}
         />
+        <div hidden={!scheduleOpen} className="space-y-4">
             {medicationRoundsLoading ? (
               <p className={cn('mb-3', contentHelperClass)}>Loading time slots…</p>
             ) : medicationRounds.length === 0 ? (
@@ -1185,6 +1332,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
             Add or select a visit above to see more options for it.
           </p>
         )}
+        </div>
       </ContentCard>
 
       <div ref={dateChangesSectionRef}>
@@ -1320,7 +1468,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 ? 'Save updates the suspended plan. Re-activate when visits should resume — your latest schedule is saved first.'
                 : 'Save draft keeps work on file without going live. Activate makes this the authorised care package and enables rota generation (always saves your latest schedule first).'
           }
+          action={<VisitPlanSectionToggle open={saveStepOpen} onToggle={toggleSaveStep} label="save and amend" />}
         />
+        <div hidden={!saveStepOpen} className="space-y-4">
         <FormField label="Plan notes (optional)">
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
         </FormField>
@@ -1445,6 +1595,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 at the top of the page before creating the plan.
               </p>
             ) : null}
+        </div>
       </ContentCard>
 
       {/* Forward regenerate — creates missing visits and syncs carers on existing ones */}
@@ -1468,7 +1619,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 . Use Backfill past visits below for catch-up days.
               </>
             }
+            action={<VisitPlanSectionToggle open={regenerateOpen} onToggle={toggleRegenerate} label="regenerate rota" />}
           />
+          <div hidden={!regenerateOpen} className="space-y-4">
               <div className="flex flex-wrap items-end gap-3">
                 <FormField label="From" className="min-w-[10rem]">
                   <Input type="date" value={generateFrom} onChange={(e) => setGenerateFrom(e.target.value)} />
@@ -1477,7 +1630,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                   <Input
                     type="date"
                     value={generateTo}
-                    placeholder="Next 14 days"
+                    placeholder={`Next ${generateRotaHorizonLabel(rotaHorizonOptions)}`}
                     onChange={(e) => setGenerateTo(e.target.value)}
                   />
                 </FormField>
@@ -1521,6 +1674,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                   Regenerate rota
                 </Button>
               </div>
+          </div>
         </ContentCard>
       ) : null}
 
@@ -1548,7 +1702,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 .
               </>
             }
+            action={<VisitPlanSectionToggle open={backfillOpen} onToggle={toggleBackfill} label="backfill past visits" />}
           />
+          <div hidden={!backfillOpen} className="space-y-4">
           <div className="flex flex-wrap items-end gap-3">
             <FormField label="Days before rota start" className="w-40">
               <Input
@@ -1610,6 +1766,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
               cap {maxSlotBackfillDays} day{maxSlotBackfillDays === 1 ? '' : 's'}).
             </p>
           )}
+          </div>
         </ContentCard>
       ) : null}
 
@@ -1621,7 +1778,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 title="Amendment history"
                 titleAs="h3"
                 className="mb-3"
+                action={<VisitPlanSectionToggle open={amendmentHistoryOpen} onToggle={toggleAmendmentHistory} label="amendment history" />}
               />
+          <div hidden={!amendmentHistoryOpen} className="space-y-4">
               <ul className={cn('space-y-2', contentBodyClass)}>
                 {(workingPlan.amendments ?? []).map((a: VisitPlanAmendment) => (
                   <li key={a.id} className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">
@@ -1630,6 +1789,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                   </li>
                 ))}
               </ul>
+          </div>
         </ContentCard>
       ) : null}
 
@@ -1650,6 +1810,21 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
         acceptedCarePlans={careContext.acceptedCarePlans}
         employeeNameById={employeeNameById}
         onDone={applyVisit}
+        renderHoursCheck={
+          workingPlan?.id
+            ? (draft) => (
+                <VisitPlanVisitHoursCheck
+                  serviceUserId={serviceUserId}
+                  planId={workingPlan.id}
+                  slots={toSlotInput(
+                    slots.some((row) => row.slotCode === draft.slotCode)
+                      ? slots.map((row) => (row.slotCode === draft.slotCode ? { ...draft, isEnabled: true } : row))
+                      : [...slots, { ...draft, isEnabled: true }],
+                  )}
+                />
+              )
+            : undefined
+        }
       />
 
       <VisitPlanSuspendDialog
@@ -1738,12 +1913,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
         onConfirm={handleConfirmAmendmentImpact}
       >
         {pendingAmendmentPreview?.actions.length ? (
-          <ul className="space-y-1 text-sm text-muted-foreground">
+          <ul className="space-y-1 px-3 text-sm text-muted-foreground">
             {pendingAmendmentPreview.actions.map((action, i) => (
-              <li key={i}>
-                {action.slotLabel}: {action.type.replace(/_/g, ' ')}
-                {action.jobCount != null ? ` (${action.jobCount})` : ''}
-              </li>
+              <li key={i}>{describeAmendmentImpactAction(action)}</li>
             ))}
           </ul>
         ) : null}
@@ -1754,7 +1926,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
         onOpenChange={setPostReactivateGenerateOpen}
         title="Generate visits?"
         description="Package is live again. Generate rota visits from tomorrow?"
-        confirmLabel="Generate 14 days"
+        confirmLabel={`Generate ${generateRotaHorizonLabel(rotaHorizonOptions)}`}
         cancelLabel="Later"
         isPending={generateSchedule.isPending}
         onConfirm={async () => {

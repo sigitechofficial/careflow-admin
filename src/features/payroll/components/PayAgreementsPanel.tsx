@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Link } from '@tanstack/react-router'
 import { FilePenLine } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -71,15 +72,18 @@ function describe(a: EmployeePayAgreement): string {
  * Pay agreements of one employee (WM-02 / WM-03): the history, and a form for the next one.
  * A salary states how a part period is paid and what work it already pays for; neither is assumed.
  * An agreement that carries or replaces a salary takes effect only when a second person approves it.
+ * Contracted weekly hours are entered on Edit employee; a new agreement keeps a copy of them.
  */
 export function PayAgreementsPanel({
   employeeId,
   scheduleId,
   defaultPayCardId,
+  contractedWeeklyHours,
 }: {
   employeeId: string
   scheduleId: string | null
   defaultPayCardId: string | null
+  contractedWeeklyHours: number | null
 }) {
   const canManage = useAuthStore(s => s.can('payroll.employees.manage'))
   const canApprove = useAuthStore(s => s.can('payroll.pay_agreements.approve'))
@@ -92,7 +96,6 @@ export function PayAgreementsPanel({
   const [effectiveFrom, setEffectiveFrom] = React.useState(today())
   const [entryPeriod, setEntryPeriod] = React.useState<SalaryEntryPeriod>('ANNUAL')
   const [entryAmount, setEntryAmount] = React.useState('')
-  const [contractedHours, setContractedHours] = React.useState('')
   const [proration, setProration] = React.useState<SalaryProrationMethod | ''>('')
   const [coverage, setCoverage] = React.useState<SalaryCoverage | ''>('')
   const [guaranteedHours, setGuaranteedHours] = React.useState('')
@@ -104,13 +107,16 @@ export function PayAgreementsPanel({
   const agreements = query.data ?? []
   const salaried = basis !== 'HOURLY_CARE'
   const amount = Number(entryAmount)
-  const hours = Number(contractedHours)
+  const hours = contractedWeeklyHours ?? 0
   const guaranteed = Number(guaranteedHours)
   const paidGuarantee = !salaried && payShortfall
   const salaryInEffect = agreements.some(
     a => a.status !== 'DRAFT' && ((a.annualSalary ?? 0) > 0 || a.guaranteeTopUp === 'PAY_SHORTFALL'),
   )
   const needsApproval = salaried || paidGuarantee || salaryInEffect
+  // The salary in force was agreed on other contracted hours than the employee's record has now.
+  const salaryInForce = agreements.find(a => a.status === 'ACTIVE' && (a.annualSalary ?? 0) > 0 && a.effectiveFrom <= today())
+  const hoursChanged = salaryInForce != null && (salaryInForce.contractedHours ?? null) !== (contractedWeeklyHours ?? null)
   const valid =
     !!effectiveFrom &&
     (!salaried ||
@@ -133,7 +139,6 @@ export function PayAgreementsPanel({
           ? {
               salaryEntryPeriod: entryPeriod,
               salaryEntryAmount: amount,
-              contractedHours: contractedHours.trim() === '' ? null : hours,
               salaryProrationMethod: proration as SalaryProrationMethod,
               salaryCoverage: coverage as SalaryCoverage,
             }
@@ -153,7 +158,6 @@ export function PayAgreementsPanel({
       {
         onSuccess: () => {
           setEntryAmount('')
-          setContractedHours('')
           setGuaranteedHours('')
           setPayShortfall(false)
         },
@@ -245,6 +249,13 @@ export function PayAgreementsPanel({
         <p className="text-xs text-muted-foreground">No pay agreement recorded.</p>
       )}
 
+      {hoursChanged ? (
+        <p className="text-xs text-amber-700 dark:text-amber-300" data-testid="pay-agreement-hours-changed">
+          The contracted weekly hours on the employee record ({contractedWeeklyHours ?? 'not set'}) differ from the salary agreement in
+          force ({salaryInForce?.contractedHours ?? 'not set'}). Add a new agreement from the date the change applies.
+        </p>
+      ) : null}
+
       {canManage ? (
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">New pay agreement</p>
@@ -287,17 +298,22 @@ export function PayAgreementsPanel({
                     <option value="WEEKLY">Week</option>
                   </select>
                 </label>
-                <label className="block space-y-1 text-sm">
+                <div className="space-y-1 text-sm" data-testid="pay-agreement-contracted-hours">
                   <span>Contracted weekly hours</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.25"
-                    value={contractedHours}
-                    onChange={e => setContractedHours(e.target.value)}
-                    aria-label="Contracted weekly hours"
-                  />
-                </label>
+                  <p className="flex h-9 items-center text-foreground">{contractedWeeklyHours ?? 'Not set'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Changed on the{' '}
+                    <Link
+                      to="/employee/$employeeId/edit"
+                      params={{ employeeId }}
+                      search={{ tab: 'employment' }}
+                      className="text-primary hover:underline"
+                    >
+                      employee record
+                    </Link>
+                    .
+                  </p>
+                </div>
                 <label className="block space-y-1 text-sm">
                   <span>A part period is paid by</span>
                   <select

@@ -4,14 +4,18 @@ import {
   fetchBankHolidays,
   fetchHolidayCalendarStatus,
   setHolidayPremiumBasis,
+  fetchDayPriority,
+  fetchTravelGapSettings,
   fetchWageTypes,
   importBankHolidaysFromGovUk,
   previewPay,
+  setDayPriority,
+  setTravelGapSettings,
   updateBankHoliday,
   updateWageType,
 } from '@/features/billing/api/wage-types.api'
 import { billingKeys } from '@/features/billing/keys'
-import type { CalendarRegion, PayPreviewInput } from '@/features/billing/types/wage-types.types'
+import type { CalendarRegion, PayPreviewInput, TravelGapSettings } from '@/features/billing/types/wage-types.types'
 
 export function useWageTypes(enabled = true) {
   return useQuery({
@@ -83,4 +87,28 @@ export function useImportBankHolidays() {
 /** Pay preview: calculation only, nothing is saved. */
 export function usePayPreview() {
   return useMutation({ mutationFn: (body: PayPreviewInput) => previewPay(body) })
+}
+
+export function useTravelGapSettings() {
+  return useQuery({ queryKey: billingKeys.travelGaps(), queryFn: fetchTravelGapSettings })
+}
+
+export function useSetTravelGapSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: TravelGapSettings & { reason: string }) => setTravelGapSettings(body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.travelGaps() }),
+  })
+}
+
+export function useDayPriority() {
+  return useQuery({ queryKey: billingKeys.dayPriority(), queryFn: fetchDayPriority })
+}
+
+export function useSetDayPriority() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: setDayPriority,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.dayPriority() }),
+  })
 }

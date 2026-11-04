@@ -3,9 +3,11 @@ import {
   AlertCircle,
   CalendarDays,
   CalendarRange,
+  Car,
   CheckCircle2,
   Clock,
   ExternalLink,
+  Route,
   History,
   Loader2,
   PoundSterling,
@@ -362,7 +364,7 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
         </div>
       ) : data ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <StatCard
               title="Total earning"
               value={data.salaryAmount ?? formatGbp(
@@ -389,6 +391,24 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
               } still to pay`}
               icon={<Clock className="h-5 w-5" aria-hidden />}
               iconClassName="bg-amber-500/10 text-amber-800 dark:text-amber-300"
+            />
+            <StatCard
+              title="Mileage"
+              value={data.mileageEarnings?.amount ?? formatGbp(0)}
+              hint={`${data.mileageEarnings?.miles ?? 0} mi over ${data.mileageEarnings?.visitCount ?? 0} visit${
+                data.mileageEarnings?.visitCount === 1 ? '' : 's'
+              } · paid beside visit pay`}
+              icon={<Car className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-violet-500/10 text-violet-700 dark:text-violet-300"
+            />
+            <StatCard
+              title="Travel time"
+              value={data.travelTimeEarnings?.amount ?? formatGbp(0)}
+              hint={`${data.travelTimeEarnings?.minutes ?? 0} min over ${data.travelTimeEarnings?.visitCount ?? 0} visit${
+                data.travelTimeEarnings?.visitCount === 1 ? '' : 's'
+              } · paid beside visit pay`}
+              icon={<Route className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-teal-500/10 text-teal-700 dark:text-teal-300"
             />
           </div>
 

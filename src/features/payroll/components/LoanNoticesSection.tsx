@@ -143,13 +143,32 @@ export function LoanNoticesSection({
   const [draft, setDraft] = React.useState<Draft>(EMPTY)
   const [correction, setCorrection] = React.useState<Correction | null>(null)
 
-  const legacy = [
+  // Gate C13: an HMRC notice in force (its effective payday reached, not voided) governs the loan, so
+  // the manual profile plans it supersedes are no longer what payroll uses. Only warn about manual
+  // settings that no in-force notice covers yet.
+  const today = new Date().toISOString().slice(0, 10)
+  const noticeInForce = (types: LoanNoticeType[]) =>
+    notices.some(
+      (n) => types.includes(n.noticeType) && (n.status ?? 'ACTIVE') === 'ACTIVE' && n.effectivePayday <= today,
+    )
+  const studentNoticeInForce = noticeInForce(['SL1', 'SL2'])
+  const postgraduateNoticeInForce = noticeInForce(['PGL1', 'PGL2'])
+  const studentLegacy = [
     profile?.studentLoanPlan1 ? 'Plan 1' : null,
     profile?.studentLoanPlan2 ? 'Plan 2' : null,
     profile?.studentLoanPlan4 ? 'Plan 4' : null,
     profile?.studentLoanPlan5 ? 'Plan 5' : null,
-    profile?.postgraduateLoan ? 'postgraduate loan' : null,
-  ].filter(Boolean)
+  ].filter(Boolean) as string[]
+  const postgraduateLegacy = profile?.postgraduateLoan ? ['postgraduate loan'] : []
+  // Manual settings no in-force HMRC notice has superseded — what payroll still uses from the profile.
+  const unverified = [
+    ...(studentNoticeInForce ? [] : studentLegacy),
+    ...(postgraduateNoticeInForce ? [] : postgraduateLegacy),
+  ]
+  // A manual plan an in-force notice now overrides (the letter wins).
+  const noticeSupersedesProfile =
+    (studentNoticeInForce && studentLegacy.length > 0) ||
+    (postgraduateNoticeInForce && postgraduateLegacy.length > 0)
   const missing = missingOf(draft)
   const error = record.error instanceof Error ? record.error.message : null
   const correctionError = correct.error instanceof Error ? correct.error.message : null
@@ -212,10 +231,16 @@ export function LoanNoticesSection({
   return (
     <section className="space-y-3 rounded-md border border-border p-3" data-testid="loan-notices">
       <h3 className="text-sm font-medium">HMRC loan letters (SL1, SL2, PGL1, PGL2)</h3>
-      {legacy.length ? (
+      {unverified.length ? (
         <p className="text-xs text-amber-700 dark:text-amber-300" data-testid="loan-notices-legacy">
-          The plans set for this carer ({legacy.join(', ')}) are not verified HMRC notices: payroll uses them until an HMRC
+          The plans set for this carer ({unverified.join(', ')}) are not verified HMRC notices: payroll uses them until an HMRC
           letter is recorded here.
+        </p>
+      ) : null}
+      {noticeSupersedesProfile ? (
+        <p className="text-xs text-muted-foreground" data-testid="loan-notices-superseded">
+          An HMRC loan letter is in force, so from its effective payday payroll uses the recorded notice below — not the plan
+          set on the carer&apos;s profile.
         </p>
       ) : null}
 

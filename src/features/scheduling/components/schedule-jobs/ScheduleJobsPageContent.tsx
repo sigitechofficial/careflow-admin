@@ -12,6 +12,12 @@ import { ScheduleRunsPanel } from '@/features/scheduling/components/ScheduleRuns
 import { ScheduleRunCreateDialog } from '@/features/scheduling/components/ScheduleRunCreateDialog'
 import { ScheduleRunEditDialog } from '@/features/scheduling/components/ScheduleRunEditDialog'
 import { ScheduleRunReassignDialog } from '@/features/scheduling/components/ScheduleRunReassignDialog'
+import {
+  ScheduleJobsSelectionMenu,
+  type ScheduleJobsSelection,
+} from '@/features/scheduling/components/ScheduleJobsSelectionMenu'
+import { ScheduleJobsBulkAllocateDialog } from '@/features/scheduling/components/ScheduleJobsBulkAllocateDialog'
+import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { ScheduleJobsActiveFiltersBanner } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsActiveFiltersBanner'
 import { ScheduleJobsBulkRotaHint } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsBulkRotaHint'
 import { ScheduleJobsCallPatternContractBanner } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsCallPatternContractBanner'
@@ -36,6 +42,8 @@ export function ScheduleJobsPageContent() {
   const hasApi = !!getApiBaseUrl()
   const url = useScheduleJobsUrlState()
   const dialogs = useScheduleJobsPageDialogs()
+  const [selection, setSelection] = React.useState<ScheduleJobsSelection | null>(null)
+  const [bulkAllocateJobs, setBulkAllocateJobs] = React.useState<TimelineJob[]>([])
   const { preferences: boardPreferences, setShowRunsOnBoard, setRotaGapDisplay } = useScheduleJobsBoardPreferences()
 
   const board = useScheduleJobsBoardData({
@@ -269,15 +277,12 @@ export function ScheduleJobsPageContent() {
             acceptedCarePlansByServiceUser={board.acceptedCarePlansByServiceUser}
             travelBufferMinutes={board.travelBufferMinutes}
             liveAlertsByJobId={liveOfficeAlerts.alertsByJobId}
-            onJobClick={actions.openAllocate}
+            onJobClick={actions.openVisitWorkspace}
             onJobAction={actions.handleJobAction}
             onOpenRun={runEdit.openEditRunById}
             onReassignRun={runReassign.openForRunId}
             onJobDrop={actions.handleJobDrop}
-            onJobsSelectedForRun={(jobs) => {
-              dialogs.setCreateRunJobs(jobs)
-              dialogs.setCreateRunOpen(true)
-            }}
+            onJobsSelected={(jobs, point) => setSelection({ jobs, ...point })}
           />
         )}
       </div>
@@ -395,6 +400,31 @@ export function ScheduleJobsPageContent() {
         travelBufferMinutes={board.travelBufferMinutes}
         existingRunCount={board.dayRunsQuery.data?.runs.length ?? 0}
         onCreated={() => {
+          void board.refreshBoard()
+        }}
+      />
+
+      <ScheduleJobsSelectionMenu
+        selection={selection}
+        onClose={() => setSelection(null)}
+        onCreateRun={(jobs) => {
+          setSelection(null)
+          dialogs.setCreateRunJobs(jobs)
+          dialogs.setCreateRunOpen(true)
+        }}
+        onAllocate={(jobs) => {
+          setSelection(null)
+          setBulkAllocateJobs(jobs)
+        }}
+      />
+
+      <ScheduleJobsBulkAllocateDialog
+        open={bulkAllocateJobs.length > 0}
+        onOpenChange={(open) => {
+          if (!open) setBulkAllocateJobs([])
+        }}
+        jobs={bulkAllocateJobs}
+        onAllocated={() => {
           void board.refreshBoard()
         }}
       />

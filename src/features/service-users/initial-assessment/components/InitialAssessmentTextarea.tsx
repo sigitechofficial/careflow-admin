@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
 import { SummernoteCustomEditor } from '@/shared/ui/summernote-custom-editor'
+import { DictationTextControl, splitLayoutClasses, useDictationEnabled } from '@/shared/ui/dictation'
 
 export function plainTextFromHtml(html: string): string {
   if (!html?.trim()) return ''
@@ -57,11 +58,13 @@ export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, Initia
   ) {
     void rest
 
+    const dictation = useDictationEnabled()
     const minHeight = compact ? Math.min(rowsToMinHeight(rows), 120) : rowsToMinHeight(rows)
 
     if (plain) {
       const plainValue = plainTextFromHtml(value)
-      return (
+      const [layoutClass, controlClass] = dictation ? splitLayoutClasses(className) : ['', className]
+      const textarea = (
         <textarea
           ref={ref as React.Ref<HTMLTextAreaElement>}
           id={id}
@@ -69,7 +72,8 @@ export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, Initia
           className={cn(
             'initial-assessment-textarea w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             error && 'border-destructive',
-            className,
+            controlClass,
+            dictation && 'pr-9',
           )}
           value={plainValue}
           placeholder={placeholder}
@@ -82,6 +86,13 @@ export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, Initia
           }}
           onBlur={onBlur}
         />
+      )
+      return dictation ? (
+        <DictationTextControl multiline className={layoutClass} disabled={disabled}>
+          {textarea}
+        </DictationTextControl>
+      ) : (
+        textarea
       )
     }
 
@@ -123,6 +134,7 @@ export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, Initia
           disabled={disabled}
           minHeight={minHeight}
           className="summernote-custom-wrap"
+          dictation={dictation}
         />
       </div>
     )

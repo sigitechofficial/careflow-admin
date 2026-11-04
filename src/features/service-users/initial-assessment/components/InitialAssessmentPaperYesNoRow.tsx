@@ -23,6 +23,9 @@ type Props = {
   ariaLabel?: string
   /** Single-row layout aligned to h-10 inputs (card fields in the holistic form). */
   compact?: boolean
+  /** Answer wording, e.g. first-person answers; defaults to Yes / No. */
+  yesText?: string
+  noText?: string
 }
 
 export function InitialAssessmentPaperYesNoRow({
@@ -38,6 +41,8 @@ export function InitialAssessmentPaperYesNoRow({
   showDivider = false,
   ariaLabel,
   compact = false,
+  yesText = 'Yes',
+  noText = 'No',
 }: Props) {
   return (
     <div
@@ -59,8 +64,8 @@ export function InitialAssessmentPaperYesNoRow({
         >
           {(
             [
-              { v: true, text: 'Yes' },
-              { v: false, text: 'No' },
+              { v: true, text: yesText },
+              { v: false, text: noText },
             ] as const
           ).map(({ v, text }) => (
             <label

@@ -47,6 +47,13 @@ export function resolveGenerateRotaToDate(
   return addDaysToIsoDate(from, horizonDays - 1)
 }
 
+/** How far a run with no To date goes, for buttons and placeholders ("28 days", "to month end"). */
+export function generateRotaHorizonLabel(options?: GenerateRotaHorizonOptions): string {
+  if ((options?.mode ?? 'FIXED_DAYS') === 'CALENDAR_MONTH') return 'to month end'
+  const days = options?.horizonDays ?? DEFAULT_GENERATE_ROTA_DAYS
+  return `${days} day${days === 1 ? '' : 's'}`
+}
+
 /** Rota "today" = organisation operational calendar, not UTC / browser. */
 export function todayIsoDate(): string {
   return operationalTodayIso()

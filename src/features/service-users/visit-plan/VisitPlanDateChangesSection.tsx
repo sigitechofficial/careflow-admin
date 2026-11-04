@@ -1,7 +1,9 @@
 import * as React from 'react'
-import { CalendarOff, CalendarPlus, CalendarRange, ChevronRight, Pencil, Trash2 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { CalendarOff, CalendarPlus, CalendarRange, ChevronRight, History, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { ContentCard, ContentSectionHeader, contentHelperClass } from '@/shared/ui/content-section'
+import { VisitPlanSectionToggle, useVisitPlanSectionOpen } from '@/features/service-users/visit-plan/VisitPlanSectionToggle'
 import { cn, formatDate } from '@/shared/lib/utils'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import { VISIT_CHARGE_DECISION_OPTIONS } from '@/features/scheduling/utils/visit-cancellation.constants'
@@ -10,6 +12,7 @@ import { VisitPlanAddExtraVisitsDialog } from '@/features/service-users/visit-pl
 import { VisitPlanCancelVisitsDialog } from '@/features/service-users/visit-plan/VisitPlanCancelVisitsDialog'
 import { VisitPlanDeleteExtraVisitDialog } from '@/features/service-users/visit-plan/VisitPlanDeleteExtraVisitDialog'
 import { todayIsoDate } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
+import { formatVisitPlanWeeklyHours } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
 import {
   useVisitPlanDateChanges,
   visitCancelledByLabel,
@@ -35,10 +38,34 @@ function billingLabel(change: VisitPlanDateChange): string | null {
   return VISIT_CHARGE_DECISION_OPTIONS.find((o) => o.value === change.chargeDecision)?.label ?? null
 }
 
+/** Extra visits over the weekly hours: what the manager decided (or that it is still waiting). */
+function approvalLine(change: VisitPlanDateChange): { text: string; tone: 'pending' | 'approved' | 'rejected' } | null {
+  if (!change.approvalStatus) return null
+  const week =
+    change.weekMinutes != null && change.limitWeeklyHours != null
+      ? `that week would have ${formatVisitPlanWeeklyHours(change.weekMinutes)} of ${formatVisitPlanWeeklyHours(
+          Math.round(change.limitWeeklyHours * 60),
+        )}`
+      : 'over the weekly hours'
+  if (change.approvalStatus === 'PENDING') {
+    return { tone: 'pending', text: `Over the weekly contracted hours (${week}). Sent to a manager — not on the rota yet.` }
+  }
+  const by = [change.decidedByName ?? 'a manager', change.decidedAt ? formatDate(change.decidedAt) : null]
+    .filter(Boolean)
+    .join(' · ')
+  if (change.approvalStatus === 'APPROVED') {
+    return { tone: 'approved', text: `Approved over the weekly hours by ${by}` }
+  }
+  return {
+    tone: 'rejected',
+    text: `Rejected by ${by}${change.decisionNotes ? ` · Reason: ${change.decisionNotes}` : ''} — not added`,
+  }
+}
+
 /** Second line of a change: who and why for a cancellation; reason and carers for an extra visit. */
 function changeDetails(change: VisitPlanDateChange, carerNames: string): string {
   if (change.source === 'ABSENCE') return 'Service user absence'
-  if (change.type === 'EXTRA') {
+  if (change.type === 'EXTRA' || change.type === 'EXTRA_REQUEST') {
     const reason = change.notes.split('\n')[0]?.trim()
     return [reason || null, carerNames ? `Carers: ${carerNames}` : 'No carer chosen'].filter(Boolean).join(' · ')
   }
@@ -68,6 +95,8 @@ function ChangeRow({
   onDelete?: (change: VisitPlanDateChange) => void
 }) {
   const isCancel = change.type === 'CANCELLED'
+  const isRequest = change.type === 'EXTRA_REQUEST'
+  const approval = approvalLine(change)
   const carerNames = change.assignedEmployeeIds.map((id) => employeeNameById.get(id) ?? 'Carer').join(', ')
   return (
     <li className="flex flex-wrap items-start gap-x-5 gap-y-1 px-4 py-3" data-testid="date-change-row">
@@ -86,15 +115,53 @@ function ChangeRow({
               'rounded-full px-2 py-0.5 text-[11px] font-medium',
               isCancel
                 ? 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200'
-                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200',
+                : isRequest && change.approvalStatus === 'PENDING'
+                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-200'
+                  : isRequest
+                    ? 'bg-muted text-muted-foreground line-through'
+                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200',
             )}
           >
             {isCancel ? 'Cancelled' : 'Extra visit'}
           </span>
+          {isRequest ? (
+            <span
+              className={cn(
+                'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                change.approvalStatus === 'PENDING'
+                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-200'
+                  : 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200',
+              )}
+              data-testid="date-change-approval-status"
+            >
+              {change.approvalStatus === 'PENDING' ? 'Waiting for manager approval' : 'Rejected'}
+            </span>
+          ) : change.approvalStatus === 'APPROVED' ? (
+            <span
+              className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200"
+              data-testid="date-change-approval-status"
+            >
+              Approved
+            </span>
+          ) : null}
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground" title={change.notes || undefined}>
           {changeDetails(change, carerNames)}
         </p>
+        {approval ? (
+          <p
+            className={cn(
+              'mt-0.5 text-xs',
+              approval.tone === 'pending'
+                ? 'text-orange-700 dark:text-orange-300'
+                : approval.tone === 'rejected'
+                  ? 'text-red-700 dark:text-red-300'
+                  : 'text-emerald-700 dark:text-emerald-300',
+            )}
+          >
+            {approval.text}
+          </p>
+        ) : null}
       </div>
       {change.type === 'EXTRA' && (change.canEdit || change.canDelete) && (onEdit || onDelete) ? (
         <div className="flex shrink-0 items-center gap-1.5 self-center">
@@ -127,7 +194,11 @@ function ChangeRow({
         </div>
       ) : null}
       <div className="shrink-0 text-right text-xs text-muted-foreground">
-        <p>{change.source === 'ABSENCE' ? 'From absence' : (change.recordedByName ?? '—')}</p>
+        <p>
+          {change.source === 'ABSENCE'
+            ? 'From absence'
+            : `${isRequest ? 'Requested by ' : ''}${change.recordedByName ?? '—'}`}
+        </p>
         <p>{formatDate(change.recordedAt)}</p>
       </div>
     </li>
@@ -154,15 +225,30 @@ export function VisitPlanDateChangesSection({
   const changesQuery = useVisitPlanDateChanges(serviceUserId, planId)
   const isActive = planStatus === 'ACTIVE'
 
-  const { upcoming, past } = React.useMemo(() => {
+  // Cancelled visits are listed on Activity → Cancelled; here only extra visits and their requests.
+  const { upcoming, past, upcomingCancelled, upcomingRejected } = React.useMemo(() => {
     const today = todayIsoDate()
-    const changes = changesQuery.data?.changes ?? []
+    const all = changesQuery.data?.changes ?? []
+    // A cancelled extra visit keeps its extra row; it is shown with the cancelled visits instead.
+    const cancelledKeys = new Set(
+      all.filter((c) => c.type === 'CANCELLED').map((c) => `${c.date}|${c.plannedStartTime}`),
+    )
+    // Rejected requests were never added; they are listed on Activity → Rejected.
+    const isRejected = (c: VisitPlanDateChange) => c.type === 'EXTRA_REQUEST' && c.approvalStatus === 'REJECTED'
+    const changes = all.filter(
+      (c) =>
+        c.type !== 'CANCELLED' &&
+        !isRejected(c) &&
+        !(c.type === 'EXTRA' && cancelledKeys.has(`${c.date}|${c.plannedStartTime}`)),
+    )
     const byDateThenTime = (a: VisitPlanDateChange, b: VisitPlanDateChange) =>
       a.date.localeCompare(b.date) || a.plannedStartTime.localeCompare(b.plannedStartTime)
     return {
       upcoming: changes.filter((c) => c.date >= today).sort(byDateThenTime),
       // Most recent first, so the latest history is on top.
       past: changes.filter((c) => c.date < today).sort((a, b) => byDateThenTime(b, a)),
+      upcomingCancelled: all.filter((c) => c.type === 'CANCELLED' && c.date >= today).length,
+      upcomingRejected: all.filter((c) => isRejected(c) && c.date >= today).length,
     }
   }, [changesQuery.data])
 
@@ -172,6 +258,8 @@ export function VisitPlanDateChangesSection({
       [changesQuery.data],
     ),
   )
+
+  const [open, toggleOpen] = useVisitPlanSectionOpen('dateChanges')
 
   return (
     <ContentCard className={cn('space-y-4', className)} data-testid="visit-plan-date-changes">
@@ -183,7 +271,7 @@ export function VisitPlanDateChangesSection({
         description={
           <>
             Cancel a planned visit or add an extra one. The regular weekly schedule stays the same. Changes save
-            straight away — not with Save draft or Record amendment.
+            straight away — not with Save draft or Record amendment. Cancelled visits and rejected requests are listed under See history.
           </>
         }
         action={
@@ -211,9 +299,17 @@ export function VisitPlanDateChangesSection({
               <CalendarPlus className="mr-1 h-3.5 w-3.5" />
               Add extra visits
             </Button>
+            <Button type="button" variant="outline" size="sm" asChild>
+              <Link to="/service-users/$serviceUserId/activity" params={{ serviceUserId }} search={{ tab: 'cancelled' }}>
+                <History className="mr-1 h-3.5 w-3.5" />
+                See history
+              </Link>
+            </Button>
+            <VisitPlanSectionToggle open={open} onToggle={toggleOpen} label="changes for specific dates" />
           </div>
         }
       />
+      <div hidden={!open} className="space-y-4">
 
       {!isActive ? (
         <p className={contentHelperClass}>
@@ -224,12 +320,12 @@ export function VisitPlanDateChangesSection({
       <div className="overflow-hidden rounded-xl border border-border">
         <div className="border-b border-border/80 bg-muted/30 px-4 py-2.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Upcoming {upcoming.length > 0 ? `(${upcoming.length})` : ''}
+            Upcoming extra visits {upcoming.length > 0 ? `(${upcoming.length})` : ''}
           </p>
         </div>
         {upcoming.length === 0 ? (
           <p className={cn('px-4 py-4', contentHelperClass)} data-testid="date-changes-upcoming-empty">
-            No upcoming changes. All visits follow the regular schedule.
+            No upcoming extra visits.
           </p>
         ) : (
           <ul className="divide-y divide-border/70" data-testid="date-changes-upcoming">
@@ -252,6 +348,35 @@ export function VisitPlanDateChangesSection({
           </ul>
         )}
       </div>
+
+      {upcomingRejected > 0 ? (
+        <p className={contentHelperClass} data-testid="date-changes-rejected-note">
+          {upcomingRejected} rejected extra visit request{upcomingRejected === 1 ? '' : 's'} —{' '}
+          <Link
+            to="/service-users/$serviceUserId/activity"
+            params={{ serviceUserId }}
+            search={{ tab: 'rejected' }}
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            see them in Activity → Rejected
+          </Link>
+          .
+        </p>
+      ) : null}
+      {upcomingCancelled > 0 ? (
+        <p className={contentHelperClass} data-testid="date-changes-cancelled-note">
+          {upcomingCancelled} upcoming cancelled visit{upcomingCancelled === 1 ? '' : 's'} —{' '}
+          <Link
+            to="/service-users/$serviceUserId/activity"
+            params={{ serviceUserId }}
+            search={{ tab: 'cancelled' }}
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            see them in Activity → Cancelled
+          </Link>
+          .
+        </p>
+      ) : null}
 
       {past.length > 0 ? (
         <details className="group/past overflow-hidden rounded-xl border border-border" data-testid="date-changes-past">
@@ -296,6 +421,7 @@ export function VisitPlanDateChangesSection({
           />
         </>
       ) : null}
+      </div>
     </ContentCard>
   )
 }

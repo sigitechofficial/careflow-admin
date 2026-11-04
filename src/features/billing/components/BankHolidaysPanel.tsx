@@ -24,6 +24,7 @@ import {
   type HolidayPremiumBasis,
 } from '@/features/billing/types/wage-types.types'
 import { formatBillingDate } from '@/features/billing/types/billing-cards.types'
+import { DayPriorityCard } from '@/features/billing/components/DayPriorityCard'
 
 const selectClass = 'flex h-9 rounded-md border border-input bg-background px-3 text-sm'
 const MIN_REASON_LENGTH = 10
@@ -223,6 +224,7 @@ export function BankHolidaysPanel() {
         <>
           <CalendarStatus status={statusQuery.data} />
           <HolidayPremiumBasisCard current={statusQuery.data.basis} canManage={canManage} />
+          <DayPriorityCard canManage={canManage} />
         </>
       ) : null}
 

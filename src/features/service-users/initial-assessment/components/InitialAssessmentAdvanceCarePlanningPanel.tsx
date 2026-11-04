@@ -165,7 +165,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
           <div className="space-y-4">
             <div className="space-y-4">
               <div>
-                <FieldLabel htmlFor="acp-patient-name">Name</FieldLabel>
+                <FieldLabel htmlFor="acp-patient-name">My name</FieldLabel>
                 <Input
                   id="acp-patient-name"
                   className="mt-1 h-10"
@@ -175,7 +175,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-address">Address</FieldLabel>
+                <FieldLabel htmlFor="acp-address">My address</FieldLabel>
                 <Textarea
                   id="acp-address"
                   className={cn('mt-1 min-h-[80px]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
@@ -186,7 +186,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <FieldLabel htmlFor="acp-dob">DOB</FieldLabel>
+                  <FieldLabel htmlFor="acp-dob">My date of birth</FieldLabel>
                   <Input
                     id="acp-dob"
                     type="date"
@@ -197,7 +197,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                   />
                 </div>
                 <div>
-                  <FieldLabel htmlFor="acp-nhs">Hosp / NHS no</FieldLabel>
+                  <FieldLabel htmlFor="acp-nhs">My hospital or NHS number</FieldLabel>
                   <Input
                     id="acp-nhs"
                     className="mt-1 h-10"
@@ -222,7 +222,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-gp">GP Details</FieldLabel>
+                <FieldLabel htmlFor="acp-gp">My GP details</FieldLabel>
                 <Textarea
                   id="acp-gp"
                   className={cn('mt-1 min-h-[80px]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
@@ -232,7 +232,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-hospital-contact">Hospital contact</FieldLabel>
+                <FieldLabel htmlFor="acp-hospital-contact">My hospital contact</FieldLabel>
                 <Input
                   id="acp-hospital-contact"
                   className="mt-1 h-10"
@@ -246,11 +246,11 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <section className="space-y-3 rounded-sm border border-slate-300 p-4 dark:border-slate-600">
             <p className="text-sm font-medium text-foreground">
-              Family members involved in Advance Care Planning discussions:
+              The family members involved in my Advance Care Planning discussions:
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <FieldLabel htmlFor="acp-family-name">Name</FieldLabel>
+                <FieldLabel htmlFor="acp-family-name">Their name</FieldLabel>
                 <Input
                   id="acp-family-name"
                   className="mt-1 h-10"
@@ -260,7 +260,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-family-tel">Contact tel</FieldLabel>
+                <FieldLabel htmlFor="acp-family-tel">Their contact number</FieldLabel>
                 <Input
                   id="acp-family-tel"
                   className="mt-1 h-10"
@@ -274,11 +274,11 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <section className="space-y-3 rounded-sm border border-slate-300 p-4 dark:border-slate-600">
             <p className="text-sm font-medium text-foreground">
-              Name of homecare professional involved in Advance Care Planning discussions:
+              The Care Professional involved in my Advance Care Planning discussions:
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <FieldLabel htmlFor="acp-professional-name">Name</FieldLabel>
+                <FieldLabel htmlFor="acp-professional-name">Their name</FieldLabel>
                 <Input
                   id="acp-professional-name"
                   className="mt-1 h-10"
@@ -288,7 +288,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-professional-role">Role</FieldLabel>
+                <FieldLabel htmlFor="acp-professional-role">Their role</FieldLabel>
                 <Input
                   id="acp-professional-role"
                   className="mt-1 h-10"
@@ -298,7 +298,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-professional-tel">Contact tel</FieldLabel>
+                <FieldLabel htmlFor="acp-professional-tel">Their contact number</FieldLabel>
                 <Input
                   id="acp-professional-tel"
                   className="mt-1 h-10"
@@ -318,17 +318,17 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                     {
                       sigKey: 'patientSignature' as const,
                       dateKey: 'patientSignatureDate' as const,
-                      label: 'Patient signature',
+                      label: 'My signature',
                     },
                     {
                       sigKey: 'nextOfKinSignature' as const,
                       dateKey: 'nextOfKinSignatureDate' as const,
-                      label: 'Next of kin / carer signature (if present)',
+                      label: "My next of kin's or carer's signature (if present)",
                     },
                     {
                       sigKey: 'homecareProfessionalSignature' as const,
                       dateKey: 'homecareProfessionalSignatureDate' as const,
-                      label: 'Homecare professional signature',
+                      label: "Care Professional's signature",
                     },
                   ] as const
                 ).map((row) => (
@@ -382,7 +382,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
         <div className="space-y-6 p-4">
           <div>
             <FieldLabel htmlFor="acp-personal-values">
-              1. At this time in your life what is it that makes you happy or you feel is important to you?
+              1. At this time in my life, what makes me happy or is important to me:
             </FieldLabel>
             <Textarea
               id="acp-personal-values"
@@ -395,7 +395,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div>
             <FieldLabel htmlFor="acp-care-preferences">
-              2. What elements of care are important to you and what would you like to happen in future?
+              2. The parts of my care that are important to me, and what I would like to happen in future:
             </FieldLabel>
             <Textarea
               id="acp-care-preferences"
@@ -408,7 +408,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div>
             <FieldLabel htmlFor="acp-concerns">
-              3. What would you NOT want to happen? Is there anything that you worry about or fear happening?
+              3. What I would NOT want to happen, and anything I worry about or fear happening:
             </FieldLabel>
             <Textarea
               id="acp-concerns"
@@ -422,7 +422,9 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
           <div className="space-y-3 rounded-sm border border-slate-300 p-4 dark:border-slate-600">
             <InitialAssessmentYesNoCardField
               name="acp-legal-adrt"
-              label="4. Do you have a Legal Advance Decision to Refuse Treatment document? (This is in keeping with the Mental Capacity Act (2005) and enables people to make decisions that will be useful if at some future stage they can no longer express their views themselves)"
+              label="4. Do I have a legal Advance Decision to Refuse Treatment (ADRT)? (This is in keeping with the Mental Capacity Act (2005) and enables people to make decisions that will be useful if at some future stage they can no longer express their views themselves)"
+              yesText="Yes – I have an Advance Decision to Refuse Treatment"
+              noText="No – I do not have an Advance Decision to Refuse Treatment"
               value={value.legalAdvanceDecision ?? null}
               disabled={disabled}
               showDivider={false}
@@ -436,7 +438,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
             {value.legalAdvanceDecision === true ? (
               <div>
                 <FieldLabel htmlFor="acp-adrt-details">
-                  If yes please give details (eg who has a copy?)
+                  Details of my Advance Decision and who has a copy
                 </FieldLabel>
                 <Input
                   id="acp-adrt-details"
@@ -451,9 +453,8 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div className="space-y-4">
             <p className={IA_QUESTION_LABEL_CLASS}>
-              5. Who else would you like to be involved if it ever becomes difficult for you to make
-              decisions or if there was an emergency? Do they have official Lasting Power of Attorney
-              (LPA)?
+              5. Who I would like to be involved if it becomes difficult for me to make decisions, or in
+              an emergency, and whether they have a Lasting Power of Attorney (LPA):
             </p>
             {([1, 2] as const).map((index) => (
               <div
@@ -461,7 +462,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 className="grid gap-3 rounded-sm border border-slate-300 p-4 sm:grid-cols-[1fr_1fr_auto] dark:border-slate-600"
               >
                 <div>
-                  <FieldLabel htmlFor={`acp-proxy-${index}-name`}>Name</FieldLabel>
+                  <FieldLabel htmlFor={`acp-proxy-${index}-name`}>Their name</FieldLabel>
                   <Input
                     id={`acp-proxy-${index}-name`}
                     className="mt-1 h-10"
@@ -471,7 +472,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                   />
                 </div>
                 <div>
-                  <FieldLabel htmlFor={`acp-proxy-${index}-tel`}>Tel</FieldLabel>
+                  <FieldLabel htmlFor={`acp-proxy-${index}-tel`}>Their contact number</FieldLabel>
                   <Input
                     id={`acp-proxy-${index}-tel`}
                     className="mt-1 h-10"
@@ -494,11 +495,11 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div className="space-y-3">
             <FieldLabel>
-              6. If your condition deteriorates where would you most like to be cared for?
+              6. If my condition gets worse, where I would most like to be cared for:
             </FieldLabel>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <FieldLabel htmlFor="acp-place-1">1st choice</FieldLabel>
+                <FieldLabel htmlFor="acp-place-1">My 1st choice</FieldLabel>
                 <Input
                   id="acp-place-1"
                   className="mt-1 h-10"
@@ -508,7 +509,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="acp-place-2">2nd choice</FieldLabel>
+                <FieldLabel htmlFor="acp-place-2">My 2nd choice</FieldLabel>
                 <Input
                   id="acp-place-2"
                   className="mt-1 h-10"
@@ -519,7 +520,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
               </div>
             </div>
             <div>
-              <FieldLabel htmlFor="acp-place-comments">Comments</FieldLabel>
+              <FieldLabel htmlFor="acp-place-comments">My comments</FieldLabel>
               <Textarea
                 id="acp-place-comments"
                 className={cn('mt-1 min-h-[80px]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
@@ -532,7 +533,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div>
             <FieldLabel htmlFor="acp-special-requests">
-              7. Do you have any special requests, preferences, or other comments?
+              7. Any special requests, preferences or other comments I have:
             </FieldLabel>
             <Textarea
               id="acp-special-requests"
@@ -545,7 +546,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div>
             <FieldLabel htmlFor="acp-third-party">
-              8. Are there any comments or additions from other people you are close to? (Please name)
+              8. Comments or additions from people I am close to (please name them):
             </FieldLabel>
             <Textarea
               id="acp-third-party"
@@ -557,7 +558,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
           </div>
 
           <p className={cn('text-sm', IA_HINT_CLASS)}>
-            NB See also any separate DNACPR/AND or ADRT documents.
+            Please also check for any separate DNACPR/AND or ADRT documents I have.
           </p>
         </div>
       </div>

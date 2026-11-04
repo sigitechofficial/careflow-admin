@@ -3,6 +3,7 @@ import { ChevronDown, ExternalLink } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import type { CarePlanComposeGap, CarePlanComposeEvidence, CarePlanComposeDelta } from '@/features/service-users/care-plans/types'
+import { carePlanFieldLabel } from '@/features/service-users/care-plan/care-plan-first-person-labels'
 
 const SOURCE_LABEL: Record<CarePlanComposeEvidence['source'], string> = {
   ia: 'IA',
@@ -113,7 +114,7 @@ export function CarePlanEvidencePanel({
                         : 'border-amber-500/40 bg-amber-50 dark:bg-amber-950/20',
                     )}
                   >
-                    <p className="font-medium text-foreground">{gap.label}</p>
+                    <p className="font-medium text-foreground">{carePlanFieldLabel(gap.label)}</p>
                     <div className="mt-1 flex flex-wrap gap-2">
                       {gap.fixes.map(fix => (
                         <a
@@ -146,7 +147,7 @@ export function CarePlanEvidencePanel({
               <ul className="space-y-2">
                 {deltas.slice(0, 8).map(delta => (
                   <li key={delta.fieldKey} className="rounded-md border border-amber-500/30 bg-amber-50/60 px-3 py-2 text-sm dark:bg-amber-950/20">
-                    <p className="font-medium text-foreground">{delta.label}</p>
+                    <p className="font-medium text-foreground">{carePlanFieldLabel(delta.label)}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Sources now suggest: {String(delta.composedValue ?? '—')}
                     </p>

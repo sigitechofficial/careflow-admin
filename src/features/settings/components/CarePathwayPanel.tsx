@@ -2,6 +2,7 @@
 import {
   BarChart3,
   BookOpen,
+  ClipboardCheck,
   ImageIcon,
   LayoutGrid,
   Users,
@@ -19,6 +20,7 @@ import { CarePlanTextTab } from '@/features/care-pathway/components/CarePlanText
 import { PictureGalleryTab } from '@/features/care-pathway/components/PictureGalleryTab'
 import { FormBuilderTab } from '@/features/care-pathway/components/FormBuilderTab'
 import { InitialAssessmentCarePlanTriggersTab } from '@/features/care-pathway/components/InitialAssessmentCarePlanTriggersTab'
+import { CarePlanRequiredAssessmentsTab } from '@/features/care-pathway/components/CarePlanRequiredAssessmentsTab'
 
 const CARE_PATHWAY_TABS: { id: CarePathwayTabId; label: string; Icon: LucideIcon }[] = [
   { id: 'wizard', label: 'Wizard', Icon: LayoutGrid },
@@ -26,6 +28,7 @@ const CARE_PATHWAY_TABS: { id: CarePathwayTabId; label: string; Icon: LucideIcon
   { id: 'form-selection', label: 'Form Selection', Icon: Users },
   { id: 'care-plan-text', label: 'Care Plan Text', Icon: Users },
   { id: 'ia-care-plan-triggers', label: 'IA Care Plan Triggers', Icon: BookOpen },
+  { id: 'required-assessments', label: 'Required Assessments', Icon: ClipboardCheck },
   { id: 'checklists', label: 'Checklists', Icon: BarChart3 },
   { id: 'actions', label: 'Actions', Icon: BookOpen },
   { id: 'gallery', label: 'Gallery', Icon: ImageIcon },
@@ -85,6 +88,7 @@ export function CarePathwayPanel() {
       {activeTab === 'form-selection' && <FormSelectionTab />}
       {activeTab === 'care-plan-text' && <CarePlanTextTab />}
       {activeTab === 'ia-care-plan-triggers' && <InitialAssessmentCarePlanTriggersTab />}
+      {activeTab === 'required-assessments' && <CarePlanRequiredAssessmentsTab />}
       {activeTab === 'checklists' && <PathwayChecklistsTab />}
       {activeTab === 'actions' && <PathwayActionsTab />}
       {activeTab === 'gallery' && <PictureGalleryTab />}

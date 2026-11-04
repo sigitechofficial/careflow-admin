@@ -7,7 +7,7 @@ import { AddressPlacesField } from '@/shared/ui/address-places-field'
 import { useUpdateServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
 import type { ServiceUserDetail } from '@/features/service-users/api'
 import type { InitialAssessmentAnswerInput, InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
-import { holisticQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
+import { iaQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import {
   IA_HINT_CLASS,
   IA_QUESTION_LABEL_CLASS,
@@ -217,7 +217,7 @@ export function InitialAssessmentAddressContactField({
       {!simple ? (
         <>
           <Label className={IA_QUESTION_LABEL_CLASS}>
-            {holisticQuestionLabel(question.questionText)}
+            {iaQuestionLabel(question)}
             {question.isRequired ? (
               <span className="text-teal-700 dark:text-teal-400" aria-hidden>
                 {' '}

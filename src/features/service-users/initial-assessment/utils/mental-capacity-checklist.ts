@@ -89,7 +89,7 @@ export const MENTAL_CAPACITY_CHECKLIST_ROWS: MentalCapacityChecklistRow[] = [
     id: 'impairment',
     gate: true,
     label:
-      "Is there an impairment in the client's brain or mind function, whether permanent or temporary?",
+      'Is there an impairment in my brain or mind function, whether permanent or temporary?',
   },
   {
     kind: 'question',
@@ -97,12 +97,12 @@ export const MENTAL_CAPACITY_CHECKLIST_ROWS: MentalCapacityChecklistRow[] = [
     id: 'unableKeyDecision',
     gate: true,
     label:
-      'If the answer to 1 above is "YES" does this render the client unable to make a key decision?',
+      'If the answer to 1 above is "YES", does this make me unable to make a key decision?',
   },
   {
     kind: 'instruction',
     label:
-      "If the answers to 1 and 2 are 'NO' then the client has appropriate mental capacity and no further assessment is required. Sign and date this form in the spaces provided in section C of this Form. If the answer to either question is 'YES' proceed with the assessment below.",
+      "If the answers to 1 and 2 are 'NO' then I have appropriate mental capacity and no further assessment is required. Please sign and date this form in the spaces provided in section C of this Form. If the answer to either question is 'YES', please proceed with the assessment below.",
   },
   {
     kind: 'legalNote',
@@ -115,21 +115,21 @@ export const MENTAL_CAPACITY_CHECKLIST_ROWS: MentalCapacityChecklistRow[] = [
     id: 'understandDecision',
     detailed: true,
     label:
-      'Can the client understand the decision to be taken, and the consequences of making / not making it?',
+      'Can I understand the decision to be taken, and the consequences of making or not making it?',
   },
   {
     kind: 'question',
     number: 4,
     id: 'retainInformation',
     detailed: true,
-    label: 'Is the client able to retain the information needed to make the decision?',
+    label: 'Am I able to retain the information needed to make the decision?',
   },
   {
     kind: 'question',
     number: 5,
     id: 'useInformation',
     detailed: true,
-    label: 'Is the client capable of using this information as part of the decision-making process?',
+    label: 'Am I able to use this information as part of making the decision?',
   },
   {
     kind: 'question',
@@ -137,77 +137,77 @@ export const MENTAL_CAPACITY_CHECKLIST_ROWS: MentalCapacityChecklistRow[] = [
     id: 'communicateDecision',
     detailed: true,
     label:
-      'Is the client able to communicate his / her decision (speech, sign language, other)?',
+      'Am I able to communicate my decision (speech, sign language, other)?',
   },
   {
     kind: 'question',
     number: 7,
     id: 'eatDrink',
     detailed: true,
-    label: 'Can the client make decisions about what to eat and drink, and when?',
+    label: 'Can I make decisions about what to eat and drink, and when?',
   },
   {
     kind: 'question',
     number: 8,
     id: 'getUpBed',
     detailed: true,
-    label: 'Can the client make decisions about when to get up and go to bed?',
+    label: 'Can I make decisions about when to get up and go to bed?',
   },
   {
     kind: 'question',
     number: 9,
     id: 'washingBathing',
     detailed: true,
-    label: 'Can the client make decisions about washing / bathing / shaving (as appropriate)?',
+    label: 'Can I make decisions about washing, bathing or shaving (as appropriate)?',
   },
   {
     kind: 'question',
     number: 10,
     id: 'hairCare',
     detailed: true,
-    label: 'Can the client make decisions about the care of his / her hair, and any styling?',
+    label: 'Can I make decisions about the care of my hair, and any styling?',
   },
   {
     kind: 'question',
     number: 11,
     id: 'clothes',
     detailed: true,
-    label: 'Can the client make decisions about what clothes he/she would like to wear?',
+    label: 'Can I make decisions about what clothes I would like to wear?',
   },
   {
     kind: 'question',
     number: 12,
     id: 'oralCare',
     detailed: true,
-    label: 'Can the client make decisions about oral care (teeth, toothbrush etc)?',
+    label: 'Can I make decisions about my oral care (teeth, toothbrush etc.)?',
   },
   {
     kind: 'question',
     number: 13,
     id: 'grooming',
     detailed: true,
-    label: 'Can the client make decisions about grooming (hair care, shaving etc)?',
+    label: 'Can I make decisions about my grooming (hair care, shaving etc.)?',
   },
   {
     kind: 'question',
     number: 14,
     id: 'toilet',
     detailed: true,
-    label: 'Can the client make decisions about when to use the toilet?',
+    label: 'Can I make decisions about when to use the toilet?',
   },
   {
     kind: 'question',
     number: 15,
     id: 'medication',
     detailed: true,
-    label: 'Can the client manage his / her medication?',
+    label: 'Can I manage my medication?',
   },
   {
     kind: 'question',
     number: 16,
     id: 'financialAffairs',
     detailed: true,
-    label: 'Can the client manage his / her financial affairs?',
+    label: 'Can I manage my financial affairs?',
   },
   {
     kind: 'question',
@@ -215,21 +215,21 @@ export const MENTAL_CAPACITY_CHECKLIST_ROWS: MentalCapacityChecklistRow[] = [
     id: 'dailyLivingAids',
     detailed: true,
     label:
-      'Can the client successfully handle hearing aids, spectacles and other aids to daily living?',
+      'Can I successfully handle my hearing aids, glasses and other aids to daily living?',
   },
   {
     kind: 'question',
     number: 18,
     id: 'walking',
     detailed: true,
-    label: 'Can the client make decisions about walking',
+    label: 'Can I make decisions about walking?',
   },
   {
     kind: 'question',
     number: 19,
     id: 'seeDoctor',
     detailed: true,
-    label: 'Can the client make decisions about the need to see a doctor',
+    label: 'Can I make decisions about the need to see a doctor?',
   },
 ]
 

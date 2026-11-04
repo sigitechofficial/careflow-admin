@@ -25,6 +25,11 @@ export function resolveTravelTimingBadge(detail: NextVisitTravelDetail): TravelT
   return null
 }
 
+/** Where the driving time comes from, shown after the travel figures. */
+export function travelSourceLabel(detail: NextVisitTravelDetail): string {
+  return detail.travelSource === 'GOOGLE' ? 'Google route' : 'estimated'
+}
+
 export function formatInboundTravelSummary(
   detail: NextVisitTravelDetail,
   previousJob: TimelineJob,
@@ -44,7 +49,7 @@ export function formatInboundTravelSummary(
       ? `No spare minutes before the ${visitStartLabel} start · ${detail.distanceLabel}`
       : `${spareMinutes} min spare before the ${visitStartLabel} start · ${detail.distanceLabel}`
 
-  return { headline, subline }
+  return { headline, subline: `${subline} · ${travelSourceLabel(detail)}` }
 }
 
 export function formatOutboundTravelSummary(
@@ -65,5 +70,5 @@ export function formatOutboundTravelSummary(
       ? `No spare minutes before ${detail.nextVisitTimeLabel} start · ${detail.distanceLabel}`
       : `${spareMinutes} min spare before ${detail.nextVisitTimeLabel} start · ${detail.distanceLabel}`
 
-  return { headline, subline }
+  return { headline, subline: `${subline} · ${travelSourceLabel(detail)}` }
 }

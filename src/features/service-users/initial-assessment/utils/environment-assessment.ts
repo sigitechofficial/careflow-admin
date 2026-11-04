@@ -115,29 +115,29 @@ export const ENVIRONMENT_ASSESSMENT_TABLE_QUESTIONS: ReadonlyArray<{
   {
     id: 'homeHazards',
     label:
-      'Do you have any potential hazards around your home? (e.g. loose mats/rugs, damaged flooring, obstructions, loose wires/cables)',
+      'Are there any potential hazards around my home? (e.g. loose mats/rugs, damaged flooring, obstructions, loose wires/cables)',
   },
   {
     id: 'furniturePosition',
     label:
-      'Do you need to have furniture placed in a specific position to help you? (e.g. vision, access)',
+      'Do I need my furniture placed in a specific position to help me? (e.g. vision, access)',
   },
   {
     id: 'lightingRequirements',
-    label: 'Do you have specific lighting requirements for your home?',
+    label: 'Do I have specific lighting requirements in my home?',
   },
   {
     id: 'temperatureSupport',
-    label: 'Do you need support to stay warm and/or keep cool?',
+    label: 'Do I need support to stay warm and/or keep cool?',
   },
   {
     id: 'pets',
-    label: 'Do you have any pets?',
+    label: 'Do I have any pets?',
   },
   {
     id: 'externalHazards',
     label:
-      'Do you have any potential external hazards near your home? (e.g. uneven paths/driveway, lighting, security i.e. burglar alarm/safety chain)',
+      'Are there any potential external hazards near my home? (e.g. uneven paths or driveway, lighting, security such as a burglar alarm or safety chain)',
   },
   // Retired rows (answers kept in metadata): infection risks are owned by the Infection tab, and no
   // care plan exists yet at assessment stage, so neither is asked or needed for completeness.
@@ -147,12 +147,12 @@ export const ENVIRONMENT_ASSESSMENT_GOALS_PROMPTS = [
   {
     key: 'goalsAchieve' as const,
     label:
-      "Where possible, in the Service User's own words, detail what they would like to be able to achieve or continue to do.",
+      'What I would like to be able to achieve or continue to do (in my own words where possible).',
   },
   {
     key: 'goalsCarePriorities' as const,
     label:
-      "Where possible, in the Service User's own words, detail what areas of their care are most important to them. Where it is a safety issue, detail this here too.",
+      'The parts of my care that are most important to me, including anything about my safety (in my own words where possible).',
   },
 ]
 
@@ -174,49 +174,49 @@ export const ENVIRONMENT_ASSESSMENT_LONE_WORKER_FACTORS: ReadonlyArray<{
   /** Companion "Risk Details / Notes" field, mandatory when the factor is Yes. */
   detailsKey: keyof EnvironmentAssessmentMetadata
 }> = [
-  { id: 'aggression', label: 'Has the service user or anyone in the household shown aggression towards carers?', detailsKey: 'aggressionDetails' },
-  { id: 'verbalAbuse', label: 'Any history of verbal abuse or threats towards staff?', detailsKey: 'verbalAbuseDetails' },
-  { id: 'physicalViolence', label: 'Any history of physical violence?', detailsKey: 'physicalViolenceDetails' },
-  { id: 'unpredictable', label: 'Does the person show unpredictable or challenging behaviour towards staff?', detailsKey: 'unpredictableDetails' },
+  { id: 'aggression', label: 'Have I, or anyone in my household, shown aggression towards Care Professionals?', detailsKey: 'aggressionDetails' },
+  { id: 'verbalAbuse', label: 'Is there any history of verbal abuse or threats towards Care Professionals in my home?', detailsKey: 'verbalAbuseDetails' },
+  { id: 'physicalViolence', label: 'Is there any history of physical violence in my home?', detailsKey: 'physicalViolenceDetails' },
+  { id: 'unpredictable', label: 'Do I show unpredictable or challenging behaviour towards Care Professionals?', detailsKey: 'unpredictableDetails' },
   {
     id: 'dementiaBehaviour',
     label:
-      'Does confusion or cognitive impairment lead to behaviour or situations that could put the person or staff at risk (e.g. hitting out during personal care)? Describe triggers and what helps.',
+      'Does my confusion or memory loss lead to behaviour or situations that could put me or Care Professionals at risk (e.g. hitting out during personal care)? Please describe my triggers and what helps.',
     detailsKey: 'dementiaBehaviourDetails',
   },
   {
     id: 'mentalHealthRisk',
     label:
-      "Is there a current or recent risk to staff linked to the person's mental state (e.g. threats, paranoia towards carers, crisis episodes)? A diagnosis on its own is not a risk.",
+      'Is there a current or recent risk to Care Professionals linked to my mental state (e.g. threats, paranoia towards carers, crisis episodes)? A diagnosis on its own is not a risk.',
     detailsKey: 'mentalHealthRiskDetails',
   },
   {
     id: 'substanceMisuse',
     label:
-      'Has alcohol or drug use by anyone in the home led to behaviour or conditions that could put staff at risk (e.g. intoxication, aggression, needles)?',
+      'Has alcohol or drug use by me or anyone in my home led to behaviour or conditions that could put Care Professionals at risk (e.g. intoxication, aggression, needles)?',
     detailsKey: 'substanceMisuseDetails',
   },
   // Refusing care is the person's right, not a staff-safety risk — only blocking an exit is.
-  { id: 'refusedCare', label: 'Has anyone prevented carers from leaving or blocked an exit?', detailsKey: 'refusedCareDetails' },
-  { id: 'isolatedProperty', label: 'Is the property isolated / in a remote location?', detailsKey: 'isolatedPropertyDetails' },
-  { id: 'poorLightingAccess', label: 'Any poor lighting or difficult access at the property?', detailsKey: 'poorLightingAccessDetails' },
-  { id: 'unsafeArea', label: 'Is the property in an unsafe area / neighbourhood?', detailsKey: 'unsafeAreaDetails' },
-  { id: 'noMobileSignal', label: 'Is there no reliable mobile signal at the property?', detailsKey: 'noMobileSignalDetails' },
+  { id: 'refusedCare', label: 'Has anyone in my home prevented Care Professionals from leaving or blocked an exit?', detailsKey: 'refusedCareDetails' },
+  { id: 'isolatedProperty', label: 'Is my home isolated or in a remote location?', detailsKey: 'isolatedPropertyDetails' },
+  { id: 'poorLightingAccess', label: 'Is there poor lighting or difficult access at my home?', detailsKey: 'poorLightingAccessDetails' },
+  { id: 'unsafeArea', label: 'Is my home in an unsafe area or neighbourhood?', detailsKey: 'unsafeAreaDetails' },
+  { id: 'noMobileSignal', label: 'Is there no reliable mobile signal at my home?', detailsKey: 'noMobileSignalDetails' },
   {
     id: 'othersPresentRisk',
-    label: 'Is there anyone else regularly present during visits who may pose a risk to the carer?',
+    label: 'Is anyone else regularly at my home during visits who may pose a risk to Care Professionals?',
     detailsKey: 'othersPresentRiskDetails',
   },
   { id: 'carerWorksAlone', label: 'Does the carer usually work alone at this visit?', detailsKey: 'carerWorksAloneDetails' },
-  { id: 'nightVisits', label: 'Are there night / early-morning / late visits?', detailsKey: 'nightVisitsDetails' },
-  { id: 'longDurationVisits', label: 'Are visits long duration (extended time alone)?', detailsKey: 'longDurationVisitsDetails' },
-  { id: 'newServiceUser', label: 'Is this a new service user / first visits?', detailsKey: 'newServiceUserDetails' },
+  { id: 'nightVisits', label: 'Are any of my visits at night, early in the morning or late?', detailsKey: 'nightVisitsDetails' },
+  { id: 'longDurationVisits', label: 'Are my visits long (extended time alone for the Care Professional)?', detailsKey: 'longDurationVisitsDetails' },
+  { id: 'newServiceUser', label: 'Am I new to the service (first visits)?', detailsKey: 'newServiceUserDetails' },
   { id: 'pastSafeguardingIncident', label: 'Any past safeguarding incident involving staff?', detailsKey: 'pastSafeguardingIncidentDetails' },
   { id: 'previousCarerComplaints', label: 'Any previous carer complaints or reported concerns?', detailsKey: 'previousCarerComplaintsDetails' },
-  { id: 'previousSosEvent', label: 'Any previous SOS / emergency event at this service user?', detailsKey: 'previousSosEventDetails' },
+  { id: 'previousSosEvent', label: 'Has there been an SOS or emergency event at my home before?', detailsKey: 'previousSosEventDetails' },
   {
     id: 'unsafeMovingHandlingAlone',
-    label: 'Does the Moving and Handling assessment say a task needs two people?',
+    label: 'Do I need two Care Professionals for any moving and handling task (as set out in my Moving and Handling assessment)?',
     detailsKey: 'unsafeMovingHandlingAloneDetails',
   },
   {

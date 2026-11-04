@@ -11,6 +11,8 @@ import {
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
+import { SectionInfoTip } from '@/features/billing/components/SectionInfoTip'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import {
@@ -27,16 +29,25 @@ import {
 } from '@/features/billing/hooks/useVisitReconciliations'
 import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
 import type { VisitReconciliationRateBreakdown } from '@/features/billing/types/visit-reconciliation.types'
+import type { VisitReconciliationDetail } from '@/features/billing/types/visit-reconciliation.types'
 import { toastApiError, toastSuccess, toastWithVariant } from '@/shared/lib/toast'
 import { payTimeEditNotice } from '@/features/billing/utils/pay-time-outcome.util'
 import { useAuthStore } from '@/features/auth/store'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
-import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
-import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
 import { VisitPayCorrectionsCard } from '@/features/billing/components/VisitPayCorrectionsCard'
 import { VisitMileageCorrectionCard } from '@/features/billing/components/VisitMileageCorrectionCard'
 import { VisitTravelTimeCard } from '@/features/billing/components/VisitTravelTimeCard'
+import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
+
+/** Heading between the modal's sections (the visit, carer pay, client charge). */
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="border-t border-border pt-4 text-base font-semibold text-foreground first:border-t-0 first:pt-0">
+      {children}
+    </h3>
+  )
+}
 
 type Props = {
   open: boolean
@@ -115,15 +126,15 @@ function RateBreakdownCard({
         <h4 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
           {icon}
           {title}
+          <SectionInfoTip label={title}>{subtitle}</SectionInfoTip>
           {manual ? (
             <Badge variant="secondary" className="text-[10px] font-normal">
               Manual override
             </Badge>
           ) : null}
         </h4>
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
-      <dl className="grid gap-2 text-sm sm:grid-cols-2">
+      <dl className="grid grid-cols-2 gap-3 text-sm">
         <div>
           <dt className="text-xs text-muted-foreground">Approved time</dt>
           <dd className="font-medium">{timeRange}</dd>
@@ -144,7 +155,7 @@ function RateBreakdownCard({
 
           {showAppliedRules ? (
             <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-sm font-semibold text-foreground">
                 Rate used
               </p>
               <ul className="space-y-2">
@@ -161,7 +172,7 @@ function RateBreakdownCard({
                         <span className="tabular-nums text-foreground">{rule.unitRate}</span>
                       ) : null}
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                       {[rule.rateTypeLabel, rule.dayTypeLabel, rule.timeWindow, rule.unitRate]
                         .filter(Boolean)
                         .join(' · ')}
@@ -180,7 +191,7 @@ function RateBreakdownCard({
 
           {!compact ? (
             <div className="border-t border-border pt-3 space-y-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-sm font-semibold text-foreground">
                 How it was calculated
               </p>
               {segments.length > 0 ? (
@@ -199,7 +210,7 @@ function RateBreakdownCard({
                         </span>
                         <span className="tabular-nums font-medium">{seg.amount}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         {seg.ruleLabel?.trim() || 'Hourly rate'}
                         {' · '}
                         <span className="tabular-nums text-foreground">{seg.unitRate}</span>
@@ -212,10 +223,10 @@ function RateBreakdownCard({
                 <p className="text-sm tabular-nums">{breakdown.formula}</p>
               )}
               {segments.length > 1 ? (
-                <p className="text-xs text-muted-foreground">{breakdown.formula}</p>
+                <p className="text-sm text-muted-foreground">{breakdown.formula}</p>
               ) : null}
               {chargedTotalNote ? (
-                <p className="text-xs text-muted-foreground">{chargedTotalNote}</p>
+                <p className="text-sm text-muted-foreground">{chargedTotalNote}</p>
               ) : null}
             </div>
           ) : null}
@@ -242,6 +253,64 @@ function parseStoredAmount(value: string | null | undefined): string {
   if (!value?.trim()) return ''
   const n = Number(value.replace(/[^0-9.-]/g, ''))
   return Number.isFinite(n) ? String(n) : ''
+}
+
+const gbp = (amount: number) => `£${amount.toFixed(2)}`
+
+/** Mileage and travel time paid with the visit pay, and what the carer gets for the visit in all. */
+function TravelPayCard({
+  travelPay,
+  visitPay,
+}: {
+  travelPay: NonNullable<VisitReconciliationDetail['travelPay']>
+  visitPay: string | null
+}) {
+  const lines = [
+    travelPay.mileage ? { label: `Mileage (${travelPay.mileage.miles} mi)`, ...travelPay.mileage } : null,
+    travelPay.travel ? { label: `Travel time (${travelPay.travel.minutes} min)`, ...travelPay.travel } : null,
+  ].filter((line): line is NonNullable<typeof line> => line != null)
+  // The visit pay arrives formatted (e.g. "£14.50").
+  const visit = visitPay != null ? Number(visitPay.replace(/[^0-9.-]/g, '')) : null
+  return (
+    <ContentCard className="p-4 space-y-3">
+      <div>
+        <h4 className="flex items-center gap-2 text-sm font-semibold">
+          <PoundSterling className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+          Mileage and travel pay
+          <SectionInfoTip label="Mileage and travel pay">
+            From the carer’s pay card. The visit pay run pays these as their own lines, beside the visit pay.
+          </SectionInfoTip>
+        </h4>
+      </div>
+      <ul className="space-y-2">
+        {lines.map((line) => (
+          <li key={line.label} className="rounded-md border border-border/80 bg-background px-3 py-2 space-y-1">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="font-medium">{line.label}</span>
+              <span className="tabular-nums font-medium">{gbp(line.amount)}</span>
+            </div>
+            <p className="text-sm text-muted-foreground">{line.explanation}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="space-y-1 border-t border-border pt-3 text-sm">
+        {visit != null && Number.isFinite(visit) ? (
+          <div className="flex justify-between gap-2 text-muted-foreground">
+            <span>Visit pay + mileage + travel</span>
+            <span className="tabular-nums">
+              {gbp(visit)} + {gbp(travelPay.total)}
+            </span>
+          </div>
+        ) : null}
+        <div className="flex justify-between gap-2 font-semibold">
+          <span>Carer total for this visit</span>
+          <span className="tabular-nums">
+            {gbp((visit != null && Number.isFinite(visit) ? visit : 0) + travelPay.total)}
+          </span>
+        </div>
+      </div>
+    </ContentCard>
+  )
 }
 
 function ManualAmountEditor({
@@ -271,8 +340,8 @@ function ManualAmountEditor({
         <h4 className="flex items-center gap-2 text-sm font-semibold">
           <PoundSterling className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
           {title}
+          <SectionInfoTip label={title}>{description}</SectionInfoTip>
         </h4>
-        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1 text-sm">
@@ -312,9 +381,7 @@ function ManualAmountEditor({
 
 export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Props) {
   const canManage = useAuthStore(s => s.can('billing.visit_reconciliations.manage' as never))
-  const { formatDate, timeDisplayFormat } = useOrganisationDisplayFormat()
-  const operationalTimezone = getSyncedOperationalTimeZone()
-  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
+  const { formatDate, formatTime, timeDisplayFormat } = useOrganisationDisplayFormat()
   const detailQuery = useVisitReconciliation(open && row ? row.id : undefined)
   const updateMutation = useUpdateVisitReconciliation()
   const setPayableMutation = useSetVisitPayableAmount()
@@ -485,14 +552,15 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-[96vw] max-w-3xl">
+        <TooltipProvider delayDuration={150}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4 text-primary" aria-hidden />
             Visit billing details
           </DialogTitle>
         </DialogHeader>
-        <DialogBody className="max-h-[75vh] space-y-4 overflow-y-auto">
+        <DialogBody className="max-h-[85vh] space-y-5 overflow-y-auto">
           {!row ? null : detailQuery.isLoading ? (
             <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -504,22 +572,27 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
             <>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Visit reference (EMONITORED)
                   </p>
                   <p
-                    className="font-mono text-sm font-medium"
+                    className="font-mono text-base font-semibold"
                     title="VIS-[BRANCH]-[YYYYMMDD]-[NNNN] — BRANCH from the service user’s branch"
                   >
                     {detail.visitRef}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {detail.date ? formatDate(detail.date) : detail.date} · {detail.serviceUserName}
-                    {detail.carerName ? ` · ${detail.carerName}` : ''}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Clock times in {timezoneHint}
-                  </p>
+                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                    <dt className="text-muted-foreground">Date</dt>
+                    <dd className="font-medium">{detail.date ? formatDate(detail.date) : '—'}</dd>
+                    <dt className="text-muted-foreground">Service user</dt>
+                    <dd className="font-medium">{detail.serviceUserName}</dd>
+                    {detail.carerName ? (
+                      <>
+                        <dt className="text-muted-foreground">Carer</dt>
+                        <dd className="font-medium">{detail.carerName}</dd>
+                      </>
+                    ) : null}
+                  </dl>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {detail.nightDuty ? (
@@ -536,16 +609,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </div>
               </div>
 
-              {preview?.pricingFrozenNote ? (
-                <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                  {preview.pricingFrozenNote}
-                </p>
-              ) : null}
-
               {decisionBanner ? (
                 <div
                   className={cn(
-                    'rounded-md border px-3 py-2 text-xs font-medium',
+                    'rounded-md border px-3 py-2 text-sm font-medium',
                     decisionBanner.tone === 'pay' &&
                       'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200',
                     decisionBanner.tone === 'bill' &&
@@ -560,70 +627,50 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </div>
               ) : null}
 
+              {detail.payOverCharge ? (
+                <p
+                  className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                  data-testid="visit-recon-pay-over-charge-banner"
+                >
+                  Carer pay is above the charge for this visit: £{detail.payOverCharge.visitPay.toFixed(2)} paid to
+                  carers against £{detail.payOverCharge.visitCharge.toFixed(2)} charged to the client / funders, a loss
+                  of £{detail.payOverCharge.shortfall.toFixed(2)}. Check the pay card and charge card rates.
+                </p>
+              ) : null}
+
               {detail.approval?.evidenceChangedReason ? (
                 <p
-                  className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-200"
+                  className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-200"
                   data-testid="visit-recon-evidence-changed"
                 >
                   {detail.approval.evidenceChangedReason}
                 </p>
               ) : null}
               {detail.approval?.source ? (
-                <p className="text-xs text-muted-foreground" data-testid="visit-recon-approval-source">
+                <p className="text-sm text-muted-foreground" data-testid="visit-recon-approval-source">
                   {detail.approval.source === 'AUTO_VERIFIED'
                     ? 'Approved automatically: the visit had no exceptions.'
                     : detail.approval.source === 'MANAGER_OVERRIDE'
                       ? 'Approved by a person, overriding an exception.'
                       : 'Approved by a person.'}
                   {detail.approval.approvedAt
-                    ? ` ${formatDate(detail.approval.approvedAt)}.`
+                    ? ` ${formatDate(dayKeyFromInstant(detail.approval.approvedAt) || detail.approval.approvedAt.slice(0, 10))}.`
                     : ''}{' '}
                   New attendance evidence sends the visit back for review.
                 </p>
               ) : null}
 
-              {detail.approvalNotes?.trim() ? (
-                <ContentCard className="p-4" data-testid="visit-recon-approval-notes">
-                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                    Approval history
-                  </h4>
-                  <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
-                    {parseApprovalNoteEntries(detail.approvalNotes).map((entry, index) => {
-                      const kind = approvalNoteKind(entry)
-                      return (
-                        <li
-                          key={`${index}-${entry.slice(0, 40)}`}
-                          className="flex items-start gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm"
-                        >
-                          {kind === 'payable' ? (
-                            <Badge variant="secondary" className="mt-0.5 shrink-0 text-[10px] font-normal">
-                              Carer pay
-                            </Badge>
-                          ) : kind === 'billable' ? (
-                            <Badge variant="secondary" className="mt-0.5 shrink-0 text-[10px] font-normal">
-                              Client charge
-                            </Badge>
-                          ) : (
-                            <span
-                              className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50"
-                              aria-hidden
-                            />
-                          )}
-                          <span className="min-w-0 leading-snug text-foreground">{entry}</span>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </ContentCard>
-              ) : null}
-
+              {/* The visit: what happened and what was flagged. */}
+              <SectionHeading>The visit</SectionHeading>
               <ContentCard className="p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
                   <User className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                   Time worked
+                  <SectionInfoTip label="Time worked">
+                    Planned is the rota time; actual is what was recorded at clock-in and clock-out.
+                  </SectionInfoTip>
                 </h4>
-                <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <dl className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <dt className="text-xs text-muted-foreground">Planned</dt>
                     <dd className="font-medium">
@@ -657,12 +704,12 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" aria-hidden />
                       Duration overrun — {detail.overrunMinutes} min
+                      <SectionInfoTip label="Duration overrun">
+                        Until the overrun is acknowledged, carer pay and client charge use the planned
+                        visit length. When acknowledging, choose planned or actual time and which
+                        amount(s) to update.
+                      </SectionInfoTip>
                     </h4>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Until the overrun is acknowledged, carer pay and client charge use the planned
-                      visit length. When acknowledging, choose planned or actual time and which
-                      amount(s) to update.
-                    </p>
                   </div>
                   <div className="rounded-md border border-border bg-background/80 px-3 py-2 text-sm">
                     <p className="text-xs text-muted-foreground">Carer / recorder reason</p>
@@ -771,16 +818,89 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </ContentCard>
               ) : null}
 
-              <VisitPayCorrectionsCard visitReconciliationId={row.id} />
+              {preview?.exceptionDetails && preview.exceptionDetails.length > 0 ? (
+                <ContentCard className="p-4 space-y-2">
+                  <h4 className="flex items-center gap-2 text-sm font-semibold">
+                    Exceptions
+                    <SectionInfoTip label="Exceptions">
+                      Problems found when the visit was checked, such as missing clock times or rates. Blocking ones stop
+                      the visit being approved until they are resolved.
+                    </SectionInfoTip>
+                  </h4>
+                  <ul className="space-y-2">
+                    {preview.exceptionDetails.map(ex => (
+                      <li
+                        key={`${ex.code}-${ex.message}`}
+                        className="flex flex-wrap items-start gap-2 text-sm"
+                      >
+                        <BillingExceptionBadge
+                          code={ex.code}
+                          message={ex.message}
+                          serviceUserId={row.serviceUserId}
+                          employeeId={row.employeeId}
+                          scheduledJobId={row.scheduledJobId}
+                        />
+                        <span className="text-muted-foreground">{ex.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </ContentCard>
+              ) : null}
 
+              {/* One column: what the carer is paid, then what the client is charged. */}
+              <div className="space-y-5">
+              <div className="min-w-0 space-y-4">
+              <SectionHeading>Paid to the carer</SectionHeading>
+              <div className={cn('space-y-4', carerNotPaid && 'opacity-70')}>
+                {carerNotPaid ? (
+                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-200">
+                    Not paid for this visit — £0 to the carer. The amount below is the priced value,
+                    kept for reference only.
+                  </p>
+                ) : null}
+                <RateBreakdownCard
+                  title="Pay carer"
+                  subtitle="Payroll — based on this carer’s approved payable time"
+                  timeRange={formatReconClock(
+                    preview?.timeWindows.approvedPayable ?? row.approvedPayable,
+                    timeDisplayFormat,
+                  )}
+                  hours={preview?.payableHours ?? null}
+                  breakdown={preview?.carerPay ?? null}
+                  fallbackAmount={detail.payableAmount}
+                  isManualOverride={payableManual}
+                  icon={<Wallet className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
+                />
+                {detail.travelPay ? (
+                  <TravelPayCard travelPay={detail.travelPay} visitPay={detail.payableAmount} />
+                ) : null}
               <ContentCard className="p-4 space-y-3">
                 <div>
                   <h4 className="flex items-center gap-2 text-sm font-semibold">
                     <PoundSterling className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                     Mileage
+                    <SectionInfoTip label="Mileage">
+                      Filled automatically from the distance between the carer’s previous service user that day and this one (change it if the journey differed). Payroll multiplies this by the carer’s pay card mileage (£/mile) rate.
+                    </SectionInfoTip>
                   </h4>
-                  <p className="text-xs text-muted-foreground">
-                    Enter approved journey miles between visits. Payroll multiplies this by the carer’s pay card mileage (£/mile) rate.
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {detail.previousVisit ? (
+                      detail.previousVisit.sameServiceUser ? (
+                        <>Previous visit ({detail.previousVisit.visitRef}, {formatTime(detail.previousVisit.startDateTime)}) was with the same service user, so there is no travel between them.</>
+                      ) : (
+                        <>
+                          From{' '}
+                          <span className="font-medium text-foreground">{detail.previousVisit.serviceUserName}</span>{' '}
+                          ({detail.previousVisit.visitRef}, {formatTime(detail.previousVisit.startDateTime)})
+                          {' · '}
+                          {detail.travelMiles != null ? `${detail.travelMiles} mi` : 'distance not known'}
+                          {' · '}
+                          {detail.travelMinutes != null ? `${detail.travelMinutes} min travel` : 'travel time not known'}
+                        </>
+                      )
+                    ) : (
+                      <>First visit of the carer’s day, so there is no previous service user to travel from.</>
+                    )}
                   </p>
                 </div>
                 <label className="block max-w-xs space-y-1 text-sm">
@@ -816,27 +936,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 {paySettled ? <VisitMileageCorrectionCard visitReconciliationId={row.id} /> : null}
                 <VisitTravelTimeCard visitReconciliationId={row.id} visitDate={row.date} />
               </ContentCard>
-
-              <div className={cn('space-y-2', carerNotPaid && 'opacity-70')}>
-                {carerNotPaid ? (
-                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200">
-                    Not paid for this visit — £0 to the carer. The amount below is the priced value,
-                    kept for reference only.
-                  </p>
-                ) : null}
-                <RateBreakdownCard
-                  title="Pay carer"
-                  subtitle="Payroll — based on this carer’s approved payable time"
-                  timeRange={formatReconClock(
-                    preview?.timeWindows.approvedPayable ?? row.approvedPayable,
-                    timeDisplayFormat,
-                  )}
-                  hours={preview?.payableHours ?? null}
-                  breakdown={preview?.carerPay ?? null}
-                  fallbackAmount={detail.payableAmount}
-                  isManualOverride={payableManual}
-                  icon={<Wallet className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
-                />
+              <VisitPayCorrectionsCard visitReconciliationId={row.id} />
                 {canManage ? (
                   <ManualAmountEditor
                     title="Set carer pay manually"
@@ -851,10 +951,13 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   />
                 ) : null}
               </div>
+              </div>
 
+              <div className="min-w-0 space-y-4">
+              <SectionHeading>Charged to the client</SectionHeading>
               <div className={cn('space-y-4', funderNotCharged && 'opacity-70')}>
                 {funderNotCharged ? (
-                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-200">
                     Not billed for this visit — £0 to the client / funders. The amounts below are the
                     priced values, kept for reference only.
                   </p>
@@ -979,26 +1082,44 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   </p>
                 </ContentCard>
               ) : null}
+              </div>
+              </div>
 
-              {preview?.exceptionDetails && preview.exceptionDetails.length > 0 ? (
-                <ContentCard className="p-4 space-y-2">
-                  <h4 className="text-sm font-semibold">Exceptions</h4>
-                  <ul className="space-y-2">
-                    {preview.exceptionDetails.map(ex => (
-                      <li
-                        key={`${ex.code}-${ex.message}`}
-                        className="flex flex-wrap items-start gap-2 text-sm"
-                      >
-                        <BillingExceptionBadge
-                          code={ex.code}
-                          message={ex.message}
-                          serviceUserId={row.serviceUserId}
-                          employeeId={row.employeeId}
-                          scheduledJobId={row.scheduledJobId}
-                        />
-                        <span className="text-muted-foreground">{ex.message}</span>
-                      </li>
-                    ))}
+              {detail.approvalNotes?.trim() ? (
+                <ContentCard className="p-4" data-testid="visit-recon-approval-notes">
+                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                    Approval history
+                    <SectionInfoTip label="Approval history">
+                      Notes left each time this visit was approved, newest last.
+                    </SectionInfoTip>
+                  </h4>
+                  <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
+                    {parseApprovalNoteEntries(detail.approvalNotes).map((entry, index) => {
+                      const kind = approvalNoteKind(entry)
+                      return (
+                        <li
+                          key={`${index}-${entry.slice(0, 40)}`}
+                          className="flex items-start gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm"
+                        >
+                          {kind === 'payable' ? (
+                            <Badge variant="secondary" className="mt-0.5 shrink-0 text-[10px] font-normal">
+                              Carer pay
+                            </Badge>
+                          ) : kind === 'billable' ? (
+                            <Badge variant="secondary" className="mt-0.5 shrink-0 text-[10px] font-normal">
+                              Client charge
+                            </Badge>
+                          ) : (
+                            <span
+                              className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50"
+                              aria-hidden
+                            />
+                          )}
+                          <span className="min-w-0 leading-snug text-foreground">{entry}</span>
+                        </li>
+                      )
+                    })}
                   </ul>
                 </ContentCard>
               ) : null}
@@ -1010,6 +1131,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
             Close
           </Button>
         </DialogFooter>
+        </TooltipProvider>
       </DialogContent>
     </Dialog>
   )

@@ -12,7 +12,7 @@ import {
   isYesAnswer,
 } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import { labelForQuestionOptionValue } from '@/features/service-users/initial-assessment/utils/question-options'
-import { holisticQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
+import { iaQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import {
   isCapacityDecisionComplete,
   type CapacityDecisionRecord,
@@ -148,7 +148,7 @@ export function buildAssessmentSummary(input: AssessmentSummaryInput): Assessmen
   for (const sec of sections) {
     for (const q of sec.questions) {
       if (!q.riskFlag || !isYesAnswer(answers[q.id])) continue
-      const label = holisticQuestionLabel(q.questionText)
+      const label = iaQuestionLabel(q)
       if (!risks.includes(label)) risks.push(label)
     }
   }

@@ -71,9 +71,8 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
   'Breathing concern options': 'b. Breathing difficulties',
   'Pain / distress options': 'c. Distress/Pain caused by a physical state',
   'Swallowing concern options': 'd. Swallowing',
-  'General physical wellbeing': 'a. General physical wellbeing — feels well/unwell',
-  'Does client require ongoing monitoring of vital signs?':
-    'Does client require ongoing monitoring of vital signs?',
+  'General physical wellbeing': 'a. How I feel in myself',
+  'Does client require ongoing monitoring of vital signs?': 'Checking my observations',
   'Pressure ulcer risk assessment completed?':
     'Has a pressure ulcer risk assessment been completed? Including photography.',
   'Oral health options': 'i. Oral health',
@@ -112,9 +111,9 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
   'Community psychiatric nurse involved?': 'Does the client have a Community Psychiatric Nurse?',
   'Previous mental health issues reported?':
     'Does the client report any previous mental health issues?',
-  'Emotional wellbeing options': 'a. Emotional well being — client states:',
+  'Emotional wellbeing options': 'a. My emotional wellbeing',
   'Cognitive impairment level': 'b. Cognitive/Memory Impairment',
-  'Sleeping pattern options': 'Sleeping — Client states:',
+  'Sleeping pattern options': 'My sleep',
   'Emotional health additional comments': 'Emotional health additional comments',
   'Emotional health comments': 'Emotional health additional comments',
   'GP referral for mental health made?': 'Referral to GP made',
@@ -176,6 +175,25 @@ export function stripInternalLabelPlaceholders(label: string): string {
 export function holisticQuestionLabel(questionText: string): string {
   const mapped = HOLISTIC_QUESTION_LABELS[questionText.trim()] ?? questionText
   return stripInternalLabelPlaceholders(mapped)
+}
+
+/** First-person wording set by the API (`metadata.displayLabel`), if any. */
+export function iaQuestionDisplayLabelOverride(question: {
+  metadata?: Record<string, unknown> | null
+}): string | null {
+  const label = question.metadata?.displayLabel
+  return typeof label === 'string' && label.trim() ? stripInternalLabelPlaceholders(label) : null
+}
+
+/**
+ * On-screen label for a question: the first-person wording (`metadata.displayLabel`) when set,
+ * otherwise the document wording above. The stored `questionText` stays the key used by logic.
+ */
+export function iaQuestionLabel(question: {
+  questionText: string
+  metadata?: Record<string, unknown> | null
+}): string {
+  return iaQuestionDisplayLabelOverride(question) ?? holisticQuestionLabel(question.questionText)
 }
 
 /** Placeholder hints for paper-style §1 simple text areas. */

@@ -8,6 +8,10 @@ import { computeScheduleRunStats } from '@/features/scheduling/utils/schedule-ru
 import { sortJobsByStartTime } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import { activeJobAllocationCount, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
+import {
+  RunCarerPreviewPanel,
+  runCarerOutcomeText,
+} from '@/features/scheduling/components/RunCarerPreviewPanel'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import {
@@ -75,6 +79,7 @@ export function ScheduleRunCreateDialog({
     enabled: open,
     locationIds: serviceUserLocationIds,
     includeEmployeeIds: employeeId ? [employeeId] : [],
+    activeOnly: true,
   })
 
   const carerOptions = React.useMemo(
@@ -120,11 +125,25 @@ export function ScheduleRunCreateDialog({
         description: notes.trim() || undefined,
         visitIds: sortedJobs.map((j) => j.id),
       })
+      // The run's carer only reaches the visits once they are allocated; a visit someone
+      // else already holds moves to the run carer.
+      const synced = employeeId
+        ? await mutations.syncCarer.mutateAsync({
+            id: created.id,
+            payload: { force: true, replaceExisting: true },
+          })
+        : null
       await mutations.update.mutateAsync({
         id: created.id,
         payload: { status: 'PUBLISHED' },
       })
-      toastSuccess('Run published', `${sortedJobs.length} visits added to ${name.trim()}.`)
+      if (synced) {
+        const outcome = runCarerOutcomeText(synced)
+        if (outcome.tone === 'warning') toastWarning('Run published', outcome.text)
+        else toastSuccess('Run published', `${sortedJobs.length} visits added to ${name.trim()} · ${outcome.text}`)
+      } else {
+        toastSuccess('Run published', `${sortedJobs.length} visits added to ${name.trim()}.`)
+      }
       onOpenChange(false)
       onCreated?.()
     } catch (error) {
@@ -132,7 +151,7 @@ export function ScheduleRunCreateDialog({
     }
   }
 
-  const busy = mutations.create.isPending || mutations.update.isPending
+  const busy = mutations.create.isPending || mutations.update.isPending || mutations.syncCarer.isPending
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -168,6 +187,15 @@ export function ScheduleRunCreateDialog({
               className="w-full"
             />
           </FormField>
+
+          {employeeId ? (
+            <RunCarerPreviewPanel
+              employeeId={employeeId}
+              employeeName={carerOptions.find((o) => o.value === employeeId)?.label ?? null}
+              jobs={sortedJobs}
+              replaceExisting
+            />
+          ) : null}
 
           <div className="rounded-lg border border-border">
             <p className="border-b border-border bg-muted/30 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

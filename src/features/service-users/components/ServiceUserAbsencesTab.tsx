@@ -1,12 +1,15 @@
 import * as React from 'react'
 import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
-import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { previewServiceUserAbsenceScheduleImpact } from '@/features/service-users/api/service-users.api'
 import { VisitPlanConfirmGate } from '@/features/service-users/visit-plan/components/VisitPlanConfirmGate'
 import { visitPlanTodayUtc } from '@/features/service-users/visit-plan/visit-plan-version.util'
 import { previewAbsenceReturnImpact, generateScheduleFromVisitPlan } from '@/features/service-users/visit-plan/api'
-import { resolveGenerateRotaToDate } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
+import {
+  generateRotaHorizonLabel,
+  resolveGenerateRotaToDate,
+} from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
 import type { ReturnImpactPreview } from '@/features/service-users/visit-plan/types'
 import type {
   ServiceUserAbsenceRow,
@@ -568,7 +571,7 @@ export function ServiceUserAbsencesTab({
             ? `Would create ${returnPreview.generatePreview.visitsToCreate} visit(s) from ${pendingReturnDate}.`
             : `Generate visits from ${pendingReturnDate}?`
         }
-        confirmLabel="Generate 14 days"
+        confirmLabel={`Generate ${generateRotaHorizonLabel()}`}
         cancelLabel="Later"
         isPending={returnGeneratePending}
         onConfirm={async () => {
@@ -581,10 +584,14 @@ export function ServiceUserAbsencesTab({
               toDate,
             })
             setReturnGenerateOpen(false)
-            toastSuccess(
-              'Rota generated',
-              `${result.visitsCreated} visit${result.visitsCreated === 1 ? '' : 's'} created.`,
-            )
+            const created =
+              `${result.visitsCreated} visit${result.visitsCreated === 1 ? '' : 's'} created.` +
+              (result.weeklyHoursTimebank ? ` ${result.weeklyHoursTimebank}.` : '')
+            if (result.weeklyHoursWarning) {
+              toastWarning('Rota generated — over the weekly hours', `${created} ${result.weeklyHoursWarning}.`)
+            } else {
+              toastSuccess('Rota generated', created)
+            }
           } catch (e) {
             toastApiError(e, 'Could not generate rota')
           } finally {

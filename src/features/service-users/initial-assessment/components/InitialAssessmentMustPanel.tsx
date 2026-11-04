@@ -147,7 +147,7 @@ export function InitialAssessmentMustPanel({ value, disabled, onChange }: Props)
             <StepSelectRows
               stepId="bmi"
               criteria={MUST_STEP_1_BMI_CRITERIA}
-              criterionHeader="BMI kg/m²"
+              criterionHeader="My BMI (kg/m²)"
               selectedOptionId={bmiOptionId}
               stepScore={bmiOptionId != null ? value.bmiScore : undefined}
               disabled={disabled}
@@ -157,7 +157,7 @@ export function InitialAssessmentMustPanel({ value, disabled, onChange }: Props)
 
           <section className="space-y-3">
             <h4 className="text-sm font-semibold text-foreground">
-              Step 2 — Unplanned weight loss in past 3–6 months
+              Step 2 — Have I lost any weight unintentionally in the last 3 to 6 months?
             </h4>
             <p className={cn('text-sm', IA_HINT_CLASS)}>
               Select one weight-loss band — score is calculated automatically.
@@ -165,7 +165,7 @@ export function InitialAssessmentMustPanel({ value, disabled, onChange }: Props)
             <StepSelectRows
               stepId="weight-loss"
               criteria={MUST_STEP_2_WEIGHT_LOSS_CRITERIA}
-              criterionHeader="Weight loss"
+              criterionHeader="My weight loss"
               selectedOptionId={weightLossOptionId}
               stepScore={weightLossOptionId != null ? value.weightLossScore : undefined}
               disabled={disabled}
@@ -199,11 +199,11 @@ export function InitialAssessmentMustPanel({ value, disabled, onChange }: Props)
             </p>
             <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total score</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">My MUST score</p>
                 <p className="font-mono text-2xl font-semibold text-teal-800 dark:text-teal-300">{score}</p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Risk</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">My nutrition risk</p>
                 <p className="text-sm font-semibold text-foreground">{mustRiskLabel(riskLevel)}</p>
               </div>
             </div>

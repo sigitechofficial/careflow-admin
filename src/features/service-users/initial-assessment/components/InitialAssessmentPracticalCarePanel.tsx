@@ -13,7 +13,7 @@ import type { PracticalCareTasksMetadata } from '@/features/service-users/initia
 
 /** Paper practical care block — matches reference form wording. */
 export const PAPER_PRACTICAL_CARE_TITLE =
-  'Practical care Task Does the customer required assistance with:'
+  'Practical tasks – the support I need with:'
 
 type Props = {
   value: PracticalCareTasksMetadata
@@ -22,15 +22,15 @@ type Props = {
 }
 
 const TASK_FIELDS: { id: keyof PracticalCareTasksMetadata; label: string }[] = [
-  { id: 'laundry', label: 'Laundry ?' },
-  { id: 'cleaning', label: 'Cleaning ?' },
-  { id: 'shopping', label: 'Shopping?' },
+  { id: 'laundry', label: 'The support I need with my laundry:' },
+  { id: 'cleaning', label: 'The support I need with cleaning and housework:' },
+  { id: 'shopping', label: 'The support I need with my shopping:' },
   {
     id: 'financeAssistance',
     label:
-      'Finance , collecting pension or monies , paying bills ( if support required must be recorded ) state :',
+      'The support I need with my money, collecting my pension and paying my bills (if I need support, please record how it is given):',
   },
-  { id: 'otherComment', label: 'Other comment :' },
+  { id: 'otherComment', label: 'Anything else I would like help with around my home:' },
 ]
 
 export function InitialAssessmentPracticalCarePanel({ value, disabled, onChange }: Props) {

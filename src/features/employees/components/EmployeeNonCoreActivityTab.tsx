@@ -107,10 +107,13 @@ export function EmployeeNonCoreActivityTab() {
   const [formDateTo, setFormDateTo] = React.useState('')
   const [formIncludePayroll, setFormIncludePayroll] = React.useState(false)
   const [formOnCall, setFormOnCall] = React.useState(false)
+  // New records always take the carer off overlapping visits; this pays those visits instead.
+  const [formPayRemovedVisits, setFormPayRemovedVisits] = React.useState(false)
   const [formNotes, setFormNotes] = React.useState('')
   const [formError, setFormError] = React.useState<string | null>(null)
   const [banner, setBanner] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const saving = createMutation.isPending || updateMutation.isPending
+  const payRemovedVisits = !editingId && formPayRemovedVisits
 
   const employeeOptions = React.useMemo<ComboboxOption[]>(
     () =>
@@ -150,6 +153,7 @@ export function EmployeeNonCoreActivityTab() {
     setFormDateTo('')
     setFormIncludePayroll(false)
     setFormOnCall(false)
+    setFormPayRemovedVisits(false)
     setFormNotes('')
     setFormError(null)
     setModalOpen(true)
@@ -204,7 +208,7 @@ export function EmployeeNonCoreActivityTab() {
       reasonId,
       dateFrom: dateFromIso,
       dateTo: dateToIso,
-      includeInPayroll: formIncludePayroll,
+      includeInPayroll: payRemovedVisits ? false : formIncludePayroll,
       onCallForPeriod: formOnCall,
       notes: formNotes.trim() || undefined,
     }
@@ -219,8 +223,30 @@ export function EmployeeNonCoreActivityTab() {
         })
         setBanner({ type: 'success', text: 'Record updated.' })
       } else {
-        await createMutation.mutateAsync({ employeeId: formEmployeeId.trim(), body })
-        setBanner({ type: 'success', text: 'Record added.' })
+        const result = await createMutation.mutateAsync({
+          employeeId: formEmployeeId.trim(),
+          body: { ...body, payRemovedVisits },
+        })
+        const unallocated = result.scheduleImpact?.jobsUnallocated ?? 0
+        const paid = (result.removedVisitPay ?? []).filter(v => v.payItemId)
+        const notPriced = (result.removedVisitPay ?? []).filter(v => !v.payItemId)
+        setBanner({
+          type: notPriced.length ? 'error' : 'success',
+          text: [
+            'Record added.',
+            unallocated > 0 ? `${unallocated} scheduled visit${unallocated === 1 ? '' : 's'} unallocated.` : null,
+            paid.length
+              ? `${paid.length} visit pay item${paid.length === 1 ? '' : 's'} (£${paid
+                  .reduce((sum, v) => sum + (v.amount ?? 0), 0)
+                  .toFixed(2)}) sent for approval in Pay items.`
+              : null,
+            notPriced.length
+              ? `Not priced — add a pay item by hand: ${notPriced.map(v => `${v.jobName} (${v.problem ?? 'no pay'})`).join('; ')}.`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' '),
+        })
       }
       closeModal()
     } catch (e) {
@@ -501,6 +527,26 @@ export function EmployeeNonCoreActivityTab() {
               <div className="rounded-lg border border-border bg-muted/25 p-4">
                 <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Payroll &amp; on-call</p>
                 <div className="space-y-3">
+                  {!editingId ? (
+                    <label
+                      htmlFor="nca-pay-removed-visits"
+                      className="flex cursor-pointer items-start gap-3 rounded-md py-0.5 text-sm leading-snug text-foreground"
+                    >
+                      <input
+                        id="nca-pay-removed-visits"
+                        type="checkbox"
+                        checked={formPayRemovedVisits}
+                        onChange={e => setFormPayRemovedVisits(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-primary"
+                      />
+                      <span>
+                        Pay carer for the visits they are taken off
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          Each visit is paid at its visit rate through a pay item that needs approval.
+                        </span>
+                      </span>
+                    </label>
+                  ) : null}
                   <label
                     htmlFor="nca-payroll"
                     className="flex cursor-pointer items-start gap-3 rounded-md py-0.5 text-sm leading-snug text-foreground"
@@ -508,11 +554,17 @@ export function EmployeeNonCoreActivityTab() {
                     <input
                       id="nca-payroll"
                       type="checkbox"
-                      checked={formIncludePayroll}
+                      checked={payRemovedVisits ? false : formIncludePayroll}
+                      disabled={payRemovedVisits}
                       onChange={e => setFormIncludePayroll(e.target.checked)}
                       className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-primary"
                     />
-                    <span>Include in payroll</span>
+                    <span className={payRemovedVisits ? 'text-muted-foreground' : undefined}>
+                      Include in payroll
+                      {payRemovedVisits ? (
+                        <span className="mt-0.5 block text-xs">Not used — the removed visits are paid instead.</span>
+                      ) : null}
+                    </span>
                   </label>
                   <label
                     htmlFor="nca-oncall"

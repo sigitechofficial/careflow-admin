@@ -3,11 +3,13 @@ import type {
   BankHoliday,
   BankHolidayImportResult,
   BankHolidayRegion,
+  DayPriority,
   CalendarRegion,
   HolidayCalendarStatus,
   HolidayPremiumBasis,
   PayPreviewInput,
   PayPreviewResult,
+  TravelGapSettings,
   WageType,
 } from '@/features/billing/types/wage-types.types'
 
@@ -88,4 +90,33 @@ export async function previewPay(body: PayPreviewInput): Promise<PayPreviewResul
     body: JSON.stringify(body),
   })
   return res.data
+}
+
+export async function fetchTravelGapSettings(): Promise<TravelGapSettings> {
+  const res = await apiJson<ApiEnvelope<TravelGapSettings>>('/billing/wage-types/travel-gaps', { method: 'GET' })
+  return res.data
+}
+
+export async function setTravelGapSettings(
+  body: TravelGapSettings & { reason: string },
+): Promise<{ message: string; data: TravelGapSettings }> {
+  return apiJson<{ message: string; data: TravelGapSettings }>('/billing/wage-types/travel-gaps', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function fetchDayPriority(): Promise<DayPriority> {
+  const res = await apiJson<ApiEnvelope<DayPriority>>('/billing/bank-holidays/day-priority', { method: 'GET' })
+  return res.data
+}
+
+export async function setDayPriority(body: {
+  priorities: Record<string, number> | null
+  reason: string
+}): Promise<{ message: string; data: DayPriority }> {
+  return apiJson<{ message: string; data: DayPriority }>('/billing/bank-holidays/day-priority', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
 }

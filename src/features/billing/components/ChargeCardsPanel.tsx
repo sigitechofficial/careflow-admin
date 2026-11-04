@@ -4,9 +4,11 @@ import { ApiError } from '@/shared/api/api-client'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import { useNavigate } from '@tanstack/react-router'
 import { ChargeCardAssignDialog } from '@/features/billing/components/ChargeCardAssignDialog'
 import { RateCardStatusBadge } from '@/features/billing/components/BillingStatusBadge'
+import { SectionInfoTip } from '@/features/billing/components/SectionInfoTip'
 import { useChargeCards, useDeleteChargeCard } from '@/features/billing/hooks/useChargeCards'
 import {
   formatBillingDate,
@@ -83,8 +85,17 @@ export function ChargeCardsPanel() {
   return (
     <div className="space-y-6">
       <ContentSectionHeader
-        title="Service user charge cards"
-        description="Invoice rate templates for funders and service users. Attach by funder, contract, branch, or individual — like Birdie payer profiles and Access invoice rate sheets."
+        title={
+          <TooltipProvider delayDuration={150}>
+            <span className="inline-flex items-center gap-1.5">
+              Service user charge cards
+              <SectionInfoTip label="service user charge cards">
+                Invoice rate templates for funders and service users. Attach by funder, contract, branch, or
+                individual — like Birdie payer profiles and Access invoice rate sheets.
+              </SectionInfoTip>
+            </span>
+          </TooltipProvider>
+        }
         action={
           canManage ? (
             <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={openCreate}>

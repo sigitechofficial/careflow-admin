@@ -35,7 +35,8 @@ export type ScheduleJobsGanttProps = {
   onJobClick: (job: TimelineJob) => void
   onJobAction: (job: TimelineJob, action: ScheduleJobContextAction) => void
   onJobDrop: (payload: JobDropPayload) => void | Promise<void>
-  onJobsSelectedForRun?: (jobs: TimelineJob[]) => void
+  /** Drag-selected visits (2+) and the point where the drag ended, for the selection menu. */
+  onJobsSelected?: (jobs: TimelineJob[], point: { x: number; y: number }) => void
   onOpenRun?: (runId: string) => void
   onReassignRun?: (runId: string) => void
 }

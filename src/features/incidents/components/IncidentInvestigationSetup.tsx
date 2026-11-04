@@ -11,18 +11,34 @@ import {
 } from '@/shared/lib/organisation-display-format.store'
 import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import {
-  usePauseIncidentInvestigation,
-  useResumeIncidentInvestigation,
-} from '@/features/incidents/hooks/useIncidents'
-import {
   INVESTIGATION_LEVEL_OPTIONS,
   INVESTIGATION_STATUS_LABELS,
   INVESTIGATOR_INVOLVEMENT_OPTIONS,
-  type IncidentInvestigation,
   type IncidentInvestigatorOption,
   type InvestigationLevel,
+  type InvestigationRecord,
   type InvestigatorInvolvement,
 } from '@/features/incidents/types'
+
+/** Pause / resume calls for whatever the investigation belongs to (an incident, a complaint). */
+export type InvestigationPauseControls = {
+  pause: {
+    mutate: (
+      input: { reason: string; nextReviewDate: string },
+      options?: { onSuccess?: () => void },
+    ) => void
+    isPending: boolean
+  }
+  resume: { mutate: () => void; isPending: boolean }
+}
+
+/** What is being investigated, for the field wording. */
+export type InvestigationSubject = 'incident' | 'complaint'
+
+const OWNER_LABEL: Record<InvestigationSubject, string> = {
+  incident: 'incident owner',
+  complaint: 'complaint handler',
+}
 
 const inputClass =
   'mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60'
@@ -36,7 +52,7 @@ export type InvestigationSetupValues = {
   termsOfReference: string
 }
 
-export function initialSetupValues(investigation: IncidentInvestigation | null): InvestigationSetupValues {
+export function initialSetupValues(investigation: InvestigationRecord | null): InvestigationSetupValues {
   return {
     investigationLevel: investigation?.investigationLevel ?? '',
     leadInvestigatorEmployeeId: investigation?.leadInvestigatorEmployeeId ?? '',
@@ -75,7 +91,7 @@ function FieldError({ message }: { message?: string }) {
   return message ? <p data-field-error className="mt-1 text-xs text-destructive dark:text-red-400">{message}</p> : null
 }
 
-function StatusBadge({ investigation }: { investigation: IncidentInvestigation }) {
+function StatusBadge({ investigation }: { investigation: InvestigationRecord }) {
   const status = investigation.investigationStatus ?? 'IN_PROGRESS'
   return (
     <Badge
@@ -96,7 +112,7 @@ function OverdueBadge() {
 }
 
 /** "Lead investigator · Level · Due <date> · <status>" from the saved investigation. */
-export function InvestigationSummaryLine({ investigation }: { investigation: IncidentInvestigation }) {
+export function InvestigationSummaryLine({ investigation }: { investigation: InvestigationRecord }) {
   const parts = [
     investigation.leadInvestigatorName ?? 'No lead investigator',
     levelLabel(investigation.investigationLevel) ?? 'Level not set',
@@ -117,7 +133,7 @@ export function InvestigationSummaryLine({ investigation }: { investigation: Inc
 }
 
 /** Past and current pauses (kept after resuming). */
-function PauseHistory({ investigation }: { investigation: IncidentInvestigation }) {
+function PauseHistory({ investigation }: { investigation: InvestigationRecord }) {
   const [open, setOpen] = React.useState(false)
   const pauses = investigation.pauses ?? []
   if (!pauses.length) return null
@@ -157,16 +173,15 @@ function PauseHistory({ investigation }: { investigation: IncidentInvestigation 
 
 /** Status: In progress / Paused (Completed only comes from completing the investigation). */
 function InvestigationStatusControl({
-  incidentId,
+  controls,
   investigation,
   canEdit,
 }: {
-  incidentId: string
-  investigation: IncidentInvestigation | null
+  /** Needed to change the status (not for the read-only view). */
+  controls?: InvestigationPauseControls
+  investigation: InvestigationRecord | null
   canEdit: boolean
 }) {
-  const pause = usePauseIncidentInvestigation(incidentId)
-  const resume = useResumeIncidentInvestigation(incidentId)
   const [pausing, setPausing] = React.useState(false)
   const [reason, setReason] = React.useState('')
   const [nextReviewDate, setNextReviewDate] = React.useState('')
@@ -195,7 +210,7 @@ function InvestigationStatusControl({
       </div>
     ) : null
 
-  if (!canEdit || status === 'COMPLETED') {
+  if (!canEdit || !controls || status === 'COMPLETED') {
     return (
       <div className="mt-1">
         <StatusBadge investigation={investigation} />
@@ -204,6 +219,8 @@ function InvestigationStatusControl({
       </div>
     )
   }
+
+  const { pause, resume } = controls
 
   function onStatusChange(next: string) {
     if (next === 'PAUSED' && status === 'IN_PROGRESS') {
@@ -317,7 +334,7 @@ function InvestigationStatusControl({
 
 /** Editable set-up (level, lead, involvement, dates, terms of reference, status). */
 export function InvestigationSetupForm({
-  incidentId,
+  pauseControls,
   investigation,
   values,
   onChange,
@@ -325,9 +342,10 @@ export function InvestigationSetupForm({
   investigators,
   investigatorsLoading,
   suggestHigherLevel,
+  subject = 'incident',
 }: {
-  incidentId: string
-  investigation: IncidentInvestigation | null
+  pauseControls: InvestigationPauseControls
+  investigation: InvestigationRecord | null
   values: InvestigationSetupValues
   onChange: (patch: Partial<InvestigationSetupValues>) => void
   errors: Record<string, string>
@@ -335,6 +353,7 @@ export function InvestigationSetupForm({
   investigatorsLoading: boolean
   /** High / Critical severity or a death. */
   suggestHigherLevel: boolean
+  subject?: InvestigationSubject
 }) {
   const today = operationalTodayIso()
   const startedOn = investigation?.startedOn ?? null
@@ -421,7 +440,7 @@ export function InvestigationSetupForm({
           ))}
         </select>
         <p className="mt-1 text-xs text-muted-foreground">
-          Active carers and managers. This is separate from the incident owner.
+          Active carers and managers. This is separate from the {OWNER_LABEL[subject]}.
         </p>
         <FieldError message={errors.leadInvestigatorEmployeeId} />
       </div>
@@ -429,7 +448,7 @@ export function InvestigationSetupForm({
       <div>
         <div className="flex items-start justify-between gap-3">
           <span className="text-sm text-foreground" id="inv-involved-label">
-            Was the lead investigator directly involved in the incident?
+            Was the lead investigator directly involved in the {subject}?
             <Req />
           </span>
           <div role="radiogroup" aria-labelledby="inv-involved-label" className="flex shrink-0 gap-3">
@@ -521,20 +540,14 @@ export function InvestigationSetupForm({
 
       <div>
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Investigation status</p>
-        <InvestigationStatusControl incidentId={incidentId} investigation={investigation} canEdit />
+        <InvestigationStatusControl controls={pauseControls} investigation={investigation} canEdit />
       </div>
     </div>
   )
 }
 
 /** Read-only set-up. */
-export function InvestigationSetupReadView({
-  incidentId,
-  investigation,
-}: {
-  incidentId: string
-  investigation: IncidentInvestigation
-}) {
+export function InvestigationSetupReadView({ investigation }: { investigation: InvestigationRecord }) {
   const rows: [string, React.ReactNode][] = [
     ['Investigation level', levelLabel(investigation.investigationLevel) ?? 'Not set'],
     ['Lead investigator', investigation.leadInvestigatorName ?? 'Not set'],
@@ -586,7 +599,7 @@ export function InvestigationSetupReadView({
       )}
       <div>
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Investigation status</p>
-        <InvestigationStatusControl incidentId={incidentId} investigation={investigation} canEdit={false} />
+        <InvestigationStatusControl investigation={investigation} canEdit={false} />
       </div>
     </div>
   )

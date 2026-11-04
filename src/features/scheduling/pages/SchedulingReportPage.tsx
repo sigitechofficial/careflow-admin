@@ -1,16 +1,26 @@
 import * as React from 'react'
 import {
+  AlertTriangle,
+  CalendarRange,
+  CalendarX2,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
+  Clock,
   Download,
   FileBarChart2,
+  Gauge,
+  ListChecks,
   Loader2,
   MapPin,
   Play,
   RefreshCw,
+  UserRound,
+  Users,
 } from 'lucide-react'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { Button } from '@/shared/ui/button'
+import { EmptyState, LoadingSpinner } from '@/shared/ui/page-elements'
 import { cn } from '@/shared/lib/utils'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
@@ -31,6 +41,38 @@ import {
 const PAGE_SIZE = 50
 const fieldClass =
   'h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
+
+/** Icon + one-line summary shown for each supported report type (keyed to REPORT_VIEWS). */
+const REPORT_META: Record<string, { icon: React.ComponentType<{ className?: string }>; description: string }> = {
+  VISIT_DETAIL: {
+    icon: ClipboardList,
+    description: 'Every scheduled visit with planned vs. actual times, assigned carers and status.',
+  },
+  SCHEDULED_JOBS_STATUS: {
+    icon: ListChecks,
+    description: 'Scheduled jobs with a running count for each status.',
+  },
+  DAILY_CARER_ALLOCATION: {
+    icon: Users,
+    description: 'Hours and visits allocated to each carer, broken down day by day.',
+  },
+  SERVICE_USER_VISIT: {
+    icon: UserRound,
+    description: 'Visits for each service user, with assigned carers and status.',
+  },
+  SERVICE_USER_TIME_ANALYSIS: {
+    icon: Clock,
+    description: 'Scheduled vs. completed hours per service user, plus missed and cancelled visits.',
+  },
+  EMPLOYEE_CAPACITY: {
+    icon: Gauge,
+    description: 'Weekly scheduled hours per employee against contracted and maximum hours.',
+  },
+  CALL_OFF_VISIT: {
+    icon: CalendarX2,
+    description: 'Called-off visits with reason, requester and approver.',
+  },
+}
 
 /** Inclusive number of calendar days between two YYYY-MM-DD dates. */
 function inclusiveDays(from: string, to: string): number {
@@ -69,6 +111,7 @@ export default function SchedulingReportPage() {
 
   const selected = supported.find((t) => t.type === selectedType)
   const view = selected ? REPORT_VIEWS[selected.type] : undefined
+  const selectedMeta = selected ? REPORT_META[selected.type] : undefined
   const days = inclusiveDays(from, to)
   const rangeError =
     !from || !to
@@ -122,6 +165,7 @@ export default function SchedulingReportPage() {
   )
   const exportAll = useScheduleReportAllPages()
   const submittedView = submitted ? REPORT_VIEWS[submitted.type] : undefined
+  const submittedMeta = submitted ? REPORT_META[submitted.type] : undefined
   const data = (report.data?.data ?? {}) as Record<string, unknown>
   const rows = submittedView ? submittedView.rowsOf(report.data?.data) : []
   const meta = report.data?.meta
@@ -174,7 +218,7 @@ export default function SchedulingReportPage() {
 
           {!hasApi ? <p className="text-sm text-warning">Configure VITE_API_BASE_URL.</p> : null}
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] lg:items-end">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] lg:items-start">
             <label className="space-y-1.5">
               <span className="text-sm font-medium text-foreground">Report</span>
               <select
@@ -199,6 +243,12 @@ export default function SchedulingReportPage() {
                   </optgroup>
                 ) : null}
               </select>
+              {selectedMeta ? (
+                <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <selectedMeta.icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+                  {selectedMeta.description}
+                </p>
+              ) : null}
             </label>
 
             <div className="space-y-1.5">
@@ -245,16 +295,21 @@ export default function SchedulingReportPage() {
               </div>
             </div>
 
-            <Button
-              type="button"
-              className="h-10 gap-2 px-5"
-              onClick={generate}
-              disabled={!selected || Boolean(rangeError)}
-              data-testid="scheduling-report-generate"
-            >
-              <Play className="h-4 w-4" aria-hidden />
-              Generate report
-            </Button>
+            <div className="space-y-1.5">
+              <span className="hidden text-sm font-medium lg:block lg:pb-1" aria-hidden>
+                &nbsp;
+              </span>
+              <Button
+                type="button"
+                className="h-10 gap-2 px-5"
+                onClick={generate}
+                disabled={!selected || Boolean(rangeError)}
+                data-testid="scheduling-report-generate"
+              >
+                <Play className="h-4 w-4" aria-hidden />
+                Generate report
+              </Button>
+            </div>
           </div>
 
           {rangeError ? (
@@ -270,13 +325,30 @@ export default function SchedulingReportPage() {
       {submitted && submittedView ? (
         <div className="rounded-xl border border-border bg-card shadow-sm" data-testid="scheduling-report-result">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">{submitted.name}</h2>
-              <p className="text-xs text-muted-foreground">
-                {formatDate(submitted.from)} – {formatDate(submitted.to)}
-                {meta ? ` · ${meta.total} result${meta.total === 1 ? '' : 's'}` : ''}
-                {submitted.locationId ? ' · selected branch' : ' · all branches'}
-              </p>
+            <div className="flex items-start gap-3">
+              {submittedMeta ? (
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <submittedMeta.icon className="h-4 w-4" aria-hidden />
+                </span>
+              ) : null}
+              <div className="space-y-1.5">
+                <h2 className="text-sm font-semibold text-foreground">{submitted.name}</h2>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs text-muted-foreground">
+                    <CalendarRange className="h-3.5 w-3.5" aria-hidden />
+                    {formatDate(submitted.from)} – {formatDate(submitted.to)}
+                  </span>
+                  {meta ? (
+                    <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs tabular-nums text-muted-foreground">
+                      {meta.total} result{meta.total === 1 ? '' : 's'}
+                    </span>
+                  ) : null}
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5" aria-hidden />
+                    {submitted.locationId ? 'Selected branch' : 'All branches'}
+                  </span>
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -311,17 +383,19 @@ export default function SchedulingReportPage() {
 
           <div className="space-y-4 p-5">
             {report.isLoading ? (
-              <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Generating report…
-              </div>
+              <LoadingSpinner size="lg" label="Generating report…" className="py-14" />
             ) : report.isError ? (
-              <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                {report.error instanceof Error ? report.error.message : 'Could not load the report.'}
-              </p>
-            ) : rows.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
-                No data for this date range.
+              <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <span>{report.error instanceof Error ? report.error.message : 'Could not load the report.'}</span>
               </div>
+            ) : rows.length === 0 ? (
+              <EmptyState
+                icon={<CalendarX2 className="h-6 w-6" />}
+                title="No data for this date range"
+                description="Nothing matched this report and range. Try a wider date range or a different branch."
+                className="py-12"
+              />
             ) : (
               <div className={cn(report.isFetching && 'opacity-60 transition-opacity')}>
                 {submittedView.render(data, rows, { formatDate })}
@@ -358,6 +432,15 @@ export default function SchedulingReportPage() {
               </div>
             ) : null}
           </div>
+        </div>
+      ) : hasApi ? (
+        <div className="rounded-xl border border-dashed border-border bg-card shadow-sm">
+          <EmptyState
+            icon={<FileBarChart2 className="h-6 w-6" />}
+            title="No report generated yet"
+            description="Pick a report and date range above, then select Generate report to see the results here."
+            className="py-14"
+          />
         </div>
       ) : null}
     </div>

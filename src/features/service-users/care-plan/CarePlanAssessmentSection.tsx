@@ -4,6 +4,7 @@ import { HelpCircle, Loader2 } from 'lucide-react'
 import { getCareForm } from '@/features/care-pathway/api/form-builder.api'
 import { listSelectableForms } from '@/features/care-pathway/api/form-selection.api'
 import { carePathwayKeys } from '@/features/care-pathway/keys'
+import { useCarePlanRequiredAssessments } from '@/features/care-pathway/hooks/useCarePathwayTabs'
 import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.types'
 import { CarePlanRichTextField } from '@/features/service-users/care-plan/CarePlanRichTextField'
 import { CarePathwayFormRenderer } from '@/features/service-users/care-plan/CarePathwayFormRenderer'
@@ -391,18 +392,29 @@ export function CarePlanAssessmentSection({
     [assessmentsQuery.data],
   )
 
+  // Assessments the organisation requires for this care plan (Care pathway → Required Assessments).
+  const requiredQuery = useCarePlanRequiredAssessments()
+  const requiredIds = React.useMemo(() => {
+    const available = new Set(options.map((o) => o.value))
+    const configured = requiredQuery.data?.find((r) => r.carePlanFormId === formId)?.assessmentFormIds ?? []
+    return configured.filter((id) => available.has(id))
+  }, [requiredQuery.data, formId, options])
+
   const selectedIds = parseSelectedAssessmentIds(values)
 
+  // Nothing chosen yet: start with the required assessments plus the one matched by name.
+  // Waits for both lists so a late setting is not missed; a choice already made is kept.
   React.useEffect(() => {
-    if (selectedIds.length > 0 || options.length === 0) return
+    if (selectedIds.length > 0 || options.length === 0 || requiredQuery.isLoading) return
     const defaultId = defaultAssessmentIdForCarePlan(
       carePlanFormName,
       options.map((o) => ({ id: o.value, name: o.label })),
     )
-    if (defaultId) {
-      onChange(setSelectedAssessmentIds(values, [defaultId]))
+    const defaults = [...new Set([...requiredIds, ...(defaultId ? [defaultId] : [])])]
+    if (defaults.length) {
+      onChange(setSelectedAssessmentIds(values, defaults))
     }
-  }, [carePlanFormName, options, onChange, selectedIds.length, values])
+  }, [carePlanFormName, options, onChange, selectedIds.length, values, requiredIds, requiredQuery.isLoading])
 
   const formQueries = useQueries({
     queries: selectedIds.map((id) => ({
@@ -455,6 +467,12 @@ export function CarePlanAssessmentSection({
             className={cn('rounded-sm')}
           />
         )}
+
+        {requiredIds.length > 0 ? (
+          <p className="text-xs text-muted-foreground" data-testid="care-plan-required-assessments-note">
+            Required for this care plan: {requiredIds.map((id) => labelById.get(id) ?? 'Assessment').join(', ')}
+          </p>
+        ) : null}
 
         {selectedIds.length === 0 ? (
           <p className="text-sm text-muted-foreground">
