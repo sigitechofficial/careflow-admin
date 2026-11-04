@@ -17,6 +17,7 @@ import { DevUiTraceChip } from '@/dev/DevUiTraceChip'
 import { traceUi } from '@/dev/ui-trace'
 import { AppToaster } from '@/components/layout/AppToaster'
 import { CarerHoursStopDialog } from '@/components/layout/CarerHoursStopDialog'
+import { SentHoursRequestsDialog } from '@/components/layout/SentHoursRequestsDialog'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ScrollToTopOnNavigate } from '@/components/layout/ScrollToTopOnNavigate'
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
@@ -604,6 +605,7 @@ function AppRootShell() {
       <OrganisationDisplayFormatProvider>
         <AppToaster />
         <CarerHoursStopDialog />
+        <SentHoursRequestsDialog />
         <UrgentOfficeAlertHost />
         <DevUiTraceChip />
         <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
