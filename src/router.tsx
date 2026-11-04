@@ -78,7 +78,6 @@ import CandidatesPipelinePage from '@/features/hr/recruitment/pages/CandidatesPi
 import CandidateDetailPage from '@/features/hr/recruitment/pages/CandidateDetailPage'
 
 // ΓöÇΓöÇ Scheduling pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-import ViewSchedulePage from '@/features/scheduling/pages/ViewSchedulePage'
 import ScheduleJobsPage from '@/features/scheduling/pages/ScheduleJobsPage'
 import CarerVisitHubPage from '@/features/scheduling/pages/CarerVisitHubPage'
 import SchedulingReportPage from '@/features/scheduling/pages/SchedulingReportPage'
@@ -272,7 +271,6 @@ import {
   prefetchSchedulingList,
   prefetchSchedulingReport,
   prefetchSchedulingScheduleJobs,
-  prefetchSchedulingView,
   prefetchServiceUserCalendar,
   prefetchServiceUserCarePlanFormRoute,
   prefetchServiceUserCarePlanRoute,
@@ -307,7 +305,6 @@ const pageTitles: Record<string, string> = {
   '/service-users/$serviceUserId/alerts': 'Medical & alerts',
   '/service-users/$serviceUserId/invoices': 'Invoices',
   '/service-users/$serviceUserId': 'Edit Service User',
-  '/scheduling/view': 'View Schedule',
   '/scheduling/schedule-jobs': 'Schedule Jobs',
   '/scheduling/visits/$jobId': 'Visit',
   '/scheduling/report': 'Scheduling Reports',
@@ -573,7 +570,6 @@ function AppRootShell() {
   const fullBleed =
     pathname === '/service-users/all' ||
     pathname === '/service-users/initial-assessment' ||
-    pathname === '/scheduling/view' ||
     pathname === '/scheduling/schedule-jobs' ||
     /^\/service-users\/[^/]+\/profile$/.test(pathname) ||
     /^\/service-users\/[^/]+\/view$/.test(pathname) ||
@@ -1302,14 +1298,13 @@ const serviceUsersEditRoute = createRoute({
   component: EditServiceUserPage,
 })
 
+/** Old day view, replaced by Schedule Jobs; kept so bookmarks and `?date=` links still land on the rota. */
 const schedulingViewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/scheduling/view',
-  beforeLoad: requireScheduleAccess(),
-  loader: ({ context: { queryClient: qc } }) => {
-    prefetchSchedulingView(qc)
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: '/scheduling/schedule-jobs', search, replace: true })
   },
-  component: ViewSchedulePage,
 })
 
 const schedulingScheduleJobsRoute = createRoute({

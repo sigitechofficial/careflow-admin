@@ -52,7 +52,7 @@ export default function BuildSchedulePage() {
         description="Create or refresh the schedule batch for a day and schedule areas."
         breadcrumb={[
           { label: 'Home', href: '/' },
-          { label: 'Scheduling', href: '/scheduling/view' },
+          { label: 'Scheduling', href: '/scheduling/schedule-jobs' },
           { label: 'Build Schedule' },
         ]}
       />
@@ -107,7 +107,7 @@ export default function BuildSchedulePage() {
             Build schedule
           </Button>
           <Button variant="outline" asChild>
-            <Link to="/scheduling/view">View schedule</Link>
+            <Link to="/scheduling/schedule-jobs" search={{ date }}>Open Schedule Jobs</Link>
           </Button>
         </div>
       </div>

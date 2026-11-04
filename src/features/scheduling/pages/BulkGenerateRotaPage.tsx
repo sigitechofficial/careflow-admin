@@ -23,7 +23,7 @@ function BulkGenerateRotaPageContent() {
         }
         breadcrumb={[
           { label: 'Home', href: '/' },
-          { label: 'Scheduling', href: '/scheduling/view' },
+          { label: 'Scheduling', href: '/scheduling/schedule-jobs' },
           { label: 'Bulk generate rota' },
         ]}
       >

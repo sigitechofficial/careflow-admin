@@ -1613,7 +1613,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 Apply the saved visit plan to the schedule (max 31 days). Creates any missing visits and
                 syncs carers on existing ones — including day-specific carers. Leave To empty for the
                 configured horizon. View results in{' '}
-                <Link to="/scheduling/view" search={{ date: generateFrom }} className="text-sky-600 underline">
+                <Link to="/scheduling/schedule-jobs" search={{ date: generateFrom }} className="text-sky-600 underline">
                   Scheduling
                 </Link>
                 . Use Backfill past visits below for catch-up days.
@@ -1693,7 +1693,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                 starts 6 Aug and days = 5 → creates 1–5 Aug. First set Max backfill days on the call, then{' '}
                 <strong>Record amendment</strong> to save, then backfill. View results in{' '}
                 <Link
-                  to="/scheduling/view"
+                  to="/scheduling/schedule-jobs"
                   search={{ date: backfillWindowStart || rotaStartDate || generateFrom }}
                   className="text-amber-700 underline dark:text-amber-300"
                 >
