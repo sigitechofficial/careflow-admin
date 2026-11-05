@@ -40,7 +40,24 @@ export type ServiceUserActivityVisit = {
     reasonLabel: string | null
     reasonNotes: string | null
     chargeDecision: string | null
+    chargeDecisionNotes?: string | null
+    /** Charge decision: percent of the visit fee billed. */
+    chargePercent?: number | null
+    noticeHours?: number | null
+    /** Invoice the charge is on: locked (final) or on a run still being prepared. */
+    invoice?: { invoiceNumber: string | null; locked: boolean } | null
   }
+}
+
+/** Change the billing decision of a cancelled visit (finance). Refused once on a locked invoice. */
+export async function changeCancellationBilling(
+  scheduledJobId: string,
+  payload: { chargeDecision: 'CHARGE' | 'NO_CHARGE' | 'WAIVE' | 'PENDING_REVIEW'; note: string },
+) {
+  return apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs-housekeeping/jobs/${scheduledJobId}/cancellation/billing`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
 }
 
 export type ServiceUserActivityVisitListMeta = {

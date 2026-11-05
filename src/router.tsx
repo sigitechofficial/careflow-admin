@@ -1737,6 +1737,10 @@ const surveyResponsesRoute = createRoute({
 const hoursApprovalsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/hours-approvals',
+  validateSearch: (raw: Record<string, unknown>): { tab?: string } =>
+    typeof raw.tab === 'string' && /^(pending|approved|rejected|cancelled|expired)$/.test(raw.tab)
+      ? { tab: raw.tab }
+      : {},
   beforeLoad: requirePermission('hours_approvals.read'),
   component: HoursApprovalsPage,
 })

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useNavigate, useSearch } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useForm, Controller, useWatch, type FieldErrors, type FieldPath, type UseFormSetError } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -1884,7 +1884,13 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                             <Combobox
                               id="visaTypeId"
                               data-testid="employee-visa-type"
-                              options={visaTypes.map(vt => ({ value: vt.id, label: vt.label }))}
+                              options={visaTypes.map(vt => ({
+                                value: vt.id,
+                                label: vt.label,
+                                // The status's weekly limit (Settings), so it can be compared before choosing.
+                                description:
+                                  vt.maxWeeklyHours != null ? `Up to ${vt.maxWeeklyHours} hours a week` : undefined,
+                              }))}
                               value={field.value}
                               onChange={field.onChange}
                               placeholder="Select immigration status"
@@ -1905,8 +1911,15 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                             </>
                           ) : (
                             <>
-                              Allowed limit for this status: {effectiveVisaCap} hours per week (configured in
-                              Settings).
+                              Allowed limit for this status: {effectiveVisaCap} hours per week (configured in{' '}
+                              <Link
+                                to="/settings"
+                                search={{ tab: 'immigration-statuses' }}
+                                className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                              >
+                                Settings
+                              </Link>
+                              ).
                             </>
                           )}
                         </p>

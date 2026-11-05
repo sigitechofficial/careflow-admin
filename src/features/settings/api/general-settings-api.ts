@@ -68,6 +68,14 @@ export type ServiceUserWeeklyHoursSettings = {
   specialVisitsCount: boolean
   /** Visits over the weekly hours use the service user's timebank when it covers all the hours over. */
   useTimebank: boolean
+  /** Over care in a finished week is taken back the next week (its latest visits cancelled). */
+  adjustOverCareNextWeek: boolean
+  /** Set by the server: the first day over care is taken back (weeks from it on). */
+  adjustOverCareFrom?: string | null
+  /** A finished week's timebank hours are charged on the weekly invoice; care later paid from them costs nothing. */
+  chargeTimebankOnInvoice: boolean
+  /** Set by the server: the first day timebank hours are charged (weeks from it on). */
+  chargeTimebankFrom?: string | null
 }
 
 export type OptionalAboutMeField = {

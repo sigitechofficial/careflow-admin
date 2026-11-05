@@ -10,7 +10,14 @@ import { VISIT_CANCELLATION_REASONS } from '@/features/scheduling/utils/visit-ca
 import { visitCareNotDeliveredReasonLabel } from '@/features/scheduling/utils/visit-care-not-delivered-reason.util'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { useTimebankDetail } from '@/features/timebank/hooks/useTimebank'
+import { OverCareTag } from '@/features/timebank/components/OverCareNotes'
+import {
+  BankPaymentSummary,
+  BankWeekPaymentLine,
+  useBankWeekPayment,
+} from '@/features/timebank/components/TimebankInvoiceStatus'
 import { AwaitingVisitActions } from '@/features/timebank/components/AwaitingClockOut'
+import { ChargeableNote } from '@/features/timebank/components/ChargeableCancellations'
 import { timebankEntryReasonLabel } from '@/features/timebank/components/TimebankNotes'
 import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 import { TimebankFillBar, TimebankFillLegend, shortReasonsLine } from '@/features/timebank/components/TimebankFill'
@@ -171,6 +178,7 @@ function WeekVisits({ week }: { week: TimebankWeek }) {
                       {VISIT_OUTCOME_LABEL[v.outcome]}
                     </span>
                     <CancelReason code={v.cancelReasonCode} notes={v.cancelReasonNotes} />
+                    {v.outcome === 'CHARGEABLE_CANCELLATION' ? <ChargeableNote noticeHours={v.cancelNoticeHours} /> : null}
                     {v.careNotDelivered ? (
                       <>
                         {v.careNotDelivered.reasonCode ? (
@@ -249,6 +257,9 @@ export default function TimebankServiceUserPage() {
     const match = WEEK_FILTERS.find(f => f.id === filter)!.matches
     return (data?.weeks ?? []).filter(w => match(w.status))
   }, [data?.weeks, filter])
+
+  // Timebank hours on the invoice: paid / not paid / not invoiced yet per week.
+  const bankPayment = useBankWeekPayment(data)
 
   /** Hours each week still holds from the timebank (taken less given back). */
   const fromBankByWeek = React.useMemo(() => {
@@ -341,7 +352,9 @@ export default function TimebankServiceUserPage() {
                     ? ` · ${formatMinutes(data.timebank.reservedMinutes)} held by visits over the weekly hours`
                     : ''
                 }`}
-              />
+              >
+                <BankPaymentSummary data={data} statusOf={bankPayment.statusOf} />
+              </StatCard>
               {data.totals.thisWeek ? (
                 <button
                   type="button"
@@ -368,7 +381,7 @@ export default function TimebankServiceUserPage() {
                 <h2 className="text-sm font-semibold text-foreground">Timebank used</h2>
                 <p className="text-xs text-muted-foreground">
                   {data.timebank.useTimebank
-                    ? 'Visits over the weekly hours take the hours over from the timebank when it has all of them (Settings → Dom Rules). Cancelled visits, and visits not delivered in full, give them back.'
+                    ? 'Visits over the weekly hours take the hours over from the timebank when it has all of them (Settings → Dom Rules). Cancelled visits (unless charged), and visits not delivered in full, give them back.'
                     : 'Using the timebank for visits over the weekly hours is off (Settings → Dom Rules).'}
                 </p>
               </div>
@@ -435,7 +448,8 @@ export default function TimebankServiceUserPage() {
               <div>
                 <p className="text-sm font-semibold text-foreground">Visits not fully delivered</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Visits that were cancelled, missed, shorter than planned or not approved for invoice.
+                  Visits that were cancelled, missed, shorter than planned or not approved for invoice. A chargeable
+                  cancellation is paid for, so it is not short and adds nothing to the timebank.
                 </p>
               </div>
               <select
@@ -495,12 +509,20 @@ export default function TimebankServiceUserPage() {
                             </span>
                           ) : null}
                         </td>
-                        <td className="px-3 py-2 font-medium tabular-nums text-amber-700 dark:text-amber-400">
+                        <td
+                          className={cn(
+                            'px-3 py-2 tabular-nums',
+                            v.shortMinutes > 0 && 'font-medium text-amber-700 dark:text-amber-400',
+                          )}
+                        >
                           {formatMinutes(v.shortMinutes)}
                         </td>
                         <td className="px-3 py-2">
                           {SHORT_REASON_LABEL[v.reason]}
                           <CancelReason code={v.cancelReasonCode} notes={v.cancelReasonNotes} />
+                          {v.reason === 'CHARGEABLE_CANCELLATION' ? (
+                            <ChargeableNote noticeHours={v.cancelNoticeHours} />
+                          ) : null}
                         </td>
                       </tr>
                     ))}
@@ -535,7 +557,7 @@ export default function TimebankServiceUserPage() {
               <p className="p-6 text-sm text-muted-foreground">No weeks match this filter.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[960px] text-sm [&_td]:whitespace-nowrap" data-testid="timebank-weeks">
+                <table className="w-full min-w-[1080px] text-sm [&_td]:whitespace-nowrap" data-testid="timebank-weeks">
                   <thead className="bg-muted/60">
                     <tr className="border-b border-border text-left text-xs text-muted-foreground">
                       <th className="px-4 py-2.5 font-medium">Week</th>
@@ -545,6 +567,7 @@ export default function TimebankServiceUserPage() {
                       <th className="px-3 py-2.5 font-medium">Not approved for invoice</th>
                       <th className="px-3 py-2.5 font-medium">Awaiting clock-out</th>
                       <th className="px-3 py-2.5 font-medium">Scheduled</th>
+                      <th className="px-3 py-2.5 font-medium">Chargeable cancellation</th>
                       <th className="px-3 py-2.5 font-medium">Short / left to give</th>
                       <th className="px-3 py-2.5 font-medium">Added to bank</th>
                       <th className="px-3 py-2.5 font-medium">Balance</th>
@@ -586,6 +609,7 @@ export default function TimebankServiceUserPage() {
                                   pending: w.pendingMinutes,
                                   awaiting: w.awaitingMinutes,
                                   scheduled: w.scheduledMinutes,
+                                  chargeable: w.chargeableCancelMinutes,
                                   short: w.freeMinutes,
                                 }}
                               />
@@ -611,6 +635,14 @@ export default function TimebankServiceUserPage() {
                             <td
                               className={cn(
                                 'px-3 py-2.5 tabular-nums',
+                                w.chargeableCancelMinutes > 0 && 'font-medium text-rose-700 dark:text-rose-400',
+                              )}
+                            >
+                              {formatMinutes(w.chargeableCancelMinutes)}
+                            </td>
+                            <td
+                              className={cn(
+                                'px-3 py-2.5 tabular-nums',
                                 w.freeMinutes > 0 && 'font-medium text-amber-700 dark:text-amber-400',
                               )}
                             >
@@ -618,7 +650,10 @@ export default function TimebankServiceUserPage() {
                               {w.freeMinutes <= 0 && w.overMinutes > 0 ? (
                                 <span className="block text-xs font-normal text-muted-foreground">
                                   {[
-                                    `+${formatMinutes(w.overMinutes)} over contract`,
+                                    `+${formatMinutes(w.overMinutes)} over contract` +
+                                      (w.chargeableCancelMinutes > 0
+                                        ? ` (${formatMinutes(w.chargeableCancelMinutes)} is a chargeable cancellation)`
+                                        : ''),
                                     (fromBankByWeek.get(w.weekStart) ?? 0) > 0
                                       ? `${formatMinutes(fromBankByWeek.get(w.weekStart) ?? 0)} from timebank`
                                       : null,
@@ -632,9 +667,19 @@ export default function TimebankServiceUserPage() {
                                   {shortReasonsLine(w.reasons)}
                                 </span>
                               ) : null}
+                              <OverCareTag
+                                serviceUserId={serviceUserId}
+                                weekStart={w.weekStart}
+                                overMinutes={w.overCareMinutes}
+                                adjustment={w.overCareAdjustment}
+                                takenBack={w.overCareTakenBack}
+                                setting={data.overCare}
+                                currentWeekStart={data.currentWeekStart}
+                              />
                             </td>
                             <td className="px-3 py-2.5 tabular-nums">
                               {w.addedToBankMinutes > 0 ? `+${formatMinutes(w.addedToBankMinutes)}` : '0'}
+                              <BankWeekPaymentLine {...bankPayment.statusOf(w)} />
                             </td>
                             <td className="px-3 py-2.5 font-semibold tabular-nums">
                               {w.status === 'complete' || w.status === 'short' ? formatMinutes(w.balanceMinutes) : '—'}
@@ -642,7 +687,7 @@ export default function TimebankServiceUserPage() {
                           </tr>
                           {open ? (
                             <tr className="border-b border-border last:border-0">
-                              <td colSpan={10} className="bg-muted/20 px-4 py-3">
+                              <td colSpan={11} className="bg-muted/20 px-4 py-3">
                                 <WeekVisits week={w} />
                               </td>
                             </tr>

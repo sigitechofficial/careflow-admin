@@ -12,7 +12,10 @@ import { useOrganisationDisplayFormat } from '@/shared/context/organisation-disp
 import { dayKeyInTimeZone, minutesInOperationalTimeZone } from '@/shared/lib/operational-day.util'
 import { contentBodyClass, contentHelperClass, contentTitleClass } from '@/shared/ui/content-section'
 import { Badge } from '@/shared/ui/badge'
+import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
+import { useAuthStore } from '@/features/auth/store'
+import { ChangeCancellationBillingDialog } from '@/features/service-users/activity/ChangeCancellationBillingDialog'
 
 /** "HH:mm" of an instant in the organisation's timezone. */
 function hmOf(iso: string): string {
@@ -40,6 +43,26 @@ const CHARGE_LABELS: Record<string, string> = {
   PENDING_REVIEW: 'Billing to review',
 }
 
+type RotaCancellation = NonNullable<ServiceUserActivityVisit['cancellation']>
+
+/** "Charged · 100% · 22h notice" from the rota cancellation record. */
+function billingLabel(decision: string | null, r: RotaCancellation | null): string | null {
+  if (!decision) return null
+  const parts = [CHARGE_LABELS[decision] ?? decision]
+  if (decision === 'CHARGE' && r?.chargePercent != null) parts.push(`${r.chargePercent}%`)
+  if (r?.noticeHours != null) parts.push(`${Math.round(r.noticeHours * 10) / 10}h notice`)
+  return parts.join(' · ')
+}
+
+/** Where a charge stands with invoicing. */
+function invoiceLabel(r: RotaCancellation | null): string | null {
+  if (!r || r.chargeDecision !== 'CHARGE') return null
+  if (!r.invoice) return 'Not invoiced yet'
+  return r.invoice.locked
+    ? `On ${r.invoice.invoiceNumber ?? 'an invoice'} (locked)`
+    : `On ${r.invoice.invoiceNumber ?? 'an invoice run'} (being prepared)`
+}
+
 function atLabel(iso: string | null, formatDate: (d: string) => string, formatTime: (iso: string) => string) {
   return iso ? `${formatDate(dayKeyInTimeZone(iso))} ${formatTime(iso)}` : 'Not recorded'
 }
@@ -63,6 +86,11 @@ export function ServiceUserCancelledVisits({
   openingVisitId: string | null
 }) {
   const { formatDate, formatTime } = useOrganisationDisplayFormat()
+  const canChangeBilling = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
+  // Cancelled visit whose billing decision is being changed.
+  const [billingFor, setBillingFor] = React.useState<{ jobId: string; label: string; current: string | null } | null>(
+    null,
+  )
   const rotaQuery = useServiceUserVisitActivity(serviceUserId, {
     page: 1,
     limit: 200,
@@ -122,6 +150,8 @@ export function ServiceUserCancelledVisits({
   /** Who cancelled, when and why — from the visit plan record, else the rota record. */
   const cancellationDetails = (row: CancelledRow): { fields: Array<[string, string]> } => {
     const c = row.planChange
+    // The rota record holds the live billing decision (it can be changed later by finance).
+    const rota = row.visit?.cancellation?.source === 'CANCELLATION' ? row.visit.cancellation : null
     const party = (value: string | null, description: string | null) =>
       value === 'OTHER' && description ? description : value ? visitCancelledByLabel(value) : null
     const fields: Array<[string, string | null]> = []
@@ -133,7 +163,8 @@ export function ServiceUserCancelledVisits({
         ['Reason', c.reasonCode === 'OTHER' ? null : c.reasonLabel],
         // The hours-decrease cancel puts the same text in both; show it once.
         ['Notes', c.notes && c.notes !== c.cancelledByDescription ? c.notes : null],
-        ['Billing', c.chargeDecision ? (CHARGE_LABELS[c.chargeDecision] ?? c.chargeDecision) : null],
+        ['Billing', billingLabel(rota?.chargeDecision ?? c.chargeDecision, rota)],
+        ['Invoice', invoiceLabel(rota)],
         ['Where', 'Visit plan — Cancel visits'],
       )
     } else if (row.visit?.cancellation) {
@@ -145,7 +176,8 @@ export function ServiceUserCancelledVisits({
         ['Who asked', party(r.cancelledByParty, r.cancelledByDescription)],
         ['Reason', planChange ? 'Visit plan changed' : r.reasonCode === 'OTHER' ? null : r.reasonLabel],
         ['Notes', r.reasonNotes],
-        ['Billing', r.chargeDecision ? (CHARGE_LABELS[r.chargeDecision] ?? r.chargeDecision) : null],
+        ['Billing', billingLabel(r.chargeDecision, planChange ? null : r)],
+        ['Invoice', invoiceLabel(planChange ? null : r)],
         ['Where', planChange ? 'Visit plan amendment' : 'Rota'],
       )
     } else {
@@ -223,6 +255,8 @@ export function ServiceUserCancelledVisits({
           )
           const rowClass =
             'flex w-full items-start justify-between gap-3 rounded-lg border border-border/70 bg-card px-4 py-3 text-left'
+          const rota = row.visit?.cancellation?.source === 'CANCELLATION' ? row.visit.cancellation : null
+          const canChange = canChangeBilling && row.visit != null && rota != null && !rota.invoice?.locked
           return (
             <li key={row.key}>
               {row.visit ? (
@@ -240,6 +274,27 @@ export function ServiceUserCancelledVisits({
               ) : (
                 <div className={rowClass}>{body}</div>
               )}
+              {canChange && row.visit ? (
+                <div className="mt-1 flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    onClick={() =>
+                      row.visit &&
+                      setBillingFor({
+                        jobId: row.visit.scheduledJobId,
+                        label: `${row.label} · ${formatDate(row.date)} ${row.startTime}`,
+                        current: rota?.chargeDecision ?? null,
+                      })
+                    }
+                    data-testid="activity-change-billing"
+                  >
+                    Change billing decision
+                  </Button>
+                </div>
+              ) : null}
             </li>
           )
         })}
@@ -247,6 +302,16 @@ export function ServiceUserCancelledVisits({
       <p className={contentHelperClass}>
         {rows.length} cancelled visit{rows.length === 1 ? '' : 's'}
       </p>
+      <ChangeCancellationBillingDialog
+        open={billingFor != null}
+        onOpenChange={open => {
+          if (!open) setBillingFor(null)
+        }}
+        serviceUserId={serviceUserId}
+        scheduledJobId={billingFor?.jobId ?? ''}
+        visitLabel={billingFor?.label ?? ''}
+        current={billingFor?.current ?? null}
+      />
     </>
   )
 }
