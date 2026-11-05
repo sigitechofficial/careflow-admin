@@ -364,6 +364,12 @@ export type ServiceUserInvoiceFunderSummary = {
 
 export type ServiceUserInvoiceLine = {
   id: string
+  /** VISIT_CHARGE, or LATE_CANCELLATION for a visit cancelled late with a Charge decision. */
+  lineType?: 'VISIT_CHARGE' | 'ADJUSTMENT' | 'LATE_CANCELLATION' | 'TIMEBANK_HOURS' | 'TIMEBANK_USED'
+  /** Late cancellation: hours of notice the cancellation gave. */
+  cancellationNoticeHours?: number | null
+  /** Late cancellation: percent of the visit fee charged. */
+  cancellationChargePercent?: number | null
   visitRef: string | null
   funderName: string
   description: string

@@ -24,6 +24,7 @@ import { TimeCriticalDot, timeCriticalLabel } from '@/features/service-users/vis
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { useCancelHousekeepingJob } from '@/features/scheduling/hooks/useSchedulingMutations'
+import { useHousekeepingCancellationPolicy } from '@/features/scheduling/hooks/useScheduling'
 import { resolveJobTimeCritical } from '@/features/scheduling/utils/schedule-job-time-critical.util'
 import {
   cancellationRequiresNotification,
@@ -67,6 +68,8 @@ export function ScheduleJobCancelDialog({
   const [commissionerNotified, setCommissionerNotified] = React.useState(false)
   const [chargeDecision, setChargeDecision] = React.useState<VisitChargeDecision>('PENDING_REVIEW')
   const [chargeDecisionNotes, setChargeDecisionNotes] = React.useState('')
+  // Billing notes the cancellation rules filled in, so a later suggestion can replace them but never the office's own text.
+  const autoChargeNotes = React.useRef('')
 
   React.useEffect(() => {
     if (!open || !job) return
@@ -79,7 +82,19 @@ export function ScheduleJobCancelDialog({
     setCommissionerNotified(false)
     setChargeDecision(meta.suggestedCharge)
     setChargeDecisionNotes('')
+    autoChargeNotes.current = ''
   }, [open, job?.id])
+
+  // Job Cancellation rules (Settings → Dom Care Settings): notice worked out on the server from the planned start.
+  const policyQuery = useHousekeepingCancellationPolicy(job?.id, reasonCode, open)
+  const policy = policyQuery.data
+  React.useEffect(() => {
+    if (!policy) return
+    if (policy.applies && policy.suggestedDecision) setChargeDecision(policy.suggestedDecision)
+    const note = policy.applies && policy.suggestedDecision === 'CHARGE' ? (policy.explanation ?? '') : ''
+    setChargeDecisionNotes(current => (current.trim() === '' || current === autoChargeNotes.current ? note : current))
+    autoChargeNotes.current = note
+  }, [policy])
 
   const reasonMeta = visitCancellationReasonMeta(reasonCode)
   const needsWelfare = cancellationRequiresWelfare({ timeCriticalVisit, outcome, reasonCode })
@@ -189,6 +204,41 @@ export function ScheduleJobCancelDialog({
                 </SelectContent>
               </Select>
               <p className="mt-1.5 text-xs text-muted-foreground">{reasonMeta.description}</p>
+              {policy?.applies && policy.explanation ? (
+                <div
+                  className={
+                    policy.suggestedDecision === 'CHARGE'
+                      ? 'mt-2 flex gap-2.5 rounded-lg border border-rose-300 bg-rose-50 px-3.5 py-3 text-sm dark:border-rose-900 dark:bg-rose-950/40'
+                      : 'mt-2 flex gap-2.5 rounded-lg border border-sky-300 bg-sky-50 px-3.5 py-3 text-sm dark:border-sky-900 dark:bg-sky-950/40'
+                  }
+                  data-testid="cancel-policy-suggestion"
+                >
+                  <AlertTriangle
+                    className={
+                      policy.suggestedDecision === 'CHARGE'
+                        ? 'mt-0.5 h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400'
+                        : 'mt-0.5 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400'
+                    }
+                    aria-hidden
+                  />
+                  <div className="min-w-0">
+                    <p
+                      className={
+                        policy.suggestedDecision === 'CHARGE'
+                          ? 'font-semibold text-rose-900 dark:text-rose-100'
+                          : 'font-semibold text-sky-900 dark:text-sky-100'
+                      }
+                    >
+                      Job Cancellation rules: {policy.explanation}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      A Charge decision keeps this visit out of the service user's timebank.
+                    </p>
+                  </div>
+                </div>
+              ) : policyQuery.isLoading ? (
+                <p className="mt-2 text-xs text-muted-foreground">Checking the Job Cancellation rules…</p>
+              ) : null}
             </div>
 
             <div>

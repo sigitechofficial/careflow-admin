@@ -310,10 +310,60 @@ function InvoiceDetailDialog({
                         </td>
                       </tr>
                     ) : (
-                      run.lines.map((line) => (
-                        <tr key={line.id} className="border-b border-border/60 last:border-0 align-top">
+                      run.lines.map((line) => {
+                        const lateCancellation = line.lineType === 'LATE_CANCELLATION'
+                        // Timebank hours charged this week, or a visit's part paid from hours already charged.
+                        if (line.lineType === 'TIMEBANK_HOURS' || line.lineType === 'TIMEBANK_USED') {
+                          const used = line.lineType === 'TIMEBANK_USED'
+                          return (
+                            <tr
+                              key={line.id}
+                              className={cn(
+                                'border-b border-border/60 last:border-0 align-top',
+                                used ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : 'bg-sky-50/60 dark:bg-sky-950/20',
+                              )}
+                              data-testid={used ? 'invoice-line-timebank-used' : 'invoice-line-timebank-hours'}
+                            >
+                              <td colSpan={12} className="px-3 py-2">
+                                <span
+                                  className={cn(
+                                    'mr-1.5 rounded-md border px-1.5 py-0.5 text-[10px] font-medium',
+                                    used
+                                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300'
+                                      : 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-300',
+                                  )}
+                                >
+                                  {used ? 'Paid from timebank' : 'Timebank hours'}
+                                </span>
+                                {used && line.visitRef ? <span className="font-medium">{line.visitRef} · </span> : null}
+                                <span className={used ? 'text-emerald-800 dark:text-emerald-300' : 'text-sky-800 dark:text-sky-300'}>
+                                  {line.description}
+                                </span>
+                                {line.exceptionMessage ? (
+                                  <p className="mt-0.5 text-[10px] text-amber-600 dark:text-amber-400">{line.exceptionMessage}</p>
+                                ) : null}
+                              </td>
+                              <td className="px-3 py-2">{line.funderName}</td>
+                              <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums">{line.amount}</td>
+                            </tr>
+                          )
+                        }
+                        return (
+                        <tr
+                          key={line.id}
+                          className={cn(
+                            'border-b border-border/60 last:border-0 align-top',
+                            lateCancellation && 'bg-rose-50/60 dark:bg-rose-950/20',
+                          )}
+                          data-testid={lateCancellation ? 'invoice-line-late-cancellation' : undefined}
+                        >
                           <td className="whitespace-nowrap px-3 py-2 font-medium">
                             {line.visitRef ?? '—'}
+                            {lateCancellation ? (
+                              <span className="ml-1.5 rounded-md border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">
+                                Late cancellation
+                              </span>
+                            ) : null}
                             {line.exceptionMessage ? (
                               <p className="mt-0.5 max-w-[12rem] text-[10px] font-normal text-amber-600 dark:text-amber-400">
                                 {line.exceptionMessage}
@@ -329,15 +379,31 @@ function InvoiceDetailDialog({
                           <td className="whitespace-nowrap px-3 py-2 tabular-nums">
                             {line.plannedEnd ?? '—'}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-2 tabular-nums">
-                            {line.actualStart ?? '—'}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-2 tabular-nums">
-                            {line.actualEnd ?? '—'}
-                          </td>
+                          {lateCancellation ? (
+                            <td colSpan={2} className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                              Cancelled
+                              {line.cancellationNoticeHours != null
+                                ? ` · ${Math.round(line.cancellationNoticeHours * 10) / 10}h notice`
+                                : ''}
+                              {line.cancellationChargePercent != null ? ` · ${line.cancellationChargePercent}%` : ''}
+                            </td>
+                          ) : (
+                            <>
+                              <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                                {line.actualStart ?? '—'}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                                {line.actualEnd ?? '—'}
+                              </td>
+                            </>
+                          )}
                           <td className="whitespace-nowrap px-3 py-2">{line.plannedDuration ?? '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-2">{line.actualDuration ?? '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-2">{line.durationVariance ?? '—'}</td>
+                          <td className="whitespace-nowrap px-3 py-2">
+                            {lateCancellation ? '—' : (line.actualDuration ?? '—')}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2">
+                            {lateCancellation ? '—' : (line.durationVariance ?? '—')}
+                          </td>
                           <td className="max-w-[14rem] px-3 py-2" title={line.address ?? undefined}>
                             <span className="line-clamp-2">{line.address ?? '—'}</span>
                           </td>
@@ -346,7 +412,8 @@ function InvoiceDetailDialog({
                             {line.amount}
                           </td>
                         </tr>
-                      ))
+                        )
+                      })
                     )}
                   </tbody>
                 </table>

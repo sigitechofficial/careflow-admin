@@ -6,4 +6,8 @@ export const DEFAULT_SERVICE_USER_WEEKLY_HOURS_SETTINGS: ServiceUserWeeklyHoursS
   visitsNeedApproval: true,
   specialVisitsCount: true,
   useTimebank: false,
+  adjustOverCareNextWeek: true,
+  adjustOverCareFrom: null,
+  chargeTimebankOnInvoice: true,
+  chargeTimebankFrom: null,
 }

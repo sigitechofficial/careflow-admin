@@ -14,7 +14,9 @@ import { formatMinutes, mondayOf } from '@/features/timebank/timebank-format'
 import { TimebankWeekNav } from '@/features/timebank/components/TimebankWeekNav'
 import { CarerTimebankPanel } from '@/features/timebank/components/CarerTimebankPanel'
 import { AwaitingVisitsSheet } from '@/features/timebank/components/AwaitingClockOut'
+import { ChargeableVisitsSheet } from '@/features/timebank/components/ChargeableCancellations'
 import { TimebankFillBar, TimebankFillLegend, shortReasonsLine } from '@/features/timebank/components/TimebankFill'
+import { OverCareTag } from '@/features/timebank/components/OverCareNotes'
 
 function OptionSelect({
   label,
@@ -83,6 +85,7 @@ function exportCsv(data: TimebankList, rows: TimebankListRow[]) {
     'Delivered, not approved for invoice',
     'Awaiting clock-out',
     'Scheduled',
+    'Chargeable cancellation',
     data.isCurrentWeek ? 'Hours left to give' : 'Short',
     'Over contract',
     'Missed',
@@ -103,6 +106,7 @@ function exportCsv(data: TimebankList, rows: TimebankListRow[]) {
     hours(r.pendingMinutes),
     hours(r.awaitingMinutes),
     hours(r.scheduledMinutes),
+    hours(r.chargeableCancelMinutes),
     hours(r.freeMinutes),
     hours(r.overMinutes),
     hours(r.reasons.missedMinutes),
@@ -140,6 +144,8 @@ export default function TimebankPage() {
 
   // Service user whose visits awaiting clock-out are open in the side panel (read live from the list).
   const [awaitingFor, setAwaitingFor] = React.useState<{ id: string; name: string } | null>(null)
+  // Service user whose chargeable cancellations are open in the side panel.
+  const [chargeableFor, setChargeableFor] = React.useState<{ id: string; name: string } | null>(null)
   const query = useTimebankList(
     {
       weekStart,
@@ -337,7 +343,7 @@ export default function TimebankPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-sm [&_td]:whitespace-nowrap" data-testid="timebank-table">
+                <table className="w-full min-w-[1000px] text-sm [&_td]:whitespace-nowrap" data-testid="timebank-table">
                   <thead className="bg-muted/60">
                     <tr className="border-b border-border text-left text-xs text-muted-foreground">
                       <th className="px-4 py-2.5 font-medium">Service user</th>
@@ -351,6 +357,12 @@ export default function TimebankPage() {
                         Awaiting clock-out
                       </th>
                       {isCurrent ? <th className="px-3 py-2.5 font-medium">Scheduled</th> : null}
+                      <th
+                        className="px-3 py-2.5 font-medium"
+                        title="Cancelled with a Charge decision: the service user pays, so the hours are not added to the timebank."
+                      >
+                        Chargeable cancellation
+                      </th>
                       <th className="px-3 py-2.5 font-medium">{isCurrent ? 'Hours left to give' : 'Short'}</th>
                       <th className="px-3 py-2.5" aria-label="Open" />
                     </tr>
@@ -376,6 +388,7 @@ export default function TimebankPage() {
                               pending: row.pendingMinutes,
                               awaiting: row.awaitingMinutes,
                               scheduled: row.scheduledMinutes,
+                              chargeable: row.chargeableCancelMinutes,
                               short: row.freeMinutes,
                             }}
                           />
@@ -418,6 +431,30 @@ export default function TimebankPage() {
                         ) : null}
                         <td
                           className={
+                            row.chargeableCancelVisits > 0
+                              ? 'px-3 py-2.5 font-medium tabular-nums text-rose-700 dark:text-rose-400'
+                              : 'px-3 py-2.5 tabular-nums'
+                          }
+                        >
+                          {row.chargeableCancelVisits > 0 ? (
+                            <button
+                              type="button"
+                              className="text-left underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                              onClick={() => setChargeableFor({ id: row.id, name: row.name })}
+                              title="See these visits and why they were charged"
+                              data-testid="timebank-chargeable-open"
+                            >
+                              <MinutesWithVisits
+                                minutes={row.chargeableCancelMinutes}
+                                visits={row.chargeableCancelVisits}
+                              />
+                            </button>
+                          ) : (
+                            '0'
+                          )}
+                        </td>
+                        <td
+                          className={
                             row.freeMinutes > 0
                               ? 'px-3 py-2.5 font-medium tabular-nums text-amber-700 dark:text-amber-400'
                               : 'px-3 py-2.5 tabular-nums'
@@ -431,6 +468,9 @@ export default function TimebankPage() {
                           {row.freeMinutes <= 0 && row.overMinutes > 0 ? (
                             <span className="block text-xs font-normal text-muted-foreground">
                               +{formatMinutes(row.overMinutes)} over contract
+                              {row.chargeableCancelMinutes > 0
+                                ? ` (${formatMinutes(row.chargeableCancelMinutes)} is a chargeable cancellation)`
+                                : ''}
                             </span>
                           ) : null}
                           {row.freeMinutes > 0 && shortReasonsLine(row.reasons) ? (
@@ -438,6 +478,15 @@ export default function TimebankPage() {
                               {shortReasonsLine(row.reasons)}
                             </span>
                           ) : null}
+                          <OverCareTag
+                            serviceUserId={row.id}
+                            weekStart={data.weekStart}
+                            overMinutes={row.overCareMinutes}
+                            adjustment={row.overCareAdjustment}
+                            takenBack={row.overCareTakenBack}
+                            setting={data.overCare}
+                            currentWeekStart={data.currentWeekStart}
+                          />
                         </td>
                         <td className="px-3 py-2.5 text-right">
                           <Link
@@ -463,6 +512,14 @@ export default function TimebankPage() {
             }}
             serviceUserName={awaitingFor?.name ?? ''}
             visits={data?.rows.find(r => r.id === awaitingFor?.id)?.awaitingVisitList ?? []}
+          />
+          <ChargeableVisitsSheet
+            open={chargeableFor != null}
+            onOpenChange={open => {
+              if (!open) setChargeableFor(null)
+            }}
+            serviceUserName={chargeableFor?.name ?? ''}
+            visits={data?.rows.find(r => r.id === chargeableFor?.id)?.chargeableCancelVisitList ?? []}
           />
         </>
       )}

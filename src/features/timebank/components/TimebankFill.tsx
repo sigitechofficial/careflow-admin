@@ -7,12 +7,13 @@ export const TIMEBANK_FILL_PARTS = [
   { key: 'pending', label: 'Not approved for invoice', bar: 'bg-sky-500' },
   { key: 'awaiting', label: 'Awaiting clock-out', bar: 'bg-violet-500' },
   { key: 'scheduled', label: 'Scheduled', bar: 'bg-slate-400 dark:bg-slate-500' },
+  { key: 'chargeable', label: 'Chargeable cancellation', bar: 'bg-rose-500' },
   { key: 'short', label: 'Short / hours left to give', bar: 'bg-amber-500' },
 ] as const
 
 type FillKey = (typeof TIMEBANK_FILL_PARTS)[number]['key']
 
-/** Thin bar: the contracted hours split into delivered, not approved, awaiting, scheduled and short. */
+/** Thin bar: the contracted hours split into delivered, not approved, awaiting, scheduled, chargeable cancellation and short. */
 export function TimebankFillBar({ minutes }: { minutes: Record<FillKey, number> }) {
   const total = TIMEBANK_FILL_PARTS.reduce((s, p) => s + Math.max(0, minutes[p.key]), 0)
   if (total <= 0) return null
@@ -39,7 +40,7 @@ export function TimebankFillLegend({ shortLabel, showScheduled }: { shortLabel: 
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
       <span className="font-medium text-foreground">
         Contracted = Delivered + Not approved for invoice + Awaiting clock-out
-        {showScheduled ? ' + Scheduled' : ''} + {shortLabel}
+        {showScheduled ? ' + Scheduled' : ''} + Chargeable cancellation + {shortLabel}
       </span>
       {TIMEBANK_FILL_PARTS.filter(p => showScheduled || p.key !== 'scheduled').map(p => (
         <span key={p.key} className="inline-flex items-center gap-1">

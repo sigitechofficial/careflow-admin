@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { AlertTriangle, CheckCircle2, Clock, Loader2, PlusCircle, Trash2, XCircle } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import {
@@ -277,7 +277,12 @@ export default function HoursApprovalsPage() {
     return day ? `${formatDate(day)} ${formatTime(iso)}` : '—'
   }
 
-  const [tab, setTab] = React.useState<HoursApprovalStatus>('PENDING')
+  // The tab is in the URL (?tab=expired), so a link or a toast can open it.
+  const search = useSearch({ strict: false }) as { tab?: string }
+  const navigate = useNavigate()
+  const tab = (TABS.find(t => t.id === search.tab?.toUpperCase())?.id ?? 'PENDING') as HoursApprovalStatus
+  const setTab = (next: HoursApprovalStatus) =>
+    void navigate({ to: '/hours-approvals', search: { tab: next.toLowerCase() }, replace: true })
   const { data: rows = [], isLoading, isError } = useHoursApprovals(tab)
 
   // On opening: carer requests back within the weekly hours are approved automatically.
