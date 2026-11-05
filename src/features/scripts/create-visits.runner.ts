@@ -9,10 +9,19 @@
  *   Visit plan tab   → activate preview + activate (draft only), generate-rota preview + generate
  *   Check            → read the rota back: visits, carers on them, visits still missing carers
  *
+ * Rota dates are the Generate rota step's: From = today (organisation time zone), To = the rota horizon
+ * (Settings → Dom Rules: N days, or to month end); the nightly rolling rota extends it from there.
+ * `fromDate` / `toDate` in the input override them, as the step's From / To fields do.
+ *
  * Every app rule still runs: carers over their weekly hours go to Hours approvals, blocked carers and
  * clashes are refused, audit logs are written as the signed-in user.
  */
 import { apiJson } from '@/shared/api/api-client'
+import {
+  resolveGenerateRotaToDate,
+  todayIsoDate,
+  type RotaHorizonMode,
+} from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
 
 // ── Input (the same JSON as create-visits.example.json) ───────────────────────
 
@@ -46,7 +55,9 @@ export type ServiceUserInput = {
   visits: VisitInput[]
 }
 export type CreateVisitsInput = {
-  fromDate: string
+  /** Default today (as Generate rota's From). */
+  fromDate?: string
+  /** Default the rota horizon from fromDate (as Generate rota with To left empty). */
   toDate?: string
   carer?: CarerRef | CarerRef[]
   amendmentReason?: string
@@ -135,14 +146,34 @@ function chunks(from: string, to: string): Array<{ fromDate: string; toDate: str
   return out
 }
 
-/** Checks the input's shape before anything is called; returns the rota end date. */
-export function validateInput(input: CreateVisitsInput): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input?.fromDate ?? '')) throw new Error('"fromDate" must be YYYY-MM-DD')
-  const toDate = input.toDate ?? addDaysIso(input.fromDate, 13)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(toDate)) throw new Error('"toDate" must be YYYY-MM-DD')
-  if (toDate < input.fromDate) throw new Error('"toDate" is before "fromDate"')
-  if (!Array.isArray(input.serviceUsers) || !input.serviceUsers.length) throw new Error('"serviceUsers" is empty')
-  return toDate
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Checks the input's shape before anything is called. */
+export function validateInput(input: CreateVisitsInput) {
+  if (input?.fromDate != null && !ISO_DATE.test(input.fromDate)) throw new Error('"fromDate" must be YYYY-MM-DD')
+  if (input?.toDate != null && !ISO_DATE.test(input.toDate)) throw new Error('"toDate" must be YYYY-MM-DD')
+  if (!Array.isArray(input?.serviceUsers) || !input.serviceUsers.length) throw new Error('"serviceUsers" is empty')
+}
+
+type RotaSettings = { domRotaHorizonDays?: number; domRotaHorizonMode?: RotaHorizonMode; domAutoExtendRotaEnabled?: boolean }
+
+/** The Generate rota step's dates: today → the rota horizon, unless the input names them. */
+async function rotaDates(input: CreateVisitsInput) {
+  const settings = (await api<RotaSettings>('GET', '/settings/general')).data ?? {}
+  const fromDate = input.fromDate ?? todayIsoDate()
+  const toDate = resolveGenerateRotaToDate(fromDate, input.toDate, {
+    horizonDays: settings.domRotaHorizonDays,
+    mode: settings.domRotaHorizonMode,
+  })
+  if (toDate < fromDate) throw new Error('"toDate" is before "fromDate"')
+  const horizon =
+    settings.domRotaHorizonMode === 'CALENDAR_MONTH' ? 'to month end' : `${settings.domRotaHorizonDays ?? 28} days`
+  const how = input.toDate
+    ? 'dates from the input'
+    : `the rota horizon (${horizon}, Settings → Dom Rules)${
+        settings.domAutoExtendRotaEnabled ? '; the nightly rolling rota keeps extending it' : '; rolling rota is off'
+      }`
+  return { fromDate, toDate, how }
 }
 
 // ── Lookups (resolved by name, as the app's search boxes do) ───────────────────
@@ -260,7 +291,8 @@ function defaultTaskSchedule(daysOfWeek: number[]) {
 
 /** Runs the whole input: every service user in turn; one failing does not stop the others. */
 export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }: RunOptions): Promise<Summary[]> {
-  const toDate = validateInput(input)
+  validateInput(input)
+  const { fromDate, toDate, how } = await rotaDates(input)
   const carerCache = new Map<string, EmployeeRow>()
   const reason = input.amendmentReason?.trim() || DEFAULT_REASON
   const respect = input.respectWorkingPatterns !== false
@@ -518,7 +550,7 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
         medicationName: first.name,
         medicationKind: kind,
         dose: first.dose,
-        startDate: first.startDate ?? input.fromDate,
+        startDate: first.startDate ?? fromDate,
         routeId: route.id,
         ...(kind === 'REGULAR'
           ? {
@@ -545,7 +577,7 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
     for (let page = 1; ; page += 1) {
       const qs = new URLSearchParams({
         serviceUserId,
-        dateFrom: `${input.fromDate}T00:00:00.000Z`,
+        dateFrom: `${fromDate}T00:00:00.000Z`,
         dateTo: `${toDate}T23:59:59.999Z`,
         limit: '100',
         page: String(page),
@@ -704,7 +736,7 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
     // 6) Generate the rota for the dates (preview first, as the Generate rota dialog does).
     let created = 0
     let skipped = 0
-    for (const range of chunks(input.fromDate, toDate)) {
+    for (const range of chunks(fromDate, toDate)) {
       const qs = new URLSearchParams(range).toString()
       await api('GET', `/service-users/${row.id}/visit-plans/${plan.id}/generate-schedule-preview?${qs}`)
       const gen = await api<{ visitsCreated: number; visitsSkipped: number; weeklyHoursWarning?: string }>(
@@ -716,14 +748,14 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
       skipped += gen.data?.visitsSkipped ?? 0
       if (gen.data?.weeklyHoursWarning) summary.warnings.push(gen.data.weeklyHoursWarning)
     }
-    log(`  rota generated ${input.fromDate} → ${toDate}: ${created} visit(s) created, ${skipped} already there`)
+    log(`  rota generated ${fromDate} → ${toDate}: ${created} visit(s) created, ${skipped} already there`)
 
     // 7) Read the rota back.
     summary.visits = await checkRota(row.id)
     return summary
   }
 
-  log(`${dryRun ? 'DRY RUN — previews only, nothing saved. ' : ''}Rota dates ${input.fromDate} → ${toDate}`)
+  log(`${dryRun ? 'DRY RUN — previews only, nothing saved. ' : ''}Rota ${fromDate} → ${toDate}: ${how}`)
   const lookups = (await api<Lookups>('GET', '/medication-lookups')).data!
   const taskList = catalogueTasks((await api('GET', '/task-catalogue')).data)
 

@@ -16,19 +16,6 @@ export type ScriptDefinition = {
   run: (input: unknown, options: { dryRun: boolean; log: (line: string) => void }) => Promise<Summary[]>
 }
 
-/** Monday after today (YYYY-MM-DD), so the example's dates are always ahead. */
-function nextMonday(): string {
-  const d = new Date()
-  d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7))
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function addDays(iso: string, days: number): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  const date = new Date(y ?? 0, (m ?? 1) - 1, (d ?? 1) + days)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-
 export const SCRIPTS: ScriptDefinition[] = [
   {
     id: 'create-visits',
@@ -39,13 +26,11 @@ export const SCRIPTS: ScriptDefinition[] = [
       'Finds each service user (number or name) and the carers (full name).',
       'Adds the visits to the visit plan, with the weekly-hours and working-pattern checks the Visit plan tab runs.',
       'Adds the tasks (existing ones are kept) and the medicines (one per name, a time for each round).',
-      'Activates a draft plan, builds the rota for the dates, then lists any visit still missing carers.',
+      'Activates a draft plan and builds the rota as Generate rota does: from today through the rota horizon (Settings → Dom Rules, 28 days by default); the nightly rolling rota keeps extending it. "fromDate" / "toDate" in the input override this.',
+      'Lists any visit still missing carers, with the reason to check.',
     ],
     exampleInput: () => {
-      const fromDate = nextMonday()
       const example: CreateVisitsInput = {
-        fromDate,
-        toDate: addDays(fromDate, 13),
         amendmentReason: 'Visits set up from the Scripts page',
         respectWorkingPatterns: true,
         serviceUsers: [
