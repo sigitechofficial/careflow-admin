@@ -181,6 +181,7 @@ import PayrollEmployeeDetailPage from '@/features/payroll/pages/PayrollEmployeeD
 import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesPage'
 import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
 import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
+import ScriptsPage from '@/features/scripts/pages/ScriptsPage'
 import CarerReportsPage from '@/features/employees/pages/CarerReportsPage'
 import TimebankPage from '@/features/timebank/pages/TimebankPage'
 import TimebankServiceUserPage from '@/features/timebank/pages/TimebankServiceUserPage'
@@ -389,6 +390,7 @@ const pageTitles: Record<string, string> = {
   '/office-salaries': 'Office salaries',
   '/checklist': 'Checklist',
   '/my-tasks': 'My tasks',
+  '/scripts': 'Scripts',
   '/reports/carers': 'Carer reports',
   '/reports/timebank': 'Timebank',
   '/reports/timebank/$serviceUserId': 'Timebank',
@@ -2319,6 +2321,13 @@ const myTasksRoute = createRoute({
   component: MyTasksPage,
 })
 
+// Every signed-in user for now: automation scripts (run as the user, the API checks each step).
+const scriptsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scripts',
+  component: ScriptsPage,
+})
+
 const roleTasksRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/role-tasks',
@@ -2795,6 +2804,7 @@ const routeTree = rootRoute.addChildren([
     officeSalariesRoute,
     setupChecklistRoute,
     myTasksRoute,
+    scriptsRoute,
     carerReportsRoute,
     timebankRoute,
     timebankServiceUserRoute,

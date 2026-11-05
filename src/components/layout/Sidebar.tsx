@@ -7,6 +7,7 @@ import {
   Calendar,
   Settings,
   Settings2,
+  ScrollText,
   UserCheck,
   // UserPlus, // TODO(later): restore with HR sidebar tab
 
@@ -1042,6 +1043,8 @@ const navItems: NavItem[] = [
       },
     ],
   },
+  // Automation scripts — every signed-in user for now (no permission: the API checks each step).
+  { label: 'Scripts', icon: <ScrollText className="h-5 w-5" />, href: '/scripts' },
 ]
 
 export function navChildAllowed(
