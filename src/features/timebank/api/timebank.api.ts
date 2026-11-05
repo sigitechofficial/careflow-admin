@@ -34,6 +34,22 @@ export type TimebankAwaitingVisit = {
   plannedMinutes: number
 }
 
+/** A visit cancelled or called off with a Charge decision, with why it was cancelled and charged. */
+export type TimebankChargeableVisit = {
+  jobId: string
+  jobName: string
+  day: string
+  start: string
+  end: string | null
+  plannedMinutes: number
+  cancelledAs: 'CANCELLED' | 'CALLED_OFF'
+  cancelReasonCode: string | null
+  cancelReasonNotes: string | null
+  noticeHours: number | null
+  /** Billing notes saved with the Charge decision. */
+  chargeNotes: string | null
+}
+
 export type TimebankListRow = TimebankServiceUserRef & {
   weekStatus: TimebankWeekStatus
   setMinutes: number
@@ -45,19 +61,44 @@ export type TimebankListRow = TimebankServiceUserRef & {
   awaitingMinutes: number
   awaitingVisits: number
   awaitingVisitList: TimebankAwaitingVisit[]
+  /** Cancelled or called off with a Charge decision: paid for, covered, never in the timebank. */
+  chargeableCancelMinutes: number
+  chargeableCancelVisits: number
+  chargeableCancelVisitList: TimebankChargeableVisit[]
   freeMinutes: number
   /** Visits came to more than the weekly hours (delivered, not approved, awaiting and scheduled). */
   overMinutes: number
+  /** Over in care given only (no chargeable cancellations): what over care is about. */
+  overCareMinutes: number
   pendingVisits: number
   reasons: TimebankWeekReasons
   balanceMinutes: number
+  /** This week's over care was taken back the next week. */
+  overCareAdjustment: TimebankOverCare | null
+  /** This week's hours were lowered to take back the week before's over care. */
+  overCareTakenBack: TimebankOverCare | null
 }
+
+/** Over care taken back the next week (Settings → Dom Rules), one per over week. */
+export type TimebankOverCare = {
+  overWeekStart: string
+  adjustWeekStart: string
+  overMinutes: number
+  takenBackMinutes: number
+  cancelledMinutes: number
+  cancelledVisits: number
+  notTakenBackMinutes: number
+}
+
+/** Settings → Dom Rules "Reduce next week's visits after over care" and the first day it applies. */
+export type TimebankOverCareSetting = { on: boolean; from: string | null }
 
 export type TimebankList = {
   weekStart: string
   weekEnd: string
   currentWeekStart: string
   isCurrentWeek: boolean
+  overCare: TimebankOverCareSetting
   rows: TimebankListRow[]
   facets: { locations: TimebankOption[]; fundingTypes: TimebankOption[] }
 }
@@ -70,6 +111,8 @@ export type TimebankShortReason =
   | 'CALLED_OFF'
   | 'SHORTER'
   | 'NOT_APPROVED'
+  /** Cancelled with a Charge decision: listed, but nothing is short. */
+  | 'CHARGEABLE_CANCELLATION'
 
 export type TimebankShortVisit = {
   jobId: string
@@ -85,6 +128,8 @@ export type TimebankShortVisit = {
   cancelReasonCode: string | null
   /** Free text typed with the cancellation (e.g. for "Other"). */
   cancelReasonNotes: string | null
+  /** Hours of notice a chargeable cancellation gave, when recorded. */
+  cancelNoticeHours?: number | null
 }
 
 /** What happened to one rota visit of the week. */
@@ -96,6 +141,7 @@ export type TimebankVisitOutcome =
   | 'UNABLE_TO_START'
   | 'AWAITING_CLOCK_OUT'
   | 'REMOVED_HOURS_REDUCED'
+  | 'REMOVED_OVER_CARE'
 
 export type TimebankWeekVisit = Omit<TimebankShortVisit, 'reason'> & {
   outcome: TimebankVisitOutcome
@@ -115,8 +161,11 @@ export type TimebankWeek = {
   pendingMinutes: number
   scheduledMinutes: number
   awaitingMinutes: number
+  chargeableCancelMinutes: number
   freeMinutes: number
   overMinutes: number
+  /** Over in care given only (no chargeable cancellations): what over care is about. */
+  overCareMinutes: number
   addedToBankMinutes: number
   balanceMinutes: number
   visits: {
@@ -127,22 +176,41 @@ export type TimebankWeek = {
     awaiting: number
     cancelled: number
     missed: number
+    chargeableCancelled: number
   }
   reasons: TimebankWeekReasons
   /** Every rota visit of the week, cancelled ones included, in time order. */
   allVisits: TimebankWeekVisit[]
+  overCareAdjustment: TimebankOverCare | null
+  overCareTakenBack: TimebankOverCare | null
+}
+
+/** Timebank hours charged on a locked invoice (CHARGED, per week) or used by a visit at no charge (USED). */
+export type TimebankCharge = {
+  kind: 'CHARGED' | 'USED'
+  weekStart: string | null
+  scheduledJobId: string | null
+  minutes: number
+  amount: number
+  invoiceRunId: string
+  invoiceNumber: string | null
 }
 
 export type TimebankDetail = {
   serviceUser: TimebankServiceUserRef
   startDate: string
   currentWeekStart: string
+  overCare: TimebankOverCareSetting
+  /** Settings → Dom Rules "Charge timebank hours on the invoice" and the first day it applies. */
+  chargeTimebank: TimebankOverCareSetting
+  timebankCharges: TimebankCharge[]
   totals: {
     weeks: number
     setMinutes: number
     deliveredMinutes: number
     invoicedMinutes: number
     pendingMinutes: number
+    chargeableCancelMinutes: number
     bankMinutes: number
     /** Contracted / delivered / not checked include this (started) week; the bank doesn't. */
     includesCurrentWeek: boolean
@@ -247,6 +315,53 @@ export async function fetchTimebankDetail(serviceUserId: string, weekStart?: str
   const suffix = weekStart ? `?weekStart=${encodeURIComponent(weekStart)}` : ''
   const res = await apiJson<ApiEnvelope<TimebankDetail>>(
     `/service-user-hours/timebank/${encodeURIComponent(serviceUserId)}${suffix}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export type OverCareStatus =
+  | 'DONE'
+  | 'WILL_CANCEL'
+  | 'NOTHING'
+  | 'OFF'
+  | 'NOT_ELIGIBLE'
+  | 'NOT_ADJUSTED'
+  | 'NO_PLAN'
+
+export type OverCareVisit = {
+  scheduledJobId: string
+  date: string
+  start: string
+  end: string
+  label: string
+  minutes: number
+  status: string
+  carers: string[]
+}
+
+/** "See visits": a week's over care and the next week's visits it took back (or would). */
+export type OverCareForWeek = {
+  overWeekStart: string
+  adjustWeekStart: string
+  setting: TimebankOverCareSetting
+  status: OverCareStatus
+  weeklyMinutes: number
+  careGivenMinutes: number
+  excludedMinutes: number
+  overMinutes: number
+  /** The week has not finished: includes visits still to come. */
+  projected: boolean
+  cancelledMinutes: number
+  takenBackMinutes: number
+  notTakenBackMinutes: number
+  adjustedAt: string | null
+  visits: OverCareVisit[]
+}
+
+export async function fetchOverCareForWeek(serviceUserId: string, weekStart: string): Promise<OverCareForWeek> {
+  const res = await apiJson<ApiEnvelope<OverCareForWeek>>(
+    `/service-user-hours/timebank/${encodeURIComponent(serviceUserId)}/over-care?weekStart=${encodeURIComponent(weekStart)}`,
     { method: 'GET' },
   )
   return res.data

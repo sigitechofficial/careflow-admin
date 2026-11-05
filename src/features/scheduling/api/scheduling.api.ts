@@ -526,6 +526,24 @@ export async function completeHousekeepingJob(
   return res
 }
 
+/** What Settings → Dom Care Settings → Job Cancellation suggest for cancelling this rota visit. */
+export type HousekeepingCancellationPolicy = {
+  cancelledBy: 'SERVICE_USER' | 'AGENCY' | 'OTHER'
+  noticeHours: number
+  /** False when the reason is not the service user's: the rules do not apply. */
+  applies: boolean
+  suggestedDecision: 'CHARGE' | 'NO_CHARGE' | 'PENDING_REVIEW' | null
+  chargePercent: number | null
+  explanation: string | null
+}
+
+export async function fetchHousekeepingCancellationPolicy(id: string, reasonCode: string) {
+  const res = await apiJson<ApiEnvelope<HousekeepingCancellationPolicy>>(
+    `/scheduled-jobs-housekeeping/jobs/${id}/cancellation-policy?reasonCode=${encodeURIComponent(reasonCode)}`,
+  )
+  return res.data
+}
+
 export async function cancelHousekeepingJob(id: string, payload: CancelHousekeepingJobPayload) {
   const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs-housekeeping/jobs/${id}/cancel`, {
     method: 'PATCH',

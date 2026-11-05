@@ -518,6 +518,9 @@ export function VisitPlanCancelVisitsDialog({ open, onOpenChange, serviceUserId,
                 {previewQuery.data.fundingTypeName ? (
                   <span className="text-muted-foreground"> Funding: {previewQuery.data.fundingTypeName}.</span>
                 ) : null}
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  Visits with a Charge decision are not added to the service user's timebank.
+                </span>
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">

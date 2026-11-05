@@ -52,6 +52,7 @@ export const SHORT_REASON_LABEL: Record<TimebankShortReason, string> = {
   CALLED_OFF: 'Called off',
   SHORTER: 'Shorter than planned',
   NOT_APPROVED: 'Rejected by office',
+  CHARGEABLE_CANCELLATION: 'Chargeable cancellation',
 }
 
 export const VISIT_OUTCOME_LABEL: Record<TimebankVisitOutcome, string> = {
@@ -62,6 +63,7 @@ export const VISIT_OUTCOME_LABEL: Record<TimebankVisitOutcome, string> = {
   UNABLE_TO_START: 'Unable to start',
   AWAITING_CLOCK_OUT: 'Awaiting clock-out',
   REMOVED_HOURS_REDUCED: 'Removed — weekly hours reduced',
+  REMOVED_OVER_CARE: 'Removed — over care taken back',
 }
 
 export const VISIT_OUTCOME_TONE: Record<TimebankVisitOutcome, string> = {
@@ -71,6 +73,7 @@ export const VISIT_OUTCOME_TONE: Record<TimebankVisitOutcome, string> = {
   UNABLE_TO_START: 'text-foreground',
   AWAITING_CLOCK_OUT: 'text-violet-700 dark:text-violet-400',
   REMOVED_HOURS_REDUCED: 'text-muted-foreground',
+  REMOVED_OVER_CARE: 'text-muted-foreground',
   CANCELLED_BY_SERVICE_USER: 'text-amber-700 dark:text-amber-400',
   CANCELLED_BY_AGENCY: 'text-amber-700 dark:text-amber-400',
   CANCELLED_OTHER: 'text-amber-700 dark:text-amber-400',
@@ -78,6 +81,7 @@ export const VISIT_OUTCOME_TONE: Record<TimebankVisitOutcome, string> = {
   CALLED_OFF: 'text-amber-700 dark:text-amber-400',
   SHORTER: 'text-amber-700 dark:text-amber-400',
   NOT_APPROVED: 'text-amber-700 dark:text-amber-400',
+  CHARGEABLE_CANCELLATION: 'text-rose-700 dark:text-rose-400',
 }
 
 export const CARER_OUTCOME_LABEL: Record<CarerTimebankOutcome, string> = {

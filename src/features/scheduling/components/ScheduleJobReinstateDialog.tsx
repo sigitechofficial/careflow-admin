@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { Loader2 } from 'lucide-react'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Loader2, Lock } from 'lucide-react'
+import { extractApiErrorMessage, toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Label, Textarea } from '@/shared/ui/form-field'
 import {
@@ -26,10 +26,13 @@ type Props = {
 export function ScheduleJobReinstateDialog({ open, onOpenChange, job, onReinstated }: Props) {
   const reinstateJob = useReinstateHousekeepingJob()
   const [notes, setNotes] = React.useState('')
+  // The server refuses when the late cancellation charge is on a locked invoice (billed twice otherwise).
+  const [blockedReason, setBlockedReason] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (!open) return
     setNotes('')
+    setBlockedReason(null)
   }, [open, job?.id])
 
   const handleSubmit = async () => {
@@ -40,7 +43,9 @@ export function ScheduleJobReinstateDialog({ open, onOpenChange, job, onReinstat
       onReinstated?.()
       onOpenChange(false)
     } catch (error) {
-      toastApiError(error, 'Could not reinstate visit')
+      const message = extractApiErrorMessage(error)
+      if (message.startsWith("Can't reinstate")) setBlockedReason(message)
+      else toastApiError(error, 'Could not reinstate visit')
     }
   }
 
@@ -62,6 +67,15 @@ export function ScheduleJobReinstateDialog({ open, onOpenChange, job, onReinstat
             Previously assigned carers are restored where possible. The cancellation record is kept for audit with a
             reinstatement timestamp.
           </p>
+          {blockedReason ? (
+            <p
+              className="flex gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-100"
+              data-testid="reinstate-blocked"
+            >
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>{blockedReason}</span>
+            </p>
+          ) : null}
           <div>
             <Label htmlFor="reinstate-notes" className="text-xs text-muted-foreground">
               Reinstatement notes (optional)
@@ -79,7 +93,11 @@ export function ScheduleJobReinstateDialog({ open, onOpenChange, job, onReinstat
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={reinstateJob.isPending}>
             Close
           </Button>
-          <Button type="button" onClick={() => void handleSubmit()} disabled={reinstateJob.isPending}>
+          <Button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={reinstateJob.isPending || blockedReason != null}
+          >
             {reinstateJob.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Reinstate visit
           </Button>
