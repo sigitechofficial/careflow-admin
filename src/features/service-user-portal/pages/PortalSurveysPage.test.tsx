@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import type { PortalSurveyItem } from '@/features/surveys/types'
 
-const { state } = vi.hoisted(() => ({ state: { items: [] as unknown[] } }))
+const { state } = vi.hoisted(() => ({ state: { items: [] as unknown[], updates: undefined as unknown } }))
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to: _to, params: _params, ...rest }: { children: React.ReactNode; to: string; params?: unknown }) => (
     <a {...rest}>{children}</a>
@@ -13,6 +13,8 @@ vi.mock('@/features/surveys/hooks/useSurveys', () => ({
   usePortalSurveys: () => ({ data: state.items, isLoading: false, isError: false }),
   usePortalSurveyAnswers: () => ({ data: undefined, isLoading: false, isError: false }),
 }))
+
+vi.mock('@/features/surveys/actions/survey-actions', () => ({ usePortalUpdates: () => ({ data: state.updates }) }))
 
 import PortalSurveysPage from '@/features/service-user-portal/pages/PortalSurveysPage'
 
@@ -45,5 +47,16 @@ describe('Portal surveys: answered without a name', () => {
     expect(annual.queryByRole('button', { name: /View my answers/ })).not.toBeInTheDocument()
     const visit = within(cards.find(c => c.textContent?.includes('Visit check-in'))!)
     expect(visit.getByRole('button', { name: /View my answers/ })).toBeInTheDocument()
+  })
+})
+
+describe('Portal: You said, we did', () => {
+  it('shows what changed, published for the person’s branch', () => {
+    state.items = []
+    state.updates = { organisation: null, updates: [{ id: 'y1', title: 'What we changed', intro: null, items: [{ youSaid: 'Visits felt rushed', weDid: 'More time between visits' }], headline: null, publishedOn: '2026-11-06' }] }
+    render(<PortalSurveysPage />)
+    expect(screen.getByRole('heading', { name: 'You said, we did' })).toBeInTheDocument()
+    expect(screen.getByText('We did: More time between visits')).toBeInTheDocument()
+    state.updates = undefined
   })
 })

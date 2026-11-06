@@ -188,6 +188,11 @@ export default function SurveyResponsesPage() {
             </Select>
           ) : null}
           <Button type="button" size="sm" variant="outline" asChild>
+            <Link to="/surveys/$surveyId/actions" params={{ surveyId }} data-testid="acting-on-results-link">
+              Acting on results
+            </Link>
+          </Button>
+          <Button type="button" size="sm" variant="outline" asChild>
             <Link to="/surveys/$surveyId" params={{ surveyId: viewId }}>
               {viewId === surveyId ? 'View survey' : 'View this period'}
             </Link>

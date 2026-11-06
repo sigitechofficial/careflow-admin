@@ -187,8 +187,8 @@ export function useSurveyScores(surveyId: string, enabled = true) {
 export function useSaveScoring(surveyId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (scoring: { scales: Array<Omit<ScoreScale, 'key'> & { key?: string }> } | null) =>
-      apiJson(`/surveys/${surveyId}/scoring`, { method: 'PUT', body: JSON.stringify({ scoring }) }),
+    mutationFn: (input: { scoring: { scales: Array<Omit<ScoreScale, 'key'> & { key?: string }> } | null; unlockReason?: string }) =>
+      apiJson(`/surveys/${surveyId}/scoring`, { method: 'PUT', body: JSON.stringify(input) }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['surveys', 'insight', surveyId] })
       void qc.invalidateQueries({ queryKey: ['surveys', 'detail', surveyId] })

@@ -179,7 +179,7 @@ describe('dashboard and 360', () => {
     expect(await screen.findByText('Limited')).toBeInTheDocument()
     expect(screen.getByText(/Event sends to check or offer: 1/)).toBeInTheDocument()
     expect(await screen.findByText(/All copies of “Training feedback” together/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: 'Nominated individual' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Nominated individual' }))
     await waitFor(() => expect(screen.queryByText(/Event sends to check/)).toBeNull())
   })
 
@@ -198,5 +198,44 @@ describe('dashboard and 360', () => {
     wrap(<Survey360Page />)
     expect(await screen.findByText('91%')).toBeInTheDocument()
     expect(screen.getByText(/No survey for this audience found/)).toBeInTheDocument()
+  })
+})
+
+describe('insight pages: errors and the view switcher', () => {
+  it('the 360 report says it failed and offers Try again (never stuck on Loading)', async () => {
+    apiJson.mockRejectedValueOnce(new Error('down')).mockResolvedValue({
+      data: { year: 2026, keyQuestions: [{ code: 'SAFE', label: 'Safe' }], audiences: [], note: 'ok' },
+    })
+    wrap(<Survey360Page />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('ok')).toBeInTheDocument()
+  })
+
+  it('the view switcher is a set of pressed buttons', async () => {
+    apiJson.mockImplementation(async (url: string) =>
+      String(url).includes('pools')
+        ? { data: [] }
+        : { data: { view: 'REGISTERED_MANAGER', locationId: null, openSurveys: [], alerts: { open: 0, overdue: 0, urgent: 0 }, work: null, trends: [], totals: { surveys: 0, open: 0, closedThisYear: 0 } } },
+    )
+    wrap(<SurveyInsightPage />)
+    expect(await screen.findByRole('button', { name: 'Registered manager' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('tab')).toBeNull()
+  })
+
+  it('scores are locked once answered: a manager cannot change them, an admin must give a reason', async () => {
+    apiJson.mockResolvedValue({ message: 'ok', data: {} })
+    const questions = [{ id: 'q1', key: 'k1', questionText: 'Time pressures', questionType: 'LIKERT', sortOrder: 0 }] as never
+    const scoring = { scales: [{ key: 'd', label: 'Demands', questionKeys: ['k1'], reversed: [], method: 'MEAN' as const, bands: [] }] }
+    const { unmount } = wrap(<SurveyScoringPanel surveyId="s1" questions={questions} scoring={scoring} canEdit answered />)
+    expect(screen.getByTestId('scoring-locked')).toHaveTextContent(/next copy/)
+    expect(screen.queryByRole('button', { name: 'Change scores' })).toBeNull()
+    unmount()
+    wrap(<SurveyScoringPanel surveyId="s1" questions={questions} scoring={scoring} canEdit answered isAdmin />)
+    fireEvent.click(screen.getByRole('button', { name: 'Change scores' }))
+    const save = screen.getByRole('button', { name: 'Save scores' })
+    expect(save).toBeDisabled()
+    fireEvent.change(screen.getByLabelText(/Why change scores/), { target: { value: 'Wrong band in the tool' } })
+    fireEvent.click(save)
+    await waitFor(() => expect(JSON.parse(apiJson.mock.calls[0][1].body)).toMatchObject({ unlockReason: 'Wrong band in the tool' }))
   })
 })

@@ -16,6 +16,7 @@ import {
 } from '@/shared/ui/dialog'
 import { SurveySectionHeading } from '@/features/surveys/components/SurveySectionHeading'
 import { withSectionHeadings } from '@/features/surveys/survey-sections'
+import { usePortalUpdates } from '@/features/surveys/actions/survey-actions'
 
 function MyAnswersDialog({ survey, onClose }: { survey: PortalSurveyItem | null; onClose: () => void }) {
   const { data, isLoading, isError } = usePortalSurveyAnswers(survey?.token ?? null)
@@ -170,7 +171,37 @@ export default function PortalSurveysPage() {
         </ul>
       )}
 
+      <PortalYouSaidWeDid />
+
       <MyAnswersDialog survey={viewing} onClose={() => setViewing(null)} />
     </div>
+  )
+}
+
+/** "You said, we did": what changed because of what people told us (published by the office for this branch). */
+function PortalYouSaidWeDid() {
+  const { data } = usePortalUpdates()
+  const updates = data?.updates ?? []
+  if (!updates.length) return null
+  return (
+    <section aria-labelledby="ysw-portal-heading" className="space-y-3">
+      <h2 id="ysw-portal-heading" className="text-lg font-semibold text-foreground">
+        You said, we did
+      </h2>
+      {updates.map(u => (
+        <article key={u.id} className="rounded-xl border border-border bg-card p-4" data-testid="portal-ysw">
+          <h3 className="font-medium text-foreground">{u.title}</h3>
+          {u.intro ? <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{u.intro}</p> : null}
+          <dl className="mt-2 space-y-2 text-sm">
+            {u.items.map((i, n) => (
+              <div key={n}>
+                <dt className="font-medium">You said: {i.youSaid}</dt>
+                <dd>We did: {i.weDid}</dd>
+              </div>
+            ))}
+          </dl>
+        </article>
+      ))}
+    </section>
   )
 }

@@ -157,6 +157,8 @@ function SurveyIntroduction({ text }: { text: string }) {
 export default function SurveyBuilderPage() {
   const { surveyId = '' } = useParams({ strict: false }) as { surveyId?: string }
   const canManage = useAuthStore(s => s.can('surveys.manage'))
+  // Scores are locked once answered; admins may change them with a reason (audited).
+  const isAdmin = useAuthStore(s => ['admin', 'super_admin'].includes((s as { user?: { role?: string } | null }).user?.role ?? ''))
   const { data: survey, isLoading, isError } = useSurvey(surveyId)
   useDocumentTitle(survey ? `Survey: ${survey.title} – CareAdmin` : null)
   const addMut = useAddQuestion(surveyId)
@@ -1142,7 +1144,7 @@ export default function SurveyBuilderPage() {
         {!isTemplate ? <SurveyReviewersPanel surveyId={survey.id} canEdit={canEdit} /> : null}
         <SurveyAlertRulesPanel surveyId={survey.id} canEdit={canEdit} />
         {!survey.clonedFromId ? (
-          <SurveyScoringPanel surveyId={survey.id} questions={questions} scoring={survey.scoring} canEdit={canEdit} />
+          <SurveyScoringPanel surveyId={survey.id} questions={questions} scoring={survey.scoring} canEdit={canEdit} answered={(survey.responseCount ?? 0) > 0} isAdmin={isAdmin} />
         ) : null}
         {!isTemplate && (survey.targetKind !== 'PUBLIC' || !survey.isAnonymous) ? (
           <SurveyRemindersPanel surveyId={survey.id} canEdit={canEdit} isOpen={survey.status === 'ACTIVE'} />

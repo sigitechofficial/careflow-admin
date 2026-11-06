@@ -20,7 +20,24 @@ const blank = (n: number): Scale => ({ key: `scale-${n}-${Math.random().toString
  * of a question scores the most; tick "scored the other way" where agreeing is the worse answer. Results show each
  * scale's average and band from the reporting threshold up.
  */
-export function SurveyScoringPanel({ surveyId, questions, scoring, canEdit }: { surveyId: string; questions: SurveyQuestion[]; scoring: SurveyScoring | null | undefined; canEdit: boolean }) {
+export function SurveyScoringPanel({
+  surveyId,
+  questions,
+  scoring,
+  canEdit,
+  answered = false,
+  isAdmin = false,
+}: {
+  surveyId: string
+  questions: SurveyQuestion[]
+  scoring: SurveyScoring | null | undefined
+  canEdit: boolean
+  /** Someone has answered: scores are locked (an admin can change them with a reason, audited). */
+  answered?: boolean
+  isAdmin?: boolean
+}) {
+  const [unlockReason, setUnlockReason] = React.useState('')
+  const locked = answered && !isAdmin
   const [scales, setScales] = React.useState<Scale[]>(scoring?.scales ?? [])
   const [editing, setEditing] = React.useState(false)
   const save = useSaveScoring(surveyId)
@@ -31,7 +48,7 @@ export function SurveyScoringPanel({ surveyId, questions, scoring, canEdit }: { 
   const update = (i: number, patch: Partial<Scale>) => setScales(prev => prev.map((s, j) => (j === i ? { ...s, ...patch } : s)))
   const submit = async (next: Scale[]) => {
     try {
-      await save.mutateAsync(next.length ? { scales: next } : null)
+      await save.mutateAsync({ scoring: next.length ? { scales: next } : null, ...(answered ? { unlockReason: unlockReason.trim() } : {}) })
       toastSuccess(next.length ? 'Scores saved' : 'Scores removed')
       setEditing(false)
     } catch (e) {
@@ -51,12 +68,19 @@ export function SurveyScoringPanel({ surveyId, questions, scoring, canEdit }: { 
             person on screen; scores show only from the reporting threshold up.
           </p>
         </div>
-        {canEdit && !editing ? (
+        {canEdit && !editing && !locked ? (
           <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)}>
             {scales.length ? 'Change scores' : 'Add scores'}
           </Button>
         ) : null}
       </div>
+      {answered ? (
+        <p className="mt-2 text-xs text-muted-foreground" data-testid="scoring-locked">
+          {isAdmin
+            ? 'People have answered, so scores are locked: changing them needs a reason, kept in the audit trail. Usually change them on the next copy instead.'
+            : 'People have answered, so scores are locked. Change them on the next copy of this survey, or ask an admin.'}
+        </p>
+      ) : null}
       {!editing ? (
         scales.length ? (
           <ul className="mt-2 space-y-1 text-sm">
@@ -160,7 +184,13 @@ export function SurveyScoringPanel({ surveyId, questions, scoring, canEdit }: { 
             <Button type="button" size="sm" variant="outline" disabled={scales.length >= 12} onClick={() => setScales(prev => [...prev, blank(prev.length + 1)])}>
               Add a scale
             </Button>
-            <Button type="button" size="sm" disabled={save.isPending} onClick={() => void submit(scales)}>
+            {answered ? (
+              <div className="w-full">
+                <label htmlFor="scoring-unlock" className="block text-xs font-medium">Why change scores after people have answered?</label>
+                <Input id="scoring-unlock" value={unlockReason} maxLength={300} onChange={e => setUnlockReason(e.target.value)} />
+              </div>
+            ) : null}
+            <Button type="button" size="sm" disabled={save.isPending || (answered && unlockReason.trim().length < 5)} onClick={() => void submit(scales)}>
               Save scores
             </Button>
             <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>

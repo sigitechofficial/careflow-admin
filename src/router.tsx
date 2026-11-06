@@ -138,6 +138,8 @@ import ReadyMadeSurveysPage from '@/features/surveys/pages/ReadyMadeSurveysPage'
 import OutsidePeoplePage from '@/features/surveys/outside/OutsidePeoplePage'
 import SurveyFollowUpsPage from '@/features/surveys/pages/SurveyFollowUpsPage'
 import SurveyInsightPage, { Survey360Page, SurveyPoolPage } from '@/features/surveys/insight/SurveyInsightPages'
+import SurveyActionsPage from '@/features/surveys/actions/SurveyActionsPage'
+import { PublicUpdatePage, SurveyPackPage, SurveyUpdateLetterPage } from '@/features/surveys/actions/SurveyPrintPages'
 import PathwayCasesListPage from '@/features/specialist-pathways/pages/PathwayCasesListPage'
 import PathwayCaseDetailPage from '@/features/specialist-pathways/pages/PathwayCaseDetailPage'
 import SafeguardingListPage from '@/features/safeguarding/pages/SafeguardingListPage'
@@ -545,6 +547,8 @@ function AppRootShell() {
     (pathname.startsWith('/apps/') ? moduleLabelForSlug(pathname.split('/')[2] ?? '') : undefined) ??
     (/^\/surveys\/[^/]+\/responses$/.test(pathname)
       ? 'Survey results'
+      : /^\/surveys\/[^/]+\/actions$/.test(pathname)
+        ? 'Acting on results'
       : /^\/surveys\/[^/]+\/preview$/.test(pathname)
         ? 'Survey preview'
       : /^\/surveys\/[^/]+$/.test(pathname)
@@ -727,6 +731,28 @@ const publicSurveyUnsubscribeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/survey-unsubscribe/$token',
   component: SurveyUnsubscribePage,
+})
+
+/** "You said, we did" public page (no login): only while published with the public link. */
+const publicSurveyUpdateRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/you-said-we-did/$token',
+  component: PublicUpdatePage,
+})
+
+// CQC and commissioner pack, and the "You said, we did" letter: print views without the app shell.
+const surveyPackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/surveys/$surveyId/pack',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyPackPage,
+})
+
+const surveyUpdateLetterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/surveys/$surveyId/you-said-we-did/$updateId/letter',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyUpdateLetterPage,
 })
 
 // Print views (paper copy, poster): full page without the app shell, so they print cleanly.
@@ -1818,6 +1844,15 @@ const surveyPoolRoute = createRoute({
   component: SurveyPoolPage,
 })
 
+// Acting on results (Phase 2 part 6): actions, team discussions, "You said, we did". Results access in the API.
+const surveyActionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/$surveyId/actions',
+  validateSearch: (raw: Record<string, unknown>): { action?: string } => (typeof raw.action === 'string' ? { action: raw.action } : {}),
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyActionsPage,
+})
+
 const survey360Route = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/surveys/insight/360',
@@ -2825,6 +2860,9 @@ const routeTree = rootRoute.addChildren([
   legalPrivacyPolicyRoute,
   publicTakeSurveyRoute,
   publicSurveyUnsubscribeRoute,
+  publicSurveyUpdateRoute,
+  surveyPackRoute,
+  surveyUpdateLetterRoute,
   surveyPaperCopyRoute,
   surveyPosterRoute,
   portalLoginRoute,
@@ -2922,6 +2960,7 @@ const routeTree = rootRoute.addChildren([
     surveyInsightRoute,
     surveyPoolRoute,
     survey360Route,
+    surveyActionsRoute,
     surveyBuilderRoute,
     surveyResponsesRoute,
     surveyCallListRoute,

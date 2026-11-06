@@ -48,25 +48,43 @@ function Stat({ label, value, tone }: { label: string; value: React.ReactNode; t
   )
 }
 
+/** Loading, or a failure with Try again (never stuck on "Loading…"). */
+function LoadState({ isError, onRetry, retrying, what }: { isError: boolean; onRetry: () => void; retrying: boolean; what: string }) {
+  if (isError) {
+    return (
+      <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm" role="alert">
+        <p>{what} could not be loaded. Check your connection and try again.</p>
+        <Button type="button" size="sm" variant="outline" className="mt-2" onClick={onRetry} disabled={retrying}>
+          {retrying ? 'Trying again…' : 'Try again'}
+        </Button>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+      <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading…
+    </div>
+  )
+}
+
 const VIEWS: DashboardView[] = ['REGISTERED_MANAGER', 'BRANCH_MANAGER', 'NOMINATED_INDIVIDUAL']
 
 /** /surveys/insight: a surveys dashboard for each role, with links to pooled reports and the 360 report. */
 export default function SurveyInsightPage() {
   useDocumentTitle('Survey insight – CareAdmin')
   const [view, setView] = React.useState<DashboardView | null>(null)
-  const { data, isLoading } = useSurveysDashboard(view)
+  const { data, isLoading, isError, refetch, isFetching } = useSurveysDashboard(view)
   const pools = usePoolOptions()
   const current = view ?? data?.view ?? 'REGISTERED_MANAGER'
   return (
     <div className="w-full flex-1 px-4 py-6 sm:px-6">
       <Header title="Surveys dashboard">
-        <div role="tablist" aria-label="Dashboard for" className="flex flex-wrap gap-1 rounded-lg border border-border p-1">
+        <div role="group" aria-label="Dashboard for" className="flex flex-wrap gap-1 rounded-lg border border-border p-1">
           {VIEWS.map(v => (
             <button
               key={v}
               type="button"
-              role="tab"
-              aria-selected={current === v}
+              aria-pressed={current === v}
               className={cn('rounded-md px-3 py-1.5 text-sm', current === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}
               onClick={() => setView(v)}
             >
@@ -75,10 +93,8 @@ export default function SurveyInsightPage() {
           ))}
         </div>
       </Header>
-      {isLoading || !data ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading…
-        </div>
+      {!data ? (
+        <LoadState isError={isError && !isLoading} onRetry={() => void refetch()} retrying={isFetching} what="The dashboard" />
       ) : (
         <div className="space-y-5" data-testid="surveys-dashboard">
           <p className="text-xs text-muted-foreground">
@@ -197,16 +213,13 @@ export default function SurveyInsightPage() {
 /** /surveys/insight/pool: every copy of one template or ready-made survey in one report. */
 export function SurveyPoolPage() {
   const search = useSearch({ strict: false }) as { templateId?: string; libraryReference?: string }
-  const { data, isLoading, isError } = usePooledResults(search)
+  const { data, isLoading, isError, refetch, isFetching } = usePooledResults(search)
   useDocumentTitle('Pooled survey results – CareAdmin')
   return (
     <div className="w-full flex-1 px-4 py-6 sm:px-6">
       <Header title="All copies together" back="/surveys/insight" />
-      {isError ? <p className="text-sm text-muted-foreground">These results could not be loaded.</p> : null}
-      {isLoading || !data ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading…
-        </div>
+      {!data ? (
+        <LoadState isError={isError && !isLoading} onRetry={() => void refetch()} retrying={isFetching} what="These results" />
       ) : (
         <section className={card} data-testid="pooled-results">
           <p className="text-sm">
@@ -226,7 +239,7 @@ export function SurveyPoolPage() {
 /** /surveys/insight/360: the year's annual surveys side by side by CQC key question. */
 export function Survey360Page() {
   const [year, setYear] = React.useState(new Date().getFullYear())
-  const { data, isLoading } = useReport360(year)
+  const { data, isLoading, isError, refetch, isFetching } = useReport360(year)
   useDocumentTitle('360 report – CareAdmin')
   return (
     <div className="w-full flex-1 px-4 py-6 sm:px-6">
@@ -242,10 +255,8 @@ export function Survey360Page() {
           </select>
         </label>
       </Header>
-      {isLoading || !data ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading…
-        </div>
+      {!data ? (
+        <LoadState isError={isError && !isLoading} onRetry={() => void refetch()} retrying={isFetching} what="The 360 report" />
       ) : (
         <section className={card} data-testid="report-360">
           <p className="text-xs text-muted-foreground">{data.note}</p>
