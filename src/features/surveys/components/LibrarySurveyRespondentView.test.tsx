@@ -88,6 +88,75 @@ describe('a ready-made survey as people see it', () => {
     expect(screen.queryByText('How should we contact you?')).not.toBeInTheDocument()
   })
 
+  it('passes a CareFlow list (ethnicity) and answer headings through to the form', () => {
+    const form = libraryAsRespondentForm(
+      detail({
+        sections: [
+          {
+            title: 'About you',
+            evidence: [],
+            introduction: null,
+            questions: [
+              q({
+                id: 'e1',
+                questionText: 'What is your ethnic group?',
+                questionType: 'SINGLE_SELECT',
+                options: ['White British', 'Indian'],
+                optionsFrom: 'ETHNICITY',
+                optionGroups: [
+                  { group: 'White', options: [{ code: 'WB', label: 'White British' }] },
+                  { group: 'Asian or Asian British', options: [{ code: 'AI', label: 'Indian' }] },
+                ],
+              }),
+              q({
+                id: 'g1',
+                questionText: 'Which of these matter most?',
+                questionType: 'MULTI_SELECT',
+                options: ['Time', 'Kindness'],
+                answerGroups: [{ heading: 'Your visits', options: ['Time', 'Kindness'] }],
+              }),
+            ],
+          },
+        ],
+      } as Partial<LibrarySurveyDetail>),
+    )
+    const byId = new Map(form.questions.map(x => [x.id, x]))
+    expect(byId.get('e1')).toMatchObject({ optionsFrom: 'ETHNICITY', options: ['White British', 'Indian'] })
+    expect(byId.get('e1')!.optionGroups).toHaveLength(2)
+    expect(byId.get('g1')!.answerGroups).toEqual([{ heading: 'Your visits', options: ['Time', 'Kindness'] }])
+    expect(byId.get('e1')!.answerGroups).toBeUndefined()
+  })
+
+  it('the anonymous version: its own intro and notice, leaves out its questions and their follow-ups, and is anonymous', async () => {
+    const survey = detail({
+      anonymousVariant: {
+        introduction: 'This version is anonymous.',
+        privacyNotice: 'We never know who answered.',
+        closingMessage: 'Thank you, anonymously.',
+        questionsLeftOut: ['Would you like someone to contact you about your answers?'],
+        alertsLeftOut: [],
+      },
+    } as Partial<LibrarySurveyDetail>)
+    const form = libraryAsRespondentForm(survey, { anonymous: true })
+    expect(form.isAnonymous).toBe(true)
+    expect(form.allowAnonymousResponses).toBe(false)
+    expect(form.description).toBe('This version is anonymous.\n\nWe never know who answered.')
+    expect(form.questions.map(x => x.id)).toEqual(['q1', 'q2'])
+
+    render(<LibrarySurveyRespondentView survey={survey} />)
+    expect(screen.getByRole('button', { name: 'Named version' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('Would you like someone to contact you about your answers?')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Anonymous version' }))
+    expect(screen.getByRole('button', { name: 'Anonymous version' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByText('Would you like someone to contact you about your answers?')).not.toBeInTheDocument()
+    expect(screen.getByText(/This version is anonymous\./)).toBeInTheDocument()
+  })
+
+  it('no version switch when the survey has no anonymous version', () => {
+    render(<LibrarySurveyRespondentView survey={detail()} />)
+    expect(screen.queryByRole('button', { name: 'Anonymous version' })).not.toBeInTheDocument()
+  })
+
   it('an anonymous ready-made survey never asks contact-me', () => {
     render(<LibrarySurveyRespondentView survey={detail({ anonymous: true, allowAnonymousResponses: false })} />)
     expect(screen.queryByText('Would you like someone to contact you about your answers?')).not.toBeInTheDocument()

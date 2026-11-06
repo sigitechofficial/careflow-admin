@@ -62,6 +62,11 @@ export type LibrarySurveyQuestion = {
   commentConfig?: SurveyCommentConfig | null
   /** Asked only if the earlier question (its text given) has one of these answers. */
   showIf?: (SurveyShowIf & { questionText: string | null }) | null
+  /** Options from a CareFlow list (ETHNICITY …): the organisation's entries, grouped as people see them. */
+  optionsFrom?: string | null
+  optionGroups?: Array<{ group: string; options: Array<{ code: string; label: string }> }>
+  /** Headings over the answer choices. */
+  answerGroups?: Array<{ heading: string; options: string[] }>
 }
 
 export type LibrarySurveyDetail = LibrarySurvey & {
