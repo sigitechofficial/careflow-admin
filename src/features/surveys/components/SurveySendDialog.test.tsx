@@ -31,7 +31,7 @@ vi.mock('@/features/employees/hooks/useEmployees', () => ({
 vi.mock('@/features/employees/hooks/useEmployeeTabs', () => ({
   useAllEmployees: () => ({ data: [] }),
 }))
-vi.mock('@/features/surveys/components/SurveyFormerStaffField', () => ({ SurveyFormerStaffField: () => null }))
+vi.mock('@/features/surveys/components/SurveyFormerPeopleField', () => ({ SurveyFormerPeopleField: () => null }))
 vi.mock('@/features/surveys/contact-rule/SendContactRuleCheck', () => ({
   SendContactRuleCheck: ({ enabled, onChange }: { enabled: boolean; onChange: (v: { sendAnyway: boolean; reason: string }) => void }) =>
     enabled ? (

@@ -25,6 +25,7 @@ import {
   Trash2,
   TriangleAlert,
   Users,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
@@ -547,6 +548,14 @@ export default function SurveysPage() {
               Ready-made surveys
             </Link>
           </Button>
+          {canManage ? (
+            <Button type="button" size="sm" variant="outline" className="gap-1.5" asChild>
+              <Link to="/surveys/outside-people" data-testid="outside-people-link">
+                <UsersRound className="h-4 w-4" aria-hidden />
+                Outside people
+              </Link>
+            </Button>
+          ) : null}
           {canManage ? (
             <Button
               type="button"

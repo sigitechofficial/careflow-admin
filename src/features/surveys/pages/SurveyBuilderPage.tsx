@@ -99,6 +99,7 @@ import { SurveyReviewersPanel } from '@/features/surveys/reviewers/SurveyReviewe
 import { SurveyRemindersPanel } from '@/features/surveys/reminders/SurveyRemindersPanel'
 import { SurveyContactRulePanel } from '@/features/surveys/contact-rule/SurveyContactRulePanel'
 import { SurveyEventTriggerPanel } from '@/features/surveys/event-triggers/SurveyEventTriggerPanel'
+import { SendOutsideDialog } from '@/features/surveys/outside/SendOutsideDialog'
 import { SurveySharePanel } from '@/features/surveys/sharing/SurveySharePanel'
 import {
   MoveToSectionButton,
@@ -197,6 +198,7 @@ export default function SurveyBuilderPage() {
   const [lastSection, setLastSection] = React.useState('')
   const [removeTarget, setRemoveTarget] = React.useState<SurveyQuestion | null>(null)
   const [sendOpen, setSendOpen] = React.useState(false)
+  const [outsideOpen, setOutsideOpen] = React.useState(false)
   /** "Make a copy for each manager" (a staff survey whose text says {{manager}}). */
   const [managerCopiesOpen, setManagerCopiesOpen] = React.useState(false)
   const [newSurvey, setNewSurvey] = React.useState<NewSurveyStart | null>(null)
@@ -595,7 +597,14 @@ export default function SurveyBuilderPage() {
                             ? 'Publish & copy link'
                             : 'Copy shareable link'}
                       </Button>
-                    ) : (
+                    ) : null}
+                    {forPublic && !survey.isAnonymous && canManage && !isTemplate ? (
+                      <Button type="button" size="sm" variant="outline" className="gap-1.5" disabled={noQuestions} onClick={() => setOutsideOpen(true)}>
+                        <Send className="h-3.5 w-3.5" aria-hidden />
+                        Send to people
+                      </Button>
+                    ) : null}
+                    {forPublic ? null : (
                       <>
                         {survey.status === 'DRAFT' && !isSeries ? (
                           <Button
@@ -1131,7 +1140,7 @@ export default function SurveyBuilderPage() {
         <SurveyAccessPanel surveyId={survey.id} />
         {!isTemplate ? <SurveyReviewersPanel surveyId={survey.id} canEdit={canEdit} /> : null}
         <SurveyAlertRulesPanel surveyId={survey.id} canEdit={canEdit} />
-        {!isTemplate && survey.targetKind !== 'PUBLIC' ? (
+        {!isTemplate && (survey.targetKind !== 'PUBLIC' || !survey.isAnonymous) ? (
           <SurveyRemindersPanel surveyId={survey.id} canEdit={canEdit} isOpen={survey.status === 'ACTIVE'} />
         ) : null}
         {!isTemplate && survey.targetKind !== 'PUBLIC' ? (
@@ -1444,6 +1453,7 @@ export default function SurveyBuilderPage() {
       {!isTemplate && !forPublic ? (
         <SurveySendDialog survey={survey} open={sendOpen} onOpenChange={setSendOpen} />
       ) : null}
+      {outsideOpen ? <SendOutsideDialog surveyId={survey.id} open={outsideOpen} onOpenChange={setOutsideOpen} /> : null}
       {managerCopiesOpen ? (
         <SurveyManagerCopiesDialog surveyId={surveyId} open={managerCopiesOpen} onOpenChange={setManagerCopiesOpen} />
       ) : null}

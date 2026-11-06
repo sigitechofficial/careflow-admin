@@ -131,9 +131,11 @@ import SurveyResponsesPage from '@/features/surveys/pages/SurveyResponsesPage'
 import SurveyCallListPage from '@/features/surveys/reminders/SurveyCallListPage'
 import SurveyPreviewPage from '@/features/surveys/pages/SurveyPreviewPage'
 import TakeSurveyPage from '@/features/surveys/pages/TakeSurveyPage'
+import SurveyUnsubscribePage from '@/features/surveys/pages/SurveyUnsubscribePage'
 import SurveyPaperCopyPage from '@/features/surveys/sharing/SurveyPaperCopyPage'
 import SurveyPosterPage from '@/features/surveys/sharing/SurveyPosterPage'
 import ReadyMadeSurveysPage from '@/features/surveys/pages/ReadyMadeSurveysPage'
+import OutsidePeoplePage from '@/features/surveys/outside/OutsidePeoplePage'
 import SurveyFollowUpsPage from '@/features/surveys/pages/SurveyFollowUpsPage'
 import PathwayCasesListPage from '@/features/specialist-pathways/pages/PathwayCasesListPage'
 import PathwayCaseDetailPage from '@/features/specialist-pathways/pages/PathwayCaseDetailPage'
@@ -307,6 +309,7 @@ const pageTitles: Record<string, string> = {
   '/': 'Home',
   '/surveys': 'Surveys',
   '/surveys/ready-made': 'Ready-made surveys',
+  '/surveys/outside-people': 'Outside people',
   '/surveys/follow-ups': 'Survey follow-ups',
   '/service-users': 'Service Users',
   '/service-users/all': 'Service Users',
@@ -713,6 +716,13 @@ const publicTakeSurveyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/survey/$token',
   component: TakeSurveyPage,
+})
+
+/** "Unsubscribe from all surveys" from a survey message (no login). */
+const publicSurveyUnsubscribeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/survey-unsubscribe/$token',
+  component: SurveyUnsubscribePage,
 })
 
 // Print views (paper copy, poster): full page without the app shell, so they print cleanly.
@@ -1777,6 +1787,14 @@ const surveysRoute = createRoute({
   component: SurveysPage,
 })
 
+// Families, professionals and commissioners that public surveys are sent to (surveys.manage).
+const surveyOutsidePeopleRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/outside-people',
+  beforeLoad: requirePermission('surveys.manage'),
+  component: OutsidePeoplePage,
+})
+
 const surveyReadyMadeRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/surveys/ready-made',
@@ -2776,6 +2794,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   legalPrivacyPolicyRoute,
   publicTakeSurveyRoute,
+  publicSurveyUnsubscribeRoute,
   surveyPaperCopyRoute,
   surveyPosterRoute,
   portalLoginRoute,
@@ -2868,6 +2887,7 @@ const routeTree = rootRoute.addChildren([
     accidentsIncidentsRaiseRoute,
     surveysRoute,
     surveyReadyMadeRoute,
+    surveyOutsidePeopleRoute,
     surveyFollowUpsRoute,
     surveyBuilderRoute,
     surveyResponsesRoute,

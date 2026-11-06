@@ -27,7 +27,7 @@ import {
   SurveyAudienceFields,
   type SurveyAudienceValue,
 } from '@/features/surveys/components/SurveyAudienceFields'
-import { SurveyFormerStaffField } from '@/features/surveys/components/SurveyFormerStaffField'
+import { SurveyFormerPeopleField } from '@/features/surveys/components/SurveyFormerPeopleField'
 import { formatSurveyDateTime, isoToSurveyLocal, surveyLocalToIso } from '@/features/surveys/survey-datetime'
 import { SurveyDateTimeField } from '@/features/surveys/components/SurveyDateTimeField'
 import { SurveyChosenPeopleField } from '@/features/surveys/components/SurveyChosenPeopleField'
@@ -86,6 +86,7 @@ export function SurveySendDialog({ survey, open, onOpenChange }: Props) {
   const [recurrence, setRecurrence] = React.useState<SurveyRecurrence | ''>('')
   const [openDays, setOpenDays] = React.useState('')
   const [repeatReason, setRepeatReason] = React.useState('')
+  const [formerReason, setFormerReason] = React.useState('')
   // People we support: everyone in the branches, or chosen people.
   const [peopleMode, setPeopleMode] = React.useState<'branches' | 'people'>('branches')
   const [chosenIds, setChosenIds] = React.useState<string[]>([])
@@ -114,6 +115,7 @@ export function SurveySendDialog({ survey, open, onOpenChange }: Props) {
       setResult(null)
       setOverride({ sendAnyway: false, reason: '' })
       setRepeatReason('')
+      setFormerReason('')
     }
   }, [open])
 
@@ -155,6 +157,7 @@ export function SurveySendDialog({ survey, open, onOpenChange }: Props) {
       recurrence: recurrence || null,
       ...(repeating ? { periodOpenDays: openDaysNumber } : {}),
       ...(shortRepeat && repeatReason.trim() ? { repeatReason: repeatReason.trim() } : {}),
+      ...(formerReason.trim() && !isFuture && !repeating ? { formerReason: formerReason.trim() } : {}),
   }
   // The 4-week rule: checked before Send now (scheduled and repeating sends apply it when they go out).
   const sendingNow = !isFuture && !repeating && !needsRepeat && !noneChosen
@@ -240,13 +243,25 @@ export function SurveySendDialog({ survey, open, onOpenChange }: Props) {
           ) : null}
 
           {choosingPeople ? (
-            <SurveyChosenPeopleField
-              surveyId={survey.id}
-              anonymous={survey.isAnonymous}
-              value={chosenIds}
-              onChange={setChosenIds}
-              enabled={open}
-            />
+            <>
+              <SurveyChosenPeopleField
+                surveyId={survey.id}
+                anonymous={survey.isAnonymous}
+                value={chosenIds}
+                onChange={setChosenIds}
+                enabled={open}
+              />
+              {open && !isPeriod && !repeating && !isFuture ? (
+                <SurveyFormerPeopleField
+                  surveyId={survey.id}
+                  anonymous={survey.isAnonymous}
+                  value={chosenIds}
+                  onChange={setChosenIds}
+                  reason={formerReason}
+                  onReasonChange={setFormerReason}
+                />
+              ) : null}
+            </>
           ) : (
             <>
               <SurveyAudienceFields
@@ -256,12 +271,14 @@ export function SurveySendDialog({ survey, open, onOpenChange }: Props) {
                 showPeople={!forServiceUsers}
                 enabled={open}
               />
-              {open && survey.targetKind === 'EMPLOYEE' && !isPeriod ? (
-                <SurveyFormerStaffField
+              {open && survey.targetKind === 'EMPLOYEE' && !isPeriod && !repeating && !isFuture ? (
+                <SurveyFormerPeopleField
                   surveyId={survey.id}
                   anonymous={survey.isAnonymous}
                   value={audience.employeeIds}
                   onChange={ids => setAudience(a => ({ ...a, employeeIds: ids }))}
+                  reason={formerReason}
+                  onReasonChange={setFormerReason}
                 />
               ) : null}
             </>

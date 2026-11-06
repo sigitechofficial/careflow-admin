@@ -285,7 +285,7 @@ export default function SurveyResponsesPage() {
             </p>
           ) : (
             <>
-              {forPublic ? null : (
+              {forPublic && survey.isAnonymous ? null : (
                 <SurveyRecipientsPanel
                   className="mb-5"
                   surveyId={viewId}

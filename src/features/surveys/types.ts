@@ -570,6 +570,8 @@ export type SurveyRecipientItem = {
   status: SurveyRecipientStatus
   employeeId: string | null
   employeeName: string | null
+  /** An outside person (named public surveys): their name and organisation. */
+  externalName?: string | null
   serviceUserId: string | null
   serviceUserName: string | null
   sentAt: string | null
@@ -738,6 +740,8 @@ export type SendSurveyInput = {
   contactRuleOverride?: { reason: string }
   /** A weekly repeat: why people should be asked this often (the 4-week rule never stops a series). */
   repeatReason?: string
+  /** Former people chosen by name (left, or care ended, in the last 3 months): why (5–300 characters). */
+  formerReason?: string
 }
 
 export type CreateQuestionInput = {

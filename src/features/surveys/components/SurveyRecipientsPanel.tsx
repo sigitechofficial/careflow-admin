@@ -145,7 +145,7 @@ export function SurveyRecipientsPanel({
           <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-4 py-2">{forServiceUsers ? 'Service user' : 'Employee'}</th>
+                <th className="px-4 py-2">{forServiceUsers ? 'Service user' : forPublic ? 'Person' : 'Employee'}</th>
                 <th className="px-4 py-2">Status</th>
                 <th className="px-4 py-2">Sent</th>
                 <th className="px-4 py-2">Completed</th>
@@ -157,7 +157,7 @@ export function SurveyRecipientsPanel({
               {rows.map(r => (
                 <tr key={r.id} className="border-b border-border/70 last:border-0">
                   <td className="px-4 py-2.5 font-medium text-foreground">
-                    {r.serviceUserName ?? r.employeeName ?? '—'}
+                    {r.serviceUserName ?? r.employeeName ?? r.externalName ?? '—'}
                   </td>
                   <td className="px-4 py-2.5">
                     <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-medium', STATUS_TONE[r.status])}>

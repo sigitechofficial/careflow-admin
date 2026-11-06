@@ -16,6 +16,7 @@ import { ServiceUserPersonalDetailsForm } from '@/features/service-users/compone
 import { ServiceUserPhotosTab } from '@/features/service-users/components/ServiceUserPhotosTab'
 import { ServiceUserPortalAccessSection } from '@/features/service-users/components/ServiceUserPortalAccessSection'
 import { SurveyContactPreferencesSection } from '@/features/surveys/reminders/SurveyContactPreferencesSection'
+import { SurveysAboutPersonSection } from '@/features/surveys/outside/SurveysAboutPersonSection'
 import { ServiceUserIncidentsComplaintsPanel } from '@/features/service-users/components/ServiceUserIncidentsComplaintsPanel'
 import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
 import { ServiceUserReferralsTab } from '@/features/service-users/referrals/components/ServiceUserReferralsTab'
@@ -61,6 +62,7 @@ export function ServiceUserProfileSectionContent({
             />
             <ServiceUserPortalAccessSection serviceUserId={serviceUserId} defaultEmail={detail.email} />
             <SurveyContactPreferencesSection subjectKind="SERVICE_USER" subjectId={serviceUserId} />
+            <SurveysAboutPersonSection serviceUserId={serviceUserId} />
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Loading…</p>

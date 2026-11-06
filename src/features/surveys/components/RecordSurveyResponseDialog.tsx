@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import { Loader2, Phone } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
@@ -141,6 +143,8 @@ export function RecordSurveyResponseDialog({
   const [personSearch, setPersonSearch] = React.useState('')
   const [relation, setRelation] = React.useState<SurveyRespondentRelation>('SELF')
   const [respondentName, setRespondentName] = React.useState('')
+  // Who answered for the person, chosen from their People involved (their own survey contact, decision P10).
+  const [respondentContactId, setRespondentContactId] = React.useState('')
   const [contactedAt, setContactedAt] = React.useState('')
   const [contactNumber, setContactNumber] = React.useState('')
   const [contactNotes, setContactNotes] = React.useState('')
@@ -187,6 +191,9 @@ export function RecordSurveyResponseDialog({
 
   const isTelephone = channel === 'TELEPHONE'
   const showName = !anonymous && relation !== 'SELF'
+  const showContactPick =
+    !asReviewer && targetKind === 'SERVICE_USER' && !isAnonymous && !anonymous && Boolean(personId) && (relation === 'FAMILY_MEMBER' || relation === 'REPRESENTATIVE')
+
   // Linked to no one (recorded as anonymous, or on an anonymous survey): nobody could reply, so the
   // contact-me question is not asked — same rule as the server, which discards any answer to it.
   const unlinked = Boolean(isAnonymous) || (isEdit ? Boolean(editing?.isAnonymous) : anonymous)
@@ -240,6 +247,7 @@ export function RecordSurveyResponseDialog({
       answers: payloadAnswers,
       respondentRelation: relation,
       respondentName: showName ? respondentName.trim() || undefined : undefined,
+      ...(!editing && showContactPick && respondentContactId ? { respondentContactId } : {}),
       contactedAt: orgDatetimeLocalToIso(contactedAt) || undefined,
       contactNumber: !anonymous && isTelephone ? contactNumber.trim() || undefined : undefined,
       contactNotes: contactNotes.trim() || undefined,
@@ -368,6 +376,17 @@ export function RecordSurveyResponseDialog({
                 ))}
               </select>
             </label>
+            {showContactPick && !editing && open ? (
+              <RespondentContactPicker
+                surveyId={surveyId}
+                serviceUserId={personId}
+                value={respondentContactId}
+                onChange={(id, name) => {
+                  setRespondentContactId(id)
+                  if (name && !respondentName.trim()) setRespondentName(name)
+                }}
+              />
+            ) : null}
             {showName ? (
               <label className="block space-y-1.5 text-sm">
                 <span className="text-xs font-medium text-foreground">
@@ -516,5 +535,54 @@ export function RecordSurveyResponseDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Who answered for the person, from their People involved (names only): that family member's or
+ * representative's own survey contact (decision P10). Optional; never on anonymous answers.
+ */
+function RespondentContactPicker({
+  surveyId,
+  serviceUserId,
+  value,
+  onChange,
+}: {
+  surveyId: string
+  serviceUserId: string
+  value: string
+  onChange: (id: string, name: string | null) => void
+}) {
+  const { data: involved } = useQuery({
+    queryKey: ['surveys', 'respondent-contacts', surveyId, serviceUserId],
+    retry: false,
+    queryFn: async () =>
+      (
+        await apiJson<ApiEnvelope<Array<{ id: string; name: string; relationship: string | null }>>>(
+          `/surveys/${surveyId}/respondent-contacts?serviceUserId=${encodeURIComponent(serviceUserId)}`,
+          { method: 'GET' },
+        )
+      ).data,
+  })
+  if (!involved?.length) return null
+  return (
+    <label className="block space-y-1.5 text-sm">
+      <span className="text-xs font-medium text-foreground">Who from People involved (optional)</span>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value, involved.find(x => x.id === e.target.value)?.name ?? null)}
+        className={`${FIELD_CLASS} h-9`}
+        data-testid="record-respondent-contact"
+      >
+        <option value="">Not one of them / not said</option>
+        {involved.map(c => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+            {c.relationship ? ` (${c.relationship})` : ''}
+          </option>
+        ))}
+      </select>
+      <span className="block text-xs text-muted-foreground">Counts as their own survey contact, so they are not asked again within 4 weeks.</span>
+    </label>
   )
 }

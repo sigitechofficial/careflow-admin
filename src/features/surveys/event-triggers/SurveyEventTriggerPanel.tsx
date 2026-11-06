@@ -93,7 +93,7 @@ export function SurveyEventTriggerPanel({ surveyId, canEdit }: Props) {
                     <li key={b}>{b}</li>
                   ))}
                   {t.exclusions.map(x => (
-                    <li key={x}>Not sent with {data.exclusions.find(e => e.code === x)?.label.toLowerCase() ?? x}</li>
+                    <li key={x}>Also not sent when: {data.exclusions.find(e => e.code === x)?.label.toLowerCase() ?? x}</li>
                   ))}
                   <li>Counts events from {formatDay(t.since)}. Each send goes into this survey’s copy for that month.</li>
                 </ul>

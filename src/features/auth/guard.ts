@@ -14,7 +14,7 @@ function isPublicLegalPath(path: string): boolean {
 }
 
 function isPublicSurveyPath(path: string): boolean {
-  return path === '/survey' || path.startsWith('/survey/')
+  return path === '/survey' || path.startsWith('/survey/') || path.startsWith('/survey-unsubscribe/')
 }
 
 function isPortalPath(path: string) {

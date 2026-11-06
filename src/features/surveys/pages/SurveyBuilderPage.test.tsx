@@ -117,6 +117,7 @@ vi.mock('@/features/surveys/reminders/SurveyRemindersPanel', () => ({
   SurveyRemindersPanel: () => <div data-testid="survey-reminders" />,
 }))
 vi.mock('@/features/surveys/contact-rule/SendContactRuleCheck', () => ({ SendContactRuleCheck: () => null }))
+vi.mock('@/features/surveys/components/SurveyFormerPeopleField', () => ({ SurveyFormerPeopleField: () => null }))
 vi.mock('@/features/surveys/event-triggers/SurveyEventTriggerPanel', () => ({
   SurveyEventTriggerPanel: () => <div data-testid="survey-event-trigger" />,
 }))
