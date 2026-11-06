@@ -1,66 +1,22 @@
 /**
- * Automation scripts on the Scripts page. Each runs in the browser as the signed-in user, calling
- * the same API endpoints as the admin screens, so every app rule and audit log applies.
- * Add a script here (and its runner beside this file) to list it on the page.
+ * Automation workflows on the Scripts page. Each runs in the browser as the signed-in user, calling
+ * the same API endpoints as the admin screens, so every app rule and audit entry applies.
+ * Add a workflow here (with its page and route) to list it.
  */
-import { runCreateVisits, type CreateVisitsInput, type Summary } from '@/features/scripts/create-visits.runner'
-
-export type ScriptDefinition = {
+export type ScriptWorkflow = {
   id: string
   title: string
   description: string
-  /** What the script does, step by step, shown on its card. */
-  steps: string[]
-  /** Input pre-filled in the editor (JSON). */
-  exampleInput: () => unknown
-  run: (input: unknown, options: { dryRun: boolean; log: (line: string) => void }) => Promise<Summary[]>
+  /** Its details page. */
+  href: '/scripts/visit-creation'
 }
 
-export const SCRIPTS: ScriptDefinition[] = [
+export const SCRIPT_WORKFLOWS: ScriptWorkflow[] = [
   {
-    id: 'create-visits',
-    title: 'Create visits with carers, tasks and medicines',
+    id: 'visit-creation',
+    title: 'Visit Creation',
     description:
-      'Adds visits to one or more service users’ visit plans, puts one or several carers on them, adds their tasks and medicines, then builds the rota.',
-    steps: [
-      'Finds each service user (number or name) and the carers (full name).',
-      'Checks each carer with the app’s carer check (working pattern, clashes, weekly hours, leave). A named carer who is unavailable is swapped for an available one; leave "carers" out to let it choose. A visit no available carer can take is not added, so nothing is left unassigned.',
-      'Adds the visits to the visit plan, with the weekly-hours checks the Visit plan tab runs.',
-      'Adds the tasks (existing ones are kept) and the medicines (one per name, a time for each round).',
-      'Activates a draft plan and builds the rota as Generate rota does: from today through the rota horizon (Settings → Dom Rules, 28 days by default); the nightly rolling rota keeps extending it. "fromDate" / "toDate" in the input override this.',
-      'Lists any visit still missing carers, with the reason to check.',
-    ],
-    exampleInput: () => {
-      const example: CreateVisitsInput = {
-        amendmentReason: 'Visits set up from the Scripts page',
-        serviceUsers: [
-          {
-            serviceUser: 'SU-GW-03',
-            visits: [
-              {
-                round: 'MORNING',
-                start: '08:00',
-                end: '09:00',
-                days: 'daily',
-                carers: ['Amina Yusuf'],
-                tasks: [{ task: 'Assisted wash', instructions: 'Assist with a wash at the sink', priority: 'important' }],
-                medicines: [{ name: 'Paracetamol', dose: '500 mg', route: 'ORAL' }],
-              },
-              {
-                round: 'EVENING',
-                start: '18:00',
-                end: '18:30',
-                days: 'weekdays',
-                carers: ['Chloe Mensah'],
-                carersByDay: { Fri: 'Liam Walsh' },
-                tasks: [{ task: 'Meal prep', instructions: 'Light supper' }],
-              },
-            ],
-          },
-        ],
-      }
-      return example
-    },
-    run: (input, options) => runCreateVisits(input as CreateVisitsInput, options),
+      'Automatically create service user visits, assign carers, and configure associated tasks and medications using the existing CareFlow visit scheduling and rota generation functionality.',
+    href: '/scripts/visit-creation',
   },
 ]

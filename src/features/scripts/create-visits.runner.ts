@@ -16,12 +16,15 @@
  * Every app rule still runs: carers over their weekly hours go to Hours approvals, blocked carers and
  * clashes are refused, audit logs are written as the signed-in user.
  */
-import { apiJson } from '@/shared/api/api-client'
+import { ApiError, apiJson } from '@/shared/api/api-client'
 import {
   resolveGenerateRotaToDate,
   todayIsoDate,
   type RotaHorizonMode,
 } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
+import { nextAdditionalVisitSlotCode } from '@/features/service-users/visit-plan/visit-plan-time-slots.util'
+import { pickDatasetMedicines } from '@/features/scripts/medicine-dataset'
+import { pickRoundTasks } from '@/features/scripts/task-dataset'
 
 // ── Input (the same JSON as create-visits.example.json) ───────────────────────
 
@@ -48,6 +51,10 @@ export type VisitInput = {
   notes?: string
   tasks?: TaskInput[]
   medicines?: MedicineInput[]
+  /** Medicines to auto-add from the built-in dataset (medicine-dataset.ts), picked per service user: 1–5. */
+  autoMedicines?: number
+  /** Everyday tasks to auto-add for the round (task-dataset.ts), picked per service user: 1–5. */
+  autoTasks?: number
 }
 export type ServiceUserInput = {
   serviceUser: string
@@ -63,6 +70,11 @@ export type CreateVisitsInput = {
   amendmentReason?: string
   /** No longer used: carers are only put on visits they are available for (working patterns count). */
   respectWorkingPatterns?: boolean
+  /**
+   * Carers to try first when a visit's own carers are not available (Custom Visit Creation: every
+   * carer selected on the page). The app's own suggestions follow.
+   */
+  carerPool?: CarerRef[]
   serviceUsers: ServiceUserInput[]
 }
 
@@ -74,16 +86,40 @@ export type Summary = {
   medicines: string[]
   warnings: string[]
   visits?: { total: number; fullyStaffed: number; carers: Record<string, number>; missing: string[] }
+  /** Rota visits this run created (the rest of the range already existed). */
+  visitsCreated?: number
+  /** Requests this run sent to Hours approvals (visits waiting for a manager, unassigned until then). */
+  heldForApproval?: number
+  /** Plan saved; the rota waits for the choice after the run (a new plan is still a draft). */
+  rotaPending?: boolean
   failed?: string
 }
+
+/** What a run is started with, checked by the server and kept in its audit record. */
+export type RunMeta = { mode: 'AUTOMATIC' | 'CUSTOM'; serviceUserIds?: string[]; carerIds?: string[] }
 
 export type RunOptions = {
   dryRun: boolean
   /** One progress line at a time, as the run goes. */
   log: (line: string) => void
+  /**
+   * Make the rota in the run (default). False: plans, tasks and medicines are saved, new plans stay
+   * drafts, and the rota waits — `generateRota` on the result makes it when you choose to.
+   */
+  generateRota?: boolean
+}
+
+/** A run's results, and — when the rota was left for later — the step that makes it. */
+export type CreateVisitsRun = {
+  results: Summary[]
+  /** Activates waiting drafts and generates their rota, updating `results`; null when nothing waits. */
+  generateRota: (() => Promise<Summary[]>) | null
 }
 
 const DEFAULT_REASON = 'Visits added from the Scripts page'
+/** Weekly contracted hours used when a service user has none (DOM Care tab) and no plan yet. */
+export const DEFAULT_WEEKLY_CONTRACTED_HOURS = '20'
+
 /** The API generates at most 31 days of rota per call. */
 const MAX_GENERATE_DAYS = 31
 /** Saving a plan or generating a month of rota can take a while. */
@@ -91,12 +127,28 @@ const WRITE_TIMEOUT_MS = 180_000
 
 type Envelope<T> = { data?: T; meta?: Record<string, unknown>; message?: string }
 
-function api<T = unknown>(method: 'GET' | 'POST' | 'PUT' | 'PATCH', path: string, body?: unknown) {
-  return apiJson<Envelope<T>>(
-    path,
-    { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) },
-    { timeoutMs: WRITE_TIMEOUT_MS },
-  )
+/** Waits after the API's rate limit (429) turns a request away, before sending it again. */
+const RATE_LIMIT_WAITS_MS = [5_000, 10_000, 20_000, 30_000]
+
+/**
+ * One API call as the signed-in user. A run makes many calls in a row, so a request the rate limiter
+ * turned away (429: rejected before it reached the handler, nothing saved) is sent again after a pause —
+ * for saves too, which the shared client does not retry. Any other error stops as before.
+ */
+async function api<T = unknown>(method: 'GET' | 'POST' | 'PUT' | 'PATCH', path: string, body?: unknown) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await apiJson<Envelope<T>>(
+        path,
+        { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) },
+        { timeoutMs: WRITE_TIMEOUT_MS },
+      )
+    } catch (e) {
+      const wait = RATE_LIMIT_WAITS_MS[attempt]
+      if (!(e instanceof ApiError) || e.status !== 429 || wait === undefined) throw e
+      await new Promise((resolve) => setTimeout(resolve, wait))
+    }
+  }
 }
 
 // ── Small helpers ──────────────────────────────────────────────────────────────
@@ -246,6 +298,8 @@ type Plan = {
   id: string
   status: 'DRAFT' | 'ACTIVE' | 'SUSPENDED' | 'ENDED'
   weeklyContractedHours: string | null
+  effectiveFrom?: string | null
+  effectiveTo?: string | null
   numberOfCarers?: number
   notes?: string | null
   slots: PlanSlot[]
@@ -288,8 +342,17 @@ function existingSlotInput(slot: PlanSlot): SlotInput {
   return input
 }
 
-const sameSlot = (a: SlotInput, b: SlotInput) =>
-  a.slotCode === b.slotCode && a.plannedStartTime === b.plannedStartTime && a.plannedEndTime === b.plannedEndTime
+/**
+ * The round a plan row belongs to. A round can hold several visits, as on the visit plan screen: the
+ * first uses the round's code (`MORNING`), each further one its own row (`MORNING__2`, …) linked to
+ * the round through medicationRoundCode.
+ */
+const roundOf = (s: SlotInput) =>
+  String(s.medicationRoundCode ?? '').trim().toUpperCase() || s.slotCode.toUpperCase().replace(/__\d+$/, '')
+
+/** Same visit: same round and same times (re-running updates it rather than adding another). */
+const sameVisit = (s: SlotInput, round: string, start: string, end: string) =>
+  roundOf(s) === round && s.plannedStartTime === start && s.plannedEndTime === end
 
 /** The Visit tasks tab's default schedule (DEFAULT_VISIT_TASK_SCHEDULE), on the visit's days. */
 function defaultTaskSchedule(daysOfWeek: number[]) {
@@ -310,7 +373,12 @@ function defaultTaskSchedule(daysOfWeek: number[]) {
 // ── The run ────────────────────────────────────────────────────────────────────
 
 /** Runs the whole input: every service user in turn; one failing does not stop the others. */
-export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }: RunOptions): Promise<Summary[]> {
+export async function runCreateVisits(
+  input: CreateVisitsInput,
+  { dryRun, log, generateRota = true }: RunOptions,
+): Promise<CreateVisitsRun> {
+  /** Service users whose plan is saved and whose rota waits for the choice after the run. */
+  const pendingRota: Array<{ summary: Summary; serviceUserId: string; plan: Plan }> = []
   validateInput(input)
   const { fromDate, toDate, how } = await rotaDates(input)
   const carerCache = new Map<string, EmployeeRow>()
@@ -344,14 +412,22 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
     const key = norm(ref)
     const cached = carerCache.get(key)
     if (cached) return cached
-    const res = await api<EmployeeRow[]>('GET', `/employees?search=${encodeURIComponent(ref)}&limit=20`)
-    const rows = res.data ?? []
-    const matches = UUID.test(ref)
-      ? rows.filter((e) => e.id === ref)
-      : rows.filter((e) => norm(carerName(e)) === key)
-    if (UUID.test(ref) && !matches.length) {
-      const one = await api<EmployeeRow>('GET', `/employees/${ref}`)
-      if (one.data) matches.push(one.data)
+    const matches: EmployeeRow[] = []
+    if (UUID.test(ref)) {
+      // Picked on the page by id: the detail record (its name may sit under personalDetail).
+      type Detail = EmployeeRow & { personalDetail?: { firstName?: string | null; lastName?: string | null } | null }
+      const one = (await api<Detail>('GET', `/employees/${ref}`)).data
+      if (one) {
+        matches.push({
+          id: one.id,
+          fullName: one.fullName ?? null,
+          firstName: one.firstName ?? one.personalDetail?.firstName ?? null,
+          lastName: one.lastName ?? one.personalDetail?.lastName ?? null,
+        })
+      }
+    } else {
+      const res = await api<EmployeeRow[]>('GET', `/employees?search=${encodeURIComponent(ref)}&limit=20`)
+      matches.push(...(res.data ?? []).filter((e) => norm(carerName(e)) === key))
     }
     if (matches.length !== 1) {
       throw new Error(
@@ -367,6 +443,8 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
 
   /** Carers this run has already put on visits: no double booking before the rota shows them. */
   const picked: Array<{ employeeId: string; days: number[]; start: number; end: number }> = []
+  /** input.carerPool, found once: tried first when a visit's own carers are not available. */
+  const pool: EmployeeRow[] = []
   /** Weekly minutes this run has added per carer (a dry run saves nothing, so the API cannot count them). */
   const addedMinutes = new Map<string, number>()
   const toMinutes = (hm: string) => {
@@ -398,10 +476,10 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
       (p) => p.employeeId === c.employeeId && p.days.some((d) => visit.days.includes(d)) && p.start < end && p.end > start,
     )
     if (clash) return 'already given another visit at that time in this run'
-    // Weekly hours: what the rota already has + what this run added + this visit (unless already on it).
-    const allowed = (c.allowedWeeklyHours ?? c.contractedWeeklyHours ?? 0) * 60
-    const used = (c.assignedWeeklyHours ?? 0) * 60 + (addedMinutes.get(c.employeeId) ?? 0) + (alreadyOnVisit ? 0 : weeklyMinutes)
-    if (c.exceedsContractedHours || (allowed > 0 && used > allowed)) return 'no weekly hours left'
+    // Weekly hours are not a reason to swap: over the limit, the app's own workflow applies (Settings →
+    // Dom Rules — e.g. the visit waits in Hours approvals until a manager approves, as when saved by hand).
+    void weeklyMinutes
+    void alreadyOnVisit
     return null
   }
 
@@ -424,8 +502,10 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
       plannedStartTime: visit.start,
       plannedEndTime: visit.end,
       requiredCarers: required,
-      ...(named.length ? { includeEmployeeIds: named.map((e) => e.id) } : {}),
+      // The selected carers too: the carer check otherwise lists only carers it matches by location.
+      ...(named.length || pool.length ? { includeEmployeeIds: [...new Set([...named, ...pool].map((e) => e.id))] } : {}),
     })
+    const inPool = (id: string) => pool.some((e) => e.id === id)
     const candidates = res.data?.candidates ?? []
     const weeklyMinutes = minutesBetween(visit.start, visit.end) * visit.days.length
     const reasonFor = (id: string) => {
@@ -441,13 +521,19 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
     const others = candidates
       .filter((c) => !chosen.some((e) => e.id === c.employeeId) && !named.some((e) => e.id === c.employeeId))
       .filter((c) => !unavailableReason(c, visit, weeklyMinutes, alreadyOn.has(c.employeeId)))
-      .sort((a, b) => Number(b.isPreferred) - Number(a.isPreferred) || (a.assignedWeeklyHours ?? 0) - (b.assignedWeeklyHours ?? 0))
+      .sort(
+        (a, b) =>
+          Number(inPool(b.employeeId)) - Number(inPool(a.employeeId)) ||
+          Number(b.isPreferred) - Number(a.isPreferred) ||
+          (a.assignedWeeklyHours ?? 0) - (b.assignedWeeklyHours ?? 0),
+      )
     for (const c of others) {
       if (chosen.length >= required) break
       const row: EmployeeRow = { id: c.employeeId, fullName: c.displayName ?? null, firstName: null, lastName: null }
       carerCache.set(norm(c.displayName ?? c.employeeId), row)
       chosen.push(row)
-      notes.push(`${c.displayName} put on ${visit.round} ${visit.start}${onDay(visit.days)} instead (available)`)
+      const from = inPool(c.employeeId) ? 'available, one of the selected carers' : 'available'
+      notes.push(`${c.displayName} put on ${visit.round} ${visit.start}${onDay(visit.days)} instead (${from})`)
     }
     if (chosen.length < required) return null
     // Hold the picks for the rest of the run.
@@ -788,7 +874,23 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
       if (on.length >= required) fullyStaffed += 1
       else missing.push(`${job.scheduledStartDateTime.slice(0, 16).replace('T', ' ')} ${job.jobName} (${on.length}/${required})`)
       for (const a of on) {
-        const name = nameById.get(a.employeeId) ?? a.employeeId
+        // A carer already on the rota but not named in this run: look the name up once.
+        if (!nameById.has(a.employeeId)) {
+          type Detail = EmployeeRow & { personalDetail?: { firstName?: string | null; lastName?: string | null } | null }
+          const one = (await api<Detail>('GET', `/employees/${a.employeeId}`).catch(() => null))?.data
+          nameById.set(
+            a.employeeId,
+            one
+              ? carerName({
+                  id: one.id,
+                  fullName: one.fullName ?? null,
+                  firstName: one.firstName ?? one.personalDetail?.firstName ?? null,
+                  lastName: one.lastName ?? one.personalDetail?.lastName ?? null,
+                })
+              : a.employeeId,
+          )
+        }
+        const name = nameById.get(a.employeeId)!
         carers[name] = (carers[name] ?? 0) + 1
       }
     }
@@ -802,6 +904,7 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
   ): Promise<Summary> {
     const row = await findServiceUser(su.serviceUser)
     const label = `${row.serviceUserNumber ?? row.id} ${row.firstName} ${row.lastName}`
+    labelOf.set(su, label)
     const summary: Summary = { serviceUser: label, plan: '', slots: [], tasks: [], medicines: [], warnings: [] }
     log(`━━ ${label}`)
 
@@ -813,52 +916,116 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
       plans.find((p) => p.status === 'SUSPENDED')
     const existingSlots = (working?.slots ?? []).map(existingSlotInput)
 
+    // Auto-added medicines: picked here, for this service user, from the built-in dataset — at the visit's
+    // start (within the visit), never one they already have active or that is already on their visits.
+    let visits: VisitInput[] = su.visits ?? []
+    if (visits.some((v) => (v.autoMedicines ?? 0) > 0)) {
+      const active = (
+        (await api<Array<{ medicationName: string; status: string }>>('GET', `/service-users/${row.id}/medications?limit=100`)).data ?? []
+      )
+        .filter((m) => m.status === 'ACTIVE')
+        .map((m) => m.medicationName)
+      const taken = new Set([...active, ...visits.flatMap((v) => (v.medicines ?? []).map((m) => m.name))])
+      visits = visits.map((v) => {
+        const count = Math.min(Math.max(Math.floor(v.autoMedicines ?? 0), 0), 5)
+        if (!count) return v
+        const picked = pickDatasetMedicines(v.round, count, taken)
+        picked.forEach((m) => taken.add(m.name))
+        if (picked.length < count) {
+          summary.warnings.push(`${v.round.toUpperCase()} ${v.start}: only ${picked.length} of ${count} medicines auto-added (the rest of the list is already active)`)
+        }
+        log(`  auto-picked for ${v.round.toUpperCase()} ${v.start}: ${picked.map((m) => `${m.name} ${m.dose}`).join(', ') || 'none'}`)
+        const auto: MedicineInput[] = picked.map((m) => ({
+          name: m.name,
+          dose: m.dose,
+          route: m.route,
+          kind: m.kind,
+          time: v.start,
+          instructions: [m.form, m.instructions].filter(Boolean).join(' — '),
+        }))
+        return { ...v, medicines: [...(v.medicines ?? []), ...auto] }
+      })
+    }
+
+    // Auto-added tasks: everyday tasks suited to the round (task-dataset.ts) that are in the task list,
+    // picked for this service user — never one already on that round for them or already on the visit.
+    if (visits.some((v) => (v.autoTasks ?? 0) > 0)) {
+      type Assignment = { task?: { name?: string } | null; taskName?: string; name?: string }
+      const current =
+        (await api<{ assignmentsByRound?: Record<string, Assignment[]> }>('GET', `/service-users/${row.id}/visit-tasks`)).data
+          ?.assignmentsByRound ?? {}
+      const onRound = (round: string) =>
+        (current[round] ?? []).map((a) => a.task?.name ?? a.taskName ?? a.name ?? '').filter(Boolean)
+      const available = [...taskList.values()].map((t) => t.name)
+      const takenByRound = new Map<string, Set<string>>()
+      visits = visits.map((v) => {
+        const count = Math.min(Math.max(Math.floor(v.autoTasks ?? 0), 0), 5)
+        if (!count) return v
+        const round = v.round.toUpperCase()
+        const taken = takenByRound.get(round) ?? new Set([...onRound(round), ...visits.filter((x) => x.round.toUpperCase() === round).flatMap((x) => (x.tasks ?? []).map((t) => t.task))])
+        takenByRound.set(round, taken)
+        const picked = pickRoundTasks(round, count, available, taken)
+        picked.forEach((t) => taken.add(t))
+        if (picked.length < count) {
+          summary.warnings.push(`${round} ${v.start}: only ${picked.length} of ${count} tasks auto-added (the rest are already on this round)`)
+        }
+        log(`  auto-picked tasks for ${round} ${v.start}: ${picked.join(', ') || 'none'}`)
+        return { ...v, tasks: [...(v.tasks ?? []), ...picked.map((task) => ({ task, priority: 'routine' }))] }
+      })
+    }
+
+    // Checked before anything is saved: a medicine's time must fall within its visit (overnight visits run past midnight).
+    for (const v of visits) {
+      for (const m of v.medicines ?? []) {
+        if (!m.time || (m.kind ?? 'REGULAR').toUpperCase() === 'PRN') continue
+        const inside = v.end > v.start ? m.time >= v.start && m.time <= v.end : m.time >= v.start || m.time <= v.end
+        if (!HM.test(m.time) || !inside) {
+          throw new Error(`Medicine "${m.name}" at ${m.time} is outside its visit (${v.round} ${v.start}–${v.end}) — nothing saved for this service user`)
+        }
+      }
+    }
+
     // 2) Visits as visit plan slots, with available carers only (a visit no available carer can take is skipped).
     const rounds = new Set(lookups.rounds.map((r) => r.code))
     const built: SlotInput[] = []
-    for (const visit of su.visits ?? []) {
-      if (!rounds.has(visit.round?.toUpperCase())) {
+    // Row codes in use; a switched-off row with the round's own code is an unused round, taken over
+    // by the first new visit in it (as switching a round on does on the visit plan screen).
+    const usedCodes = new Set(existingSlots.map((s) => s.slotCode.toUpperCase()))
+    const unusedRounds = new Set(existingSlots.filter((s) => s.isEnabled === false && s.slotCode === roundOf(s)).map((s) => s.slotCode))
+    const codeFor = (round: string) => {
+      if (unusedRounds.delete(round) || !usedCodes.has(round)) {
+        usedCodes.add(round)
+        return round
+      }
+      const code = nextAdditionalVisitSlotCode(round, [...usedCodes].map((slotCode) => ({ slotCode })))
+      usedCodes.add(code)
+      return code
+    }
+    for (const visit of visits) {
+      const round = visit.round?.toUpperCase()
+      if (!rounds.has(round)) {
         throw new Error(`Unknown round "${visit.round}" (${[...rounds].join(', ')})`)
       }
-      const key = { slotCode: visit.round.toUpperCase(), plannedStartTime: visit.start, plannedEndTime: visit.end } as SlotInput
-      const existing = existingSlots.find((s) => sameSlot(s, key))
+      const existing = existingSlots.find((s) => s.isEnabled !== false && sameVisit(s, round, visit.start, visit.end))
       const done = await buildSlot(row.id, visit, list(input.carer), existing, summary.warnings)
       if (!done) {
         summary.slots.push(
-          `${key.slotCode} ${visit.start}–${visit.end} — ${existing ? 'kept as it was' : 'not added'} (no available carer)`,
+          `${round} ${visit.start}–${visit.end} — ${existing ? 'kept as it was' : 'not added'} (no available carer)`,
         )
         continue
       }
       const { slot, carers } = done
+      // The same visit keeps its row; another visit in the round gets the next row (MORNING__2, …).
+      slot.slotCode = existing?.slotCode ?? codeFor(round)
+      slot.medicationRoundCode = round
       built.push(slot)
       const days = slot.daysOfWeek.map((d) => DAY_NAMES[d]).join(',')
-      summary.slots.push(`${slot.slotCode} ${slot.plannedStartTime}–${slot.plannedEndTime} ${days} · ${carers.join(', ')}`)
+      const extra = slot.slotCode !== round ? ' (another visit in this round)' : ''
+      summary.slots.push(`${round} ${slot.plannedStartTime}–${slot.plannedEndTime}${extra} ${days} · ${carers.join(', ')}`)
     }
     if (!built.length) {
       summary.plan = 'nothing added — no visit had an available carer'
       return summary
-    }
-
-    /**
-     * Visits over the service user's weekly hours wait for a manager in Hours approvals (unassigned
-     * until then): drop the last visits of the input until the week fits, and say which were dropped.
-     */
-    const dropOverPackage = (over: boolean, limitHours: number | null) => {
-      const dropped: SlotInput[] = []
-      if (over && built.length) {
-        const slot = built.pop()!
-        dropped.push(slot)
-        summary.slots = summary.slots.map((s) =>
-          s.startsWith(`${slot.slotCode} ${slot.plannedStartTime}–${slot.plannedEndTime} `)
-            ? `${slot.slotCode} ${slot.plannedStartTime}–${slot.plannedEndTime} — not added (over ${row.firstName}'s ${limitHours ?? '?'}h a week package)`
-            : s,
-        )
-        summary.warnings.push(
-          `${slot.slotCode} ${slot.plannedStartTime}–${slot.plannedEndTime} not added: it would take the week over the ${limitHours ?? '?'}h package, ` +
-            'so its visits would wait unassigned in Hours approvals. Raise the package (DOM Care tab, manager approval) or shorten the visits.',
-        )
-      }
-      return dropped.length > 0
     }
 
     let plan: Plan | undefined
@@ -868,25 +1035,19 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
       // The plan must match the service user's current hours (DOM Care tab); changing them needs a
       // manager-approved request, so the input's value is only used when DOM Care has none.
       const fromInput = String(su.weeklyContractedHours ?? '').trim()
-      const weeklyContractedHours = String(domHours ?? '').trim() || fromInput
+      let weeklyContractedHours = String(domHours ?? '').trim() || fromInput
       if (!weeklyContractedHours) {
-        throw new Error('No visit plan yet and no weekly contracted hours (DOM Care tab or "weeklyContractedHours")')
+        // No hours anywhere: the plan uses the default, and the app copies a new plan's hours to the
+        // service user (DOM Care tab), as when a plan is created on the screen.
+        weeklyContractedHours = DEFAULT_WEEKLY_CONTRACTED_HOURS
+        summary.warnings.push(
+          `No weekly contracted hours were set — the plan and the service user's weekly hours are set to ${DEFAULT_WEEKLY_CONTRACTED_HOURS}h (change them in the DOM Care tab)`,
+        )
       }
       if (fromInput && domHours && Number(fromInput) !== Number(domHours)) {
         summary.warnings.push(
           `Plan uses the service user's current ${domHours}h a week, not ${fromInput}h — change the hours in the app (manager approval)`,
         )
-      }
-      // No plan yet, so the weekly-hours preview cannot run: count the week as it does (visit minutes × days).
-      const limitHours = Number(weeklyContractedHours)
-      const weekMinutes = () =>
-        built.reduce((sum, s) => sum + minutesBetween(s.plannedStartTime, s.plannedEndTime) * s.daysOfWeek.length, 0)
-      while (Number.isFinite(limitHours) && dropOverPackage(weekMinutes() > limitHours * 60, limitHours)) {
-        // dropped one; check again
-      }
-      if (!built.length) {
-        summary.plan = 'nothing added — the visits would go over the weekly package'
-        return summary
       }
       const numberOfCarers = Math.max(...built.map((s) => Number(s.requiredCarers ?? 1)))
       if (dryRun) {
@@ -901,36 +1062,11 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
       }
     } else {
       plan = working
-      // Existing visits are kept; a visit with the same round and times is replaced (re-running is safe).
-      let kept = plan.slots.map(existingSlotInput).filter((s) => !built.some((b) => sameSlot(s, b)))
-      let slots = [...kept, ...built]
-      // New visits that would take the week over the package are not added (they would wait unassigned).
-      for (;;) {
-        const hours = (
-          await api<{ limitWeeklyHours: number | null; overLimitWeeks: unknown[]; visitsNeedApproval?: boolean }>(
-            'POST',
-            `/service-users/${row.id}/visit-plans/${plan.id}/weekly-hours-preview`,
-            { slots },
-          )
-        ).data
-        if (!hours?.overLimitWeeks?.length || hours.visitsNeedApproval === false) break
-        const newIdx = built.map((b) => !existingSlots.some((s) => sameSlot(s, b))).lastIndexOf(true)
-        if (newIdx < 0) {
-          summary.warnings.push(
-            `${row.firstName}'s saved visit plan is already over the ${hours.limitWeeklyHours ?? '?'}h a week package, so some of these ` +
-              'visits wait unassigned in Hours approvals. Remove a visit (Visit plan tab) or raise the package (DOM Care, manager approval).',
-          )
-          break
-        }
-        built.push(...built.splice(newIdx, 1)) // the new visit last, so dropOverPackage takes it
-        dropOverPackage(true, hours.limitWeeklyHours)
-        kept = plan.slots.map(existingSlotInput).filter((s) => !built.some((b) => sameSlot(s, b)))
-        slots = [...kept, ...built]
-      }
-      if (!built.length) {
-        summary.plan = 'nothing added — the visits would go over the weekly package'
-        return summary
-      }
+      // Existing visits are kept — other visits in the same round too; a visit with the same round and
+      // times is updated (re-running is safe). Over the service user's weekly hours, the app's own
+      // workflow applies (the previews below say so).
+      const kept = plan.slots.map(existingSlotInput).filter((s) => !built.some((b) => b.slotCode === s.slotCode))
+      const slots = [...kept, ...built]
       // Disabled rows are the plan's unused rounds (every plan has one per round).
       const keptVisits = kept.filter((s) => s.isEnabled !== false).length
       summary.plan = `${plan.status.toLowerCase()} plan: ${keptVisits} other visit(s) kept, ${built.length} added/updated`
@@ -955,27 +1091,56 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
       }
     }
 
+    // Tasks and medicines only for visits that were added (one with no available carer was skipped).
+    const added = visits.filter((v) =>
+      built.some((b) => sameVisit(b, v.round.toUpperCase(), v.start, v.end)),
+    )
+    for (const v of visits) {
+      if (!added.includes(v) && (v.tasks?.length || v.medicines?.length)) {
+        summary.warnings.push(`${v.round.toUpperCase()} ${v.start}–${v.end} was not added, so its tasks and medicines were not added either`)
+      }
+    }
+
     // 3) Tasks — Visit tasks tab: load, merge, save the whole list.
-    const wantedTasks = (su.visits ?? []).flatMap((v) =>
+    const wantedTasks = added.flatMap((v) =>
       // Due at the visit's start unless given: a task shows on the visit whose time window holds it.
       (v.tasks ?? []).map((t) => ({ round: v.round.toUpperCase(), days: parseDays(v.days), ...t, dueTime: t.dueTime ?? v.start })),
     )
     if (wantedTasks.length) await saveTasks(row.id, wantedTasks, taskList, summary)
 
     // 4) Medicines — Add medication: one per name, one time per round it is given in.
-    const wantedMeds = (su.visits ?? []).flatMap((v) =>
+    const wantedMeds = added.flatMap((v) =>
       (v.medicines ?? []).map((m) => ({ round: v.round.toUpperCase(), visitStart: v.start, ...m })),
     )
     if (wantedMeds.length) await saveMedicines(row.id, wantedMeds, lookups, summary)
 
+    // No tasks / medicines in the input: the service user's own (already set up per round) apply to
+    // these visits, as they do to visits added by hand — report them, never invent any.
+    const builtRounds = [...new Set(built.map(roundOf))]
+    if (!wantedTasks.length) await reportExistingTasks(row.id, builtRounds, summary)
+    if (!wantedMeds.length) await reportExistingMedicines(row.id, builtRounds, lookups, summary)
+
     if (dryRun || !plan) return summary
 
+    // You choose after the run whether to make the rota: until then a new plan stays a draft (an active
+    // plan is what the nightly rolling rota builds) and nothing is generated.
+    if (!generateRota) {
+      pendingRota.push({ summary, serviceUserId: row.id, plan })
+      summary.rotaPending = true
+      log(plan.status === 'DRAFT' ? '  plan saved as a draft — the rota waits for your choice' : '  plan saved — the rota waits for your choice')
+      return summary
+    }
+    return activateAndGenerate(summary, row.id, plan)
+  }
+
+  /** Activate a draft, generate the rota for the run's dates, read it back — as on the visit plan screen. */
+  async function activateAndGenerate(summary: Summary, serviceUserId: string, plan: Plan): Promise<Summary> {
     // 5) Activate a draft (the screen saves first, then activates).
     if (plan.status === 'DRAFT') {
       const impact = (
         await api<{ otherActivePlans?: unknown[]; scheduleImpact?: { jobsCancelled?: number } }>(
           'GET',
-          `/service-users/${row.id}/visit-plans/${plan.id}/activate-impact-preview`,
+          `/service-users/${serviceUserId}/visit-plans/${plan.id}/activate-impact-preview`,
         )
       ).data
       // The Activate dialog's default: with another active plan, its future visits are cancelled.
@@ -985,7 +1150,7 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
           `Activating replaced another active plan: ${impact?.scheduleImpact?.jobsCancelled ?? 0} of its visits cancelled`,
         )
       }
-      const activated = await api<Plan>('POST', `/service-users/${row.id}/visit-plans/${plan.id}/activate`, {
+      const activated = await api<Plan>('POST', `/service-users/${serviceUserId}/visit-plans/${plan.id}/activate`, {
         cancelEndedPlanJobs: hasOtherActive,
       })
       for (const w of (activated.message ?? '').split('Warning: ').slice(1)) summary.warnings.push(w.trim())
@@ -1001,10 +1166,10 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
     let skipped = 0
     for (const range of chunks(fromDate, toDate)) {
       const qs = new URLSearchParams(range).toString()
-      await api('GET', `/service-users/${row.id}/visit-plans/${plan.id}/generate-schedule-preview?${qs}`)
+      await api('GET', `/service-users/${serviceUserId}/visit-plans/${plan.id}/generate-schedule-preview?${qs}`)
       const gen = await api<{ visitsCreated: number; visitsSkipped: number; weeklyHoursWarning?: string }>(
         'POST',
-        `/service-users/${row.id}/visit-plans/${plan.id}/generate-schedule`,
+        `/service-users/${serviceUserId}/visit-plans/${plan.id}/generate-schedule`,
         { ...range, respectWorkingPatternOnSync: respect },
       )
       created += gen.data?.visitsCreated ?? 0
@@ -1012,27 +1177,226 @@ export async function runCreateVisits(input: CreateVisitsInput, { dryRun, log }:
       if (gen.data?.weeklyHoursWarning) summary.warnings.push(gen.data.weeklyHoursWarning)
     }
     log(`  rota generated ${fromDate} → ${toDate}: ${created} visit(s) created, ${skipped} already there`)
+    summary.visitsCreated = created
+    // The plan's own dates limit the rota (an app rule, left as it is) — say so rather than report a silent 0.
+    const planEnd = plan.effectiveTo?.slice(0, 10)
+    const planStart = plan.effectiveFrom?.slice(0, 10)
+    if (planEnd && planEnd < fromDate) {
+      summary.warnings.push(
+        `The visit plan ended on ${planEnd} (its end date), so no rota was generated — change or clear the end date in the Visit plan tab, then run again`,
+      )
+    } else if (planEnd && planEnd < toDate) {
+      summary.warnings.push(`The visit plan ends on ${planEnd}, so the rota stops there`)
+    }
+    if (planStart && planStart > toDate) {
+      summary.warnings.push(`The visit plan starts on ${planStart}, after these rota dates, so no rota was generated yet`)
+    }
 
     // 7) Read the rota back.
-    summary.visits = await checkRota(row.id)
+    summary.visits = await checkRota(serviceUserId)
     return summary
   }
 
+  /** The service user's existing visit tasks on these rounds (they show on the new visits too). */
+  async function reportExistingTasks(serviceUserId: string, rounds: string[], summary: Summary) {
+    type Assignment = { priority: string; task: { name: string } }
+    const byRound =
+      (await api<{ assignmentsByRound: Record<string, Assignment[]> }>('GET', `/service-users/${serviceUserId}/visit-tasks`))
+        .data?.assignmentsByRound ?? {}
+    for (const round of rounds) {
+      for (const a of byRound[round] ?? []) summary.tasks.push(`${round}: ${a.task.name} (${a.priority}) — already set up`)
+    }
+    if (!rounds.some((r) => byRound[r]?.length)) summary.tasks.push(`None set up for ${rounds.join(', ')} — none added`)
+  }
+
+  /** The service user's active medicines due in these rounds (their MAR rows land on the new visits). */
+  async function reportExistingMedicines(serviceUserId: string, rounds: string[], lookups: Lookups, summary: Summary) {
+    type Med = { medicationName: string; status: string; dose?: string | null; schedules?: Array<{ roundId?: string | null; dueTime?: string | null }> }
+    const roundIds = new Set(lookups.rounds.filter((r) => rounds.includes(r.code)).map((r) => r.id))
+    const meds =
+      (await api<Med[]>('GET', `/service-users/${serviceUserId}/medications?limit=100`)).data?.filter((m) => m.status === 'ACTIVE') ?? []
+    const due = meds.filter((m) => (m.schedules ?? []).some((s) => s.roundId && roundIds.has(s.roundId)))
+    for (const m of due) summary.medicines.push(`${m.medicationName}${m.dose ? ` ${m.dose}` : ''} — already set up`)
+    if (!due.length) summary.medicines.push(`None due in ${rounds.join(', ')} — none added`)
+  }
+
+  /** Pending Hours approvals now (ids), to count what a service user's run sent there. Null: not allowed to read. */
+  async function pendingApprovalIds(): Promise<Set<string> | null> {
+    try {
+      // The list is not paged: every pending approval comes back.
+      const rows = (await api<Array<{ id: string }>>('GET', '/hours-approvals?status=PENDING')).data ?? []
+      return new Set(rows.map((r) => r.id))
+    } catch {
+      return null
+    }
+  }
+
   log(`${dryRun ? 'DRY RUN — previews only, nothing saved. ' : ''}Rota ${fromDate} → ${toDate}: ${how}`)
-  log('Carers: only those available (working pattern, no clash, weekly hours left); others are swapped for available carers.')
+  log('Carers: only those available (working pattern, no clash, not on leave or blocked); others are swapped for available carers.')
+  log('Weekly hours: over the limit, the app’s own rule applies (Settings → Dom Rules) — e.g. the visit waits in Hours approvals.')
   if (input.respectWorkingPatterns === false) log('"respectWorkingPatterns": false is ignored — carers are never put on visits they are unavailable for.')
   const lookups = (await api<Lookups>('GET', '/medication-lookups')).data!
   const taskList = catalogueTasks((await api('GET', '/task-catalogue')).data)
+  for (const ref of list(input.carerPool)) {
+    try {
+      pool.push(await findCarer(ref))
+    } catch (e) {
+      log(`Selected carer "${ref}" skipped: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
 
   const results: Summary[] = []
+  // Name and number once found, so a failure is reported by name rather than by the id the page sent.
+  const labelOf = new Map<ServiceUserInput, string>()
   for (const su of input.serviceUsers) {
+    // Each service user on its own: one failing does not stop or change the others' results.
+    const before = dryRun ? null : await pendingApprovalIds()
     try {
-      results.push(await processServiceUser(su, lookups, taskList))
+      const summary = await processServiceUser(su, lookups, taskList)
+      const after = before ? await pendingApprovalIds() : null
+      if (before && after) summary.heldForApproval = [...after].filter((id) => !before.has(id)).length
+      results.push(summary)
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
       log(`  ✖ ${message}`)
-      results.push({ serviceUser: su.serviceUser, plan: '', slots: [], tasks: [], medicines: [], warnings: [], failed: message })
+      results.push({ serviceUser: labelOf.get(su) ?? su.serviceUser, plan: '', slots: [], tasks: [], medicines: [], warnings: [], failed: message })
     }
   }
-  return results
+  if (!pendingRota.length) return { results, generateRota: null }
+
+  // The rota step, kept for when you choose "Generate rota" after the run. Runs once.
+  let ran = false
+  const generatePending = async () => {
+    if (ran) return results
+    ran = true
+    log(`Generating the rota ${fromDate} → ${toDate}…`)
+    for (const item of pendingRota) {
+      log(`━━ ${item.summary.serviceUser}`)
+      const before = await pendingApprovalIds()
+      try {
+        await activateAndGenerate(item.summary, item.serviceUserId, item.plan)
+        const after = before ? await pendingApprovalIds() : null
+        if (before && after) {
+          item.summary.heldForApproval = (item.summary.heldForApproval ?? 0) + [...after].filter((id) => !before.has(id)).length
+        }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        log(`  ✖ ${message}`)
+        item.summary.warnings.push(`Rota not generated: ${message}`)
+      }
+      item.summary.rotaPending = false
+    }
+    return results
+  }
+  return { results, generateRota: generatePending }
+}
+
+// ── Scripts page: pickers, the configured automation, and recording each run ───
+
+export type PickerOption = { value: string; label: string }
+
+/** Every active service user the user can see (the list endpoint applies branch access), for the picker. */
+export async function fetchServiceUserOptions(): Promise<PickerOption[]> {
+  const out: PickerOption[] = []
+  for (let page = 1; page <= 50; page += 1) {
+    const res = await apiJson<Envelope<ServiceUserRow[]>>(`/service-users?limit=100&page=${page}`, { method: 'GET' })
+    for (const s of res.data ?? []) {
+      out.push({ value: s.id, label: `${s.firstName} ${s.lastName}${s.serviceUserNumber ? ` (${s.serviceUserNumber})` : ''}` })
+    }
+    const totalPages = Number((res.meta as { totalPages?: number } | undefined)?.totalPages ?? 1)
+    if (!res.data?.length || page >= totalPages) break
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label))
+}
+
+/** The task list a run checks tasks against (Settings → Tasks planner, active tasks), for the task picker. */
+export async function fetchTaskOptions(): Promise<PickerOption[]> {
+  const res = await apiJson<Envelope<unknown>>('/task-catalogue', { method: 'GET' })
+  return [...catalogueTasks(res.data).values()]
+    .map((t) => ({ value: t.name, label: t.name }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+}
+
+/** Every active employee the user can see (branch access applies), with their role, for the carer picker. */
+export async function fetchCarerOptions(): Promise<PickerOption[]> {
+  type Row = EmployeeRow & { isActive?: boolean; role?: { name: string } | null; jobTitle?: { name: string } | null }
+  const out: PickerOption[] = []
+  for (let page = 1; page <= 50; page += 1) {
+    const res = await apiJson<Envelope<Row[]>>(`/employees?limit=100&page=${page}`, { method: 'GET' })
+    for (const e of res.data ?? []) {
+      if (e.isActive === false) continue
+      const role = e.jobTitle?.name ?? e.role?.name
+      out.push({ value: e.id, label: `${carerName(e)}${role ? ` — ${role}` : ''}` })
+    }
+    const totalPages = Number((res.meta as { totalPages?: number } | undefined)?.totalPages ?? 1)
+    if (!res.data?.length || page >= totalPages) break
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label))
+}
+
+/** Automatic Visit Creation's input: the automation file configured on the server (as `npm run visits:create`). */
+export async function fetchVisitCreationConfig(): Promise<{ source: string; config: CreateVisitsInput }> {
+  const res = await apiJson<Envelope<{ source: string; config: CreateVisitsInput }>>('/scripts/visit-creation/config', { method: 'GET' })
+  return res.data!
+}
+
+/** The dates a run will build: today → the rota horizon (Settings → Dom Rules), or the input's own. */
+export async function previewRotaDates(input: Pick<CreateVisitsInput, 'fromDate' | 'toDate'>) {
+  return rotaDates({ serviceUsers: [], ...input })
+}
+
+export type RunOutcome = 'SUCCESS' | 'PARTIAL' | 'FAILED'
+
+/** Every service user done = SUCCESS, some = PARTIAL, none = FAILED. */
+export function runOutcome(results: Summary[]): RunOutcome {
+  const failed = results.filter((r) => r.failed).length
+  return failed === 0 ? 'SUCCESS' : failed === results.length ? 'FAILED' : 'PARTIAL'
+}
+
+/**
+ * A run as the Scripts page starts it: the server checks the selections and that no other run is
+ * going, records the start in the audit log; then the steps run; then the outcome is recorded.
+ */
+export async function runVisitCreation(
+  input: CreateVisitsInput,
+  meta: RunMeta,
+  options: RunOptions,
+): Promise<{ results: Summary[]; outcome: RunOutcome; generateRota: (() => Promise<Summary[]>) | null }> {
+  const started = await apiJson<Envelope<{ runId: string }>>('/scripts/visit-creation/runs', {
+    method: 'POST',
+    body: JSON.stringify({ mode: meta.mode, dryRun: options.dryRun, serviceUserIds: meta.serviceUserIds, carerIds: meta.carerIds }),
+  })
+  const runId = started.data!.runId
+  let results: Summary[] = []
+  let generateRota: (() => Promise<Summary[]>) | null = null
+  let outcome: RunOutcome = 'FAILED'
+  let error: unknown = null
+  try {
+    const run = await runCreateVisits(input, options)
+    results = run.results
+    generateRota = run.generateRota
+    outcome = runOutcome(results)
+  } catch (e) {
+    error = e
+  }
+  const totals = {
+    serviceUsers: results.length,
+    failed: results.filter((r) => r.failed).length,
+    visitsCreated: results.reduce((n, r) => n + (r.visitsCreated ?? 0), 0),
+    visitsWithCarers: results.reduce((n, r) => n + (r.visits?.fullyStaffed ?? 0), 0),
+    heldForApproval: results.reduce((n, r) => n + (r.heldForApproval ?? 0), 0),
+  }
+  await apiJson(`/scripts/visit-creation/runs/${runId}/finish`, {
+    method: 'POST',
+    body: JSON.stringify({
+      outcome,
+      summary: {
+        totals,
+        ...(error ? { error: error instanceof Error ? error.message : String(error) } : {}),
+        serviceUsers: results.map((r) => ({ serviceUser: r.serviceUser, plan: r.plan, failed: r.failed ?? null, warnings: r.warnings.length })),
+      },
+    }),
+  }).catch(() => undefined) // the run's own result stands even if recording its end fails
+  if (error) throw error
+  return { results, outcome, generateRota }
 }
