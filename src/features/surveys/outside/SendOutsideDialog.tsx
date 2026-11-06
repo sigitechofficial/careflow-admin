@@ -171,6 +171,7 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
               {check.optedOut ? <p className="text-muted-foreground">{check.optedOut} asked not to be contacted about surveys.</p> : null}
               {check.noDetails ? <p className="text-muted-foreground">{check.noDetails} have no email or mobile.</p> : null}
               {check.noConsent ? <p className="text-muted-foreground">{check.noConsent} family {check.noConsent === 1 ? 'member has' : 'members have'} not agreed to be contacted.</p> : null}
+              {check.died ? <p className="text-muted-foreground">{check.died} family {check.died === 1 ? 'member' : 'members'} will not be sent it because the person we supported has died.</p> : null}
               {check.heldBack ? (
                 <>
                   <p>

@@ -65,6 +65,8 @@ export type SendOutsideCheck = {
   optedOut: number
   noDetails: number
   noConsent: number
+  /** Family members whose person we supported has died (only the bereaved-family survey goes to them). */
+  died?: number
 }
 
 const key = ['surveys', 'outside'] as const
