@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -106,7 +106,9 @@ describe('SurveyManagerCopiesDialog', () => {
     await userEvent.type(field, '12')
     expect(apiJson).toHaveBeenLastCalledWith('/surveys/tpl-1/manager-copies?minTeam=12', { method: 'GET' })
     expect(await screen.findByText(/The ready-made survey uses 10/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Make 1 draft copy' }))
+    const make = screen.getByRole('button', { name: 'Make 1 draft copy' })
+    await waitFor(() => expect(make).toBeEnabled())
+    await userEvent.click(make)
     expect(apiJson).toHaveBeenLastCalledWith('/surveys/tpl-1/manager-copies', {
       method: 'POST',
       body: JSON.stringify({ exclude: ['REGISTERED_MANAGER'], minTeam: 12 }),
