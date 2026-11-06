@@ -15,6 +15,7 @@ import {
   LibraryFactsRow as FactsRow,
   LibrarySurveyDetail,
 } from '@/features/surveys/components/LibrarySurveyDetail'
+import { LibrarySurveyRespondentView } from '@/features/surveys/components/LibrarySurveyRespondentView'
 import { cardSummary } from '@/features/surveys/survey-library-display'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
@@ -92,6 +93,8 @@ export default function ReadyMadeSurveysPage() {
   const [group, setGroup] = React.useState<string>('ALL')
   const [selected, setSelected] = React.useState<Set<string>>(new Set())
   const [previewId, setPreviewId] = React.useState<string | null>(null)
+  /** The Read dialog shows the survey as people answer it first; guidance is one click away. */
+  const [detailView, setDetailView] = React.useState<'respondent' | 'details'>('respondent')
   const [adopted, setAdopted] = React.useState<AdoptSurveysResult | null>(null)
   const [newSurvey, setNewSurvey] = React.useState<NewSurveyStart | null>(null)
   const preview = useLibrarySurvey(previewId)
@@ -349,8 +352,34 @@ export default function ReadyMadeSurveysPage() {
             <DialogTitle>{shown?.title ?? 'Survey'}</DialogTitle>
             <DialogDescription>{shown ? `${shown.reference} · ${shown.group.name} · revision ${shown.revision}` : null}</DialogDescription>
           </DialogHeader>
+          <div className="px-6 pt-1">
+            <div role="group" aria-label="How to show this survey" className="inline-flex rounded-md border border-border p-0.5">
+              {(
+                [
+                  ['respondent', 'As people see it'],
+                  ['details', 'Questions and guidance'],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={detailView === value}
+                  onClick={() => setDetailView(value)}
+                  className={`min-h-8 rounded px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    detailView === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <DialogBody className="max-h-[70vh] space-y-5 overflow-y-auto" data-testid="ready-made-survey-detail">
-            <LibrarySurveyDetail survey={shown} isLoading={preview.isLoading} isError={preview.isError} />
+            {detailView === 'respondent' && shown && !preview.isLoading && !preview.isError ? (
+              <LibrarySurveyRespondentView key={shown.id} survey={shown} />
+            ) : (
+              <LibrarySurveyDetail survey={shown} isLoading={preview.isLoading} isError={preview.isError} />
+            )}
           </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setPreviewId(null)}>

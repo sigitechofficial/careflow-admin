@@ -268,6 +268,7 @@ describe('ReadyMadeSurveysPage', () => {
   it('reads a survey: summary and facts, questions, what people see, guidance, CQC, policies and sources', async () => {
     render(<ReadyMadeSurveysPage />)
     await userEvent.click(screen.getByRole('button', { name: 'Annual satisfaction survey' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Questions and guidance' }))
     const dialog = screen.getByTestId('ready-made-survey-detail')
     const headings = within(dialog)
       .getAllByRole('heading', { level: 3 })
@@ -316,6 +317,19 @@ describe('ReadyMadeSurveysPage', () => {
     expect(adoptMock).toHaveBeenCalledWith(['lib-1'], expect.any(Object))
   })
 
+  it('opens a survey as people see it: the form with its intro, sections and questions; nothing is saved', async () => {
+    render(<ReadyMadeSurveysPage />)
+    await userEvent.click(screen.getByRole('button', { name: 'Annual satisfaction survey' }))
+    expect(screen.getByRole('button', { name: 'As people see it' })).toHaveAttribute('aria-pressed', 'true')
+    const view = within(screen.getByTestId('ready-made-survey-detail')).getByTestId('library-respondent-view')
+    expect(within(view).getByText(/Nothing you enter here is saved/)).toBeInTheDocument()
+    expect(within(view).getByText('Allfor Care wants to hear what you think of your care.', { exact: false })).toBeInTheDocument()
+    expect(within(view).getByText('Your visits')).toBeInTheDocument()
+    expect(within(view).getByRole('button', { name: 'Submit response' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Questions and guidance' }))
+    expect(screen.queryByTestId('library-respondent-view')).not.toBeInTheDocument()
+  })
+
   it('reading a named survey with an anonymous version shows that version and what it leaves out', async () => {
     state.detail = {
       ...detail(),
@@ -328,6 +342,7 @@ describe('ReadyMadeSurveysPage', () => {
     }
     render(<ReadyMadeSurveysPage />)
     await userEvent.click(screen.getByRole('button', { name: 'Annual satisfaction survey' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Questions and guidance' }))
     const section = within(screen.getByTestId('ready-made-survey-detail')).getByTestId('library-anonymous-version')
     expect(within(section).getByRole('heading', { level: 3 })).toHaveTextContent('Also available as an anonymous version')
     expect(section).toHaveTextContent('We never know who answered.')
