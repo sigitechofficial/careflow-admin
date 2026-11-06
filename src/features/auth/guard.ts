@@ -14,7 +14,13 @@ function isPublicLegalPath(path: string): boolean {
 }
 
 function isPublicSurveyPath(path: string): boolean {
-  return path === '/survey' || path.startsWith('/survey/') || path.startsWith('/survey-unsubscribe/')
+  return (
+    path === '/survey' ||
+    path.startsWith('/survey/') ||
+    path.startsWith('/survey-unsubscribe/') ||
+    // "You said, we did" public page (no login): the API shows it only while published with the public link.
+    path.startsWith('/you-said-we-did/')
+  )
 }
 
 function isPortalPath(path: string) {

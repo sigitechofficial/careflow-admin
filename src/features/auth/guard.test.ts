@@ -65,6 +65,13 @@ describe('independent reviewer route guard', () => {
     expect(await landing('/service-users/all')).toBeNull()
   })
 
+  it('opens the public "You said, we did" page without signing in, and nothing else beside it', async () => {
+    useAuthStore.setState({ isAuthenticated: () => false })
+    expect(await landing('/you-said-we-did/96l4Vm_abcdefghijklmnop')).toBeNull()
+    expect(await landing('/surveys/abc/you-said-we-did/def/letter')).toBe('/auth/login')
+    expect(await landing('/surveys/abc/pack')).toBe('/auth/login')
+  })
+
   it('matches whole path segments only', () => {
     expect(isReviewerAllowedPath('/survey-reviews')).toBe(true)
     expect(isReviewerAllowedPath('/account')).toBe(true)

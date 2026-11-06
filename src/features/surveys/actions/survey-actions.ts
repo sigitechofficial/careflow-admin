@@ -164,7 +164,9 @@ export const usePublishUpdate = (surveyId: string) =>
 export function useSurveyPack(surveyId: string, periodId?: string) {
   return useQuery({
     queryKey: ['surveys', 'pack', surveyId, periodId ?? null],
-    staleTime: Infinity,
+    // Each opening is fetched (and so audited) afresh; not refetched on focus while it is open.
+    gcTime: 0,
+    refetchOnWindowFocus: false,
     queryFn: () => get<SurveyPack>(`/surveys/${surveyId}/pack${periodId ? `?periodId=${periodId}` : ''}`),
   })
 }

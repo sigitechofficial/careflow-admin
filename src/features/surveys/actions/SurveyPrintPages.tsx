@@ -85,7 +85,7 @@ export function SurveyUpdateLetterPage() {
       {!data ? (
         <Waiting error={isError} />
       ) : (
-        <article className="mx-auto max-w-[180mm] bg-white p-8 text-[15px] leading-relaxed text-neutral-900" data-testid="ysw-letter">
+        <article className="mx-auto max-w-[180mm] bg-white p-4 sm:p-8 text-[15px] leading-relaxed text-neutral-900" data-testid="ysw-letter">
           <Letterhead org={data.organisation} />
           <p className="mt-4 text-sm">{formatDay(new Date().toISOString())}</p>
           <p className="mt-4">{data.audience === 'EMPLOYEE' ? 'Dear colleague,' : 'Dear reader,'}</p>
@@ -139,7 +139,7 @@ export function SurveyPackPage() {
       {!data ? (
         <Waiting error={isError} />
       ) : (
-        <article className="mx-auto max-w-[190mm] bg-white p-8 text-sm leading-relaxed text-neutral-900" data-testid="survey-pack">
+        <article className="mx-auto max-w-[190mm] bg-white p-4 sm:p-8 text-sm leading-relaxed text-neutral-900" data-testid="survey-pack">
           <Letterhead org={data.organisation} />
           <h1 className="mt-5 text-2xl font-semibold">{data.survey.title}</h1>
           <p className="text-neutral-600">
@@ -161,7 +161,7 @@ export function SurveyPackPage() {
           <h2 className={h2}>Headlines</h2>
           {data.figuresShown ? (
             <>
-              {data.headline ? <p>{data.headline.percent}% said “{data.headline.questionText}” was good or very good ({data.headline.base} answers).</p> : null}
+              {data.headline ? <p>{data.headline.percent}% gave a positive answer to “{data.headline.questionText}” ({data.headline.base} answers).</p> : null}
               <table className="mt-2 w-full border-collapse">
                 <caption className="sr-only">Each question</caption>
                 <tbody>
@@ -181,6 +181,7 @@ export function SurveyPackPage() {
           {data.trends && data.trends.units.length > 1 ? (
             <>
               <h2 className={h2}>Trends</h2>
+              <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full border-collapse text-xs">
                 <caption className="sr-only">Questions by period</caption>
                 <thead>
@@ -204,6 +205,7 @@ export function SurveyPackPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </>
           ) : null}
 
