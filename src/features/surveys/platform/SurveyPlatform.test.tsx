@@ -50,6 +50,28 @@ describe('repeats, answer keeping and checks', () => {
     expect(apiJson.mock.calls.filter(c => c[1]?.method === 'PUT')).toHaveLength(0)
   })
 
+  it('a rotating question can be turned off: unticking down to one saves none', async () => {
+    apiJson.mockResolvedValue({ data: settings({ rotatingQuestionIds: ['q1', 'q2'] }) })
+    wrap(<SurveyPlatformPanel surveyId="s1" questions={questions} canEdit isTemplate={false} />)
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'My manager listens' }))
+    await waitFor(() => expect(apiJson).toHaveBeenCalledWith('/surveys/s1/platform', { method: 'PUT', body: JSON.stringify({ rotatingQuestionIds: [] }) }))
+  })
+
+  it('one tick shows it waits for a second', async () => {
+    apiJson.mockResolvedValue({ data: settings() })
+    wrap(<SurveyPlatformPanel surveyId="s1" questions={questions} canEdit isTemplate={false} />)
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'I feel valued' }))
+    expect(screen.getByRole('checkbox', { name: 'I feel valued' })).toBeChecked()
+    expect(screen.getByText(/Tick at least one more question/)).toBeInTheDocument()
+  })
+
+  it('says when each answer is deleted from the day it was given (the notice counts from the answer)', async () => {
+    apiJson.mockResolvedValue({ data: settings({ retention: { months: null, libraryMonths: 36, effectiveMonths: 36, basis: 'FROM_ANSWER', deletedAt: null, periodsDeleted: 0 } }) })
+    wrap(<SurveyPlatformPanel surveyId="s1" questions={questions} canEdit isTemplate={false} />)
+    expect(await screen.findByTestId('retention-note')).toHaveTextContent(/Each answer is deleted 36 months after it was given/)
+    expect(screen.getByLabelText(/months after each answer/)).toBeInTheDocument()
+  })
+
   it('the wording check lists what to fix with the question and how', async () => {
     apiJson.mockImplementation(async (url: string) =>
       String(url).includes('wording-check')

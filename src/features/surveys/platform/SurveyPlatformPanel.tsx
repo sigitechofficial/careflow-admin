@@ -18,7 +18,15 @@ export type PlatformSettings = {
   librarySkipMonths: number[]
   months: string[]
   rotatingQuestionIds: string[]
-  retention: { months: number | null; libraryMonths: number | null; effectiveMonths: number | null; deletedAt: string | null; periodsDeleted: number }
+  retention: {
+    months: number | null
+    libraryMonths: number | null
+    effectiveMonths: number | null
+    /** Where the period starts, as the privacy notice says: when the survey closes, or when each answer was given. */
+    basis?: 'FROM_CLOSE' | 'FROM_ANSWER' | null
+    deletedAt: string | null
+    periodsDeleted: number
+  }
 }
 export type WordingFinding = { rule: string; ruleLabel: string; severity: 'PROBLEM' | 'SUGGESTION'; questionId: string | null; questionText: string | null; message: string }
 export type WordingCheck = { surveyId: string; fromLibrary: boolean; estimatedMinutes: number; problems: number; suggestions: number; findings: WordingFinding[] }
@@ -55,7 +63,13 @@ export function SurveyPlatformPanel({ surveyId, questions, canEdit, isTemplate }
   const [grouping, setGrouping] = React.useState<SurveyQuestion | null>(null)
   const [retention, setRetention] = React.useState('')
   React.useEffect(() => setRetention(data?.retention.months ? String(data.retention.months) : ''), [data?.retention.months])
+  // The bank being chosen: saved once it has two questions (or none); one ticked waits for the second.
+  const [bank, setBank] = React.useState<string[] | null>(null)
+  const savedBank = data?.rotatingQuestionIds.join()
+  React.useEffect(() => setBank(null), [savedBank])
   if (!data) return null
+  const chosenBank = bank ?? data.rotatingQuestionIds
+  const fromAnswer = data.retention.basis === 'FROM_ANSWER'
   const editable = canEdit && !data.editedOnSurveyId
   const choiceQuestions = questions.filter(q => (q.questionType === 'SINGLE_SELECT' || q.questionType === 'MULTI_SELECT') && !q.optionsFrom && Array.isArray(q.options) && q.options.length >= 4)
   const bankable = questions.filter(q => !q.showIf)
@@ -115,11 +129,18 @@ export function SurveyPlatformPanel({ surveyId, questions, canEdit, isTemplate }
                 <label className="flex items-start gap-2">
                   <input
                     type="checkbox"
-                    checked={data.rotatingQuestionIds.includes(q.id)}
+                    checked={chosenBank.includes(q.id)}
                     onChange={e => {
-                      const next = e.target.checked ? [...data.rotatingQuestionIds, q.id] : data.rotatingQuestionIds.filter(x => x !== q.id)
-                      if (next.length === 1) return // a bank needs two; saved once the second is ticked
-                      void run(() => save.mutateAsync({ rotatingQuestionIds: next }), 'Rotating question saved', 'Could not save the rotating question')
+                      const next = e.target.checked ? [...chosenBank, q.id] : chosenBank.filter(x => x !== q.id)
+                      setBank(next)
+                      // A bank needs two: one ticked waits for the second (unticking down to one turns it off).
+                      const toSave = next.length === 1 ? (data.rotatingQuestionIds.length ? [] : null) : next
+                      if (toSave === null) return
+                      void run(
+                        () => save.mutateAsync({ rotatingQuestionIds: toSave }),
+                        toSave.length ? 'Rotating question saved' : 'Rotating question turned off',
+                        'Could not save the rotating question',
+                      ).finally(() => setBank(null))
                     }}
                   />
                   <span>{q.questionText}</span>
@@ -127,13 +148,18 @@ export function SurveyPlatformPanel({ surveyId, questions, canEdit, isTemplate }
               </li>
             ))}
           </ul>
+          {chosenBank.length === 1 ? (
+            <p className="mt-1 text-xs text-muted-foreground" role="status">
+              Tick at least one more question: a rotating question needs two to twelve.
+            </p>
+          ) : null}
         </fieldset>
       ) : null}
 
       {!isTemplate ? (
         <div className="mt-3 text-sm">
           <label htmlFor="retention-months" className="block text-xs font-medium">
-            Keep answers for (months after it closes)
+            Keep answers for (months after {fromAnswer ? 'each answer' : 'it closes'})
           </label>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <Input
@@ -160,7 +186,11 @@ export function SurveyPlatformPanel({ surveyId, questions, canEdit, isTemplate }
           </div>
           <p className="mt-1 text-xs text-muted-foreground" data-testid="retention-note">
             {data.retention.effectiveMonths
-              ? `Answers are deleted ${data.retention.effectiveMonths} months after the survey (or each period) closes${data.retention.months ? '' : ', as the ready-made survey’s privacy notice says'}. Who it was sent to, follow-ups and CQC evidence totals are kept.`
+              ? `${
+                  fromAnswer
+                    ? `Each answer is deleted ${data.retention.effectiveMonths} months after it was given, while the survey stays open`
+                    : `Answers are deleted ${data.retention.effectiveMonths} months after the survey (or each period) closes`
+                }${data.retention.months ? '' : ', as the ready-made survey’s privacy notice says'}. Answers linked to an open complaint, safeguarding case or incident are kept until it closes. Who it was sent to, follow-ups and CQC evidence totals are kept.`
               : 'Answers are kept until the survey is deleted. Set a number of months to delete them sooner.'}
             {data.retention.deletedAt ? ' Answers to this survey have been deleted.' : ''}
             {data.retention.periodsDeleted ? ` Answers deleted for ${data.retention.periodsDeleted} period${data.retention.periodsDeleted === 1 ? '' : 's'}.` : ''}
