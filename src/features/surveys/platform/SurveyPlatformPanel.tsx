@@ -7,6 +7,7 @@ import { Input } from '@/shared/ui/input'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import type { SurveyQuestion } from '@/features/surveys/types'
+import { formatSurveyDate } from '@/features/surveys/survey-datetime'
 
 /** API: careflow-api src/surveys/survey-platform.service.ts (Phase 2 part 7). */
 export type PlatformSettings = {
@@ -25,7 +26,11 @@ export type PlatformSettings = {
     /** Where the period starts, as the privacy notice says: when the survey closes, or when each answer was given. */
     basis?: 'FROM_CLOSE' | 'FROM_ANSWER' | null
     deletedAt: string | null
+    /** Counted from each answer: answers given before this day have been deleted (the latest across its periods). */
+    deletedBefore?: string | null
     periodsDeleted: number
+    /** Days a linked complaint, safeguarding case or incident still holds answers after it closes. */
+    legalHoldGraceDays?: number
   }
 }
 export type WordingFinding = { rule: string; ruleLabel: string; severity: 'PROBLEM' | 'SUGGESTION'; questionId: string | null; questionText: string | null; message: string }
@@ -190,9 +195,10 @@ export function SurveyPlatformPanel({ surveyId, questions, canEdit, isTemplate }
                   fromAnswer
                     ? `Each answer is deleted ${data.retention.effectiveMonths} months after it was given, while the survey stays open`
                     : `Answers are deleted ${data.retention.effectiveMonths} months after the survey (or each period) closes`
-                }${data.retention.months ? '' : ', as the ready-made survey’s privacy notice says'}. Answers linked to an open complaint, safeguarding case or incident are kept until it closes. Who it was sent to, follow-ups and CQC evidence totals are kept.`
+                }${data.retention.months ? '' : ', as the ready-made survey’s privacy notice says'}. Answers linked to a complaint, safeguarding case or incident are kept while it is open and for ${data.retention.legalHoldGraceDays ?? 30} days after it closes, then deleted. Who it was sent to, follow-ups and CQC evidence totals are kept.`
               : 'Answers are kept until the survey is deleted. Set a number of months to delete them sooner.'}
             {data.retention.deletedAt ? ' Answers to this survey have been deleted.' : ''}
+            {!data.retention.deletedAt && data.retention.deletedBefore ? ` Answers given before ${formatSurveyDate(data.retention.deletedBefore)} have been deleted.` : ''}
             {data.retention.periodsDeleted ? ` Answers deleted for ${data.retention.periodsDeleted} period${data.retention.periodsDeleted === 1 ? '' : 's'}.` : ''}
           </p>
         </div>

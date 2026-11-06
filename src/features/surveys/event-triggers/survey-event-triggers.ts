@@ -48,7 +48,7 @@ export type EventTriggerPayload = {
   libraryWords: string | null
   /** Why it cannot be switched on (null when it can, or when it is on). */
   notAllowed: string | null
-  events: Array<{ code: string; label: string; description: string; builtIn: string[]; beforeAllowed?: boolean; minDelayDays?: number; repeats: boolean }>
+  events: Array<{ code: string; label: string; description: string; builtIn: string[]; beforeAllowed?: boolean; minDelayDays?: number; partBDelayDays?: number; repeats: boolean }>
   exclusions: Array<{ code: string; label: string }>
   /** The list names people: only for people who manage surveys and may see its results. */
   canSeeList: boolean

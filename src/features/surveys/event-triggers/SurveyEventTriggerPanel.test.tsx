@@ -125,6 +125,39 @@ describe('SurveyEventTriggerPanel', () => {
     expect(screen.getAllByRole('button', { name: 'Switch on' }).at(-1)).not.toBeDisabled()
   })
 
+  describe('training feedback: Part B takes the library’s 42 days', () => {
+    const training = { code: 'TRAINING_ATTENDED', label: 'Training attended', description: 'A session.', builtIn: [], partBDelayDays: 42, repeats: true }
+    const staff = payload({
+      audience: 'EMPLOYEE',
+      events: [training],
+      exclusions: [],
+      library: { event: 'TRAINING_ATTENDED', delayDays: 0, windowDays: 7, exclusions: [], options: { part: 'A' }, checkFirst: false },
+    })
+
+    it('switching on for Part B sets 42 days (and back to Part A, 0); the days can be edited and are sent as typed', async () => {
+      apiJson.mockImplementation(async (_u: string, init?: RequestInit) => ((init?.method ?? 'GET') === 'GET' ? { data: staff } : { data: {} }))
+      wrap(<SurveyEventTriggerPanel surveyId="s1" canEdit />)
+      fireEvent.click(await screen.findByRole('button', { name: 'Switch on' }))
+      const days = screen.getByLabelText('Days after the event') as HTMLInputElement
+      expect(days.value).toBe('0')
+      fireEvent.click(screen.getByRole('radio', { name: /Part B/ }))
+      expect(days.value).toBe('42')
+      expect(screen.getByTestId('training-part-b-delay')).toHaveTextContent('42 days (6 weeks) after the course by default')
+      fireEvent.click(screen.getByRole('radio', { name: /Part A/ }))
+      expect(days.value).toBe('0')
+      fireEvent.click(screen.getByRole('radio', { name: /Part B/ }))
+      fireEvent.change(days, { target: { value: '56' } })
+      // Typed days are never replaced by a part's default.
+      fireEvent.click(screen.getByRole('radio', { name: /Part A/ }))
+      fireEvent.click(screen.getByRole('radio', { name: /Part B/ }))
+      expect(days.value).toBe('56')
+      fireEvent.click(screen.getAllByRole('button', { name: 'Switch on' }).at(-1)!)
+      await waitFor(() => expect(apiJson.mock.calls.some(c => c[1]?.method === 'PUT')).toBe(true))
+      const body = JSON.parse(apiJson.mock.calls.find(c => c[1]?.method === 'PUT')![1].body)
+      expect(body.trigger).toMatchObject({ event: 'TRAINING_ATTENDED', delayDays: 56, options: { part: 'B' } })
+    })
+  })
+
   it('the lists are tabs with a panel, moved between with the arrow keys', async () => {
     apiJson.mockResolvedValue({ data: payload({ trigger: on, counts: { DUE: 1 }, occurrences: [row()] as never }) })
     wrap(<SurveyEventTriggerPanel surveyId="s1" canEdit />)

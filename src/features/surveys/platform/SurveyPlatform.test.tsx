@@ -72,6 +72,19 @@ describe('repeats, answer keeping and checks', () => {
     expect(screen.getByLabelText(/months after each answer/)).toBeInTheDocument()
   })
 
+  it('says a legal hold lasts 30 days after the complaint, case or incident closes, and which answers are already gone', async () => {
+    apiJson.mockResolvedValue({
+      data: settings({
+        retention: { months: null, libraryMonths: 36, effectiveMonths: 36, basis: 'FROM_ANSWER', deletedAt: null, deletedBefore: '2026-02-01T00:00:00.000Z', periodsDeleted: 0, legalHoldGraceDays: 30 },
+      }),
+    })
+    wrap(<SurveyPlatformPanel surveyId="s1" questions={questions} canEdit isTemplate={false} />)
+    const note = await screen.findByTestId('retention-note')
+    expect(note).toHaveTextContent(/kept while it is open and for 30 days after it closes, then deleted/)
+    expect(note).not.toHaveTextContent(/kept until it closes\./)
+    expect(note).toHaveTextContent(/Answers given before 1 Feb 2026 have been deleted\./)
+  })
+
   it('the wording check lists what to fix with the question and how', async () => {
     apiJson.mockImplementation(async (url: string) =>
       String(url).includes('wording-check')

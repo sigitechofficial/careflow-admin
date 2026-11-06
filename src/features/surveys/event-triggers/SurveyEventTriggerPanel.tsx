@@ -300,6 +300,8 @@ function TriggerDialog({ surveyId, data, onClose }: { surveyId: string; data: Ev
   const start = data.trigger ?? (data.library ? { ...data.library, since: '', ownerKey: '' } : null)
   const [event, setEvent] = React.useState(start?.event ?? data.events[0]?.code ?? '')
   const [delay, setDelay] = React.useState(String(start?.delayDays ?? 7))
+  /** The days were typed by the person (never replaced by a part's default after that). */
+  const [delayTyped, setDelayTyped] = React.useState(false)
   const [windowDays, setWindowDays] = React.useState(String(start?.windowDays ?? 7))
   const [exclusions, setExclusions] = React.useState<string[]>(start?.exclusions ?? [])
   const [options, setOptions] = React.useState<TriggerOptions>(start?.options ?? {})
@@ -316,6 +318,15 @@ function TriggerDialog({ surveyId, data, onClose }: { surveyId: string; data: Ev
   const windowBad = !Number.isInteger(windowN) || windowN < 1 || windowN > 60
   const lookBad = !data.trigger && (!Number.isInteger(lookN) || lookN < 0 || lookN > 90)
   const complaintBad = event === 'COMPLAINT_CLOSED' && !options.complaintFrom
+  // Training feedback: Part B (the follow-up) starts from the library's delay (42 days); Part A from the library's own
+  // (straight after). Switching part moves the days unless the person typed their own (or a saved setting has them).
+  const partBDays = data.events.find(e => e.code === 'TRAINING_ATTENDED')?.partBDelayDays ?? 42
+  const partADays = data.library?.event === 'TRAINING_ATTENDED' && data.library.options?.part !== 'B' ? data.library.delayDays : 0
+  const choosePart = (part: 'A' | 'B') => {
+    setOptions({ ...options, part })
+    const untouched = !delayTyped && (!data.trigger || num(delay) === (part === 'B' ? partADays : partBDays))
+    if (untouched) setDelay(String(part === 'B' ? partBDays : partADays))
+  }
 
   const submit = async (off = false) => {
     try {
@@ -363,7 +374,7 @@ function TriggerDialog({ surveyId, data, onClose }: { surveyId: string; data: Ev
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm">
               <span className="font-medium">Days after the event</span>
-              <Input type="number" value={delay} onChange={e => setDelay(e.target.value)} aria-label="Days after the event" aria-invalid={delayBad} />
+              <Input type="number" value={delay} onChange={e => { setDelay(e.target.value); setDelayTyped(true) }} aria-label="Days after the event" aria-invalid={delayBad} />
               <span className="mt-1 block text-xs text-muted-foreground">
                 {info?.beforeAllowed ? 'A negative number sends it before (for example -10 for 10 days before the review).' : `From ${minDelay} to 120.`}
               </span>
@@ -427,10 +438,15 @@ function TriggerDialog({ surveyId, data, onClose }: { surveyId: string; data: Ev
                 ['B', 'Part B: the follow-up weeks later (held back by the 4-week rule, and skipped rather than delayed)'],
               ] as const).map(([v, label]) => (
                 <label key={v} className="flex items-start gap-2">
-                  <input type="radio" name="trainingPart" checked={(options.part ?? 'A') === v} onChange={() => setOptions({ ...options, part: v })} />
+                  <input type="radio" name="trainingPart" checked={(options.part ?? 'A') === v} onChange={() => choosePart(v)} />
                   <span>{label}</span>
                 </label>
               ))}
+              {(options.part ?? 'A') === 'B' ? (
+                <p className="text-xs text-muted-foreground" data-testid="training-part-b-delay">
+                  Part B is sent {partBDays} days (6 weeks) after the course by default, as the ready-made library suggests. You can change the days above.
+                </p>
+              ) : null}
               <p className="text-xs text-muted-foreground">Each training session gets its own copy, named with the course, date and trainer, so results show per session and pool across sessions.</p>
             </fieldset>
           ) : null}

@@ -218,6 +218,7 @@ export type SurveyDetail = {
   scoring?: SurveyScoring | null
   /** When this survey's answers were deleted under the retention period (Phase 2 part 7). */
   answersDeletedAt?: string | null
+  answersDeletedBefore?: string | null
   audienceGroup?: string | null
   audienceGroupOther?: string | null
   audienceGroupLabel?: string | null
@@ -405,6 +406,11 @@ export type SurveyResults = {
   access?: { responses: boolean; results: boolean; configure: boolean }
   /** Set when the viewer may see the figures but not individual responses or written answers. */
   writtenAnswersRestrictedNote?: string | null
+  /**
+   * What the retention period has deleted: every answer (deletedAt), or answers given before a day while later ones
+   * stay (deletedBefore, counted from each answer; the latest across periods); periods whose answers were deleted.
+   */
+  retention?: { deletedAt: string | null; deletedBefore: string | null; periodsDeleted: number }
   isAnonymous?: boolean
   recipients: number
   completed: number

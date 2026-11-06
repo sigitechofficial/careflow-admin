@@ -18,7 +18,7 @@ import { SurveyBreakdownPanel } from '@/features/surveys/components/SurveyBreakd
 import { SurveyHeadline, SurveyParticipationPanel } from '@/features/surveys/components/SurveyParticipationPanel'
 import { formatSurveyDate } from '@/features/surveys/survey-datetime'
 import { buildSurveyResultsCsv, surveyResultsFileName } from '@/features/surveys/survey-results-export'
-import { SURVEY_STATUS_LABELS, type SurveyPeriod } from '@/features/surveys/types'
+import { SURVEY_STATUS_LABELS, type SurveyPeriod, type SurveyResults } from '@/features/surveys/types'
 import {
   SurveyHeatmapPanel,
   SurveyQualityPanel,
@@ -40,6 +40,44 @@ const periodOption = (surveyTitle: string, p: SurveyPeriod) =>
  * responses (who it was sent to, and each response, with Record response). For a repeating survey
  * the period picker applies to both tabs.
  */
+/**
+ * What the retention period has deleted, for the survey or period shown: all its answers, or (counted from each
+ * answer) those given before a day while later ones stay; for a repeating survey, the periods whose answers went.
+ */
+function RetentionNotes({
+  retention,
+  survey,
+  className,
+}: {
+  retention: SurveyResults['retention']
+  survey: { answersDeletedAt?: string | null }
+  className?: string
+}) {
+  const deletedAt = retention ? retention.deletedAt : (survey.answersDeletedAt ?? null)
+  const deletedBefore = retention?.deletedBefore ?? null
+  const periods = retention?.periodsDeleted ?? 0
+  if (!deletedAt && !deletedBefore && !periods) return null
+  const box = `rounded-md border border-border bg-muted/40 px-3 py-2 text-sm${className ? ` ${className}` : ''}`
+  return (
+    <>
+      {deletedAt ? (
+        <p className={box} role="note" data-testid="answers-deleted">
+          The answers to this survey were deleted on {formatSurveyDate(deletedAt)} under its retention period. Who it was sent to, follow-ups and the CQC evidence totals are kept.
+        </p>
+      ) : deletedBefore ? (
+        <p className={box} role="note" data-testid="answers-deleted-before">
+          Answers given before {formatSurveyDate(deletedBefore)} have been deleted under the retention period. The figures and responses here are from later answers only; CQC evidence taken before keeps its totals.
+        </p>
+      ) : null}
+      {periods && !deletedAt ? (
+        <p className={box} role="note" data-testid="answers-deleted-periods">
+          The answers to {periods} period{periods === 1 ? '' : 's'} have been deleted under the retention period.
+        </p>
+      ) : null}
+    </>
+  )
+}
+
 export default function SurveyResponsesPage() {
   const { surveyId = '' } = useParams({ strict: false }) as { surveyId?: string }
   const { data: survey, isLoading, isError } = useSurvey(surveyId)
@@ -227,11 +265,7 @@ export default function SurveyResponsesPage() {
                 <p className="text-xs text-muted-foreground">All {periods.length} periods together. Choose a period to see one on its own.</p>
               ) : null}
               <SurveyParticipationPanel results={results} isPublic={forPublic} />
-              {survey.answersDeletedAt ? (
-                <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm" role="note" data-testid="answers-deleted">
-                  The answers to this survey were deleted on {formatSurveyDate(survey.answersDeletedAt)} under its retention period. Who it was sent to, follow-ups and the CQC evidence totals are kept.
-                </p>
-              ) : null}
+              <RetentionNotes retention={results.retention} survey={survey} />
 
               {results.periodsLeftOutNote ? (
                 <p className="text-xs text-muted-foreground" data-testid="survey-periods-left-out">
@@ -332,6 +366,7 @@ export default function SurveyResponsesPage() {
                   }
                 />
               )}
+              {results ? <RetentionNotes retention={results.retention} survey={survey} className="mb-5" /> : null}
               <SurveyResponsesPanel surveyId={viewId} />
             </>
           )}

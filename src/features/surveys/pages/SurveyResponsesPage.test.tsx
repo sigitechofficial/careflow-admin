@@ -379,4 +379,35 @@ describe('SurveyResponsesPage — per-survey access and the reporting threshold'
     await userEvent.click(screen.getByRole('tab', { name: 'Individual responses' }))
     expect(screen.getByTestId('responses-restricted')).toBeInTheDocument()
   })
+
+  describe('answers deleted under the retention period', () => {
+    it('an open survey counted from each answer says which answers are gone, in the Summary and Individual responses', async () => {
+      state.survey = survey()
+      state.results = { s1: results({ retention: { deletedAt: null, deletedBefore: '2026-02-01T00:00:00.000Z', periodsDeleted: 0 } }) }
+      render(<SurveyResponsesPage />)
+      expect(screen.getByTestId('answers-deleted-before')).toHaveTextContent('Answers given before 1 Feb 2026 have been deleted under the retention period.')
+      expect(screen.queryByTestId('answers-deleted')).not.toBeInTheDocument()
+      await userEvent.click(screen.getByRole('tab', { name: 'Individual responses' }))
+      expect(screen.getByTestId('answers-deleted-before')).toHaveTextContent('Answers given before 1 Feb 2026')
+    })
+
+    it('all answers deleted, and periods whose answers were deleted', () => {
+      state.survey = survey()
+      state.results = { s1: results({ retention: { deletedAt: '2026-03-01T00:00:00.000Z', deletedBefore: null, periodsDeleted: 0 } }) }
+      const { unmount } = render(<SurveyResponsesPage />)
+      expect(screen.getByTestId('answers-deleted')).toHaveTextContent('were deleted on 1 Mar 2026')
+      unmount()
+      state.results = { s1: results({ retention: { deletedAt: null, deletedBefore: null, periodsDeleted: 2 } }) }
+      render(<SurveyResponsesPage />)
+      expect(screen.getByTestId('answers-deleted-periods')).toHaveTextContent('The answers to 2 periods have been deleted')
+    })
+
+    it('nothing deleted: nothing said', () => {
+      state.survey = survey()
+      state.results = { s1: results({ retention: { deletedAt: null, deletedBefore: null, periodsDeleted: 0 } }) }
+      render(<SurveyResponsesPage />)
+      expect(screen.queryByTestId('answers-deleted-before')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('answers-deleted')).not.toBeInTheDocument()
+    })
+  })
 })
