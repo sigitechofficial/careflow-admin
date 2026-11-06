@@ -126,6 +126,8 @@ describe('answer form: answer without my name', () => {
     expect(submit.mock.calls[0][0]).toEqual({
       answers: [{ questionId: 'q1', booleanValue: true }],
       answerWithoutName: true,
+      // How long the form was open (only flags very fast answers; never kept).
+      secondsTaken: expect.any(Number),
     })
   })
 

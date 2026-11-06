@@ -19,9 +19,16 @@ import { SurveyHeadline, SurveyParticipationPanel } from '@/features/surveys/com
 import { formatSurveyDate } from '@/features/surveys/survey-datetime'
 import { buildSurveyResultsCsv, surveyResultsFileName } from '@/features/surveys/survey-results-export'
 import { SURVEY_STATUS_LABELS, type SurveyPeriod } from '@/features/surveys/types'
+import {
+  SurveyHeatmapPanel,
+  SurveyQualityPanel,
+  SurveyScoresPanel,
+  SurveyThemesPanel,
+  SurveyTrendsPanel,
+} from '@/features/surveys/insight/SurveyInsightPanels'
 
 const ALL_PERIODS = 'all'
-type ResultsTab = 'summary' | 'individual'
+type ResultsTab = 'summary' | 'trends' | 'branches' | 'individual'
 
 /** "Nov 2026 · from 1 Nov 2026" for the period picker. */
 const periodOption = (surveyTitle: string, p: SurveyPeriod) =>
@@ -192,6 +199,8 @@ export default function SurveyResponsesPage() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TabsList>
             <TabsTrigger value="summary">Summary</TabsTrigger>
+            {periods.length > 0 && viewId === surveyId ? <TabsTrigger value="trends">Trends</TabsTrigger> : null}
+            {!forPublic ? <TabsTrigger value="branches">By branch</TabsTrigger> : null}
             <TabsTrigger value="individual">Individual responses</TabsTrigger>
           </TabsList>
           {tab === 'summary' && results && !belowThreshold ? (
@@ -273,8 +282,24 @@ export default function SurveyResponsesPage() {
               ) : null}
 
               <SurveyBreakdownPanel title="By branch and job title" breakdowns={results.breakdowns} />
+
+              {!group ? (
+                <>
+                  <SurveyScoresPanel surveyId={viewId} />
+                  <SurveyThemesPanel surveyId={viewId} />
+                  <SurveyQualityPanel surveyId={viewId} />
+                </>
+              ) : null}
             </>
           )}
+        </TabsContent>
+
+        <TabsContent value="trends" className="space-y-5">
+          {tab === 'trends' ? <SurveyTrendsPanel surveyId={surveyId} /> : null}
+        </TabsContent>
+
+        <TabsContent value="branches" className="space-y-5">
+          {tab === 'branches' ? <SurveyHeatmapPanel surveyId={viewId} /> : null}
         </TabsContent>
 
         <TabsContent value="individual">

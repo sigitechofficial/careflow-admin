@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import {
+  BarChart3,
   BellRing, BookCopy,
   BookmarkMinus,
   BookmarkPlus,
@@ -536,6 +537,12 @@ export default function SurveysPage() {
               </option>
             ))}
           </select>
+          <Button type="button" size="sm" variant="outline" className="gap-1.5" asChild>
+            <Link to="/surveys/insight" data-testid="survey-insight-link">
+              <BarChart3 className="h-4 w-4" aria-hidden />
+              Insight
+            </Link>
+          </Button>
           <Button type="button" size="sm" variant="outline" className="gap-1.5" asChild>
             <Link to="/surveys/follow-ups" data-testid="survey-follow-ups-link">
               <BellRing className="h-4 w-4" aria-hidden />

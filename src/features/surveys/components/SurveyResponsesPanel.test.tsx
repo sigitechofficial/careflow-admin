@@ -24,6 +24,7 @@ const { state } = vi.hoisted(() => ({
   },
 }))
 
+vi.mock('@/features/surveys/insight/survey-insight', () => ({ useResponseFlags: () => ({ data: [] }) }))
 vi.mock('@/features/surveys/hooks/useSurveys', () => ({
   useSurveyResponses: (id: string | undefined) =>
     id && state.responsesFail.has(id)

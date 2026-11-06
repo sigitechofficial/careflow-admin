@@ -23,6 +23,7 @@ import { RecordSurveyResponseDialog } from '@/features/surveys/components/Record
 import { useAuthStore } from '@/features/auth/store'
 import { SurveySectionHeading } from '@/features/surveys/components/SurveySectionHeading'
 import { withSectionHeadings } from '@/features/surveys/survey-sections'
+import { useResponseFlags } from '@/features/surveys/insight/survey-insight'
 
 /** Anonymous answers keep only the date; everything else shows date and time. */
 const formatSubmitted = (r: SurveyResponseItem) =>
@@ -139,6 +140,9 @@ export function SurveyResponsesPanel({ surveyId }: { surveyId: string }) {
   const survey = surveyQuery.data
   const canRecord = useAuthStore(s => s.can('surveys.responses.record'))
   const [viewing, setViewing] = React.useState<SurveyResponseItem | null>(null)
+  // Answer quality: flags for a look (never removed); only for people who can open responses.
+  const flagsQuery = useResponseFlags(surveyId)
+  const flagsOf = React.useMemo(() => new Map((flagsQuery.data ?? []).map(f => [f.responseId, f.flags])), [flagsQuery.data])
   const [recordOpen, setRecordOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<SurveyResponseItem | null>(null)
   // "All periods" of a repeating survey lists every period's responses: one is edited on the period it
@@ -285,7 +289,14 @@ export function SurveyResponsesPanel({ surveyId }: { surveyId: string }) {
             <tbody>
               {data.responses.map(r => (
                 <tr key={r.id} className="border-b border-border/70 last:border-0">
-                  <td className="px-4 py-2.5 font-medium text-foreground">{r.respondentLabel}</td>
+                  <td className="px-4 py-2.5 font-medium text-foreground">
+                    {r.respondentLabel}
+                    {(flagsOf.get(r.id) ?? []).map(f => (
+                      <span key={f.flag} className="ml-2 inline-block rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-normal text-amber-900 dark:text-amber-100" data-testid="response-quality-flag">
+                        {f.label}
+                      </span>
+                    ))}
+                  </td>
                   {showPeriod ? <td className="px-4 py-2.5 text-muted-foreground">{r.periodTitle ?? '—'}</td> : null}
                   {showAnsweredBy ? (
                     <td className="px-4 py-2.5 text-muted-foreground">

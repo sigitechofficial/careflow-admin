@@ -99,6 +99,7 @@ import { SurveyReviewersPanel } from '@/features/surveys/reviewers/SurveyReviewe
 import { SurveyRemindersPanel } from '@/features/surveys/reminders/SurveyRemindersPanel'
 import { SurveyContactRulePanel } from '@/features/surveys/contact-rule/SurveyContactRulePanel'
 import { SurveyEventTriggerPanel } from '@/features/surveys/event-triggers/SurveyEventTriggerPanel'
+import { SurveyScoringPanel } from '@/features/surveys/insight/SurveyScoringPanel'
 import { SendOutsideDialog } from '@/features/surveys/outside/SendOutsideDialog'
 import { SurveySharePanel } from '@/features/surveys/sharing/SurveySharePanel'
 import {
@@ -1140,6 +1141,9 @@ export default function SurveyBuilderPage() {
         <SurveyAccessPanel surveyId={survey.id} />
         {!isTemplate ? <SurveyReviewersPanel surveyId={survey.id} canEdit={canEdit} /> : null}
         <SurveyAlertRulesPanel surveyId={survey.id} canEdit={canEdit} />
+        {!survey.clonedFromId ? (
+          <SurveyScoringPanel surveyId={survey.id} questions={questions} scoring={survey.scoring} canEdit={canEdit} />
+        ) : null}
         {!isTemplate && (survey.targetKind !== 'PUBLIC' || !survey.isAnonymous) ? (
           <SurveyRemindersPanel surveyId={survey.id} canEdit={canEdit} isOpen={survey.status === 'ACTIVE'} />
         ) : null}

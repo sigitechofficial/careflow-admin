@@ -21,6 +21,13 @@ vi.mock('@tanstack/react-router', () => ({
   ),
   useParams: () => ({ surveyId: 's1' }),
 }))
+vi.mock('@/features/surveys/insight/SurveyInsightPanels', () => ({
+  SurveyTrendsPanel: () => <div data-testid="survey-trends" />,
+  SurveyHeatmapPanel: () => <div data-testid="survey-heatmap" />,
+  SurveyThemesPanel: () => null,
+  SurveyQualityPanel: () => null,
+  SurveyScoresPanel: () => null,
+}))
 vi.mock('@/features/surveys/hooks/useSurveys', () => ({
   useSurvey: () => ({ data: state.survey, isLoading: false, isError: false }),
   useSurveyResults: (id: string, enabled = true) => ({ data: enabled ? state.results[id] : undefined }),

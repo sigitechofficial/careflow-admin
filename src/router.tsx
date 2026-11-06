@@ -137,6 +137,7 @@ import SurveyPosterPage from '@/features/surveys/sharing/SurveyPosterPage'
 import ReadyMadeSurveysPage from '@/features/surveys/pages/ReadyMadeSurveysPage'
 import OutsidePeoplePage from '@/features/surveys/outside/OutsidePeoplePage'
 import SurveyFollowUpsPage from '@/features/surveys/pages/SurveyFollowUpsPage'
+import SurveyInsightPage, { Survey360Page, SurveyPoolPage } from '@/features/surveys/insight/SurveyInsightPages'
 import PathwayCasesListPage from '@/features/specialist-pathways/pages/PathwayCasesListPage'
 import PathwayCaseDetailPage from '@/features/specialist-pathways/pages/PathwayCaseDetailPage'
 import SafeguardingListPage from '@/features/safeguarding/pages/SafeguardingListPage'
@@ -311,6 +312,9 @@ const pageTitles: Record<string, string> = {
   '/surveys/ready-made': 'Ready-made surveys',
   '/surveys/outside-people': 'Outside people',
   '/surveys/follow-ups': 'Survey follow-ups',
+  '/surveys/insight': 'Survey insight',
+  '/surveys/insight/pool': 'All copies together',
+  '/surveys/insight/360': '360 report',
   '/service-users': 'Service Users',
   '/service-users/all': 'Service Users',
   '/service-users/hours': 'Service User hours',
@@ -1795,6 +1799,32 @@ const surveyOutsidePeopleRoute = createRoute({
   component: OutsidePeoplePage,
 })
 
+// Survey insight (Phase 2 part 5): role dashboards, pooled copies, the 360 report. Figures need results access.
+const surveyInsightRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/insight',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyInsightPage,
+})
+
+const surveyPoolRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/insight/pool',
+  validateSearch: (raw: Record<string, unknown>): { templateId?: string; libraryReference?: string } => ({
+    ...(typeof raw.templateId === 'string' ? { templateId: raw.templateId } : {}),
+    ...(typeof raw.libraryReference === 'string' ? { libraryReference: raw.libraryReference } : {}),
+  }),
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyPoolPage,
+})
+
+const survey360Route = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/insight/360',
+  beforeLoad: requirePermission('surveys.read'),
+  component: Survey360Page,
+})
+
 const surveyReadyMadeRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/surveys/ready-made',
@@ -2889,6 +2919,9 @@ const routeTree = rootRoute.addChildren([
     surveyReadyMadeRoute,
     surveyOutsidePeopleRoute,
     surveyFollowUpsRoute,
+    surveyInsightRoute,
+    surveyPoolRoute,
+    survey360Route,
     surveyBuilderRoute,
     surveyResponsesRoute,
     surveyCallListRoute,

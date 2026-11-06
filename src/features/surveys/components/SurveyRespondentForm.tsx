@@ -91,6 +91,8 @@ export function SurveyRespondentForm({
   const [showErrors, setShowErrors] = React.useState(false)
   const [attempt, setAttempt] = React.useState(0)
   const summaryRef = React.useRef<HTMLDivElement>(null)
+  // When the form opened: only how long it took is sent (to flag very fast answers); the API never keeps it.
+  const openedAt = React.useRef(Date.now())
   const missingIds = new Set(missingRequired.map(q => q.id))
   const otherIds = new Set(missingOtherText.map(q => q.id))
   const problems: Problem[] = [
@@ -134,6 +136,7 @@ export function SurveyRespondentForm({
           }
         : {}),
       ...(answeringWithoutName ? { answerWithoutName: true } : {}),
+      secondsTaken: Math.max(0, Math.round((Date.now() - openedAt.current) / 1000)),
     })
   }
 

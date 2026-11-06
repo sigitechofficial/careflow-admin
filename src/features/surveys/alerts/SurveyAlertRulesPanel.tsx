@@ -38,6 +38,7 @@ import {
   type SurveyAlertRule,
   type SurveyAlertRulesPayload,
 } from '@/features/surveys/alerts/survey-alerts'
+import { SafeguardingWordsToggle } from './SafeguardingWordsToggle'
 
 const fieldClass =
   'mt-1 w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
@@ -185,6 +186,7 @@ export function SurveyAlertRulesPanel({ surveyId, canEdit }: { surveyId: string;
                     {rule.urgent ? <Badge variant="destructive">Urgent</Badge> : null}
                     {rule.contactRequest ? <Badge variant="outline">Contact me</Badge> : null}
                     {rule.fromLibrary ? <Badge variant="outline">Ready-made</Badge> : null}
+                    {rule.builtIn ? <Badge variant="outline">On every survey</Badge> : null}
                     {!rule.isActive ? <Badge variant="outline">Off</Badge> : null}
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
@@ -215,7 +217,11 @@ export function SurveyAlertRulesPanel({ surveyId, canEdit }: { surveyId: string;
                     </p>
                   ) : null}
                 </div>
-                {editable ? (
+                {editable && rule.builtIn ? (
+                  <div className="flex shrink-0 gap-1">
+                    <SafeguardingWordsToggle surveyId={data.surveyId} isActive={rule.isActive} />
+                  </div>
+                ) : editable ? (
                   <div className="flex shrink-0 gap-1">
                     <Button type="button" size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label={`Change alert: ${rule.title}`} onClick={() => setEditing(rule)}>
                       <Pencil className="h-3.5 w-3.5" aria-hidden />

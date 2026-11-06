@@ -47,6 +47,8 @@ export type SurveyAlertRule = {
   contactRequest: boolean
   isActive: boolean
   fromLibrary: boolean
+  /** A rule CareFlow keeps on every survey (safeguarding words): switched on or off only. */
+  builtIn?: 'SAFEGUARDING_WORDS' | null
   problems: string[]
 }
 
@@ -287,5 +289,15 @@ export function useUpdateFollowUp() {
       void qc.invalidateQueries({ queryKey: alertKeys.all() })
       void qc.invalidateQueries({ queryKey: ['role-tasks'] })
     },
+  })
+}
+
+/** The built-in safeguarding-words alert: switch on, or off with the reason (audited). */
+export function useSafeguardingWords(surveyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { isActive: boolean; reason?: string }) =>
+      apiJson(`/surveys/${surveyId}/alert-rules/safeguarding-words`, { method: 'PUT', body: JSON.stringify(input) }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: alertKeys.rules(surveyId) }),
   })
 }

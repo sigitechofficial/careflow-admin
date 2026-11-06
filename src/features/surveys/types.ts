@@ -130,6 +130,8 @@ export type SurveyListItem = {
   recurrence: SurveyRecurrence | null
   /** Sent when something happens in the care records (the event code); null = not. */
   eventTrigger?: string | null
+  /** Scoring scales (scored tools: HSE-indicator style, audit scores); null = not scored. */
+  scoring?: { scales: Array<{ key: string; label: string; questionKeys: string[]; reversed: string[]; method: 'MEAN' | 'PERCENT_OF_MAX'; bands: Array<{ from: number; label: string }> }> } | null
   clonedFromId: string | null
   periodKey: string | null
   periodOpenDays: number | null
@@ -206,8 +208,12 @@ export type SurveyViewerAccess = {
   reportingThreshold: number
 }
 
+export type SurveyScoring = { scales: Array<{ key: string; label: string; questionKeys: string[]; reversed: string[]; method: 'MEAN' | 'PERCENT_OF_MAX'; bands: Array<{ from: number; label: string }> }> }
+
 export type SurveyDetail = {
   viewerAccess?: SurveyViewerAccess
+  /** Scoring scales (scored tools: HSE-indicator style, audit scores); null = not scored. */
+  scoring?: SurveyScoring | null
   audienceGroup?: string | null
   audienceGroupOther?: string | null
   audienceGroupLabel?: string | null
@@ -680,6 +686,8 @@ export type SubmitSurveyResponseInput = {
   formToken?: string
   /** Shared links: the hidden field people never see (spam protection). */
   website?: string
+  /** How long the form was open, in seconds: used only to flag very fast answers, never kept. */
+  secondsTaken?: number
 }
 
 export type SurveyListFilters = {

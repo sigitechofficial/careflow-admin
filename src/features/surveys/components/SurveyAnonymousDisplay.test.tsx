@@ -9,6 +9,7 @@ const { state } = vi.hoisted(() => ({
   },
 }))
 
+vi.mock('@/features/surveys/insight/survey-insight', () => ({ useResponseFlags: () => ({ data: [] }) }))
 vi.mock('@/features/surveys/hooks/useSurveys', () => ({
   useSurveyRecipients: () => ({ data: state.recipients, isLoading: false }),
   useSurveyResponses: () => ({

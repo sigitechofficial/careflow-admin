@@ -147,6 +147,7 @@ describe('SurveyRespondentForm accessibility', () => {
     expect(onSubmit).toHaveBeenCalledWith({
       answers: [{ questionId: 'a', selectedOptions: ['Good'] }],
       respondentRelation: 'SELF',
+      secondsTaken: expect.any(Number),
     })
   })
 })
