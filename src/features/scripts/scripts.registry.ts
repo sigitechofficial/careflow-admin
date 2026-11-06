@@ -24,7 +24,8 @@ export const SCRIPTS: ScriptDefinition[] = [
       'Adds visits to one or more service users’ visit plans, puts one or several carers on them, adds their tasks and medicines, then builds the rota.',
     steps: [
       'Finds each service user (number or name) and the carers (full name).',
-      'Adds the visits to the visit plan, with the weekly-hours and working-pattern checks the Visit plan tab runs.',
+      'Checks each carer with the app’s carer check (working pattern, clashes, weekly hours, leave). A named carer who is unavailable is swapped for an available one; leave "carers" out to let it choose. A visit no available carer can take is not added, so nothing is left unassigned.',
+      'Adds the visits to the visit plan, with the weekly-hours checks the Visit plan tab runs.',
       'Adds the tasks (existing ones are kept) and the medicines (one per name, a time for each round).',
       'Activates a draft plan and builds the rota as Generate rota does: from today through the rota horizon (Settings → Dom Rules, 28 days by default); the nightly rolling rota keeps extending it. "fromDate" / "toDate" in the input override this.',
       'Lists any visit still missing carers, with the reason to check.',
@@ -32,7 +33,6 @@ export const SCRIPTS: ScriptDefinition[] = [
     exampleInput: () => {
       const example: CreateVisitsInput = {
         amendmentReason: 'Visits set up from the Scripts page',
-        respectWorkingPatterns: true,
         serviceUsers: [
           {
             serviceUser: 'SU-GW-03',
