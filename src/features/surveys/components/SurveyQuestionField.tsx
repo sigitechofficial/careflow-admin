@@ -327,9 +327,10 @@ export function QuestionField({
       />
     )
   } else if (q.questionType === 'SINGLE_SELECT' || q.questionType === 'LIKERT') {
-    control = (
-      <div className="space-y-2">
-        {[...options, ...(other && q.questionType === 'SINGLE_SELECT' ? [other.label] : [])].map(opt => (
+    control = withAnswerHeadings(
+      q,
+      [...options, ...(other && q.questionType === 'SINGLE_SELECT' ? [other.label] : [])],
+      opt => (
           <ChoiceOption
             key={opt}
             type="radio"
@@ -341,14 +342,14 @@ export function QuestionField({
           >
             {opt}
           </ChoiceOption>
-        ))}
-      </div>
+      ),
     )
   } else if (q.questionType === 'MULTI_SELECT') {
     const selected = value?.selectedOptions ?? []
-    control = (
-      <div className="space-y-2">
-        {[...options, ...(other ? [other.label] : [])].map(opt => (
+    control = withAnswerHeadings(
+      q,
+      [...options, ...(other ? [other.label] : [])],
+      opt => (
           <ChoiceOption
             key={opt}
             type="checkbox"
@@ -360,8 +361,7 @@ export function QuestionField({
           >
             {opt}
           </ChoiceOption>
-        ))}
-      </div>
+      ),
     )
   } else if (q.questionType === 'RATING') {
     control = (
@@ -488,6 +488,28 @@ export function QuestionField({
           ) : null}
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Answers under headings (grouped answer choices, Phase 2 part 7): each heading names a group of its answers; answers in
+ * no group (and "Other") follow. Without groups, the plain list.
+ */
+function withAnswerHeadings(q: { questionType: string; answerGroups?: Array<{ heading: string; options: string[] }> }, list: string[], render: (opt: string) => React.ReactNode) {
+  const groups = q.questionType === 'SINGLE_SELECT' || q.questionType === 'MULTI_SELECT' ? (q.answerGroups ?? []) : []
+  if (!groups.length) return <div className="space-y-2">{list.map(render)}</div>
+  const grouped = new Set(groups.flatMap(g => g.options))
+  const rest = list.filter(o => !grouped.has(o))
+  return (
+    <div className="space-y-3">
+      {groups.map(g => (
+        <div key={g.heading} role="group" aria-label={g.heading} className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.heading}</p>
+          {g.options.filter(o => list.includes(o)).map(render)}
+        </div>
+      ))}
+      {rest.length ? <div className="space-y-2">{rest.map(render)}</div> : null}
     </div>
   )
 }

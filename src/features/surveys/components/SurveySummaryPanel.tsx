@@ -175,6 +175,21 @@ export function SurveySummaryPanel({ summaries, writtenAnswersNote, responsesInF
                     ))}
                   </ul>
                   <NotCountedAnswers options={q.options} />
+                  {q.optionGroupSummary ? (
+                    <div className="mt-2" data-testid="answer-group-summary">
+                      <p className="text-xs font-medium text-foreground">By group</p>
+                      {q.optionGroupSummary.groups.length ? (
+                        <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                          {q.optionGroupSummary.groups.map(g => (
+                            <li key={g.heading}>
+                              {g.heading}: {g.count} · {g.percent}%
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {q.optionGroupSummary.note ? <p className="text-xs text-muted-foreground">{q.optionGroupSummary.note}</p> : null}
+                    </div>
+                  ) : null}
                   {q.optionsFrom ? (
                     <div className="mt-2 space-y-1" data-testid="lookup-details">
                       {q.lookupDetails?.length ? (

@@ -6,10 +6,11 @@ import { useDocumentTitle } from '@/shared/lib/use-document-title'
 import { PrintPageStyles } from '@/features/surveys/sharing/PrintPageStyles'
 import { ACTION_STATUS_LABELS, formatDay, usePublicUpdate, useSurveyPack, useUpdateLetter, type Organisation, type PublicUpdate } from './survey-actions'
 
-function Toolbar({ back, label }: { back: React.ReactNode; label: string }) {
+function Toolbar({ back, label, extra }: { back: React.ReactNode; label: string; extra?: React.ReactNode }) {
   return (
     <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background px-4 py-2 print:hidden">
       {back}
+      {extra}
       <Button type="button" size="sm" className="gap-1" onClick={() => window.print()}>
         <Printer className="h-4 w-4" aria-hidden /> {label}
       </Button>
@@ -122,7 +123,13 @@ export function PublicUpdatePage() {
 /** /surveys/:surveyId/pack — the CQC and commissioner pack, ready to print or save as PDF. */
 export function SurveyPackPage() {
   const { surveyId = '' } = useParams({ strict: false }) as { surveyId?: string }
-  const { data, isError } = useSurveyPack(surveyId)
+  // A repeating survey: every period that can be shown together (the default), or one period on its own.
+  const [periodId, setPeriodId] = React.useState('')
+  const { data, isError } = useSurveyPack(surveyId, periodId || undefined)
+  const [periods, setPeriods] = React.useState<Array<{ id: string; label: string }>>([])
+  React.useEffect(() => {
+    if (!periodId && data?.periods) setPeriods(data.periods)
+  }, [data, periodId])
   useDocumentTitle(data ? `Pack: ${data.survey.title} – CareAdmin` : 'Survey pack – CareAdmin')
   const h2 = 'mt-6 break-after-avoid text-lg font-semibold'
   return (
@@ -134,6 +141,21 @@ export function SurveyPackPage() {
           <Link to="/surveys/$surveyId/actions" params={{ surveyId }} className="inline-flex items-center gap-1 text-sm text-primary">
             <ArrowLeft className="h-4 w-4" aria-hidden /> Back
           </Link>
+        }
+        extra={
+          periods.length > 1 ? (
+            <label className="flex items-center gap-2 text-sm">
+              Period
+              <select className="h-9 rounded-md border border-input bg-background px-2" value={periodId} onChange={e => setPeriodId(e.target.value)} data-testid="pack-period">
+                <option value="">All periods that can be shown</option>
+                {periods.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null
         }
       />
       {!data ? (
@@ -227,6 +249,7 @@ export function SurveyPackPage() {
           {data.themes.length ? (
             <>
               <h2 className={h2}>What people wrote about</h2>
+              {data.themesPeriod ? <p className="text-xs text-neutral-600">From {data.themesPeriod.label}, the latest period that can be shown.</p> : null}
               <p>{data.themes.map(t => `${t.label} (${t.count ?? 'fewer than 3'})`).join(' · ')}</p>
             </>
           ) : null}

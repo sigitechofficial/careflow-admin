@@ -227,6 +227,11 @@ export default function SurveyResponsesPage() {
                 <p className="text-xs text-muted-foreground">All {periods.length} periods together. Choose a period to see one on its own.</p>
               ) : null}
               <SurveyParticipationPanel results={results} isPublic={forPublic} />
+              {survey.answersDeletedAt ? (
+                <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm" role="note" data-testid="answers-deleted">
+                  The answers to this survey were deleted on {formatSurveyDate(survey.answersDeletedAt)} under its retention period. Who it was sent to, follow-ups and the CQC evidence totals are kept.
+                </p>
+              ) : null}
 
               {results.periodsLeftOutNote ? (
                 <p className="text-xs text-muted-foreground" data-testid="survey-periods-left-out">

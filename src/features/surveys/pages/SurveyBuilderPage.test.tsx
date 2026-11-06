@@ -28,6 +28,7 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/features/auth/store', () => ({
   useAuthStore: (pick: (s: { can: () => boolean }) => unknown) => pick({ can: () => true }),
 }))
+vi.mock('@/features/surveys/platform/SurveyPlatformPanel', () => ({ SurveyPlatformPanel: () => <div data-testid="survey-platform" /> }))
 vi.mock('@/features/surveys/insight/SurveyScoringPanel', () => ({ SurveyScoringPanel: () => <div data-testid="survey-scoring" /> }))
 vi.mock('@/features/surveys/hooks/useSurveys', () => ({
   useSurvey: () => ({ data: state.survey, isLoading: false, isError: false }),

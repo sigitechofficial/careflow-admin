@@ -419,6 +419,21 @@ function TriggerDialog({ surveyId, data, onClose }: { surveyId: string; data: Ev
               <Input type="number" value={String(options.minDays ?? 28)} onChange={e => setOptions({ ...options, minDays: Number(e.target.value) })} aria-label="Absence of at least (days)" />
             </label>
           ) : null}
+          {event === 'TRAINING_ATTENDED' ? (
+            <fieldset className="space-y-1 text-sm" data-testid="training-part">
+              <legend className="font-medium">Which part</legend>
+              {([
+                ['A', 'Part A: straight after the course (part of the course, so the 4-week rule does not apply)'],
+                ['B', 'Part B: the follow-up weeks later (held back by the 4-week rule, and skipped rather than delayed)'],
+              ] as const).map(([v, label]) => (
+                <label key={v} className="flex items-start gap-2">
+                  <input type="radio" name="trainingPart" checked={(options.part ?? 'A') === v} onChange={() => setOptions({ ...options, part: v })} />
+                  <span>{label}</span>
+                </label>
+              ))}
+              <p className="text-xs text-muted-foreground">Each training session gets its own copy, named with the course, date and trainer, so results show per session and pool across sessions.</p>
+            </fieldset>
+          ) : null}
           {data.exclusions.length ? (
             <fieldset className="space-y-1 text-sm">
               <legend className="font-medium">Also do not send when there is</legend>

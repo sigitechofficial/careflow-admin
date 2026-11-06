@@ -188,6 +188,8 @@ export type SurveyQuestion = {
   /** Options from a CareFlow list (ETHNICITY …); `options` then holds its entries in use. */
   optionsFrom?: string | null
   optionGroups?: Array<{ group: string; options: Array<{ code: string; label: string }> }>
+  /** Grouped answer choices: answers shown under headings and reported by group. */
+  answerGroups?: Array<{ heading: string; options: string[] }>
   config: Record<string, unknown> | null
   isRequired: boolean
   sortOrder: number
@@ -214,6 +216,8 @@ export type SurveyDetail = {
   viewerAccess?: SurveyViewerAccess
   /** Scoring scales (scored tools: HSE-indicator style, audit scores); null = not scored. */
   scoring?: SurveyScoring | null
+  /** When this survey's answers were deleted under the retention period (Phase 2 part 7). */
+  answersDeletedAt?: string | null
   audienceGroup?: string | null
   audienceGroupOther?: string | null
   audienceGroupLabel?: string | null
@@ -322,6 +326,8 @@ export type SurveyQuestionSummary = {
   optionsFrom?: string | null
   lookupDetails?: Array<{ group: string; label: string; count: number }>
   lookupDetailsNote?: string | null
+  /** Grouped answer choices: each group's count (folded where answers can be linked to no one). */
+  optionGroupSummary?: { groups: Array<{ heading: string; count: number; percent: number }>; note: string | null } | null
   questionId: string
   questionText: string
   questionType: SurveyQuestionType
@@ -623,6 +629,8 @@ export type PublicSurveyQuestion = {
   /** Options from a CareFlow list (ETHNICITY …): its entries in use, in their groups. */
   optionsFrom?: string | null
   optionGroups?: Array<{ group: string; options: Array<{ code: string; label: string }> }>
+  /** Grouped answer choices: answers shown under headings and reported by group. */
+  answerGroups?: Array<{ heading: string; options: string[] }>
 } & SurveyQuestionLogic
 
 export type PublicSurveyForm = {

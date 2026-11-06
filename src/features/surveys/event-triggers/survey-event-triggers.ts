@@ -10,6 +10,9 @@ export type TriggerOptions = {
   ignoreFirstDays?: number
   reviewType?: 'PROBATION_REVIEW' | 'INDUCTION_CHECKIN' | 'CARE_CERTIFICATE_SIGNOFF'
   minDays?: number
+  /** Training feedback: Part A (straight after) or Part B (the follow-up). */
+  part?: 'A' | 'B'
+  courseIds?: string[]
 }
 export type EventTrigger = {
   event: string

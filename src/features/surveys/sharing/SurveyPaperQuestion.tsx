@@ -79,6 +79,16 @@ export function SurveyPaperQuestion({
             </div>
           ))}
         </div>
+      ) : isChoice && q.answerGroups?.length ? (
+        <div className="mt-1.5">
+          {q.answerGroups.map(g => (
+            <div key={g.heading} className="mb-2 break-inside-avoid">
+              <p className="text-[12px] font-semibold">{g.heading}</p>
+              <Ticks options={g.options.filter(o => choiceOptions(q).includes(o))} />
+            </div>
+          ))}
+          <Ticks options={choiceOptions(q).filter(o => !q.answerGroups!.some(g => g.options.includes(o)))} />
+        </div>
       ) : isChoice ? (
         <Ticks options={choiceOptions(q)} />
       ) : q.questionType === 'RATING' ? (

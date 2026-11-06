@@ -103,6 +103,10 @@ export type SurveyPack = {
   discussions: Array<{ heldOn: string; kind: string; attendees: number | null; agreed: string | null }>
   youSaidWeDid: Array<{ title: string; items: Array<{ youSaid: string; weDid: string }>; publishedOn: string | null }>
   cqcStatements: Array<{ code: string; title: string }>
+  /** Repeating surveys: which period the themes come from. */
+  themesPeriod?: { id: string; label: string } | null
+  /** Periods the pack can be made for. */
+  periods?: Array<{ id: string; label: string }>
 }
 
 const key = (surveyId: string) => ['surveys', 'acting', surveyId] as const

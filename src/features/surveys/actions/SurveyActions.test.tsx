@@ -116,3 +116,36 @@ describe('print pages', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/no longer available/)
   })
 })
+
+describe('pack period chooser', () => {
+  it('defaults to every period that can be shown, and can show one period (themes say which period)', async () => {
+    const pack = (period: string | null) => ({
+      organisation: null,
+      survey: { id: 's1', title: 'Staff pulse', targetKind: 'EMPLOYEE', isAnonymous: false, libraryReference: null },
+      period: period ? { id: period, title: 'Staff pulse — Oct', opensAt: null, closesAt: null } : null,
+      generatedOn: '2026-11-07',
+      threshold: 5,
+      participation: { sentTo: null, answered: 20, responseRate: null, inFigures: 20 },
+      figuresShown: true,
+      figuresNote: null,
+      headline: null,
+      questions: [],
+      trends: null,
+      themes: [{ code: 'PAY', label: 'Pay', count: 4 }],
+      themesPeriod: { id: 'p2', label: 'Oct 2026' },
+      scores: [],
+      actions: [],
+      discussions: [],
+      youSaidWeDid: [],
+      cqcStatements: [],
+      periods: [{ id: 'p1', label: 'Sep 2026' }, { id: 'p2', label: 'Oct 2026' }],
+    })
+    apiJson.mockImplementation(async (url: string) => ({ data: pack(String(url).includes('periodId=p1') ? 'p1' : null) }))
+    wrap(<SurveyPackPage />)
+    const picker = await screen.findByTestId('pack-period')
+    expect(picker).toHaveValue('')
+    expect(screen.getByText(/From Oct 2026, the latest period that can be shown/)).toBeInTheDocument()
+    fireEvent.change(picker, { target: { value: 'p1' } })
+    await waitFor(() => expect(apiJson).toHaveBeenCalledWith('/surveys/s1/pack?periodId=p1', { method: 'GET' }))
+  })
+})
