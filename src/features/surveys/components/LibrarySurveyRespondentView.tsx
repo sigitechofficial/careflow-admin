@@ -5,19 +5,33 @@ import type { LibrarySurveyDetail } from '@/features/surveys/api/survey-library.
 import type { PublicSurveyForm, SurveyQuestion } from '@/features/surveys/types'
 import { SurveyRespondentForm } from '@/features/surveys/components/SurveyRespondentForm'
 
+/** The API's contact-me question (survey-respondent-anonymity.util.ts CONTACT_ME_PATTERN, YES_NO only). */
+const CONTACT_ME_PATTERN = /^\s*would you like (someone|us) to (contact|get in touch with) you\b/i
+const isContactRequest = (q: { questionType: string; questionText: string }) =>
+  q.questionType === 'YES_NO' && CONTACT_ME_PATTERN.test(q.questionText ?? '')
+
 /**
  * A ready-made survey as the person answering it receives it (the same form as Preview): what they
  * read first, the sections, and the questions, including ones shown only after certain answers.
  */
 export function libraryAsRespondentForm(survey: LibrarySurveyDetail): PublicSurveyForm {
   let sortOrder = 0
+  // Show-if rules name the earlier question by its key: the form finds it by key, or by id (as the API's form sends).
+  const idByKey = new Map(
+    survey.sections.flatMap(s => s.questions).filter(q => q.key).map(q => [q.key as string, q.id] as const),
+  )
   const questions: SurveyQuestion[] = survey.sections.flatMap(section =>
     section.questions.map(q => {
       const notCounted = q.notCountedOptions?.length ? { notCountedOptions: q.notCountedOptions } : {}
-      // The library names the earlier question by its text too; the form needs only its id and answers.
-      const showIf = q.showIf ? (({ questionText: _t, ...rule }) => rule)(q.showIf) : null
+      // The library names the earlier question by its text too; the form needs its key, id and answers.
+      const showIf = q.showIf
+        ? (({ questionText: _t, ...rule }) => ({ ...rule, questionId: idByKey.get(rule.questionKey) ?? null }))(q.showIf)
+        : null
       return {
         id: q.id,
+        key: q.key ?? null,
+        // As the API marks it (isContactRequestQuestion): not asked of anyone answering without their name.
+        contactRequest: isContactRequest(q),
         questionText: q.questionText,
         helpText: q.helpText,
         questionType: q.questionType,
