@@ -109,10 +109,12 @@ describe('SurveyManagerCopiesDialog', () => {
     const make = screen.getByRole('button', { name: 'Make 1 draft copy' })
     await waitFor(() => expect(make).toBeEnabled())
     await userEvent.click(make)
-    expect(apiJson).toHaveBeenLastCalledWith('/surveys/tpl-1/manager-copies', {
-      method: 'POST',
-      body: JSON.stringify({ exclude: ['REGISTERED_MANAGER'], minTeam: 12 }),
-    })
+    await waitFor(() =>
+      expect(apiJson).toHaveBeenCalledWith('/surveys/tpl-1/manager-copies', {
+        method: 'POST',
+        body: JSON.stringify({ exclude: ['REGISTERED_MANAGER'], minTeam: 12 }),
+      }),
+    )
   })
 
   it('the smallest team cannot go below the floor or above 50: the plan is kept and copies cannot be made', async () => {
