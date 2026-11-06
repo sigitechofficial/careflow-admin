@@ -3,6 +3,7 @@ import {
   fetchCarerTimebankDetail,
   fetchCarerTimebankList,
   fetchJobTimebank,
+  fetchOverCareForWeek,
   fetchTimebankBalance,
   fetchTimebankDetail,
   fetchTimebankList,
@@ -19,6 +20,17 @@ export const timebankKeys = {
   carerDetail: (employeeId: string) => [...timebankKeys.all, 'carer-detail', employeeId] as const,
   balance: (serviceUserId: string) => [...timebankKeys.all, 'balance', serviceUserId] as const,
   job: (scheduledJobId: string) => [...timebankKeys.all, 'job', scheduledJobId] as const,
+  overCare: (serviceUserId: string, weekStart: string) =>
+    [...timebankKeys.all, 'over-care', serviceUserId, weekStart] as const,
+}
+
+/** Over care in a week and the next week's visits it took back, or would (See visits dialog). */
+export function useOverCareForWeek(serviceUserId: string, weekStart: string, enabled = true) {
+  return useQuery({
+    queryKey: timebankKeys.overCare(serviceUserId, weekStart),
+    queryFn: () => fetchOverCareForWeek(serviceUserId, weekStart),
+    enabled: enabled && Boolean(serviceUserId && weekStart),
+  })
 }
 
 /** One service user's timebank: earned, held by visits, available (and whether it is used automatically). */

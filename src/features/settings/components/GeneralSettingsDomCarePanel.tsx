@@ -523,6 +523,10 @@ export function GeneralSettingsDomCarePanel() {
               Add rule
             </Button>
           ) : null}
+          <p className="text-xs text-muted-foreground">
+            Used when a visit is cancelled from the rota or from the visit plan. Visits cancelled with a Charge
+            decision are not added to the service user's timebank.
+          </p>
         </div>
         <SettingsRow
           label="No charge for hospital admission"

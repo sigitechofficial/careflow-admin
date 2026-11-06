@@ -13,6 +13,7 @@ import {
   getScheduleReportTypes,
   getScheduleStatus,
   listScheduleAreas,
+  fetchHousekeepingCancellationPolicy,
 } from '@/features/scheduling/api/scheduling.api'
 import { schedulingKeys } from '@/features/scheduling/keys'
 
@@ -167,4 +168,15 @@ export function useFetchScheduledJob() {
       }),
     [queryClient],
   )
+}
+
+/** What the Job Cancellation rules suggest for cancelling one rota visit with this reason. */
+export function useHousekeepingCancellationPolicy(jobId: string | undefined, reasonCode: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['scheduling', 'cancellation-policy', jobId, reasonCode],
+    queryFn: () => fetchHousekeepingCancellationPolicy(jobId!, reasonCode),
+    enabled: enabled && Boolean(jobId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  })
 }

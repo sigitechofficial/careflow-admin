@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  changeCancellationBilling,
   fetchServiceUserCompletedVisits,
   type ServiceUserActivityVisitQuery,
 } from '@/features/service-users/activity/api'
@@ -25,5 +26,18 @@ export function useServiceUserVisitActivity(
     queryFn: () =>
       fetchServiceUserCompletedVisits(serviceUserId, { page, limit, dateFrom, dateTo, statuses, sortOrder }),
     enabled: Boolean(getApiBaseUrl()) && Boolean(serviceUserId),
+  })
+}
+
+/** Change a cancelled visit's billing decision, then refresh the service user's visits and timebank. */
+export function useChangeCancellationBilling(serviceUserId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Parameters<typeof changeCancellationBilling>[1] & { scheduledJobId: string }) =>
+      changeCancellationBilling(input.scheduledJobId, { chargeDecision: input.chargeDecision, note: input.note }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.all() })
+      void qc.invalidateQueries({ queryKey: ['timebank'] })
+    },
   })
 }
