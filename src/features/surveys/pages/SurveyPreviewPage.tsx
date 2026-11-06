@@ -6,6 +6,7 @@ import { Button } from '@/shared/ui/button'
 import { useSurvey } from '@/features/surveys/hooks/useSurveys'
 import type { PublicSurveyForm, SurveyDetail, SurveyTargetKind } from '@/features/surveys/types'
 import { SurveyRespondentForm } from '@/features/surveys/components/SurveyRespondentForm'
+import { usePreviewTranslations } from '@/features/surveys/translations/survey-translations.api'
 
 /** Where the people this survey is for open it, said to the member of staff previewing it. */
 const HOW_PEOPLE_SEE_IT: Record<SurveyTargetKind, string> = {
@@ -48,7 +49,12 @@ export default function SurveyPreviewPage() {
   /** Bumped by "Start again": remounts the form with no answers. */
   const [attempt, setAttempt] = React.useState(0)
   const [finished, setFinished] = React.useState(false)
-  const form = React.useMemo(() => (survey ? asRespondentForm(survey) : null), [survey])
+  const preview = usePreviewTranslations(surveyId)
+  // Every translation, drafts included, so a language can be checked before it is offered.
+  const form = React.useMemo(
+    () => (survey ? { ...asRespondentForm(survey), languages: preview.languages, translations: preview.translations } : null),
+    [survey, preview.languages, preview.translations],
+  )
 
   const startAgain = () => {
     setFinished(false)

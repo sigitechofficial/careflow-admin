@@ -101,6 +101,7 @@ import { SurveyContactRulePanel } from '@/features/surveys/contact-rule/SurveyCo
 import { SurveyEventTriggerPanel } from '@/features/surveys/event-triggers/SurveyEventTriggerPanel'
 import { SurveyScoringPanel } from '@/features/surveys/insight/SurveyScoringPanel'
 import { SurveyPlatformPanel } from '@/features/surveys/platform/SurveyPlatformPanel'
+import { SurveyTranslationsPanel } from '@/features/surveys/translations/SurveyTranslationsPanel'
 import { SendOutsideDialog } from '@/features/surveys/outside/SendOutsideDialog'
 import { SurveySharePanel } from '@/features/surveys/sharing/SurveySharePanel'
 import {
@@ -1167,6 +1168,7 @@ export default function SurveyBuilderPage() {
           <SurveyContactRulePanel surveyId={survey.id} canEdit={canEdit} isOpen={survey.status === 'ACTIVE'} />
         ) : null}
         <SurveyPlatformPanel surveyId={survey.id} questions={questions} canEdit={canEdit} isTemplate={isTemplate} />
+        <SurveyTranslationsPanel surveyId={survey.id} canEdit={canEdit} />
         {!isTemplate && !survey.clonedFromId && !isSeries ? (
           <SurveyEventTriggerPanel surveyId={survey.id} canEdit={canEdit} />
         ) : null}

@@ -144,10 +144,13 @@ describe('SurveyRespondentForm accessibility', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'I am the service user' }))
     await userEvent.click(within(screen.getByRole('group', { name: /^First/ })).getByRole('radio', { name: 'Good' }))
     await userEvent.click(screen.getByRole('button', { name: 'Submit response' }))
-    expect(onSubmit).toHaveBeenCalledWith({
-      answers: [{ questionId: 'a', selectedOptions: ['Good'] }],
-      respondentRelation: 'SELF',
-      secondsTaken: expect.any(Number),
-    })
+    expect(onSubmit).toHaveBeenCalledWith(
+      {
+        answers: [{ questionId: 'a', selectedOptions: ['Good'] }],
+        respondentRelation: 'SELF',
+        secondsTaken: expect.any(Number),
+      },
+      { language: null },
+    )
   })
 })

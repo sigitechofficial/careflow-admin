@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Search } from 'lucide-react'
+import { useSurveyStrings } from '@/features/surveys/survey-ui-strings'
 
 export type LookupOptionGroup = { group: string; options: Array<{ code: string; label: string }> }
 
@@ -26,6 +27,7 @@ export function SurveyLookupChoice({
   disabled?: boolean
   onChange: (next: string[]) => void
 }) {
+  const t = useSurveyStrings()
   const [search, setSearch] = React.useState('')
   const id = React.useId()
   const term = search.trim().toLowerCase()
@@ -43,7 +45,7 @@ export function SurveyLookupChoice({
     <div className="space-y-2" data-testid={`lookup-choice-${questionId}`}>
       <div>
         <label className="text-xs font-medium text-foreground" htmlFor={`${id}-search`}>
-          Search the list
+          {t('searchList')}
         </label>
         <div className="relative mt-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -53,15 +55,15 @@ export function SurveyLookupChoice({
             className="w-full rounded-lg border border-input bg-background py-2 pl-8 pr-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Type to narrow the list"
+            placeholder={t('searchPlaceholder')}
             autoComplete="off"
             disabled={disabled}
             aria-describedby={`${id}-count`}
           />
         </div>
         <p id={`${id}-count`} className="mt-1 text-xs text-muted-foreground" aria-live="polite">
-          {term ? `${count} ${count === 1 ? 'answer matches' : 'answers match'}` : `${count} answers`}
-          {selected.length ? ` · Chosen: ${selected.join(', ')}` : ''}
+          {term ? (count === 1 ? t('answerMatches') : t('answersMatch', { n: count })) : t('answersCount', { n: count })}
+          {selected.length ? ` · ${t('chosen', { list: selected.join(', ') })}` : ''}
         </p>
       </div>
       <div className="max-h-80 space-y-3 overflow-y-auto rounded-lg border border-border p-3" role="group" aria-label={questionText}>
@@ -88,7 +90,7 @@ export function SurveyLookupChoice({
             </div>
           </fieldset>
         ))}
-        {!shown.length ? <p className="text-sm text-muted-foreground">Nothing matches. Try fewer letters.</p> : null}
+        {!shown.length ? <p className="text-sm text-muted-foreground">{t('nothingMatches')}</p> : null}
       </div>
     </div>
   )

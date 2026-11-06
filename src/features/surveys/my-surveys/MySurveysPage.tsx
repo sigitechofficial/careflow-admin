@@ -89,10 +89,11 @@ export function MySurveyAnswerPage() {
     if (done) heading.current?.focus()
   }, [done])
 
-  const submit = async (input: SubmitSurveyResponseInput) => {
+  const submit = async (input: SubmitSurveyResponseInput, meta?: { language: string | null }) => {
     try {
       const res = await submitMut.mutateAsync(input)
-      setDone({ closing: res?.closingMessage ?? null })
+      const lang = meta?.language ?? null
+      setDone({ closing: (lang && res?.closingMessages?.[lang]) || res?.closingMessage || null })
       toastSuccess('Thank you — your answers were sent.')
     } catch (e) {
       toastApiError(e, 'Could not send your answers')

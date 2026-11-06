@@ -362,13 +362,13 @@ export async function fetchPublicSurvey(
 export async function submitPublicSurveyResponse(
   token: string,
   input: SubmitSurveyResponseInput,
-): Promise<{ id: string; submittedAt: string; closingMessage?: string | null }> {
+): Promise<{ id: string; submittedAt: string; closingMessage?: string | null; closingMessages?: Record<string, string> }> {
   // The closing-screen message comes back with the submit only (never in the form before it).
-  const res = await apiJson<ApiEnvelope<{ id: string; submittedAt: string; closingMessage?: string | null }>>(
+  const res = await apiJson<ApiEnvelope<{ id: string; submittedAt: string; closingMessage?: string | null; closingMessages?: Record<string, string> }>>(
     `/surveys/public/${encodeURIComponent(token)}/responses`,
     { method: 'POST', body: JSON.stringify(input) },
   )
-  return res.data as { id: string; submittedAt: string; closingMessage?: string | null }
+  return res.data as { id: string; submittedAt: string; closingMessage?: string | null; closingMessages?: Record<string, string> }
 }
 
 export function buildSurveyShareUrl(token: string): string {

@@ -22,6 +22,10 @@ vi.mock('@/features/surveys/hooks/useSurveys', () => ({
   useSubmitPublicSurvey: () => ({ mutateAsync: submitPublic, isPending: false }),
 }))
 
+vi.mock('@/features/surveys/translations/survey-translations.api', () => ({
+  usePreviewTranslations: () => ({ languages: [], translations: {} }),
+}))
+
 import SurveyPreviewPage from '@/features/surveys/pages/SurveyPreviewPage'
 
 function question(overrides: Partial<SurveyQuestion>): SurveyQuestion {

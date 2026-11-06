@@ -500,3 +500,20 @@
   vertical-align: top;
 }
 .policy-doc th { background: hsl(var(--muted)); font-weight: 600; }
+
+/* Survey answer page display options (SurveyPageOptions): high contrast and more space between lines. */
+.survey-high-contrast {
+  --muted-foreground: var(--foreground);
+  --border: 220 13% 32%;
+  --input: 220 13% 25%;
+}
+.dark .survey-high-contrast {
+  --border: 210 20% 72%;
+  --input: 210 20% 78%;
+}
+.survey-more-spacing,
+.survey-more-spacing * {
+  line-height: 1.9 !important;
+  letter-spacing: 0.02em;
+  word-spacing: 0.08em;
+}

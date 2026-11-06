@@ -8,6 +8,7 @@ import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { usePublicSurvey, useSubmitPublicSurvey } from '@/features/surveys/hooks/useSurveys'
 import type { PublicSurveyForm, SubmitSurveyResponseInput } from '@/features/surveys/types'
 import { SurveyRespondentForm } from '@/features/surveys/components/SurveyRespondentForm'
+import { surveyStrings } from '@/features/surveys/survey-ui-strings'
 
 function PublicShell({ title, children }: { title: string; children: React.ReactNode }) {
   useDocumentTitle(title)
@@ -162,10 +163,12 @@ export default function TakeSurveyPage() {
   const [submitted, setSubmitted] = React.useState(false)
   // The closing-screen message, from the submit (the form never holds it before answering).
   const [closing, setClosing] = React.useState<string | null>(null)
+  // The language they answered in (Phase 3): the thank-you and closing message are shown in it too.
+  const [answeredIn, setAnsweredIn] = React.useState<string | null>(null)
 
   // Spam protection on shared links: a field people never see or reach (bots fill it in).
   const honeypot = React.useRef<HTMLInputElement>(null)
-  const submit = async (input: SubmitSurveyResponseInput) => {
+  const submit = async (input: SubmitSurveyResponseInput, meta?: { language: string | null }) => {
     try {
       const result = await submitMut.mutateAsync({
         ...input,
@@ -174,7 +177,9 @@ export default function TakeSurveyPage() {
       })
       // One answer per device: remember it here only (a random value, never sent anywhere).
       if (data?.deviceMarker) rememberAnswered(data.deviceMarker)
-      setClosing(result?.closingMessage ?? null)
+      const lang = meta?.language ?? null
+      setAnsweredIn(lang)
+      setClosing((lang && result?.closingMessages?.[lang]) || result?.closingMessage || null)
       setSubmitted(true)
       toastSuccess('Thank you — your response was submitted.')
     } catch (err) {
@@ -205,14 +210,15 @@ export default function TakeSurveyPage() {
   }
 
   if (submitted || (data.alreadyCompleted && data.linkKind !== 'share')) {
+    const t = surveyStrings(answeredIn ? data.translations?.[answeredIn] : null)
     return (
       <CenteredState
         icon={<CheckCircle2 className="h-6 w-6 text-teal-600" />}
-        title="Response recorded"
+        title={t('thankYouTitle')}
         description={
           data.alreadyCompleted && !submitted
             ? 'You have already completed this survey. Thank you.'
-            : 'Thank you for completing this survey.'
+            : t('thankYou')
         }
         closingMessage={submitted ? closing : data.closingMessage}
         action={

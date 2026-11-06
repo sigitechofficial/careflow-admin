@@ -11,6 +11,7 @@ import type {
 import { likertLabels } from '@/features/surveys/survey-likert'
 import { MAX_RESPONDENT_TEXT } from '@/features/surveys/types'
 import { commentShown, hasAnswer, otherChosen, toggleMultiOption } from '@/features/surveys/survey-logic'
+import { useSurveyStrings } from '@/features/surveys/survey-ui-strings'
 
 /**
  * One survey question with its answer control — shared by the public form, the portal, staff
@@ -61,21 +62,23 @@ const INVALID_CLASS = 'border-destructive'
 
 /** "* (required)": the star is for sighted people, the words for screen readers. */
 export function RequiredMark() {
+  const t = useSurveyStrings()
   return (
     <>
       <span aria-hidden="true" className="ml-1 text-destructive">
         *
       </span>
-      <span className="sr-only"> (required)</span>
+      <span className="sr-only"> {t('required')}</span>
     </>
   )
 }
 
 /** An error by a control; "Error:" is read out first, as on GOV.UK forms. */
 export function FieldError({ id, children }: { id: string; children: React.ReactNode }) {
+  const t = useSurveyStrings()
   return (
     <p id={id} className="mt-2 text-sm font-medium text-destructive" data-testid="survey-field-error">
-      <span className="sr-only">Error: </span>
+      <span className="sr-only">{t('errorPrefix')} </span>
       {children}
     </p>
   )
@@ -105,6 +108,7 @@ function RespondentTextBox({
   onChange: (next: string) => void
   testId: string
 }) {
+  const t = useSurveyStrings()
   const hintId = `${id}-hint`
   const errorId = `${id}-error`
   return (
@@ -128,7 +132,7 @@ function RespondentTextBox({
       />
       {anonymous ? (
         <p id={hintId} className="text-xs text-muted-foreground">
-          Please do not include names.
+          {t('noNames')}
         </p>
       ) : null}
     </div>
@@ -255,6 +259,9 @@ export function QuestionField({
   /** 2 on a page of questions; 3 when the questions sit under section headings (h2). */
   headingLevel?: 2 | 3 | 4 | 5
 }) {
+  const t = useSurveyStrings()
+  // In another language: the label shown for an answer (the English answer is still what is sent).
+  const shownAs = (opt: string) => q.optionLabels?.[opt] ?? opt
   const uid = React.useId()
   const base = `q${uid.replace(/[^a-zA-Z0-9_-]/g, '')}`
   const headingId = `${base}-title`
@@ -296,8 +303,8 @@ export function QuestionField({
     control = (
       <div className="grid grid-cols-2 gap-2">
         {[
-          { label: 'Yes', val: true },
-          { label: 'No', val: false },
+          { label: t('yes'), val: true },
+          { label: t('no'), val: false },
         ].map(opt => (
           <ChoiceOption
             key={opt.label}
@@ -340,7 +347,7 @@ export function QuestionField({
             invalid={invalid}
             onChange={() => choose({ selectedOptions: [opt] })}
           >
-            {opt}
+            {shownAs(opt)}
           </ChoiceOption>
       ),
     )
@@ -359,7 +366,7 @@ export function QuestionField({
             invalid={invalid}
             onChange={() => choose({ selectedOptions: toggleMultiOption(q, selected, opt) })}
           >
-            {opt}
+            {shownAs(opt)}
           </ChoiceOption>
       ),
     )
@@ -409,7 +416,7 @@ export function QuestionField({
         value={value?.textValue ?? ''}
         onChange={e => onChange({ questionId: q.id, textValue: e.target.value })}
         className={cn(TEXT_BOX_CLASS, 'py-2.5', invalid && INVALID_CLASS)}
-        placeholder="Your answer…"
+        placeholder={t('yourAnswer')}
       />
     )
   } else {
@@ -424,7 +431,7 @@ export function QuestionField({
         aria-invalid={invalid || undefined}
         value={value?.textValue ?? ''}
         onChange={e => onChange({ questionId: q.id, textValue: e.target.value })}
-        placeholder="Your answer…"
+        placeholder={t('yourAnswer')}
       />
     )
   }
@@ -478,7 +485,7 @@ export function QuestionField({
           {showComment && q.commentConfig ? (
             <RespondentTextBox
               id={`${base}-comment`}
-              label={`${q.commentConfig.prompt} (optional)`}
+              label={`${q.commentConfig.prompt} ${t('optional')}`}
               value={value?.comment ?? ''}
               disabled={disabled}
               anonymous={anonymous}

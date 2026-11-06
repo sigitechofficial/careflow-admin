@@ -1,5 +1,6 @@
 import type { PublicSurveyQuestion } from '@/features/surveys/types'
 import { choiceOptions, ratingValues } from '@/features/surveys/components/SurveyQuestionField'
+import { useSurveyStrings } from '@/features/surveys/survey-ui-strings'
 
 /**
  * One question as it is printed on the paper copy: the same answers, Other choice, comment box and
@@ -21,13 +22,13 @@ function Lines({ count, label }: { count: number; label: string }) {
   )
 }
 
-function Ticks({ options }: { options: string[] }) {
+function Ticks({ options, labels }: { options: string[]; labels?: Record<string, string> }) {
   return (
     <ul className="mt-1.5 space-y-1.5">
       {options.map(o => (
         <li key={o} className="flex items-start text-[13px] leading-snug">
           <Box />
-          <span>{o}</span>
+          <span>{labels?.[o] ?? o}</span>
         </li>
       ))}
     </ul>
@@ -46,16 +47,19 @@ export function SurveyPaperQuestion({
   onlyIf: string | null
   anonymous: boolean
 }) {
+  const t = useSurveyStrings()
+  // In another language: each answer as shown (the English answer is what staff record).
+  const labels = q.optionLabels
   const other = q.otherOption ?? null
   const comment = q.commentConfig ?? null
   const isChoice = q.questionType === 'SINGLE_SELECT' || q.questionType === 'MULTI_SELECT' || q.questionType === 'LIKERT'
   const instruction =
     q.questionType === 'MULTI_SELECT'
-      ? `Tick all that apply${q.exclusiveOptions?.length ? ` (or just “${q.exclusiveOptions.join('” or “')}”)` : ''}.`
+      ? `${t('paperTickAll')}${q.exclusiveOptions?.length ? ` (“${q.exclusiveOptions.map(o => labels?.[o] ?? o).join(`” ${t('paperOr')} “`)}”)` : ''}`
       : isChoice || q.questionType === 'YES_NO'
-        ? 'Tick one box.'
+        ? t('paperTickOne')
         : q.questionType === 'RATING'
-          ? 'Circle one number.'
+          ? t('paperCircleOne')
           : null
 
   return (
@@ -69,7 +73,7 @@ export function SurveyPaperQuestion({
       {instruction ? <p className="mt-0.5 text-[12px] text-black/75">{instruction}</p> : null}
 
       {q.questionType === 'YES_NO' ? (
-        <Ticks options={['Yes', 'No']} />
+        <Ticks options={[t('yes'), t('no')]} />
       ) : isChoice && q.optionGroups?.length ? (
         <div className="mt-1.5 columns-2 gap-6">
           {q.optionGroups.map(g => (
@@ -84,13 +88,13 @@ export function SurveyPaperQuestion({
           {q.answerGroups.map(g => (
             <div key={g.heading} className="mb-2 break-inside-avoid">
               <p className="text-[12px] font-semibold">{g.heading}</p>
-              <Ticks options={g.options.filter(o => choiceOptions(q).includes(o))} />
+              <Ticks options={g.options.filter(o => choiceOptions(q).includes(o))} labels={labels} />
             </div>
           ))}
-          <Ticks options={choiceOptions(q).filter(o => !q.answerGroups!.some(g => g.options.includes(o)))} />
+          <Ticks options={choiceOptions(q).filter(o => !q.answerGroups!.some(g => g.options.includes(o)))} labels={labels} />
         </div>
       ) : isChoice ? (
-        <Ticks options={choiceOptions(q)} />
+        <Ticks options={choiceOptions(q)} labels={labels} />
       ) : q.questionType === 'RATING' ? (
         <p className="mt-1.5 flex flex-wrap gap-3 text-[14px] tabular-nums">
           {ratingValues(q.config).map(n => (
@@ -100,9 +104,9 @@ export function SurveyPaperQuestion({
           ))}
         </p>
       ) : q.questionType === 'NUMBER' ? (
-        <div role="img" aria-label="Write a number" className="mt-1.5 h-8 w-32 border border-black" />
+        <div role="img" aria-label={t('paperWriteNumber')} className="mt-1.5 h-8 w-32 border border-black" />
       ) : (
-        <Lines count={q.questionType === 'TEXTAREA' ? 4 : 1} label="Write your answer" />
+        <Lines count={q.questionType === 'TEXTAREA' ? 4 : 1} label={t('paperWriteAnswer')} />
       )}
 
       {other && (q.questionType === 'SINGLE_SELECT' || q.questionType === 'MULTI_SELECT') ? (
@@ -110,7 +114,7 @@ export function SurveyPaperQuestion({
           <p className="flex items-start">
             <Box />
             <span>
-              {other.label}: {other.textPrompt}
+              {labels?.[other.label] ?? other.label}: {other.textPrompt}
             </span>
           </p>
           <Lines count={1} label={other.textPrompt} />
@@ -120,14 +124,16 @@ export function SurveyPaperQuestion({
       {comment ? (
         <div className="mt-2 text-[13px]">
           <p>
-            {comment.showWhen?.length ? `If you answered ${comment.showWhen.join(' or ')}: ` : ''}
-            {comment.prompt} (optional)
+            {comment.showWhen?.length
+              ? `${t('paperIfAnswered', { answers: comment.showWhen.map(o => labels?.[o] ?? o).join(` ${t('paperOr')} `) })} `
+              : ''}
+            {comment.prompt} {t('optional')}
           </p>
           <Lines count={2} label={comment.prompt} />
         </div>
       ) : null}
       {anonymous && (q.questionType === 'TEXT' || q.questionType === 'TEXTAREA' || comment || other) ? (
-        <p className="mt-1 text-[11px] text-black/70">Please do not write any names.</p>
+        <p className="mt-1 text-[11px] text-black/70">{t('paperNoNames')}</p>
       ) : null}
     </section>
   )

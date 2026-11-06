@@ -637,7 +637,15 @@ export type PublicSurveyQuestion = {
   optionGroups?: Array<{ group: string; options: Array<{ code: string; label: string }> }>
   /** Grouped answer choices: answers shown under headings and reported by group. */
   answerGroups?: Array<{ heading: string; options: string[] }>
+  /**
+   * In another language: what each answer is shown as ({ English answer: shown label }). The English
+   * answer is still what is chosen and sent.
+   */
+  optionLabels?: Record<string, string>
 } & SurveyQuestionLogic
+
+/** A language the answer page can be shown in (Phase 3): easy read, Polish, Urdu … */
+export type SurveyLanguageOption = { code: string; name: string; nativeName: string; dir: 'ltr' | 'rtl' }
 
 export type PublicSurveyForm = {
   title: string
@@ -676,6 +684,10 @@ export type PublicSurveyForm = {
   /** Service-user links: whose survey this is. */
   forName?: string | null
   questions: PublicSurveyQuestion[]
+  /** Other languages and easy read this page can be shown in (published translations). */
+  languages?: SurveyLanguageOption[]
+  /** Each language's texts, keyed as the API's survey-translation.util.ts (anything missing shows in English). */
+  translations?: Record<string, Record<string, string>>
 }
 
 export type SurveyAnswerInput = {

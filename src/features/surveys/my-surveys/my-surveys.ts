@@ -52,7 +52,7 @@ export function useSubmitMySurvey(surveyId: string) {
   return useMutation({
     mutationFn: async (input: SubmitSurveyResponseInput) =>
       (
-        await apiJson<ApiEnvelope<{ id: string; submittedAt: string; closingMessage?: string | null }>>(
+        await apiJson<ApiEnvelope<{ id: string; submittedAt: string; closingMessage?: string | null; closingMessages?: Record<string, string> }>>(
           `/my-surveys/${encodeURIComponent(surveyId)}/responses`,
           { method: 'POST', body: JSON.stringify(input) },
         )
