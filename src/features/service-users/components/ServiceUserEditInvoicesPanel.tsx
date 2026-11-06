@@ -607,7 +607,7 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                 </a>
               ) : (
                 <span
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground/40"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground"
                   title="No email on file"
                 >
                   <Mail className="h-4 w-4" />
@@ -624,7 +624,7 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                 </a>
               ) : (
                 <span
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground/40"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground"
                   title="No phone on file"
                 >
                   <Phone className="h-4 w-4" />
@@ -887,7 +887,7 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                     <th className="w-10 px-3 py-2.5">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-border"
+                        className="h-4 w-4 rounded border-input"
                         checked={allVisibleSelected}
                         onChange={toggleSelectAll}
                         aria-label="Select all"
@@ -913,7 +913,7 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                       <td className="px-3 py-2.5">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-border"
+                          className="h-4 w-4 rounded border-input"
                           checked={selectedIds.has(txn.id)}
                           onChange={() => toggleSelect(txn.id)}
                           aria-label={`Select ${txn.number}`}

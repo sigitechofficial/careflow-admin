@@ -32,6 +32,7 @@ export function IncidentStaffMultiSelect({
     id: r.id,
     name: r.fullName || [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Unnamed',
     jobTitle: r.jobTitle?.name ?? null,
+    ref: r.employeeNumber?.trim() ? `#${r.employeeNumber.trim()}` : r.username ? `@${r.username}` : null,
   }))
 
   const isPicked = (id: string) => selected.some((p) => p.id === id)
@@ -108,7 +109,10 @@ export function IncidentStaffMultiSelect({
                       {picked ? <Check className="h-3 w-3 text-primary-foreground" /> : null}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate">{row.name}</span>
+                      <span className="block truncate">
+                        {row.name}
+                        {row.ref ? <span className="ml-1.5 font-mono text-[11px] text-muted-foreground">{row.ref}</span> : null}
+                      </span>
                       {row.jobTitle && <span className="block truncate text-xs text-muted-foreground">{row.jobTitle}</span>}
                     </span>
                   </button>

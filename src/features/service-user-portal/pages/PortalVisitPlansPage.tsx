@@ -164,7 +164,7 @@ export default function PortalVisitPlansPage() {
         <label className="block max-w-md space-y-1 text-sm">
           <span className="font-medium text-muted-foreground">Plan version</span>
           <select
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             value={selectedPlan?.id ?? ''}
             onChange={e => setSelectedPlanId(e.target.value)}
           >

@@ -149,7 +149,7 @@ function TemplateDialog({
           </Field>
           <Field label="Details (optional)">
             <textarea
-              className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               rows={3}
               maxLength={2000}
               value={form.description}

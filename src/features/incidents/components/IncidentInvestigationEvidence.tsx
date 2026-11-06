@@ -108,7 +108,7 @@ export function InvestigationEvidenceForm({
                 type="checkbox"
                 checked={values.recordsReviewed.includes(o.value)}
                 onChange={() => toggle(o.value)}
-                className="h-3.5 w-3.5 rounded border-border"
+                className="h-3.5 w-3.5 rounded border-input"
               />
               {o.label}
             </label>

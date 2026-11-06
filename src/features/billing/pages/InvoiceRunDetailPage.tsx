@@ -181,7 +181,7 @@ function StatTile({
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        {icon ? <span className="text-muted-foreground/80">{icon}</span> : null}
+        {icon ? <span className="text-muted-foreground">{icon}</span> : null}
       </div>
       <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{value}</p>
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
@@ -654,7 +654,7 @@ export default function InvoiceRunDetailPage() {
 
       {serviceUserSummaries.length === 0 ? (
         <ContentCard className="border-dashed p-10 text-center">
-          <FileText className="mx-auto h-8 w-8 text-muted-foreground/70" />
+          <FileText className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-3 text-sm font-medium text-foreground">No invoices calculated yet</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
             Run calculate to pull approved billable visits for this period into service user invoices.

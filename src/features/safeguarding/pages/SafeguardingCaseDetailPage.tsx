@@ -491,7 +491,7 @@ function Timeline({ caseData }: { caseData: SafeguardingCase }) {
             />
             <p className="text-sm font-medium text-foreground">{ev.action}</p>
             {ev.note && <p className="mt-0.5 whitespace-pre-wrap text-sm text-muted-foreground">{ev.note}</p>}
-            <p className="mt-1 text-xs text-muted-foreground/80">
+            <p className="mt-1 text-xs text-muted-foreground">
               {fmtDateTime(ev.at)}
               {ev.userName && ` · ${ev.userName}`}
             </p>
@@ -545,11 +545,11 @@ export default function SafeguardingCaseDetailPage() {
         <Link to="/" className="hover:text-foreground">
           Home
         </Link>
-        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" aria-hidden />
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
         <Link to="/safeguarding" className="hover:text-foreground">
           Safeguarding
         </Link>
-        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" aria-hidden />
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
         <span className="font-medium text-foreground">{caseData.referenceNumber}</span>
       </nav>
 

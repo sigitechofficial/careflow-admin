@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useWaterlowReviewSchedule } from '@/features/service-users/assessments/hooks/useServiceUserAssessments'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
@@ -167,8 +168,6 @@ import {
   computeWaterlowScore,
   isWaterlowAllSectionsComplete,
   waterlowFollowUpPrefill,
-  WATERLOW_REVIEW_INTERVAL_MONTHS,
-  WATERLOW_REVIEW_SOURCE,
 } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 import {
   specialistInputsFromAssessment,
@@ -1867,6 +1866,7 @@ function InitialAssessmentEnterprisePageContent() {
     persistMetadata,
   ])
 
+  const waterlowReviewSchedule = useWaterlowReviewSchedule()
   const onWaterlowChange = React.useCallback(
     (next: typeof waterlow) => {
       setWaterlow(next)
@@ -2117,7 +2117,7 @@ function InitialAssessmentEnterprisePageContent() {
     [persistMetadata],
   )
 
-  // Waterlow follow-up: fill empty recommendation / by whom / date / next review (6-monthly) once scored.
+  // Waterlow follow-up: fill empty recommendation / by whom / date / next review (from the API's Waterlow schedule) once scored.
   React.useEffect(() => {
     if (!editable || !canUpdate) return
     if (hubTab !== 'waterlow' && !(hubTab === 'form' && activeHolisticTab === 5)) return
@@ -2128,9 +2128,10 @@ function InitialAssessmentEnterprisePageContent() {
     const patch = waterlowFollowUpPrefill(waterlow, {
       assessorName: currentUser?.displayName,
       assessmentDate: answered || localToday,
+      reviewSchedule: waterlowReviewSchedule,
     })
     if (patch) onWaterlowChange({ ...waterlow, ...patch })
-  }, [editable, canUpdate, hubTab, activeHolisticTab, sections, draftAnswers, waterlow, currentUser?.displayName, onWaterlowChange])
+  }, [editable, canUpdate, hubTab, activeHolisticTab, sections, draftAnswers, waterlow, currentUser?.displayName, onWaterlowChange, waterlowReviewSchedule])
 
   // Outcome summary: fill empty "initial" cells from the worksheets and baseline vitals (fill-empty).
   React.useEffect(() => {
@@ -3406,7 +3407,6 @@ function InitialAssessmentEnterprisePageContent() {
                 value={waterlow}
                 disabled={!editable || !canUpdate}
                 onChange={onWaterlowChange}
-                nextReviewHint={`Filled as ${WATERLOW_REVIEW_INTERVAL_MONTHS} month after the assessment (${WATERLOW_REVIEW_SOURCE}); reassess sooner if the person's condition changes.`}
               />
             </div>
           ) : hubTab === 'waterlow' ? (

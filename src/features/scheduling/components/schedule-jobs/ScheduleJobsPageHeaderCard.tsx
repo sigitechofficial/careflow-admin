@@ -20,11 +20,11 @@ export function ScheduleJobsPageHeaderCard({ layout }: Props) {
           <Link to="/" className="hover:text-foreground transition-colors">
             Home
           </Link>
-          <span className="text-muted-foreground/70">/</span>
+          <span className="text-muted-foreground">/</span>
           <Link to="/apps/$module" params={{ module: 'care-operations' }} className="hover:text-foreground transition-colors">
             Care Operations
           </Link>
-          <span className="text-muted-foreground/70">/</span>
+          <span className="text-muted-foreground">/</span>
           <span className="font-medium text-foreground">Schedule Jobs</span>
         </nav>
 

@@ -169,6 +169,15 @@ function matchNavTarget(
   return true
 }
 
+/**
+ * An independent survey reviewer's account (only role "Independent reviewer"): "Surveys to record"
+ * and nothing else (their account and signing out are in the sidebar footer). The API refuses every
+ * other route for such an account.
+ */
+const reviewerOnlyNavItems: NavItem[] = [
+  { label: 'Surveys to record', icon: <ClipboardList className="h-5 w-5" />, href: '/survey-reviews' },
+]
+
 const inspectorOnlyNavItems: NavItem[] = [
   { label: 'Home', icon: <Home className="h-5 w-5" />, href: '/' },
   {
@@ -204,6 +213,8 @@ const navItems: NavItem[] = [
   { label: 'Home', icon: <Home className="h-5 w-5" />, href: '/' },
   // Tasks given to the user's roles — every office user (managers open Role tasks from the page).
   { label: 'My tasks', icon: <ClipboardCheck className="h-5 w-5" />, href: '/my-tasks' },
+  // Surveys sent to the user as a member of staff (answered here or in the carer app).
+  { label: 'My surveys', icon: <ClipboardList className="h-5 w-5" />, href: '/my-surveys' },
   {
     label: 'Service Users',
     icon: <Users className="h-5 w-5" />,
@@ -679,12 +690,14 @@ const navItems: NavItem[] = [
         permission: 'policies.read',
         navTestId: 'nav-policies-library',
       },
-      planned("Policies & procedures", "Signature requests", <PenLine className="h-4 w-4" />, "Send documents to staff to read and sign, and track who has signed."),
-      planned("Governance", "Audits", <ClipboardList className="h-4 w-4" />, "An audit library, custom audits and due dates for each location."),
-      planned("Governance", "Mock CQC inspection", <Scale className="h-4 w-4" />, "Work through the five key questions and quality statements and get a mock rating for each service."),
-      planned("Governance", "Action plans & evidence", <ListChecks className="h-4 w-4" />, "One action plan for audits, incidents and complaints, with linked evidence."),
-      planned("Governance", "Risk & assurance register", <AlertOctagon className="h-4 w-4" />, "Organisational risks, controls, owners and review dates."),
-      planned("Governance", "CQC notifications", <Send className="h-4 w-4" />, "Prepare and track statutory notifications to the CQC."),
+      {
+        section: 'Policies & procedures',
+        label: 'My policies',
+        icon: <ListChecks className="h-4 w-4" />,
+        href: '/policies/mine',
+        permission: 'policies.acknowledgements.me',
+        navTestId: 'nav-policies-mine',
+      },
       {
         section: 'Policies & procedures',
         label: 'Categories',
@@ -701,6 +714,7 @@ const navItems: NavItem[] = [
         permission: 'policies.read',
         navTestId: 'nav-policies-tags',
       },
+      planned("Policies & procedures", "Signature requests", <PenLine className="h-4 w-4" />, "Send documents to staff to read and sign, and track who has signed."),
       {
         section: 'Feedback',
         label: 'All surveys',
@@ -709,6 +723,11 @@ const navItems: NavItem[] = [
         permission: 'surveys.read',
         navTestId: 'nav-surveys-all',
       },
+      planned("Governance", "Audits", <ClipboardList className="h-4 w-4" />, "An audit library, custom audits and due dates for each location."),
+      planned("Governance", "Mock CQC inspection", <Scale className="h-4 w-4" />, "Work through the five key questions and quality statements and get a mock rating for each service."),
+      planned("Governance", "Action plans & evidence", <ListChecks className="h-4 w-4" />, "One action plan for audits, incidents and complaints, with linked evidence."),
+      planned("Governance", "Risk & assurance register", <AlertOctagon className="h-4 w-4" />, "Organisational risks, controls, owners and review dates."),
+      planned("Governance", "CQC notifications", <Send className="h-4 w-4" />, "Prepare and track statutory notifications to the CQC."),
     ],
   },
   {
@@ -1112,6 +1131,7 @@ function filterNavByQuery(items: NavItem[], rawQuery: string): NavItem[] {
 export {
   navItems as adminNavItems,
   inspectorOnlyNavItems,
+  reviewerOnlyNavItems,
   filterNavByPermission,
 }
 
@@ -1398,7 +1418,7 @@ function CollapsedSidebarItem({ item, isActive, pathname, search, onNavigate }: 
  */
 export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
   const role = useAuthStore((s) => s.user?.role)
-  if (variant === 'portal' || role === 'temporary_inspector') return <ClassicSidebar variant={variant} />
+  if (variant === 'portal' || role === 'temporary_inspector' || role === 'independent_reviewer') return <ClassicSidebar variant={variant} />
   return <ModuleSidebar />
 }
 
@@ -1845,11 +1865,13 @@ function ClassicSidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
     ? portalNavItems
     : user?.role === 'temporary_inspector'
       ? inspectorOnlyNavItems
-      : navItems
+      : user?.role === 'independent_reviewer'
+        ? reviewerOnlyNavItems
+        : navItems
   const navItemsFiltered = React.useMemo(() => {
     if (isPortal) return navSource
-    // Temporary inspector list is already curated; skip strict ACL filter.
-    if (user?.role === 'temporary_inspector') return navSource
+    // The temporary inspector and reviewer lists are already curated; skip the strict ACL filter.
+    if (user?.role === 'temporary_inspector' || user?.role === 'independent_reviewer') return navSource
     return filterNavByPermission(navSource, can, user?.role, hasOrganisationPayScope(user))
   }, [can, isPortal, navSource, user])
   const [menuQuery, setMenuQuery] = React.useState('')
@@ -2147,7 +2169,7 @@ export function NotificationBell() {
     <button className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
       <Bell className="h-5 w-5" />
       {unread > 0 && (
-        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white">{unread}</span>
+        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">{unread}</span>
       )}
     </button>
   )

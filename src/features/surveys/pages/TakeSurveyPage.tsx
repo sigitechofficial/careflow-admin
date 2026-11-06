@@ -1,38 +1,22 @@
 import * as React from 'react'
 import { Link, useParams } from '@tanstack/react-router'
-import { CheckCircle2, ClipboardList, Loader2, ShieldCheck } from 'lucide-react'
+import { CalendarClock, CalendarX2, CheckCircle2, ClipboardList, Loader2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
+import { useDocumentTitle } from '@/shared/lib/use-document-title'
 import { AppToaster } from '@/components/layout/AppToaster'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
-import {
-  usePublicSurvey,
-  useSubmitPublicSurvey,
-} from '@/features/surveys/hooks/useSurveys'
-import {
-  ChoiceButton,
-  QuestionField,
-  hasValue,
-} from '@/features/surveys/components/SurveyQuestionField'
-import type {
-  SurveyAnswerInput,
-  SurveyRespondentRelation,
-} from '@/features/surveys/types'
+import { usePublicSurvey, useSubmitPublicSurvey } from '@/features/surveys/hooks/useSurveys'
+import type { PublicSurveyForm, SubmitSurveyResponseInput } from '@/features/surveys/types'
+import { SurveyRespondentForm } from '@/features/surveys/components/SurveyRespondentForm'
 
-const RESPONDENT_OPTIONS: { value: SurveyRespondentRelation; label: string }[] = [
-  { value: 'SELF', label: 'I am the service user' },
-  { value: 'FAMILY_MEMBER', label: 'I am a family member answering for them' },
-  { value: 'REPRESENTATIVE', label: 'I am their representative (e.g. advocate, attorney)' },
-]
-
-type AnswerState = Record<string, SurveyAnswerInput>
-
-function PublicShell({ children }: { children: React.ReactNode }) {
-  // #root is overflow:hidden for the admin shell — this page must own scrolling.
+function PublicShell({ title, children }: { title: string; children: React.ReactNode }) {
+  useDocumentTitle(title)
+  // #root is overflow:hidden for the admin shell — this page must own scrolling. The bottom scroll
+  // padding keeps a focused answer clear of the sticky Submit bar (WCAG 2.4.11).
   return (
-    <div className="h-full overflow-y-auto overscroll-y-contain bg-slate-50 dark:bg-background">
+    <div className="h-full overflow-y-auto overscroll-y-contain scroll-pb-32 bg-slate-50 dark:bg-background">
       <AppToaster />
-      {children}
+      <main>{children}</main>
     </div>
   )
 }
@@ -42,21 +26,40 @@ function CenteredState({
   title,
   description,
   action,
+  closingMessage,
 }: {
   icon: React.ReactNode
   title: string
   description: string
   action?: React.ReactNode
+  /** The survey's closing screen message, shown under the thank-you (plain text, kept line breaks). */
+  closingMessage?: string | null
 }) {
+  // A new state (e.g. "Response recorded" after submitting) replaces the form: focus moves to its
+  // heading so keyboard and screen reader users are told what happened (WCAG 2.4.3, 4.1.3).
+  const heading = React.useRef<HTMLHeadingElement>(null)
+  React.useEffect(() => {
+    heading.current?.focus()
+  }, [title])
   return (
-    <PublicShell>
+    <PublicShell title={`${title} – Survey`}>
       <div className="flex min-h-full items-center justify-center px-4 py-10">
         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted" aria-hidden="true">
             {icon}
           </div>
-          <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+          <h1 ref={heading} tabIndex={-1} className="text-lg font-semibold text-foreground focus:outline-none">
+            {title}
+          </h1>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
+          {closingMessage ? (
+            <p
+              className="mt-4 whitespace-pre-line border-t border-border pt-4 text-left text-sm leading-relaxed text-foreground"
+              data-testid="survey-closing-message"
+            >
+              {closingMessage}
+            </p>
+          ) : null}
           {action ? <div className="mt-5">{action}</div> : null}
         </div>
       </div>
@@ -64,45 +67,114 @@ function CenteredState({
   )
 }
 
+/** One answer per device: a random marker under the link's name, kept only in this browser. */
+export function answeredOnThisDevice(marker: string): boolean {
+  try {
+    return Boolean(window.localStorage.getItem(marker))
+  } catch {
+    return false
+  }
+}
+
+export function rememberAnswered(marker: string): void {
+  try {
+    const random = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => b.toString(16).padStart(2, '0')).join('')
+    window.localStorage.setItem(marker, random)
+  } catch {
+    /* private browsing: nothing is remembered, nothing is lost */
+  }
+}
+
+/** "20 November 2026" (UK). */
+function dayOf(iso: string | null): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime())
+    ? null
+    : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London' })
+}
+
+/** The page for a survey that cannot be answered now, or null when it can (or was just answered). */
+export function unavailablePage(
+  data: PublicSurveyForm,
+): { title: string; description: string; icon: React.ReactNode } | null {
+  if (data.canSubmit || data.unavailableKind === 'COMPLETED' || !data.unavailableKind) return null
+  const icon = <CalendarX2 className="h-6 w-6 text-muted-foreground" aria-hidden />
+  switch (data.unavailableKind) {
+    case 'ENDED': {
+      const ended = data.status === 'CLOSED' ? null : dayOf(data.closesAt)
+      return {
+        icon,
+        title: 'This survey has ended',
+        description: `“${data.title}” is no longer taking answers${ended ? ` (it closed on ${ended})` : ''}. Thank you for your interest.`,
+      }
+    }
+    case 'NOT_OPEN': {
+      const opens = dayOf(data.opensAt)
+      return {
+        icon: <CalendarClock className="h-6 w-6 text-muted-foreground" aria-hidden />,
+        title: 'This survey is not open yet',
+        description: opens ? `“${data.title}” opens on ${opens}. Please come back then.` : `“${data.title}” is not open yet.`,
+      }
+    }
+    case 'CLOSED_FOR_YOU':
+      return {
+        icon,
+        title: 'This survey is closed for you',
+        description: data.unavailableReason ?? 'This survey is closed for you. Thank you.',
+      }
+    case 'NO_OPEN_PERIOD':
+      return {
+        icon: <CalendarClock className="h-6 w-6 text-muted-foreground" aria-hidden />,
+        title: 'No survey is open right now',
+        description: data.unavailableReason ?? 'There is no survey open on this link right now.',
+      }
+    default:
+      return { icon, title: 'This survey is not available', description: data.unavailableReason ?? 'This survey is not taking answers.' }
+  }
+}
+
+function ContactLine({ contact }: { contact: PublicSurveyForm['contact'] }) {
+  if (!contact || (!contact.phone && !contact.email)) return null
+  return (
+    <p className="text-sm text-muted-foreground" data-testid="survey-contact">
+      If you would like to tell {contact.name} something, please{' '}
+      {contact.phone ? (
+        <>
+          call <a className="font-medium text-foreground underline" href={`tel:${contact.phone.replace(/\s+/g, '')}`}>{contact.phone}</a>
+        </>
+      ) : null}
+      {contact.phone && contact.email ? ' or ' : ''}
+      {contact.email ? (
+        <>
+          email <a className="font-medium text-foreground underline" href={`mailto:${contact.email}`}>{contact.email}</a>
+        </>
+      ) : null}
+      .
+    </p>
+  )
+}
+
 export default function TakeSurveyPage() {
   const { token = '' } = useParams({ strict: false }) as { token?: string }
   const { data, isLoading, isError, error } = usePublicSurvey(token || undefined)
   const submitMut = useSubmitPublicSurvey(token)
-  const [answers, setAnswers] = React.useState<AnswerState>({})
   const [submitted, setSubmitted] = React.useState(false)
-  const [respondentRelation, setRespondentRelation] = React.useState<SurveyRespondentRelation | null>(null)
-  const [respondentName, setRespondentName] = React.useState('')
-  const askRespondent = Boolean(data?.askRespondent)
-  const respondentMissing = askRespondent && !respondentRelation
+  // The closing-screen message, from the submit (the form never holds it before answering).
+  const [closing, setClosing] = React.useState<string | null>(null)
 
-  const questions = React.useMemo(
-    () => (data ? [...data.questions].sort((a, b) => a.sortOrder - b.sortOrder) : []),
-    [data],
-  )
-
-  const answeredCount = questions.filter(q => hasValue(q.questionType, answers[q.id])).length
-  const missingRequired = questions.filter(
-    q => q.isRequired && !hasValue(q.questionType, answers[q.id]),
-  )
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!data?.canSubmit || missingRequired.length > 0 || respondentMissing) return
+  // Spam protection on shared links: a field people never see or reach (bots fill it in).
+  const honeypot = React.useRef<HTMLInputElement>(null)
+  const submit = async (input: SubmitSurveyResponseInput) => {
     try {
-      await submitMut.mutateAsync({
-        answers: Object.values(answers).filter(a => {
-          const q = questions.find(item => item.id === a.questionId)
-          return q ? hasValue(q.questionType, a) : false
-        }),
-        ...(askRespondent && respondentRelation
-          ? {
-              respondentRelation,
-              ...(respondentRelation !== 'SELF' && respondentName.trim()
-                ? { respondentName: respondentName.trim() }
-                : {}),
-            }
-          : {}),
+      const result = await submitMut.mutateAsync({
+        ...input,
+        ...(data?.formToken ? { formToken: data.formToken } : {}),
+        ...(honeypot.current?.value ? { website: honeypot.current.value } : {}),
       })
+      // One answer per device: remember it here only (a random value, never sent anywhere).
+      if (data?.deviceMarker) rememberAnswered(data.deviceMarker)
+      setClosing(result?.closingMessage ?? null)
       setSubmitted(true)
       toastSuccess('Thank you — your response was submitted.')
     } catch (err) {
@@ -112,9 +184,9 @@ export default function TakeSurveyPage() {
 
   if (isLoading) {
     return (
-      <PublicShell>
-        <div className="flex min-h-full items-center justify-center gap-2 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" /> Loading survey…
+      <PublicShell title="Loading survey – Survey">
+        <div role="status" className="flex min-h-full items-center justify-center gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> Loading survey…
         </div>
       </PublicShell>
     )
@@ -142,6 +214,7 @@ export default function TakeSurveyPage() {
             ? 'You have already completed this survey. Thank you.'
             : 'Thank you for completing this survey.'
         }
+        closingMessage={submitted ? closing : data.closingMessage}
         action={
           data.askRespondent ? (
             <Button asChild variant="outline">
@@ -153,137 +226,42 @@ export default function TakeSurveyPage() {
     )
   }
 
+  if (data.deviceMarker && answeredOnThisDevice(data.deviceMarker)) {
+    return (
+      <CenteredState
+        icon={<CheckCircle2 className="h-6 w-6 text-teal-600" />}
+        title="You have already answered"
+        description="This survey has already been answered on this device. Thank you. If someone else would like to answer, please use their own phone or computer."
+      />
+    )
+  }
+
+  // Cannot be answered (ended, not open yet, no period open): a clear page of its own, with who to
+  // contact instead. Never the questions.
+  const unavailable = unavailablePage(data)
+  if (unavailable) {
+    return (
+      <CenteredState
+        icon={unavailable.icon}
+        title={unavailable.title}
+        description={unavailable.description}
+        action={<ContactLine contact={data.contact ?? null} />}
+      />
+    )
+  }
+
   return (
-    <PublicShell>
+    <PublicShell title={`${data.title} – Survey`}>
       <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
-        <header className="mb-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white">
-              <ClipboardList className="h-5 w-5" aria-hidden />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Survey
-              </p>
-              <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                {data.title}
-              </h1>
-              {data.forName ? (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  For <span className="font-medium text-foreground">{data.forName}</span>
-                </p>
-              ) : null}
-              {data.description ? (
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
-                  {data.description}
-                </p>
-              ) : null}
-            </div>
+        {data.linkKind === 'share' ? (
+          <div aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
+            <label>
+              Leave this empty
+              <input ref={honeypot} type="text" name="website" tabIndex={-1} autoComplete="off" defaultValue="" />
+            </label>
           </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {data.isAnonymous ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-600/10 px-2.5 py-1 text-xs font-medium text-teal-800 dark:text-teal-200">
-                <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
-                Anonymous responses
-              </span>
-            ) : null}
-            {questions.length > 0 ? (
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-                {questions.length} question{questions.length === 1 ? '' : 's'}
-              </span>
-            ) : null}
-          </div>
-        </header>
-
-        {!data.canSubmit ? (
-          <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
-            <p className="text-sm text-muted-foreground">
-              {data.unavailableReason ?? 'This survey is not accepting responses right now.'}
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={e => void handleSubmit(e)} className="pb-24">
-            <div className="mb-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-              <span>
-                Answered {answeredCount} of {questions.length}
-              </span>
-              {missingRequired.length > 0 ? (
-                <span>{missingRequired.length} required left</span>
-              ) : respondentMissing ? (
-                <span>Choose who is answering</span>
-              ) : (
-                <span className="text-teal-700 dark:text-teal-300">Ready to submit</span>
-              )}
-            </div>
-
-            {askRespondent ? (
-              <section className="mb-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-                <p className="text-sm font-medium text-foreground">
-                  Who is answering this survey? <span className="text-destructive">*</span>
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  A family member or representative can answer on the service user's behalf.
-                </p>
-                <div className="mt-3 grid gap-2">
-                  {RESPONDENT_OPTIONS.map(opt => (
-                    <ChoiceButton
-                      key={opt.value}
-                      selected={respondentRelation === opt.value}
-                      disabled={submitMut.isPending}
-                      onClick={() => setRespondentRelation(opt.value)}
-                    >
-                      {opt.label}
-                    </ChoiceButton>
-                  ))}
-                </div>
-                {respondentRelation && respondentRelation !== 'SELF' ? (
-                  <label className="mt-3 block space-y-1 text-sm">
-                    <span className="text-xs text-muted-foreground">Your name (optional)</span>
-                    <Input
-                      value={respondentName}
-                      maxLength={200}
-                      disabled={submitMut.isPending}
-                      onChange={e => setRespondentName(e.target.value)}
-                    />
-                  </label>
-                ) : null}
-              </section>
-            ) : null}
-
-            <div className="space-y-3">
-              {questions.map((q, i) => (
-                <QuestionField
-                  key={q.id}
-                  q={q}
-                  index={i}
-                  value={answers[q.id]}
-                  disabled={submitMut.isPending}
-                  onChange={next => setAnswers(prev => ({ ...prev, [q.id]: next }))}
-                />
-              ))}
-            </div>
-
-            <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border bg-slate-50/95 px-4 py-3 backdrop-blur dark:bg-background/95 sm:-mx-6 sm:px-6">
-              <div className="mx-auto flex max-w-2xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {respondentMissing
-                    ? 'Please choose who is answering this survey.'
-                    : missingRequired.length > 0
-                      ? 'Please answer all required questions marked with *.'
-                      : 'You can submit your response now.'}
-                </p>
-                <Button
-                  type="submit"
-                  disabled={submitMut.isPending || missingRequired.length > 0 || respondentMissing}
-                  className="min-w-[160px] self-end sm:self-auto"
-                >
-                  {submitMut.isPending ? 'Submitting…' : 'Submit response'}
-                </Button>
-              </div>
-            </div>
-          </form>
-        )}
+        ) : null}
+        <SurveyRespondentForm data={data} submitting={submitMut.isPending} onSubmit={submit} />
       </div>
     </PublicShell>
   )

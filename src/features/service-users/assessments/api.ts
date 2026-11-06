@@ -6,6 +6,7 @@ import {
   type AssessmentCompletion,
   type AssessmentReviewQueueItem,
   type AssessmentReviewQueueMeta,
+  type AssessmentReviewScheduleRow,
   type AssessmentReviewState,
   type CarePlanAssessmentLink,
   type ServiceUserAssessmentLine,
@@ -208,4 +209,13 @@ export async function fetchAssessmentReviewQueue(
     data: res.data ?? [],
     meta: res.meta ?? { total: 0, overdueCount: 0, dueSoonCount: 0 },
   }
+}
+
+/** Assessment review schedules in force (Settings → Reviews & reminders overrides applied by the API). */
+export async function fetchAssessmentReviewSchedules(init?: RequestInit): Promise<AssessmentReviewScheduleRow[]> {
+  const res = await apiJson<ApiEnvelope<AssessmentReviewScheduleRow[]>>('/service-user-assessments/review-schedules', {
+    method: 'GET',
+    ...init,
+  })
+  return res.data ?? []
 }

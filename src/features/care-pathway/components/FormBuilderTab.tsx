@@ -3,16 +3,12 @@ import { Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { FormIconPicker } from './FormIconPicker'
 import { FormBuilderFieldEditor } from '@/features/care-pathway/components/FormBuilderFieldEditor'
+import { flattenPriorFieldOptions } from '@/features/care-pathway/utils/form-builder-conditional-logic.util'
 import {
-  flattenPriorFieldOptions,
-  parseConditionalLogic,
-  serializeConditionalLogic,
-} from '@/features/care-pathway/utils/form-builder-conditional-logic.util'
-import {
-  fieldTypeUsesOptions,
-  parseFieldOptions,
-  serializeFieldOptions,
-} from '@/features/care-pathway/utils/form-builder-field-options.util'
+  buildSaveSchemaPayload,
+  draftRowId,
+  pruneDanglingConditions,
+} from '@/features/care-pathway/utils/form-builder-schema-payload.util'
 import type {
   CareFormDetail,
   CareFormListRow,
@@ -95,7 +91,7 @@ const descriptionTextareaClass =
 
 function emptySection(sortOrder: number): CareFormSectionRow {
   return {
-    id: `new-${sortOrder}`,
+    id: draftRowId(),
     title: '',
     description: null,
     sortOrder,
@@ -105,7 +101,7 @@ function emptySection(sortOrder: number): CareFormSectionRow {
 
 function emptyField(sortOrder: number) {
   return {
-    id: `new-field-${sortOrder}`,
+    id: draftRowId(),
     label: '',
     fieldType: 'TEXT' as FormFieldType,
     placeholder: null,
@@ -280,22 +276,9 @@ export function FormBuilderTab() {
       toastError('Form name is required.')
       return false
     }
-    const validSections = sections
-      .map((s, i) => ({
-        ...s,
-        title: s.title.trim(),
-        sortOrder: i,
-        fields: s.fields
-          .map((f, fi) => ({ ...f, label: f.label.trim(), sortOrder: fi }))
-          .filter((f) =>
-            f.fieldType === 'SECTION_TEXT'
-              ? Boolean(f.label.trim() || f.helpText?.trim())
-              : f.label.length > 0,
-          ),
-      }))
-      .filter(s => s.title.length > 0)
+    const payload = buildSaveSchemaPayload(sections)
 
-    if (!validSections.length) {
+    if (!payload.length) {
       toastError('Add at least one section with a title.')
       return false
     }
@@ -316,33 +299,7 @@ export function FormBuilderTab() {
       setFormPictureUrl(nextUrl)
       setFormIconFile(null)
     }
-    await saveSchemaMutation.mutateAsync({
-      id: editingId,
-      sections: validSections.map(s => ({
-        title: s.title,
-        description: s.description ?? undefined,
-        sortOrder: s.sortOrder,
-        fields: s.fields.map((f) => {
-          const options = parseFieldOptions(f.optionsJson)
-          const fieldKey = f.fieldKey?.trim().toLowerCase() || undefined
-          return {
-            label: f.label,
-            fieldKey,
-            fieldType: f.fieldType,
-            placeholder: f.placeholder?.trim() || undefined,
-            helpText: f.helpText?.trim() || undefined,
-            required: f.fieldType === 'SECTION_TEXT' ? false : f.required,
-            sortOrder: f.sortOrder,
-            optionsJson:
-              fieldTypeUsesOptions(f.fieldType) && options.length
-                ? serializeFieldOptions(options)
-                : undefined,
-            conditionalLogicJson:
-              serializeConditionalLogic(parseConditionalLogic(f.conditionalLogicJson)) ?? undefined,
-          }
-        }),
-      })),
-    })
+    await saveSchemaMutation.mutateAsync({ id: editingId, sections: payload })
     return true
   }
 
@@ -397,7 +354,10 @@ export function FormBuilderTab() {
 
   const removeSection = (index: number) => {
     markDirty()
-    setSections(prev => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)))
+    // Rules on other fields that depended on the removed section's fields go with it.
+    setSections(prev =>
+      prev.length <= 1 ? prev : pruneDanglingConditions(prev.filter((_, i) => i !== index)),
+    )
   }
 
   const addField = (sectionIndex: number) => {
@@ -432,10 +392,12 @@ export function FormBuilderTab() {
   const removeField = (sectionIndex: number, fieldIndex: number) => {
     markDirty()
     setSections(prev =>
-      prev.map((s, si) =>
-        si === sectionIndex
-          ? { ...s, fields: s.fields.filter((_, fi) => fi !== fieldIndex) }
-          : s,
+      pruneDanglingConditions(
+        prev.map((s, si) =>
+          si === sectionIndex
+            ? { ...s, fields: s.fields.filter((_, fi) => fi !== fieldIndex) }
+            : s,
+        ),
       ),
     )
   }

@@ -28,17 +28,55 @@ const DialogOverlay = React.forwardRef<
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+/**
+ * Focus goes back to whatever opened the dialog when it closes (WCAG 2.4.3), also when it was
+ * opened from state rather than a DialogTrigger (Radix then has no trigger and drops focus on the
+ * page). The opener is the element that had focus as the dialog mounted. A caller's own
+ * onCloseAutoFocus still runs first and wins if it calls preventDefault().
+ */
+function useReturnFocus(
+  onOpenAutoFocus?: (event: Event) => void,
+  onCloseAutoFocus?: (event: Event) => void,
+) {
+  // The content component stays rendered while closed, so the opener is taken as the dialog opens
+  // (Radix runs onOpenAutoFocus before it moves focus into the dialog).
+  const opener = React.useRef<HTMLElement | null>(null)
+  const onOpen = React.useCallback(
+    (event: Event) => {
+      const active = document.activeElement
+      opener.current = active instanceof HTMLElement && active !== document.body ? active : null
+      onOpenAutoFocus?.(event)
+    },
+    [onOpenAutoFocus],
+  )
+  const onClose = React.useCallback(
+    (event: Event) => {
+      onCloseAutoFocus?.(event)
+      const el = opener.current
+      opener.current = null
+      if (event.defaultPrevented || !el?.isConnected) return
+      event.preventDefault()
+      el.focus()
+    },
+    [onCloseAutoFocus],
+  )
+  return { onOpenAutoFocus: onOpen, onCloseAutoFocus: onClose }
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
     hideClose?: boolean
   }
->(({ className, children, size = 'md', hideClose = false, ...props }, ref) => (
+>(({ className, children, size = 'md', hideClose = false, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+  const returnFocus = useReturnFocus(onOpenAutoFocus, onCloseAutoFocus)
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
+      {...returnFocus}
       className={cn(
         'fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]',
         'flex max-h-[min(90dvh,90vh)] flex-col gap-0 bg-card border border-border shadow-card-lg rounded-xl overflow-hidden',
@@ -59,14 +97,16 @@ const DialogContent = React.forwardRef<
     >
       {children}
       {hideClose ? null : (
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-          <X className="h-4 w-4" />
+        <DialogPrimitive.Close className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground ring-offset-background transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+          {/* 32 x 32 px target (WCAG 2.5.8), full-contrast icon. */}
+          <X className="h-4 w-4" aria-hidden />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
       )}
     </DialogPrimitive.Content>
   </DialogPortal>
-))
+  )
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
@@ -139,11 +179,14 @@ AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName
 const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
->(({ className, ...props }, ref) => (
+>(({ className, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+  const returnFocus = useReturnFocus(onOpenAutoFocus, onCloseAutoFocus)
+  return (
   <AlertDialogPortal>
     <AlertDialogOverlay />
     <AlertDialogPrimitive.Content
       ref={ref}
+      {...returnFocus}
       className={cn(
         'fixed left-[50%] top-[50%] z-50 grid w-full max-w-sm translate-x-[-50%] translate-y-[-50%] gap-4',
         'bg-card border border-border p-6 shadow-card-lg rounded-xl duration-200',
@@ -157,7 +200,8 @@ const AlertDialogContent = React.forwardRef<
       {...props}
     />
   </AlertDialogPortal>
-))
+  )
+})
 AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName
 
 const AlertDialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

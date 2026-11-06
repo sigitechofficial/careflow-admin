@@ -761,7 +761,7 @@ function DetailRow({
       <span className="flex min-w-0 flex-col">
         <span className="text-xs text-muted-foreground">{label}</span>
         {hint ? (
-          <span className="mt-0.5 max-w-[15rem] text-[11px] italic leading-4 text-muted-foreground/80">
+          <span className="mt-0.5 max-w-[15rem] text-[11px] italic leading-4 text-muted-foreground">
             {hint}
           </span>
         ) : null}

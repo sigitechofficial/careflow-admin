@@ -4,6 +4,10 @@ import StarterKit from "@tiptap/starter-kit"
 import Underline from "@tiptap/extension-underline"
 import TextAlign from "@tiptap/extension-text-align"
 import Placeholder from "@tiptap/extension-placeholder"
+import { Table } from "@tiptap/extension-table"
+import TableRow from "@tiptap/extension-table-row"
+import TableCell from "@tiptap/extension-table-cell"
+import TableHeader from "@tiptap/extension-table-header"
 import { Mark, mergeAttributes } from "@tiptap/core"
 import {
   Bold, Italic, UnderlineIcon, Strikethrough,
@@ -42,6 +46,8 @@ interface RichTextEditorProps {
   disabled?: boolean
   minHeight?: number
   className?: string
+  /** Classes for the editable document area, e.g. "policy-doc" for long-form policies. */
+  contentClassName?: string
 }
 
 function ToolbarBtn({
@@ -83,6 +89,7 @@ export function RichTextEditor({
   disabled,
   minHeight = 160,
   className,
+  contentClassName,
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -91,6 +98,11 @@ export function RichTextEditor({
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder }),
       PolicyLink,
+      // Keeps tables in pasted or library content (e.g. timescales in policies) instead of dropping them.
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableCell,
+      TableHeader,
     ],
     content: value ?? "",
     editable: !disabled,
@@ -200,6 +212,7 @@ export function RichTextEditor({
           "[&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0",
           "[&_.ProseMirror_blockquote]:border-l-4 [&_.ProseMirror_blockquote]:border-primary/30 [&_.ProseMirror_blockquote]:pl-3 [&_.ProseMirror_blockquote]:text-muted-foreground",
           "[&_.ProseMirror_a]:text-primary [&_.ProseMirror_a]:underline",
+          contentClassName,
         )}
       />
     </div>

@@ -318,7 +318,7 @@ export default function ManageScheduleJobsPage() {
                     type="date"
                     value={dayDate}
                     onChange={e => setDayDate(e.target.value)}
-                    className="h-10 w-[180px] border border-border rounded-md px-3 pr-10 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="h-10 w-[180px] border border-input rounded-md px-3 pr-10 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <Calendar className="h-4 w-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>

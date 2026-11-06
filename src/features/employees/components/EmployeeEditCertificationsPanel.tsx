@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { nextPrefilledExpiry, validityHint } from '@/shared/lib/validity-default.util'
 import { Plus, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
@@ -57,6 +58,7 @@ export function EmployeeEditCertificationsPanel({
   const [reference, setReference] = React.useState('')
   const [issueDate, setIssueDate] = React.useState('')
   const [expiryDate, setExpiryDate] = React.useState('')
+  const [autoExpiry, setAutoExpiry] = React.useState<string | null>(null)
   const [notes, setNotes] = React.useState('')
   const [file, setFile] = React.useState<File | null>(null)
   const [banner, setBanner] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -64,12 +66,20 @@ export function EmployeeEditCertificationsPanel({
   const saving = createMutation.isPending
 
   const certTypeOptions = lookups?.certificationTypes ?? []
+  const validityMonths = certTypeOptions.find(t => t.id === certificationTypeId)?.defaultValidityMonths ?? null
+  /** Expiry follows issue date + the type's validity period until the user types their own. */
+  const prefill = (start: string, months: number | null) => {
+    const next = nextPrefilledExpiry({ startIso: start, currentExpiry: expiryDate, lastAutoExpiry: autoExpiry, months })
+    setExpiryDate(next.expiry)
+    setAutoExpiry(next.autoExpiry)
+  }
 
   const resetForm = () => {
     setCertificationTypeId('')
     setReference('')
     setIssueDate('')
     setExpiryDate('')
+    setAutoExpiry(null)
     setNotes('')
     setFile(null)
     if (fileRef.current) fileRef.current.value = ''
@@ -241,7 +251,10 @@ export function EmployeeEditCertificationsPanel({
               <Combobox
                 options={certTypeOptions.map(t => ({ value: t.id, label: t.name }))}
                 value={certificationTypeId}
-                onChange={setCertificationTypeId}
+                onChange={id => {
+                  setCertificationTypeId(id)
+                  prefill(issueDate, certTypeOptions.find(t => t.id === id)?.defaultValidityMonths ?? null)
+                }}
                 placeholder={
                   certTypeOptions.length ? 'Select certificate' : 'No certificate types configured'
                 }
@@ -261,11 +274,22 @@ export function EmployeeEditCertificationsPanel({
             </div>
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Issue date (optional)</label>
-              <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-9" />
+              <Input
+                type="date"
+                value={issueDate}
+                onChange={e => {
+                  setIssueDate(e.target.value)
+                  prefill(e.target.value, validityMonths)
+                }}
+                className="h-9"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Expiry date (optional)</label>
               <Input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="h-9" />
+              {validityMonths ? (
+                <p className="text-[11px] text-muted-foreground">{validityHint(validityMonths, 'the issue date')}</p>
+              ) : null}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-xs text-muted-foreground">Certificate file (optional)</label>

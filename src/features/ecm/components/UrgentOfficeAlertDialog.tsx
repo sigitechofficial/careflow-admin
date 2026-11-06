@@ -50,7 +50,7 @@ function factLine(label: string, value: string | null | undefined) {
   return (
     <p className="text-sm leading-snug text-foreground">
       <span className="text-muted-foreground">{label}</span>
-      <span className="mx-1.5 text-muted-foreground/70">·</span>
+      <span className="mx-1.5 text-muted-foreground">·</span>
       <span className="font-medium">{value.trim()}</span>
     </p>
   )
@@ -240,7 +240,7 @@ function ManualAuthSection({
         {note ? (
           <>
             <span className="font-medium text-foreground/80">Carer note</span>
-            <span className="mx-1.5 text-muted-foreground/80">·</span>
+            <span className="mx-1.5 text-muted-foreground">·</span>
             {note}
           </>
         ) : row ? (

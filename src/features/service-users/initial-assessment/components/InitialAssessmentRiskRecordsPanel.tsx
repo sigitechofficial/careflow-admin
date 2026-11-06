@@ -132,7 +132,7 @@ export function InitialAssessmentRiskRecordsPanel({
         description: newRisk.description.trim(),
         likelihood: newRisk.likelihood,
         severity: newRisk.severity,
-        reviewDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+        // No reviewDate: the API sets it from the risk level (Settings → Reviews & reminders).
       })
       .then(() => {
         setShowAdd(false)

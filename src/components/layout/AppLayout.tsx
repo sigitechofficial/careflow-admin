@@ -3,6 +3,7 @@ import { cn } from '@/shared/lib/utils'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { useUIStore } from '@/store/ui.store'
+import { useDocumentTitle } from '@/shared/lib/use-document-title'
 
 import type { LayoutVariant } from '@/components/layout/sidebar-types'
 
@@ -21,6 +22,8 @@ const contentShellClass: Record<'default' | 'wide', string> = {
 
 export function AppLayout({ children, pageTitle, contentLayout = 'default', variant = 'admin' }: AppLayoutProps) {
   const theme = useUIStore(s => s.theme)
+  // Every page's browser tab title names the page (WCAG 2.4.2); a page can name itself more exactly.
+  useDocumentTitle(pageTitle ? `${pageTitle} – ${variant === 'portal' ? 'My care portal' : 'CareAdmin'}` : null)
 
   return (
     <div

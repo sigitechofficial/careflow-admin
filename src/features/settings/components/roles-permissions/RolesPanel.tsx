@@ -204,7 +204,7 @@ export function RolesPanel() {
                     type="checkbox"
                     checked={draftActive}
                     onChange={e => setDraftActive(e.target.checked)}
-                    className="h-4 w-4 rounded border-border"
+                    className="h-4 w-4 rounded border-input"
                   />
                   Active
                 </label>
@@ -282,7 +282,7 @@ export function RolesPanel() {
                                 checked={draftKeys.includes(p.key)}
                                 onChange={() => toggleKey(p.key)}
                                 disabled={!canManagePerms}
-                                className="mt-0.5 h-4 w-4 rounded border-border"
+                                className="mt-0.5 h-4 w-4 rounded border-input"
                               />
                               <span>
                                 <span className="font-mono text-xs">{p.key}</span>

@@ -462,7 +462,7 @@ export function VisitTasksAddDialog({
                         value={draft.dueTime}
                         onChange={(event) => updateReviewDueTime(draft.taskId, event.target.value)}
                         aria-invalid={!DUE_TIME_RE.test(draft.dueTime.trim()) || undefined}
-                        className="h-9 w-36 rounded-lg border border-border bg-muted/40 px-2.5 text-sm tabular-nums outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 aria-[invalid=true]:border-destructive"
+                        className="h-9 w-36 rounded-lg border border-input bg-muted/40 px-2.5 text-sm tabular-nums outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 aria-[invalid=true]:border-destructive"
                       />
                       <p className="mt-1 text-[11px] text-muted-foreground">
                         The task shows on the visit whose time covers this — or the nearest visit
@@ -489,7 +489,7 @@ export function VisitTasksAddDialog({
                         rows={3}
                         value={draft.carerInstructions}
                         placeholder="What should the carer do? Put each step on its own line."
-                        className="w-full resize-y rounded-lg border border-border bg-muted/40 px-2.5 py-2 text-xs leading-relaxed outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="w-full resize-y rounded-lg border border-input bg-muted/40 px-2.5 py-2 text-xs leading-relaxed outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                         onChange={(event) =>
                           updateReviewInstructions(draft.taskId, event.target.value)
                         }

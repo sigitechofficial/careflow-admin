@@ -155,7 +155,7 @@ function Tile({
       <span
         className={cn(
           'mt-1 text-3xl font-bold tabular-nums leading-none',
-          active ? TONE_TEXT[tone] : 'text-muted-foreground/60',
+          active ? TONE_TEXT[tone] : 'text-muted-foreground',
         )}
       >
         {loading ? '…' : value}
@@ -213,7 +213,7 @@ function Row({
         <span
           className={cn(
             'w-9 shrink-0 text-right text-lg font-bold tabular-nums',
-            loading ? 'text-muted-foreground' : active ? TONE_TEXT[tone] : quiet ? 'text-foreground' : 'text-muted-foreground/50',
+            loading ? 'text-muted-foreground' : active ? TONE_TEXT[tone] : quiet ? 'text-foreground' : 'text-muted-foreground',
           )}
         >
           {loading ? '…' : value}

@@ -161,6 +161,8 @@ export default function HomePage() {
 
   return (
     <div className="space-y-5">
+      {/* One h1 per page; the dashboard's sections are its h2s. */}
+      <h1 className="sr-only">Home</h1>
       <HomeOverview />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -196,7 +198,7 @@ export default function HomePage() {
                           type="date"
                           value={fromDate}
                           onChange={e => setFromDate(e.target.value)}
-                          className="flex-1 min-w-[220px] border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                          className="flex-1 min-w-[220px] border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
@@ -205,7 +207,7 @@ export default function HomePage() {
                           type="date"
                           value={toDate}
                           onChange={e => setToDate(e.target.value)}
-                          className="flex-1 min-w-[220px] border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                          className="flex-1 min-w-[220px] border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
@@ -216,7 +218,7 @@ export default function HomePage() {
                             value={serviceUserSearch}
                             onChange={e => setServiceUserSearch(e.target.value)}
                             placeholder="Service User Name"
-                            className="flex-1 border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            className="flex-1 border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                             onKeyDown={e => {
                               if (e.key === 'Enter') applyFilter()
                             }}

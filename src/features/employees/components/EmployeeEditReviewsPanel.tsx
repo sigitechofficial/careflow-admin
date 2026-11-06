@@ -1,43 +1,27 @@
 import * as React from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { ChevronDown, ClipboardPlus, Eye, ListChecks, Pencil, Settings2, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { useAuthStore } from '@/features/auth/store'
 import { fetchLookupList } from '@/features/settings/api/lookups-admin-api'
-import { computeNextDueFromLastDone } from '@/features/employees/api/employee-reviews-api'
-import {
-  useCreateEmployeeReview,
-  useDeleteEmployeeReview,
-  useEmployeeReviews,
-  useUpdateEmployeeReview,
-} from '@/features/employees/hooks/useEmployeeReviews'
+import type { EmployeeReviewRow } from '@/features/employees/api/employee-reviews-api'
+import { useEmployeeReviews, useUpdateEmployeeReview } from '@/features/employees/hooks/useEmployeeReviews'
 import { useUploadEmployeeDocument } from '@/features/employees/hooks/useEmployeeProfileExtras'
 import { SKILL_DOCUMENT_ACCEPT } from '@/features/employees/components/EmployeeSkillDocumentCell'
 import { ReviewStatusBadge } from '@/features/employees/components/ReviewStatusBadge'
+import { RecordReviewDialog, type ReviewTypeOption } from '@/features/employees/components/RecordReviewDialog'
+import { RemoveReviewDialog, ViewReviewDialog } from '@/features/employees/components/ReviewDetailDialogs'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
-import { formatDate } from '@/shared/lib/utils'
-import { Input } from '@/shared/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/ui/select'
-
-type ReviewTypeOption = {
-  id: string
-  name: string
-  defaultIntervalDays?: number | null
-}
-
-function intervalLabel(days: number | null | undefined): string {
-  if (!days) return ''
-  if (days % 365 === 0) return days === 365 ? 'yearly' : `every ${days / 365} years`
-  if (days % 7 === 0 && days < 365) return days === 7 ? 'weekly' : `every ${days / 7} weeks`
-  return `every ${days} days`
-}
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/shared/ui/dropdown-menu'
+import { formatDate } from '@/shared/lib/utils'
 
 /** View / upload / replace the supporting document on one review row. */
 function ReviewDocumentCell({
@@ -101,33 +85,28 @@ export function EmployeeEditReviewsPanel({ employeeId }: { employeeId: string })
   const accessToken = useAuthStore(s => s.accessToken)
   const jwtPresent = Boolean(accessToken?.includes('.'))
   const canUpdate = useAuthStore(s => s.can('employees.update'))
+  const canUploadDocs = useAuthStore(s => s.can('employees.documents.upload'))
+  const canOpenSchedules = useAuthStore(s => s.can('supervision.settings') || s.can('lookups.manage'))
   const queryEnabled = apiConfigured && jwtPresent && Boolean(employeeId)
 
   const reviewsQuery = useEmployeeReviews(employeeId, queryEnabled)
-  const createMutation = useCreateEmployeeReview(employeeId)
-  const deleteMutation = useDeleteEmployeeReview(employeeId)
   const updateMutation = useUpdateEmployeeReview(employeeId)
   const uploadMutation = useUploadEmployeeDocument(employeeId)
-  const canUploadDocs = useAuthStore(s => s.can('employees.documents.upload'))
   const [uploadingReviewId, setUploadingReviewId] = React.useState<string | null>(null)
-
   const [reviewTypes, setReviewTypes] = React.useState<ReviewTypeOption[]>([])
-  const [reviewTypeId, setReviewTypeId] = React.useState('')
-  const [lastDone, setLastDone] = React.useState('')
-  const [nextDue, setNextDue] = React.useState('')
-  const [notes, setNotes] = React.useState('')
-  const [file, setFile] = React.useState<File | null>(null)
-  const [fileInputKey, setFileInputKey] = React.useState(0)
-  const [banner, setBanner] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [viewing, setViewing] = React.useState<EmployeeReviewRow | null>(null)
+  const [removing, setRemoving] = React.useState<EmployeeReviewRow | null>(null)
+  const [dialog, setDialog] = React.useState<{ open: boolean; presetTypeId?: string; editing?: EmployeeReviewRow | null }>({
+    open: false,
+  })
 
   React.useEffect(() => {
     if (!queryEnabled) return
-    void fetchLookupList('review-types').then(rows => {
-      setReviewTypes(rows as ReviewTypeOption[])
-    })
+    void fetchLookupList('review-types').then(rows => setReviewTypes(rows as ReviewTypeOption[]))
   }, [queryEnabled])
 
-  const reviews = reviewsQuery.data ?? []
+  const reviews = reviewsQuery.data?.rows ?? []
+  const upcoming = reviewsQuery.data?.upcoming ?? []
   const loading = reviewsQuery.isLoading
   const error =
     reviewsQuery.error instanceof ApiError
@@ -136,177 +115,66 @@ export function EmployeeEditReviewsPanel({ employeeId }: { employeeId: string })
         ? 'Could not load reviews.'
         : null
 
-  const onReviewTypeChange = (id: string) => {
-    setReviewTypeId(id)
-    if (lastDone.trim()) {
-      const rt = reviewTypes.find(r => r.id === id)
-      const computed = computeNextDueFromLastDone(`${lastDone.trim()}T12:00:00.000Z`, rt?.defaultIntervalDays)
-      if (computed) setNextDue(computed.slice(0, 10))
-    }
-  }
-
-  const onLastDoneChange = (value: string) => {
-    setLastDone(value)
-    if (value.trim() && reviewTypeId) {
-      const rt = reviewTypes.find(r => r.id === reviewTypeId)
-      const computed = computeNextDueFromLastDone(`${value.trim()}T12:00:00.000Z`, rt?.defaultIntervalDays)
-      if (computed) setNextDue(computed.slice(0, 10))
-    }
-  }
-
-  const onAdd = async () => {
-    if (!reviewTypeId.trim()) {
-      setBanner({ type: 'error', text: 'Select a review type.' })
-      return
-    }
-    setBanner(null)
-    try {
-      const body: {
-        reviewTypeId: string
-        lastDone?: string
-        nextDue?: string
-        notes?: string
-        documentUrl?: string
-      } = { reviewTypeId: reviewTypeId.trim() }
-      if (lastDone.trim()) body.lastDone = `${lastDone.trim()}T12:00:00.000Z`
-      // Left empty, the API sets next due from last done + the review type interval.
-      if (nextDue.trim()) body.nextDue = `${nextDue.trim()}T12:00:00.000Z`
-      if (notes.trim()) body.notes = notes.trim()
-      if (file) body.documentUrl = await uploadReviewDocument(file)
-      await createMutation.mutateAsync(body)
-      setReviewTypeId('')
-      setLastDone('')
-      setNextDue('')
-      setNotes('')
-      setFile(null)
-      setFileInputKey(k => k + 1)
-      setBanner({ type: 'success', text: 'Review added.' })
-    } catch (e) {
-      setBanner({
-        type: 'error',
-        text: e instanceof ApiError ? e.message : 'Could not add review.',
-      })
-    }
-  }
-
-  /** Saved in the employee's Documents too, so it is listed with their other records. */
-  const uploadReviewDocument = async (doc: File) => {
-    const uploaded = await uploadMutation.mutateAsync({
-      file: doc,
-      name: doc.name,
-      description: 'Staff review document',
-    })
-    return uploaded.fileUrl
-  }
-
   const onRowUpload = async (reviewId: string, doc: File) => {
-    setBanner(null)
     setUploadingReviewId(reviewId)
     try {
-      const documentUrl = await uploadReviewDocument(doc)
-      await updateMutation.mutateAsync({ reviewId, body: { documentUrl } })
-      setBanner({ type: 'success', text: 'Document uploaded.' })
+      // Saved in the employee's Documents too, so it is listed with their other records.
+      const uploaded = await uploadMutation.mutateAsync({ file: doc, name: doc.name, description: 'Staff review document' })
+      await updateMutation.mutateAsync({ reviewId, body: { documentUrl: uploaded.fileUrl } })
+      toastSuccess('Document uploaded')
     } catch (e) {
-      setBanner({
-        type: 'error',
-        text: e instanceof ApiError ? e.message : 'Could not upload document.',
-      })
+      toastApiError(e, 'Could not upload the document')
     } finally {
       setUploadingReviewId(null)
     }
   }
 
-  const onDelete = async (reviewId: string) => {
-    if (!window.confirm('Remove this review record?')) return
-    try {
-      await deleteMutation.mutateAsync(reviewId)
-    } catch (e) {
-      setBanner({
-        type: 'error',
-        text: e instanceof ApiError ? e.message : 'Could not delete review.',
-      })
-    }
-  }
-
   return (
     <div className="space-y-4" data-testid="employee-edit-reviews-panel">
-      <h2 className="text-sm font-semibold text-foreground">Staff reviews</h2>
-      <p className="text-sm text-muted-foreground">
-        Supervision, appraisal and probation (CQC Regulation 18). Next due is set from last done and the review
-        type interval (Settings → Review types), e.g. supervision every 90 days (NICE QS123).
-      </p>
+      <div className="space-y-1">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground">Staff reviews</h2>
+          <div className="flex items-center gap-1">
+            {canUpdate ? (
+              <Button type="button" size="sm" onClick={() => setDialog({ open: true })} data-testid="record-review">
+                <ClipboardPlus className="mr-1 h-4 w-4" />
+                Record a review
+              </Button>
+            ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" size="sm" variant="ghost" data-testid="staff-review-more">
+                More
+                <ChevronDown className="ml-1 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link to="/employee/review-status">
+                  <ListChecks className="mr-2 h-4 w-4" />
+                  Review status for all staff
+                </Link>
+              </DropdownMenuItem>
+              {canOpenSchedules ? (
+                <DropdownMenuItem asChild>
+                  <Link to="/settings/general" search={{ tab: 'supervision' }}>
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    Review schedules and reminders
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Supervision, spot checks, appraisal, probation and other reviews for this carer (CQC Regulation 18). Each is due
+          on its own schedule, for example supervision at least every 3 months (NICE QS123) and probation reviews 1, 3
+          and 6 months after the start date. To hold a supervision in CareFlow, use Schedule supervision below.
+        </p>
+      </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      {banner ? (
-        <p className={banner.type === 'error' ? 'text-sm text-destructive' : 'text-sm text-green-700'}>
-          {banner.text}
-        </p>
-      ) : null}
-
-      {canUpdate ? (
-        <div className="rounded-lg border border-border p-4 space-y-3">
-          <p className="text-sm font-medium">Add review</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Select value={reviewTypeId} onValueChange={onReviewTypeChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Review type" />
-              </SelectTrigger>
-              <SelectContent>
-                {reviewTypes.map(rt => (
-                  <SelectItem key={rt.id} value={rt.id}>
-                    {rt.name}
-                    {rt.defaultIntervalDays ? (
-                      <span className="ml-1 text-muted-foreground">({intervalLabel(rt.defaultIntervalDays)})</span>
-                    ) : null}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input placeholder="Notes (optional)" value={notes} onChange={e => setNotes(e.target.value)} />
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground" htmlFor="review-last-done">
-                Last done
-              </label>
-              <Input
-                id="review-last-done"
-                type="date"
-                value={lastDone}
-                onChange={e => onLastDoneChange(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground" htmlFor="review-next-due">
-                Next due (filled from the interval)
-              </label>
-              <Input id="review-next-due" type="date" value={nextDue} onChange={e => setNextDue(e.target.value)} />
-            </div>
-            {canUploadDocs ? (
-              <div className="space-y-1 sm:col-span-2">
-                <label className="text-xs text-muted-foreground" htmlFor="review-document">
-                  Document (optional) — e.g. signed supervision or appraisal form
-                </label>
-                <Input
-                  key={fileInputKey}
-                  id="review-document"
-                  type="file"
-                  accept={SKILL_DOCUMENT_ACCEPT}
-                  onChange={e => setFile(e.target.files?.[0] ?? null)}
-                  data-testid="review-document-input"
-                />
-              </div>
-            ) : null}
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => void onAdd()}
-            disabled={createMutation.isPending || uploadMutation.isPending}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add review
-          </Button>
-        </div>
-      ) : null}
 
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
@@ -326,51 +194,144 @@ export function EmployeeEditReviewsPanel({ employeeId }: { employeeId: string })
                   Loading…
                 </td>
               </tr>
-            ) : reviews.length === 0 ? (
+            ) : reviews.length === 0 && upcoming.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-3 py-6 text-muted-foreground">
-                  No review records yet.
+                  Nothing recorded or due yet. Add the start date in Employment so reviews come due from it.
                 </td>
               </tr>
-            ) : (
-              reviews.map(row => (
-                <tr key={row.id} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2.5 font-medium">{row.reviewType?.name ?? '—'}</td>
-                  <td className="px-3 py-2.5">
-                    <ReviewStatusBadge status={row.status} />
-                  </td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{formatDate(row.lastDone)}</td>
-                  <td
-                    className={
-                      row.status === 'OVERDUE'
-                        ? 'px-3 py-2.5 font-medium text-destructive'
-                        : 'px-3 py-2.5 text-muted-foreground'
-                    }
-                  >
-                    {formatDate(row.nextDue)}
-                  </td>
-                  <td className="px-3 py-2.5 text-muted-foreground max-w-[200px] truncate">{row.notes ?? '—'}</td>
-                  <td className="px-3 py-2.5">
-                    <ReviewDocumentCell
-                      documentUrl={row.documentUrl ?? null}
-                      canUpload={canUpdate && canUploadDocs}
-                      uploading={uploadingReviewId === row.id}
-                      onUpload={doc => void onRowUpload(row.id, doc)}
-                    />
-                  </td>
-                  <td className="px-3 py-2.5">
-                    {canUpdate ? (
-                      <Button type="button" variant="ghost" size="icon" onClick={() => void onDelete(row.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    ) : null}
-                  </td>
-                </tr>
-              ))
-            )}
+            ) : null}
+            {!loading
+              ? upcoming.map(u => (
+                  <tr key={`upcoming-${u.reviewTypeId}`} className="border-b border-border bg-muted/20" data-testid="upcoming-review">
+                    <td className="px-3 py-2.5 font-medium">
+                      {u.reviewType.name}
+                      <span className="block text-xs font-normal text-muted-foreground">Due from the schedule · nothing recorded yet</span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <ReviewStatusBadge status={u.status} />
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground">—</td>
+                    <td
+                      className={
+                        u.status === 'OVERDUE' ? 'px-3 py-2.5 font-medium text-destructive' : 'px-3 py-2.5 text-muted-foreground'
+                      }
+                    >
+                      {formatDate(u.nextDue)}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground">—</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">—</td>
+                    <td className="px-3 py-2.5">
+                      {canUpdate ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setDialog({ open: true, presetTypeId: u.reviewTypeId })}
+                        >
+                          Record
+                        </Button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))
+              : null}
+            {loading
+              ? null
+              : reviews.map(row => (
+                  <tr key={row.id} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2.5 font-medium">{row.reviewType?.name ?? '—'}</td>
+                    <td className="px-3 py-2.5">
+                      <ReviewStatusBadge status={row.status} />
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{formatDate(row.lastDone)}</td>
+                    <td
+                      className={
+                        row.status === 'OVERDUE'
+                          ? 'px-3 py-2.5 font-medium text-destructive'
+                          : 'px-3 py-2.5 text-muted-foreground'
+                      }
+                    >
+                      {formatDate(row.nextDue)}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground max-w-[220px] truncate" title={row.notes ?? undefined}>
+                      {row.notes ?? '—'}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <ReviewDocumentCell
+                        documentUrl={row.documentUrl ?? null}
+                        canUpload={canUpdate && canUploadDocs}
+                        uploading={uploadingReviewId === row.id}
+                        onUpload={doc => void onRowUpload(row.id, doc)}
+                      />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setViewing(row)}
+                          aria-label={`View ${row.reviewType?.name ?? 'review'}`}
+                          data-testid="view-review"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      {canUpdate ? (
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDialog({ open: true, editing: row })}
+                            aria-label={`Edit ${row.reviewType?.name ?? 'review'}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setRemoving(row)}
+                            aria-label={`Remove ${row.reviewType?.name ?? 'review'}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
           </tbody>
         </table>
       </div>
+
+      <ViewReviewDialog
+        review={viewing}
+        employeeId={employeeId}
+        reviewTypes={reviewTypes}
+        onClose={() => setViewing(null)}
+        onEdit={
+          canUpdate
+            ? row => {
+                setViewing(null)
+                setDialog({ open: true, editing: row })
+              }
+            : undefined
+        }
+      />
+      {canUpdate ? <RemoveReviewDialog review={removing} employeeId={employeeId} onClose={() => setRemoving(null)} /> : null}
+      {canUpdate ? (
+        <RecordReviewDialog
+          open={dialog.open}
+          onOpenChange={open => setDialog(d => ({ ...d, open }))}
+          employeeId={employeeId}
+          reviewTypes={reviewTypes}
+          presetTypeId={dialog.presetTypeId}
+          editing={dialog.editing}
+        />
+      ) : null}
     </div>
   )
 }

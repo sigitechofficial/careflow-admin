@@ -211,7 +211,7 @@ export default function SettingsPage() {
               resource="job-titles"
               title="Job titles"
               description="Used on employee employment details and compliance matching."
-              placeholder="Filter job titlesâ€¦"
+              placeholder="Filter job titles…"
             />
           )}
           {activeTab === 'skills' && (
@@ -232,7 +232,7 @@ export default function SettingsPage() {
               resource="work-areas"
               title="Work areas"
               description="Determines which compliance checklist applies to an employee."
-              placeholder="Filter work areasâ€¦"
+              placeholder="Filter work areas…"
             />
           )}
           {activeTab === 'contract-types' && (
@@ -282,7 +282,7 @@ export default function SettingsPage() {
             <LookupIntervalPanel
               resource="review-types"
               title="Review types"
-              description="Staff review types (supervision, appraisal, probation). Default interval drives overdue review alerts."
+              description="Staff review types (supervision, appraisal, probation). Set when each is due (repeating, milestones after the start date, or only when it happens), who it applies to and its form in Settings → General Settings → Supervision → Review types."
               intervalLabel="Interval (days)"
               intervalField="defaultIntervalDays"
               intervalMax={3650}

@@ -35,7 +35,7 @@ import {
 } from '@/features/settings/hooks/useCarerMessages'
 
 const FIELD_CLASS =
-  'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 const AUDIENCES: { value: CarerMessageAudience; label: string; hint: string }[] = [
   { value: 'ALL', label: 'All carers', hint: 'Every active employee' },

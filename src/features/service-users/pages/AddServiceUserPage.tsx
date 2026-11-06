@@ -1287,7 +1287,7 @@ export default function AddServiceUserPage() {
                       serviceEndDate: e.target.checked ? '' : prev.serviceEndDate,
                     }))
                   }
-                  className="h-4 w-4 rounded border-border"
+                  className="h-4 w-4 rounded border-input"
                 />
                 Ongoing
               </label>

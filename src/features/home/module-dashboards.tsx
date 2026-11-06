@@ -448,7 +448,7 @@ function MedicationDashboard() {
 
 function StaffStats() {
   const q = useEmployeeChartSummary()
-  const outstanding = n(q.data?.reviews?.outstanding)
+  const overdue = n(q.data?.reviews?.overdue)
   return (
     <>
       <Metric
@@ -461,13 +461,13 @@ function StaffStats() {
         to="/employee/staff-list"
       />
       <Metric
-        label="Staff reviews outstanding"
-        value={outstanding}
-        hint={`${n(q.data?.reviews?.reviewed)} reviewed`}
+        label="Staff reviews overdue"
+        value={overdue}
+        hint={`${n(q.data?.reviews?.dueSoon)} due soon · ${n(q.data?.reviews?.upToDate)} up to date`}
         icon={ill('handshake')}
-        tone={outstanding > 0 ? 'amber' : 'muted'}
+        tone={overdue > 0 ? 'amber' : 'muted'}
         loading={q.isLoading}
-        to="/employee/staff-list"
+        to="/employee/review-status"
       />
     </>
   )

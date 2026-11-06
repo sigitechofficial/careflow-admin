@@ -377,7 +377,7 @@ export function InvestigationSection({
         <div className="mt-1 grid grid-cols-2 gap-1.5">
           {INCIDENT_CONTRIBUTING_FACTOR_OPTIONS.map((f) => (
             <label key={f.value} className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-2 py-1.5 text-xs hover:bg-muted/40">
-              <input type="checkbox" checked={factors.includes(f.value)} onChange={() => toggleFactor(f.value)} className="h-3.5 w-3.5 rounded border-border" />
+              <input type="checkbox" checked={factors.includes(f.value)} onChange={() => toggleFactor(f.value)} className="h-3.5 w-3.5 rounded border-input" />
               {f.label}
             </label>
           ))}
@@ -446,7 +446,7 @@ export function InvestigationSection({
             type="checkbox"
             checked={addSuspension}
             onChange={(e) => setAddSuspension(e.target.checked)}
-            className="h-4 w-4 rounded border-border"
+            className="h-4 w-4 rounded border-input"
           />
           {carerSuspensions.length > 0
             ? 'Suspend another carer during the investigation'

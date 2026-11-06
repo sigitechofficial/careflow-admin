@@ -878,7 +878,7 @@ export function LocationManagementZonesPanel({
                           <div className="font-medium text-foreground">{area.name}</div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground/70">{zone.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{zone.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">—</td>
                       <td className="px-4 py-3 text-muted-foreground">—</td>
                       <td className="max-w-[280px] px-4 py-3">
@@ -948,7 +948,7 @@ export function LocationManagementZonesPanel({
                             />
                             <div>
                               <div className="font-semibold text-foreground">{zone.name}</div>
-                              <div className="mt-0.5 text-[11px] text-muted-foreground/80">
+                              <div className="mt-0.5 text-[11px] text-muted-foreground">
                                 {branchCount === 0
                                   ? 'No branches'
                                   : `${branchCount} ${branchCount === 1 ? 'branch' : 'branches'}`}

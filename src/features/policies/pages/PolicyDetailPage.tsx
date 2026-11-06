@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { Skeleton } from '@/shared/ui/misc'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
+import { RichTextHtml } from '@/shared/ui/rich-text-html'
 import { useAuthStore } from '@/features/auth/store'
 import { PolicySectionLayout } from '@/features/policies/components/PolicySectionLayout'
 import { PolicyStatusBadge } from '@/features/policies/components/PolicyStatusBadge'
@@ -41,6 +42,14 @@ import { PolicyWorkflowStepper } from '@/features/policies/components/PolicyWork
 import { POLICY_IN_PROGRESS_STATUSES, type PolicyVersion } from '@/features/policies/types/policy.types'
 import { toastError, toastSuccess } from '@/shared/lib/toast'
 import { DOCUMENT_TYPE_LABEL } from '@/features/policies/policy-labels'
+import { PolicyAcknowledgementPanel } from '@/features/policies/components/PolicyAcknowledgementPanel'
+import { PolicyStaffAcknowledgements } from '@/features/policies/components/PolicyStaffAcknowledgements'
+import { PolicyLibraryUpdateBanner } from '@/features/policies/components/PolicyLibraryUpdateBanner'
+import {
+  useAcknowledgePolicy,
+  useMyPolicyAcknowledgements,
+  useRecordPolicyViewed,
+} from '@/features/policies/hooks/usePolicyAcknowledgements'
 
 export default function PolicyDetailPage() {
   const { policyId } = useParams({ strict: false }) as { policyId: string }
@@ -60,6 +69,23 @@ export default function PolicyDetailPage() {
   const archiveMut = useArchivePolicy()
   const deleteMut = useDeletePolicy()
   const versionMut = useCreatePolicyVersion()
+
+  const canAcknowledge = can('policies.acknowledgements.me')
+  const canManageAcknowledgements = can('policies.acknowledgements.manage')
+  const myAcknowledgementsQuery = useMyPolicyAcknowledgements(canAcknowledge)
+  const myAcknowledgement = myAcknowledgementsQuery.data?.items.find(item => item.documentId === policyId)
+  const viewedMut = useRecordPolicyViewed()
+  const acknowledgeMut = useAcknowledgePolicy()
+  const viewedRecordedFor = React.useRef<string | null>(null)
+  const recordViewed = viewedMut.mutate
+
+  // Opening a policy you must acknowledge records that you viewed it (once per version).
+  React.useEffect(() => {
+    if (!myAcknowledgement || myAcknowledgement.status !== 'PENDING') return
+    if (viewedRecordedFor.current === myAcknowledgement.versionId) return
+    viewedRecordedFor.current = myAcknowledgement.versionId
+    recordViewed(myAcknowledgement.documentId)
+  }, [myAcknowledgement, recordViewed])
 
   const document = policyQuery.data
   const versions = versionsQuery.data ?? []
@@ -106,6 +132,10 @@ export default function PolicyDetailPage() {
   }
 
   const displayVersion = working ?? document.currentVersion
+  const publishedVersion = published?.status === 'PUBLISHED' ? published : null
+  const mustAcknowledge = Boolean(myAcknowledgement && myAcknowledgement.status !== 'ACKNOWLEDGED')
+  // Staff acknowledge the published version, so show that content even while a new draft is in progress.
+  const contentVersion = mustAcknowledge && publishedVersion ? publishedVersion : displayVersion
   const ownerLabel = document.ownerId === userId ? 'You' : document.ownerId ? 'Assigned' : '—'
 
   return (
@@ -129,6 +159,17 @@ export default function PolicyDetailPage() {
                 A {working.versionLabel} draft is in progress. The published version remains read-only.
               </p>
             ) : null}
+            {mustAcknowledge && myAcknowledgement ? (
+              <p
+                className={myAcknowledgement.overdue ? 'text-sm font-medium text-destructive' : 'text-sm font-medium'}
+                data-testid="policy-acknowledgement-reminder"
+              >
+                You need to read and acknowledge this policy by {formatPolicyDate(myAcknowledgement.dueAt)}.{' '}
+                <a className="underline underline-offset-2" href="#policy-acknowledgement">
+                  Go to the policy
+                </a>
+              </p>
+            ) : null}
           </div>
           <PolicyWorkflowActions
             policyId={document.id}
@@ -143,6 +184,7 @@ export default function PolicyDetailPage() {
             publishedMajor={published?.versionMajor ?? 1}
             publishedMinor={published?.versionMinor ?? 0}
             contentKind={displayVersion?.contentKind === 'UPLOAD' || displayVersion?.hasDocument ? 'UPLOAD' : 'EDITOR'}
+            acknowledgementRequired={Boolean(working?.acknowledgementRequired)}
             can={can}
             pending={pending}
             onSubmit={async () => {
@@ -227,6 +269,8 @@ export default function PolicyDetailPage() {
           />
         </header>
 
+        {can('policies.update') ? <PolicyLibraryUpdateBanner policyId={document.id} /> : null}
+
         <Section title="Summary" description="Key information about this policy.">
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Item label="Description" value={document.description || '—'} />
@@ -282,29 +326,63 @@ export default function PolicyDetailPage() {
           )}
         </Section>
 
-        <Section title="Content" description="Current version content.">
+        <Section
+          title="Content"
+          description={
+            contentVersion !== displayVersion && contentVersion
+              ? `Published version ${contentVersion.versionLabel}, the version you need to acknowledge.`
+              : 'Current version content.'
+          }
+        >
+          {myAcknowledgement ? (
+            <PolicyAcknowledgementPanel
+              status={myAcknowledgement.status}
+              dueAt={myAcknowledgement.dueAt}
+              overdue={myAcknowledgement.overdue}
+              acknowledgedAt={myAcknowledgement.acknowledgedAt}
+              versionLabel={myAcknowledgement.versionLabel}
+              pending={acknowledgeMut.isPending}
+              onAcknowledge={() => {
+                void acknowledgeMut
+                  .mutateAsync(myAcknowledgement.documentId)
+                  .then(() => toastSuccess('Policy acknowledged'))
+                  .catch(err => {
+                    const copy = policyErrorCopy(err)
+                    toastError(copy.title, copy.message)
+                  })
+              }}
+            />
+          ) : null}
           <p className="text-sm text-muted-foreground" data-testid="policy-content-source-label">
             Content source:{' '}
             <span className="font-medium text-foreground">
-              {displayVersion?.hasDocument || displayVersion?.contentKind === 'UPLOAD'
+              {contentVersion?.hasDocument || contentVersion?.contentKind === 'UPLOAD'
                 ? 'Uploaded document'
                 : 'Written in CareFlow'}
             </span>
           </p>
-          {displayVersion?.hasDocument ? (
-            <PolicySourceDocument policyId={document.id} version={displayVersion} />
-          ) : isBlankPolicyHtml(displayVersion?.contentHtml) && !extractPolicyText(displayVersion?.contentJson, displayVersion?.contentHtml) ? (
+          {contentVersion?.hasDocument ? (
+            <PolicySourceDocument policyId={document.id} version={contentVersion} />
+          ) : isBlankPolicyHtml(contentVersion?.contentHtml) && !extractPolicyText(contentVersion?.contentJson, contentVersion?.contentHtml) ? (
             <p className="text-sm text-muted-foreground">No content.</p>
           ) : (
-            <div
-              className="prose prose-sm dark:prose-invert max-w-none rounded-lg border border-border bg-muted/20 p-4"
+            <RichTextHtml
+              className="policy-doc rounded-lg border border-border bg-muted/20 p-4"
               data-testid="policy-formatted-content"
-              dangerouslySetInnerHTML={{
-                __html: htmlForPolicyDisplay(displayVersion?.contentJson, displayVersion?.contentHtml),
-              }}
+              html={htmlForPolicyDisplay(contentVersion?.contentJson, contentVersion?.contentHtml)}
             />
           )}
         </Section>
+
+        {canManageAcknowledgements && publishedVersion?.acknowledgementRequired ? (
+          <Section
+            id="staff-acknowledgements"
+            title="Staff acknowledgements"
+            description={`Who has read and acknowledged ${publishedVersion.versionLabel}.`}
+          >
+            <PolicyStaffAcknowledgements documentId={document.id} />
+          </Section>
+        ) : null}
 
         <Section title="Version history" description="Previous versions are always read-only.">
           <PolicyVersionHistory
@@ -321,16 +399,18 @@ export default function PolicyDetailPage() {
 }
 
 function Section({
+  id,
   title,
   description,
   children,
 }: {
+  id?: string
   title: string
   description: string
   children: React.ReactNode
 }) {
   return (
-    <section className="space-y-3">
+    <section id={id} className="scroll-mt-20 space-y-3">
       <ContentSectionHeader title={title} description={description} />
       {children}
     </section>

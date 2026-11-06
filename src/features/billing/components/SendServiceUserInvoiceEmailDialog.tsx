@@ -222,7 +222,7 @@ export function SendServiceUserInvoiceEmailDialog({
                 <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     type="checkbox"
-                    className="rounded border-border"
+                    className="rounded border-input"
                     checked={markSent}
                     onChange={(e) => setMarkSent(e.target.checked)}
                   />

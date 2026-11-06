@@ -78,4 +78,21 @@ export async function rootAuthBeforeLoad({ location }: { location: { pathname: s
   if (!ipAllowedForCurrent()) {
     throw redirect({ to: '/auth/blocked-ip' })
   }
+
+  // An independent reviewer's account reaches "Surveys to record" and its own account page only (the
+  // API refuses everything else). Any other signed-in page sends it back to its one page.
+  if (useAuthStore.getState().user?.role === 'independent_reviewer' && !isReviewerAllowedPath(path)) {
+    throw redirect({ to: '/survey-reviews', replace: true })
+  }
+}
+
+/**
+ * Signed-in pages an independent reviewer's account may open: "Surveys to record" and its own
+ * account. Signing out is an action (then /auth/login, a public page), not a page here.
+ */
+export const REVIEWER_ALLOWED_PATHS = ['/survey-reviews', '/account'] as const
+
+export function isReviewerAllowedPath(path: string): boolean {
+  const p = path.length > 1 ? path.replace(/\/+$/, '') : path
+  return REVIEWER_ALLOWED_PATHS.some(allowed => p === allowed || p.startsWith(`${allowed}/`))
 }

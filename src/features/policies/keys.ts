@@ -16,4 +16,9 @@ export const policyKeys = {
   version: (id: string, versionId: string) => [...policyKeys.all, 'version', id, versionId] as const,
   categories: (params?: PolicyCategoryListParams) => [...policyKeys.all, 'categories', params ?? {}] as const,
   tags: (params?: PolicyTagListParams) => [...policyKeys.all, 'tags', params ?? {}] as const,
+  acknowledgements: () => [...policyKeys.all, 'acknowledgements'] as const,
+  myAcknowledgements: () => [...policyKeys.acknowledgements(), 'mine'] as const,
+  acknowledgementReport: (id: string) => [...policyKeys.acknowledgements(), 'report', id] as const,
+  acknowledgementSummary: () => [...policyKeys.acknowledgements(), 'summary'] as const,
+  publishPreview: (id: string) => [...policyKeys.acknowledgements(), 'publish-preview', id] as const,
 }

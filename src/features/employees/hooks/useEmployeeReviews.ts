@@ -58,7 +58,8 @@ export function useUpdateEmployeeReview(employeeId: string) {
 export function useDeleteEmployeeReview(employeeId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (reviewId: string) => deleteEmployeeReview(employeeId, reviewId),
+    mutationFn: ({ reviewId, reason }: { reviewId: string; reason: string }) =>
+      deleteEmployeeReview(employeeId, reviewId, reason),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: employeeKeys.reviews(employeeId) })
       void qc.invalidateQueries({ queryKey: employeeKeys.reviewsOverview() })

@@ -134,7 +134,7 @@ export function AddCommunicationNoteDialog({ serviceUserId, open, onOpenChange }
               id="comm-note-position"
               value={form.position}
               onChange={e => setForm(f => ({ ...f, position: e.target.value }))}
-              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">Select Position</option>
               {COMMUNICATION_NOTE_POSITIONS.map(option => (
@@ -231,9 +231,10 @@ export function AddCommunicationNoteDialog({ serviceUserId, open, onOpenChange }
                     key={target.id}
                     type="button"
                     onClick={() => toggleShare(target.id)}
+                    aria-pressed={on}
                     className={cn(
                       'flex flex-col items-center gap-1.5 text-xs font-medium',
-                      on ? 'text-foreground' : 'text-muted-foreground opacity-60',
+                      on ? 'text-foreground' : 'text-muted-foreground',
                     )}
                   >
                     <span

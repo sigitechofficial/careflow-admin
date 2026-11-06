@@ -9,6 +9,9 @@ vi.mock('@/features/service-users/components/ServiceUserPersonalDetailsForm', ()
 vi.mock('@/features/service-users/components/ServiceUserPortalAccessSection', () => ({
   ServiceUserPortalAccessSection: () => <div>portal-access</div>,
 }))
+vi.mock('@/features/surveys/reminders/SurveyContactPreferencesSection', () => ({
+  SurveyContactPreferencesSection: ({ subjectKind }: { subjectKind: string }) => <div>survey-contact-preferences {subjectKind}</div>,
+}))
 vi.mock('@/features/service-users/components/ServiceUserContactsTab', () => ({
   ServiceUserContactsTab: () => <div>contacts-form</div>,
 }))
@@ -119,5 +122,6 @@ describe('ServiceUserProfileSectionContent', () => {
   it('includes portal access on Personal Details', () => {
     renderTab('personal')
     expect(screen.getByText('portal-access')).toBeInTheDocument()
+    expect(screen.getByText('survey-contact-preferences SERVICE_USER')).toBeInTheDocument()
   })
 })

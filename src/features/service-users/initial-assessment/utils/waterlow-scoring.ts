@@ -1,3 +1,5 @@
+import type { AssessmentReviewSchedule } from '@/features/service-users/assessments/types'
+
 /**
  * Waterlow Pressure Ulcer Risk Assessment — scoring aligned to the paper tool (§11.4).
  * Assessors select predefined options; {@link computeWaterlowScore} sums their scores.
@@ -591,22 +593,41 @@ export function waterlowEquipmentGuidance(score: number): string {
 }
 
 /**
- * Waterlow reassessment interval: monthly — the form's own instruction ("update monthly"), and e.g. a
- * Nourish provider policy (Kingsley Healthcare 03-18a): Waterlow reviewed "no less than every 1 month".
+ * The Waterlow review schedule comes from the API (GET /service-user-assessments/review-schedules,
+ * key `waterlow`): the built-in interval, the shorter one for high risk and the score that counts as
+ * high risk, with any organisation override from Settings → Reviews & reminders. The same schedule
+ * drives the assessment's review due date and reminders, so the date filled here matches them.
  */
-export const WATERLOW_REVIEW_INTERVAL_MONTHS = 1
-export const WATERLOW_REVIEW_SOURCE = 'Waterlow form instruction and Kingsley Healthcare (Nourish) review policy'
+export type WaterlowReviewSchedule = Pick<
+  AssessmentReviewSchedule,
+  'defaultIntervalDays' | 'elevatedRiskIntervalDays' | 'elevatedRiskScoreFrom' | 'guidanceSource'
+>
 
-function addMonthsIso(isoDate: string, months: number): string | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate)
+/** Days to the next Waterlow review for this score, or null when the schedule is not loaded. */
+export function waterlowReviewIntervalDays(score: number, schedule: WaterlowReviewSchedule | null | undefined): number | null {
+  if (!schedule?.defaultIntervalDays) return null
+  const elevated =
+    schedule.elevatedRiskIntervalDays != null &&
+    schedule.elevatedRiskScoreFrom != null &&
+    score >= schedule.elevatedRiskScoreFrom
+  return elevated ? schedule.elevatedRiskIntervalDays! : schedule.defaultIntervalDays
+}
+
+/** Hint under "Next Waterlow review date". */
+export function waterlowNextReviewHint(schedule: WaterlowReviewSchedule | null | undefined): string | null {
+  if (!schedule?.defaultIntervalDays) return null
+  const high =
+    schedule.elevatedRiskIntervalDays != null && schedule.elevatedRiskScoreFrom != null
+      ? `, or ${schedule.elevatedRiskIntervalDays} days when the score is ${schedule.elevatedRiskScoreFrom} or more`
+      : ''
+  return `Filled as ${schedule.defaultIntervalDays} days after the assessment${high} (${schedule.guidanceSource}; Settings → Reviews & reminders). Reassess sooner if the person's condition changes.`
+}
+
+function addDaysIso(isoDate: string, days: number): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate)
   if (!m) return null
-  const y = Number(m[1])
-  const monthIndex = Number(m[2]) - 1 + months
-  const targetYear = y + Math.floor(monthIndex / 12)
-  const targetMonth = ((monthIndex % 12) + 12) % 12
-  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
-  const day = Math.min(Number(m[3]), lastDay)
-  return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + days))
+  return d.toISOString().slice(0, 10)
 }
 
 const isBlank = (v: string | null | undefined) => !v || !v.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
@@ -617,7 +638,7 @@ const isBlank = (v: string | null | undefined) => !v || !v.replace(/<[^>]*>/g, '
  */
 export function waterlowFollowUpPrefill(
   meta: WaterlowMetadata,
-  ctx: { assessorName?: string | null; assessmentDate: string },
+  ctx: { assessorName?: string | null; assessmentDate: string; reviewSchedule?: WaterlowReviewSchedule | null },
 ): Partial<WaterlowMetadata> | null {
   const score = computeWaterlowScore(meta)
   if (score <= 0) return null
@@ -628,8 +649,9 @@ export function waterlowFollowUpPrefill(
   if (isBlank(meta.recommendationBy) && ctx.assessorName?.trim()) patch.recommendationBy = ctx.assessorName.trim()
   const date = ctx.assessmentDate.slice(0, 10)
   if (isBlank(meta.recommendationDate) && /^\d{4}-\d{2}-\d{2}$/.test(date)) patch.recommendationDate = date
-  if (isBlank(meta.nextReviewDate)) {
-    const next = addMonthsIso(date, WATERLOW_REVIEW_INTERVAL_MONTHS)
+  const intervalDays = waterlowReviewIntervalDays(score, ctx.reviewSchedule)
+  if (isBlank(meta.nextReviewDate) && intervalDays != null) {
+    const next = addDaysIso(date, intervalDays)
     if (next) patch.nextReviewDate = next
   }
   return Object.keys(patch).length ? patch : null

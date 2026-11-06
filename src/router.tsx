@@ -128,7 +128,13 @@ import IncidentsListPage from '@/features/incidents/pages/IncidentsListPage'
 import SurveysPage from '@/features/surveys/pages/SurveysPage'
 import SurveyBuilderPage from '@/features/surveys/pages/SurveyBuilderPage'
 import SurveyResponsesPage from '@/features/surveys/pages/SurveyResponsesPage'
+import SurveyCallListPage from '@/features/surveys/reminders/SurveyCallListPage'
+import SurveyPreviewPage from '@/features/surveys/pages/SurveyPreviewPage'
 import TakeSurveyPage from '@/features/surveys/pages/TakeSurveyPage'
+import SurveyPaperCopyPage from '@/features/surveys/sharing/SurveyPaperCopyPage'
+import SurveyPosterPage from '@/features/surveys/sharing/SurveyPosterPage'
+import ReadyMadeSurveysPage from '@/features/surveys/pages/ReadyMadeSurveysPage'
+import SurveyFollowUpsPage from '@/features/surveys/pages/SurveyFollowUpsPage'
 import PathwayCasesListPage from '@/features/specialist-pathways/pages/PathwayCasesListPage'
 import PathwayCaseDetailPage from '@/features/specialist-pathways/pages/PathwayCaseDetailPage'
 import SafeguardingListPage from '@/features/safeguarding/pages/SafeguardingListPage'
@@ -143,6 +149,7 @@ import HoursApprovalsPage from '@/features/hours-approvals/pages/HoursApprovalsP
 import HoursHistoryPage from '@/features/hours-approvals/pages/HoursHistoryPage'
 import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
 import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
+import SupervisionSessionPage from '@/features/supervision/pages/SupervisionSessionPage'
 import IncidentsDashboardPage from '@/features/incidents/pages/IncidentsDashboardPage'
 import MyActionsPage from '@/features/incidents/pages/MyActionsPage'
 import IncidentAnalyticsPage from '@/features/incidents/pages/IncidentAnalyticsPage'
@@ -180,6 +187,7 @@ import PayrollEmployeeDetailPage from '@/features/payroll/pages/PayrollEmployeeD
 import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesPage'
 import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
 import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
+import MySurveysPage, { MySurveyAnswerPage } from '@/features/surveys/my-surveys/MySurveysPage'
 import CarerReportsPage from '@/features/employees/pages/CarerReportsPage'
 import TimebankPage from '@/features/timebank/pages/TimebankPage'
 import TimebankServiceUserPage from '@/features/timebank/pages/TimebankServiceUserPage'
@@ -205,6 +213,8 @@ import PolicyDetailPage from '@/features/policies/pages/PolicyDetailPage'
 import PolicyEditPage from '@/features/policies/pages/PolicyEditPage'
 import PolicyCategoriesPage from '@/features/policies/pages/PolicyCategoriesPage'
 import PolicyTagsPage from '@/features/policies/pages/PolicyTagsPage'
+import ReadyMadePoliciesPage from '@/features/policies/pages/ReadyMadePoliciesPage'
+import MyPoliciesPage from '@/features/policies/pages/MyPoliciesPage'
 import ComplianceDashboardPage from '@/features/compliance/pages/ComplianceDashboardPage'
 import { validatePolicyLibrarySearch } from '@/features/policies/policy-routes'
 import {
@@ -228,6 +238,7 @@ import type { SettingsTabId } from '@/features/settings/pages/SettingsPage'
 import CalendarPage from '@/features/service-users/calendar/pages/CalendarPage'
 import ServiceUserHoursPage from '@/features/service-users/pages/ServiceUserHoursPage'
 import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
+import { SurveyReviewsPage } from '@/features/surveys/reviewers/SurveyReviewers'
 import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
 import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
 import EmployeeTimesheetsPage from '@/features/employees/pages/EmployeeTimesheetsPage'
@@ -294,6 +305,9 @@ type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 
 
 const pageTitles: Record<string, string> = {
   '/': 'Home',
+  '/surveys': 'Surveys',
+  '/surveys/ready-made': 'Ready-made surveys',
+  '/surveys/follow-ups': 'Survey follow-ups',
   '/service-users': 'Service Users',
   '/service-users/all': 'Service Users',
   '/service-users/hours': 'Service User hours',
@@ -306,6 +320,7 @@ const pageTitles: Record<string, string> = {
   '/service-users/$serviceUserId/invoices': 'Invoices',
   '/service-users/$serviceUserId': 'Edit Service User',
   '/scheduling/schedule-jobs': 'Schedule Jobs',
+  '/supervision/sessions/$sessionId': 'Supervision session',
   '/scheduling/visits/$jobId': 'Visit',
   '/scheduling/report': 'Scheduling Reports',
   '/scheduling/jobs': 'Scheduled Jobs Housekeeping',
@@ -314,7 +329,7 @@ const pageTitles: Record<string, string> = {
   '/scheduling/templates': 'Schedule Templates',
   '/scheduling/bulk-generate-rota': 'Bulk Generate Rota',
   '/employee': 'Employee',
-  '/employee/staff-list': 'Employee',
+  '/employee/staff-list': 'Staff list',
   '/employee/hours': 'Employee hours',
   '/employee/absences': 'Absence tracker',
   '/employee/timesheets': 'Timesheets',
@@ -328,6 +343,7 @@ const pageTitles: Record<string, string> = {
   '/employee/allocations': 'Employee',
   '/employee/reports': 'Employee',
   '/employee/temp-inspector': 'Temporary Inspector Login',
+  '/survey-reviews': 'Surveys to record',
   '/employee/documents': 'General Employee Documents',
   '/employee/add': 'Add Employee',
   '/hr': 'HR',
@@ -386,6 +402,7 @@ const pageTitles: Record<string, string> = {
   '/office-salaries': 'Office salaries',
   '/checklist': 'Checklist',
   '/my-tasks': 'My tasks',
+  '/my-surveys': 'My surveys',
   '/reports/carers': 'Carer reports',
   '/reports/timebank': 'Timebank',
   '/reports/timebank/$serviceUserId': 'Timebank',
@@ -422,6 +439,7 @@ const pageTitles: Record<string, string> = {
   '/policies/$policyId/edit': 'Edit policy',
   '/policies/categories': 'Policy categories',
   '/policies/tags': 'Policy tags',
+  '/policies/mine': 'My policies',
   '/compliance': 'Compliance dashboard',
   '/medication/exceptions': 'Missed & refused doses',
   '/medication/late': 'Late doses',
@@ -518,7 +536,13 @@ function AppRootShell() {
   const pageTitle =
     pageTitles[pathname] ??
     (pathname.startsWith('/apps/') ? moduleLabelForSlug(pathname.split('/')[2] ?? '') : undefined) ??
-    (/^\/employee\/[^/]+\/edit$/.test(pathname)
+    (/^\/surveys\/[^/]+\/responses$/.test(pathname)
+      ? 'Survey results'
+      : /^\/surveys\/[^/]+\/preview$/.test(pathname)
+        ? 'Survey preview'
+      : /^\/surveys\/[^/]+$/.test(pathname)
+        ? 'Survey'
+      : /^\/employee\/[^/]+\/edit$/.test(pathname)
       ? 'Edit Employee'
       : /^\/service-users\/[^/]+\/profile$/.test(pathname)
         ? 'Profile'
@@ -691,6 +715,23 @@ const publicTakeSurveyRoute = createRoute({
   component: TakeSurveyPage,
 })
 
+// Print views (paper copy, poster): full page without the app shell, so they print cleanly.
+const surveyPaperCopyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/surveys/$surveyId/paper-copy',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyPaperCopyPage,
+})
+
+const surveyPosterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/surveys/$surveyId/poster',
+  validateSearch: (raw: Record<string, unknown>): { link?: string } =>
+    typeof raw.link === 'string' && /^(main|[0-9a-f-]{36})$/.test(raw.link) ? { link: raw.link } : {},
+  beforeLoad: requirePermission('surveys.manage'),
+  component: SurveyPosterPage,
+})
+
 /** Portal pages format dates with plain helpers, so render them once org settings have loaded. */
 function PortalOutlet() {
   const { timezoneReady } = useOrganisationDisplayFormat()
@@ -805,6 +846,10 @@ const appShellRoute = createRoute({
 const indexRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/',
+  // An independent survey reviewer's account has one page.
+  beforeLoad: () => {
+    if (useAuthStore.getState().user?.role === 'independent_reviewer') throw redirect({ to: '/survey-reviews' })
+  },
   component: HomePage,
 })
 
@@ -1573,6 +1618,20 @@ const employeeReportsRoute = createRoute({
   component: () => <EmployeeRouteWrapper tab="reports" />,
 })
 
+/**
+ * An independent reviewer's account: the surveys they may record answers on (SUR-CQC-001/002). Open
+ * to the reviewer account even with no live grant (it then says there is nothing to record).
+ */
+const surveyReviewsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/survey-reviews',
+  beforeLoad: () => {
+    const { user, can } = useAuthStore.getState()
+    if (user?.role !== 'independent_reviewer' && !can('surveys.review.record')) throw redirect({ to: '/' })
+  },
+  component: SurveyReviewsPage,
+})
+
 const employeeTempInspectorRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/employee/temp-inspector',
@@ -1711,8 +1770,35 @@ const incidentsDashboardRoute = createRoute({
 const surveysRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/surveys',
+  // `?view=templates` opens the Templates tab (e.g. after adopting ready-made surveys).
+  validateSearch: (raw: Record<string, unknown>): { view?: 'templates' } =>
+    raw.view === 'templates' ? { view: 'templates' } : {},
   beforeLoad: requirePermission('surveys.read'),
   component: SurveysPage,
+})
+
+const surveyReadyMadeRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/ready-made',
+  beforeLoad: requirePermission('surveys.read'),
+  component: ReadyMadeSurveysPage,
+})
+
+// Survey alerts and contact-me requests. Open to every office user: the API shows survey readers
+// all of them in their branches and anyone else only those given to their roles (task links).
+const surveyFollowUpsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/follow-ups',
+  validateSearch: (
+    raw: Record<string, unknown>,
+  ): { alert?: string; view?: 'open' | 'overdue' | 'contact' | 'done' | 'all'; surveyId?: string } => ({
+    ...(typeof raw.alert === 'string' ? { alert: raw.alert } : {}),
+    ...(typeof raw.view === 'string' && ['open', 'overdue', 'contact', 'done', 'all'].includes(raw.view)
+      ? { view: raw.view as 'open' | 'overdue' | 'contact' | 'done' | 'all' }
+      : {}),
+    ...(typeof raw.surveyId === 'string' ? { surveyId: raw.surveyId } : {}),
+  }),
+  component: SurveyFollowUpsPage,
 })
 
 const surveyBuilderRoute = createRoute({
@@ -1727,6 +1813,22 @@ const surveyResponsesRoute = createRoute({
   path: '/surveys/$surveyId/responses',
   beforeLoad: requirePermission('surveys.read'),
   component: SurveyResponsesPage,
+})
+
+// Survey call list (named surveys): opened from the call list task. The API allows people who may see
+// the survey's individual responses, or who hold the role making the calls.
+const surveyCallListRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/$surveyId/calls',
+  beforeLoad: requirePermission('surveys.responses.record'),
+  component: SurveyCallListPage,
+})
+
+const surveyPreviewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/$surveyId/preview',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyPreviewPage,
 })
 
 const hoursApprovalsRoute = createRoute({
@@ -1798,6 +1900,13 @@ const incidentDetailRoute = createRoute({
   path: '/incidents/$incidentId',
   beforeLoad: requirePermission('incidents.read'),
   component: IncidentDetailPage,
+})
+
+const supervisionSessionRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/supervision/sessions/$sessionId',
+  beforeLoad: requirePermission('supervision.read'),
+  component: SupervisionSessionPage,
 })
 
 const accountRoute = createRoute({
@@ -1946,6 +2055,7 @@ const GENERAL_SETTINGS_TAB_IDS: GeneralSettingsTabId[] = [
   'dom-care-shifts',
   'dom-rules',
   'incident-management',
+  'supervision',
   'optional',
   'pre-assessment',
   'alerts',
@@ -2310,6 +2420,19 @@ const myTasksRoute = createRoute({
   component: MyTasksPage,
 })
 
+// Any office user who is also a member of staff: surveys sent to them (answered here or in the carer app).
+const mySurveysRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/my-surveys',
+  component: MySurveysPage,
+})
+
+const mySurveyAnswerRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/my-surveys/$surveyId',
+  component: MySurveyAnswerPage,
+})
+
 const roleTasksRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/role-tasks',
@@ -2570,6 +2693,20 @@ const policyTagsRoute = createRoute({
   component: PolicyTagsPage,
 })
 
+const policyReadyMadeRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/ready-made',
+  beforeLoad: requirePermission('policies.read'),
+  component: ReadyMadePoliciesPage,
+})
+
+const myPoliciesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/mine',
+  beforeLoad: requirePermission('policies.acknowledgements.me'),
+  component: MyPoliciesPage,
+})
+
 /** Unified compliance view; each area card is gated by its own read permission. */
 const COMPLIANCE_DASHBOARD_PERMISSIONS: Permission[] = [
   'employees.compliance.reports.read',
@@ -2639,6 +2776,8 @@ const routeTree = rootRoute.addChildren([
   ]),
   legalPrivacyPolicyRoute,
   publicTakeSurveyRoute,
+  surveyPaperCopyRoute,
+  surveyPosterRoute,
   portalLoginRoute,
   portalShellRoute.addChildren([
     portalIndexRoute,
@@ -2714,6 +2853,7 @@ const routeTree = rootRoute.addChildren([
     employeeAllocationsRoute,
     employeeReportsRoute,
     employeeTempInspectorRoute,
+    surveyReviewsRoute,
     employeeGeneralDocumentsRoute,
     employeeAddRoute,
     employeeEditRoute,
@@ -2727,8 +2867,12 @@ const routeTree = rootRoute.addChildren([
     accidentsIncidentsViewRoute,
     accidentsIncidentsRaiseRoute,
     surveysRoute,
+    surveyReadyMadeRoute,
+    surveyFollowUpsRoute,
     surveyBuilderRoute,
     surveyResponsesRoute,
+    surveyCallListRoute,
+    surveyPreviewRoute,
     hoursApprovalsRoute,
     hoursHistoryRoute,
     incidentsDashboardRoute,
@@ -2739,6 +2883,7 @@ const routeTree = rootRoute.addChildren([
     complaintsComplimentsRoute,
     feedbackDetailRoute,
     incidentDetailRoute,
+    supervisionSessionRoute,
     accountRoute,
     adminSecurityRoute,
     adminAuditRoute,
@@ -2786,6 +2931,8 @@ const routeTree = rootRoute.addChildren([
     officeSalariesRoute,
     setupChecklistRoute,
     myTasksRoute,
+    mySurveysRoute,
+    mySurveyAnswerRoute,
     carerReportsRoute,
     timebankRoute,
     timebankServiceUserRoute,
@@ -2822,6 +2969,8 @@ const routeTree = rootRoute.addChildren([
     policyNewRoute,
     policyCategoriesRoute,
     policyTagsRoute,
+    policyReadyMadeRoute,
+    myPoliciesRoute,
     complianceDashboardRoute,
     policyDetailRoute,
     policyEditRoute,

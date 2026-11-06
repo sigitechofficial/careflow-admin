@@ -11,6 +11,9 @@ export type EmployeeReviewRow = {
   /** Supporting document (stored in employee Documents). */
   documentUrl: string | null
   reviewedById: string | null
+  reviewedBy?: { id: string; firstName: string | null; lastName: string | null; email: string } | null
+  createdAt?: string
+  updatedAt?: string
   reviewType?: {
     id: string
     name: string
@@ -30,18 +33,36 @@ export type EmployeeReviewOverviewRow = EmployeeReviewRow & {
   } | null
 }
 
-export async function fetchEmployeeReviews(employeeId: string): Promise<EmployeeReviewRow[]> {
-  const res = await apiJson<ApiEnvelope<EmployeeReviewRow[]>>(`/employees/${employeeId}/reviews`, {
-    method: 'GET',
-  })
-  return res.data
+/** Due from a review type's schedule with nothing recorded yet (new starter, probation milestone). */
+export type UpcomingReviewRow = {
+  employeeId: string
+  reviewTypeId: string
+  reviewType: { id: string; name: string; code: string | null }
+  nextDue: string
+  status: string | null
+  employee?: EmployeeReviewOverviewRow['employee']
 }
 
-export async function fetchEmployeeReviewsOverview(): Promise<EmployeeReviewOverviewRow[]> {
-  const res = await apiJson<ApiEnvelope<EmployeeReviewOverviewRow[]>>('/employee-reviews/overview', {
+/** `meta.upcoming`: reviews due from the schedule with nothing recorded yet. */
+type ReviewsEnvelope<T> = Omit<ApiEnvelope<T[]>, 'meta'> & { meta?: { upcoming?: UpcomingReviewRow[] } }
+
+export async function fetchEmployeeReviews(
+  employeeId: string,
+): Promise<{ rows: EmployeeReviewRow[]; upcoming: UpcomingReviewRow[] }> {
+  const res = await apiJson<ReviewsEnvelope<EmployeeReviewRow>>(`/employees/${employeeId}/reviews`, {
     method: 'GET',
   })
-  return res.data
+  return { rows: res.data, upcoming: res.meta?.upcoming ?? [] }
+}
+
+export async function fetchEmployeeReviewsOverview(): Promise<{
+  rows: EmployeeReviewOverviewRow[]
+  upcoming: UpcomingReviewRow[]
+}> {
+  const res = await apiJson<ReviewsEnvelope<EmployeeReviewOverviewRow>>('/employee-reviews/overview', {
+    method: 'GET',
+  })
+  return { rows: res.data, upcoming: res.meta?.upcoming ?? [] }
 }
 
 export async function createEmployeeReview(
@@ -53,6 +74,7 @@ export async function createEmployeeReview(
     nextDue?: string
     notes?: string
     documentUrl?: string
+    reviewedById?: string
   },
 ): Promise<EmployeeReviewRow> {
   const res = await apiJson<ApiEnvelope<EmployeeReviewRow>>(`/employees/${employeeId}/reviews`, {
@@ -72,6 +94,9 @@ export async function updateEmployeeReview(
     nextDue?: string | null
     notes?: string | null
     documentUrl?: string
+    reviewedById?: string | null
+    /** Required when the type or dates change; kept in the review's history. */
+    reason?: string
   },
 ): Promise<EmployeeReviewRow> {
   const res = await apiJson<ApiEnvelope<EmployeeReviewRow>>(
@@ -84,19 +109,48 @@ export async function updateEmployeeReview(
   return res.data
 }
 
-export async function deleteEmployeeReview(employeeId: string, reviewId: string): Promise<void> {
-  await apiJson<ApiEnvelope<unknown>>(`/employees/${employeeId}/reviews/${reviewId}`, {
-    method: 'DELETE',
-  })
+/** Next due a review would get from its type's schedule (same rule as reminders and the dashboard). */
+export async function previewEmployeeReviewNextDue(
+  employeeId: string,
+  reviewTypeId: string,
+  lastDoneIso: string | null,
+): Promise<string | null> {
+  const qs = new URLSearchParams({ reviewTypeId })
+  if (lastDoneIso) qs.set('lastDone', lastDoneIso)
+  const res = await apiJson<ApiEnvelope<{ nextDue: string | null }>>(
+    `/employees/${employeeId}/reviews/next-due?${qs.toString()}`,
+    { method: 'GET' },
+  )
+  return res.data.nextDue
 }
 
-export function computeNextDueFromLastDone(
-  lastDoneIso: string,
-  intervalDays: number | null | undefined,
-): string | undefined {
-  if (!intervalDays || intervalDays <= 0) return undefined
-  const d = new Date(lastDoneIso)
-  if (Number.isNaN(d.getTime())) return undefined
-  d.setDate(d.getDate() + intervalDays)
-  return d.toISOString()
+export async function deleteEmployeeReview(employeeId: string, reviewId: string, reason: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(
+    `/employees/${employeeId}/reviews/${reviewId}?${new URLSearchParams({ reason }).toString()}`,
+    { method: 'DELETE' },
+  )
 }
+
+type HistoryPerson = { id: string; firstName: string | null; lastName: string | null; email: string } | null
+
+export type EmployeeReviewHistory = {
+  events: Array<{
+    id: string
+    action: string
+    at: string
+    by: HistoryPerson
+    reason: string | null
+    changes: Array<{ field: string; from: unknown; to: unknown }>
+  }>
+  sessions: Array<{ id: string; heldAt: string | null; completedAt: string | null; supervisor: HistoryPerson }>
+}
+
+/** Who recorded and changed a review, when and why, plus the supervision sessions held for it. */
+export async function fetchEmployeeReviewHistory(employeeId: string, reviewId: string): Promise<EmployeeReviewHistory> {
+  return (
+    await apiJson<ApiEnvelope<EmployeeReviewHistory>>(`/employees/${employeeId}/reviews/${reviewId}/history`, {
+      method: 'GET',
+    })
+  ).data
+}
+

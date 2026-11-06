@@ -2,6 +2,7 @@ import * as React from 'react'
 import type { CareFormDetail, CareFormFieldRow, FormFieldType } from '@/features/care-pathway/types/care-pathway.types'
 import { Input } from '@/shared/ui/input'
 import { TooltipProvider } from '@/shared/ui/tooltip'
+import { DictationProvider } from '@/shared/ui/dictation'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import {
@@ -52,11 +53,13 @@ function CarePathwayFieldInput({
   value,
   onChange,
   disabled,
+  dictation,
 }: {
   field: CareFormFieldRow
   value: string | boolean | undefined
   onChange: (v: string | boolean) => void
   disabled?: boolean
+  dictation?: boolean
 }) {
   const type = field.fieldType as FormFieldType
 
@@ -137,6 +140,7 @@ function CarePathwayFieldInput({
         placeholder={field.placeholder ?? 'Enter details…'}
         disabled={disabled}
         minHeight={type === 'TEXTAREA' ? 160 : 120}
+        dictation={dictation}
       />
     )
   }
@@ -225,6 +229,7 @@ export function CarePathwayFormRenderer({
   onIgnoreSuggestion,
   onKeepCurrentSuggestion,
   onEditSuggestion,
+  dictation,
 }: {
   form: CareFormDetail
   values: CarePlanDraftValues
@@ -239,6 +244,8 @@ export function CarePathwayFormRenderer({
   onIgnoreSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onEditSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  /** Mic on text inputs and the IA editor with Dictate on long text (off unless asked for). */
+  dictation?: boolean
 }) {
   const isCarePlan = form.formType === 'CARE_PLAN'
   const displayLabel = (label: string) => (isCarePlan ? carePlanFieldLabel(label) : label)
@@ -251,7 +258,7 @@ export function CarePathwayFormRenderer({
     return <p className="text-sm text-muted-foreground">This form has no sections yet.</p>
   }
 
-  return (
+  const body = (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-6">
         {form.description?.trim() && !embedded ? (
@@ -332,6 +339,7 @@ export function CarePathwayFormRenderer({
                               value={values[key]}
                               onChange={v => setFieldValue(section.id, field, v)}
                               disabled={disabled}
+                              dictation={dictation}
                             />
                           }
                         />
@@ -347,4 +355,6 @@ export function CarePathwayFormRenderer({
       </div>
     </TooltipProvider>
   )
+  // Only add a provider when asked: an outer one (e.g. the IA page) keeps its own setting.
+  return dictation ? <DictationProvider>{body}</DictationProvider> : body
 }

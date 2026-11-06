@@ -238,7 +238,7 @@ function visitIdMatchLine(row: EcmExceptionRow) {
       <Hash className="h-4 w-4 shrink-0" aria-hidden />
       <span className="min-w-0 truncate">
         <span className="font-medium text-foreground/80">Visit ID</span>
-        <span className="mx-1.5 text-muted-foreground/80">·</span>
+        <span className="mx-1.5 text-muted-foreground">·</span>
         <span className="font-mono text-[13px] font-semibold tracking-tight text-foreground">
           {ref}
         </span>
@@ -409,7 +409,7 @@ function AreaLockActions({ row }: { row: EcmExceptionRow }) {
           {savedNote ? (
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground/80">Office reason</span>
-              <span className="mx-1.5 text-muted-foreground/80">·</span>
+              <span className="mx-1.5 text-muted-foreground">·</span>
               {savedNote}
             </p>
           ) : null}
@@ -471,7 +471,7 @@ function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
       {grant?.carerNote ? (
         <p className="text-sm text-foreground">
           <span className="font-medium text-foreground/80">Carer note</span>
-          <span className="mx-1.5 text-muted-foreground/80">·</span>
+          <span className="mx-1.5 text-muted-foreground">·</span>
           {grant.carerNote}
         </p>
       ) : (
@@ -541,7 +541,7 @@ function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
       {grant?.officeNote && !pending ? (
         <p className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground/80">Office reason</span>
-          <span className="mx-1.5 text-muted-foreground/80">·</span>
+          <span className="mx-1.5 text-muted-foreground">·</span>
           {grant.officeNote}
         </p>
       ) : null}
@@ -955,7 +955,7 @@ export function VisitQueueCard({
               <Users className="h-4 w-4 shrink-0" aria-hidden />
               <span className="min-w-0 truncate">
                 <span className="font-medium text-foreground/80">Carers</span>
-                <span className="mx-1.5 text-muted-foreground/80">·</span>
+                <span className="mx-1.5 text-muted-foreground">·</span>
                 {carersLabel(row)}
               </span>
             </p>

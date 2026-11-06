@@ -265,7 +265,7 @@ export function OfficeUsersPanel() {
                         type="checkbox"
                         checked={draftRoles.includes(role)}
                         onChange={() => toggleRole(role)}
-                        className="h-4 w-4 rounded border-border"
+                        className="h-4 w-4 rounded border-input"
                       />
                       {role}
                     </label>
@@ -330,7 +330,7 @@ export function OfficeUsersPanel() {
                             type="checkbox"
                             checked={draftLocationIds.includes(loc.id)}
                             onChange={() => toggleLocation(loc.id)}
-                            className="h-4 w-4 rounded border-border"
+                            className="h-4 w-4 rounded border-input"
                           />
                           {loc.label}
                         </label>
@@ -470,7 +470,7 @@ export function OfficeUsersPanel() {
                                   : [...f.roleNames, role],
                               }))
                             }
-                            className="h-4 w-4 rounded border-border"
+                            className="h-4 w-4 rounded border-input"
                           />
                           {role}
                         </label>
@@ -527,7 +527,7 @@ export function OfficeUsersPanel() {
                                   : [...f.locationIds, loc.id],
                               }))
                             }
-                            className="h-4 w-4 rounded border-border"
+                            className="h-4 w-4 rounded border-input"
                           />
                           {loc.label}
                         </label>

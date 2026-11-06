@@ -101,8 +101,6 @@ import type { PhotographyConsentMetadata } from '@/features/service-users/initia
 import type { EquipmentSelectionMetadata } from '@/features/service-users/initial-assessment/utils/equipment-selection'
 import type { MustMetadata } from '@/features/service-users/initial-assessment/utils/must-scoring'
 import {
-  WATERLOW_REVIEW_INTERVAL_MONTHS,
-  WATERLOW_REVIEW_SOURCE,
   type WaterlowMetadata,
 } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 import {
@@ -487,7 +485,6 @@ export function InitialAssessmentDocumentTabContent({
           value={waterlow}
           disabled={disabled}
           onChange={onWaterlowChange}
-          nextReviewHint={`Filled as ${WATERLOW_REVIEW_INTERVAL_MONTHS} month after the assessment (${WATERLOW_REVIEW_SOURCE}); reassess sooner if the person's condition changes.`}
         />
       </>
     )

@@ -5,12 +5,13 @@ import { DictationTextControl, splitLayoutClasses, useDictationEnabled } from '@
 
 export function plainTextFromHtml(html: string): string {
   if (!html?.trim()) return ''
-  if (typeof document === 'undefined') {
+  if (typeof DOMParser === 'undefined') {
     return html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()
   }
-  const tmp = document.createElement('div')
-  tmp.innerHTML = html
-  return (tmp.textContent ?? tmp.innerText ?? '').replace(/ /g, ' ').trim()
+  // A parsed document is inert: unlike innerHTML on an element of this page, nothing in it loads
+  // or runs (an <img onerror> in saved text would otherwise fire here).
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  return (doc.body.textContent ?? '').replace(/ /g, ' ').trim()
 }
 
 /** No visible text and no embedded media (e.g. "", "<p></p>", "<p><br></p>"). */

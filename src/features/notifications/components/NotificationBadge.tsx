@@ -5,7 +5,7 @@ export function NotificationBadge({ count, className }: { count: number; classNa
   return (
     <span
       className={cn(
-        'inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white',
+        'inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground',
         className,
       )}
     >

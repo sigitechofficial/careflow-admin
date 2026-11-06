@@ -40,7 +40,7 @@ export function Rating({
               className={cn(
                 sizes[size],
                 "transition-colors",
-                star <= display ? "fill-yellow-400 text-yellow-400" : "fill-transparent text-muted-foreground/40"
+                star <= display ? "fill-yellow-400 text-yellow-400" : "fill-transparent text-muted-foreground"
               )}
             />
           </button>
@@ -66,7 +66,7 @@ export function RatingDisplay({ value, max = 5, size = "sm", showValue, classNam
   return (
     <div className={cn("flex items-center gap-1", className)}>
       {Array.from({ length: max }, (_, i) => i + 1).map(star => (
-        <Star key={star} className={cn(sizes[size], star <= Math.round(value) ? "fill-yellow-400 text-yellow-400" : "fill-transparent text-muted-foreground/30")} />
+        <Star key={star} className={cn(sizes[size], star <= Math.round(value) ? "fill-yellow-400 text-yellow-400" : "fill-transparent text-muted-foreground")} />
       ))}
       {showValue && <span className="ml-1 text-sm text-muted-foreground">{value.toFixed(1)}</span>}
     </div>

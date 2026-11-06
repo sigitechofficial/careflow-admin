@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { nextPrefilledExpiry, validityHint } from '@/shared/lib/validity-default.util'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { Plus, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
@@ -50,6 +52,7 @@ export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) 
 
   const [skillTypeId, setSkillTypeId] = React.useState('')
   const [expiryDate, setExpiryDate] = React.useState('')
+  const [autoExpiry, setAutoExpiry] = React.useState<string | null>(null)
   const [notes, setNotes] = React.useState('')
   const [skillFile, setSkillFile] = React.useState<File | null>(null)
   const skillFileRef = React.useRef<HTMLInputElement>(null)
@@ -64,6 +67,19 @@ export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) 
   )
 
   const skillTypes = lookups?.skillTypes ?? []
+  const refreshMonths = skillTypes.find(t => t.id === skillTypeId)?.defaultRefreshMonths ?? null
+  /** Choosing a skill fills its refresh date (today + the type's refresh period) unless one was typed. */
+  const onSkillTypeChange = (id: string) => {
+    setSkillTypeId(id)
+    const next = nextPrefilledExpiry({
+      startIso: operationalTodayIso(),
+      currentExpiry: expiryDate,
+      lastAutoExpiry: autoExpiry,
+      months: skillTypes.find(t => t.id === id)?.defaultRefreshMonths ?? null,
+    })
+    setExpiryDate(next.expiry)
+    setAutoExpiry(next.autoExpiry)
+  }
 
   const onAddSkill = async () => {
     if (!skillTypeId.trim()) {
@@ -92,6 +108,7 @@ export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) 
       await createMutation.mutateAsync(body)
       setSkillTypeId('')
       setExpiryDate('')
+      setAutoExpiry(null)
       setNotes('')
       setSkillFile(null)
       if (skillFileRef.current) skillFileRef.current.value = ''
@@ -226,12 +243,15 @@ export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) 
                 types={skillTypes}
                 assignedIds={assignedSkillTypeIds}
                 value={skillTypeId}
-                onChange={setSkillTypeId}
+                onChange={onSkillTypeChange}
               />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Expiry (optional)</label>
               <Input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="h-9" />
+              {refreshMonths ? (
+                <p className="text-[11px] text-muted-foreground">{validityHint(refreshMonths, 'today')}</p>
+              ) : null}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-xs text-muted-foreground">Notes (optional)</label>

@@ -27,7 +27,7 @@ describe('carePlanListStatusPresentation', () => {
 
     expect(carePlanListStatusPresentation('due_within_week')).toEqual({
       status: 'due_within_week',
-      title: 'Care plan review due within a week',
+      title: 'Care plan review due soon',
       src: '/care-plan-icons/quick-select/care-medium.svg',
     })
 

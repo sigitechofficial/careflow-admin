@@ -11,6 +11,7 @@ import {
   complianceDatesToPayload,
   complianceIsoToDateInput,
 } from '@/features/employees/compliance/compliance-form-utils'
+import { nextPrefilledExpiry, validityHint } from '@/shared/lib/validity-default.util'
 import {
   docsForVersionFilter,
   formatComplianceUploaderLabel,
@@ -44,6 +45,8 @@ const ACCEPT =
 type ItemDraft = {
   issueDate: string
   expiryDate: string
+  /** Expiry we filled from the type's validity period (refilled while unchanged). */
+  autoExpiry: string | null
   notes: string
   dbsCode: string
   transferable: boolean
@@ -55,6 +58,7 @@ function draftFromItem(item: ComplianceChecklistItem): ItemDraft {
   return {
     issueDate: complianceIsoToDateInput(row?.issueDate),
     expiryDate: complianceIsoToDateInput(row?.expiryDate),
+    autoExpiry: null,
     notes: parsed.userNotes,
     dbsCode: parsed.dbsCode,
     transferable: parsed.transferable,
@@ -370,7 +374,16 @@ export function EmployeeComplianceEditSheet({
                     type="date"
                     value={draft.issueDate}
                     disabled={locked}
-                    onChange={e => setDraft({ ...draft, issueDate: e.target.value })}
+                    onChange={e => {
+                      const issueDate = e.target.value
+                      const { expiry, autoExpiry } = nextPrefilledExpiry({
+                        startIso: issueDate,
+                        currentExpiry: draft.expiryDate,
+                        lastAutoExpiry: draft.autoExpiry,
+                        months: item.hasExpiry === false ? null : item.defaultValidityMonths,
+                      })
+                      setDraft({ ...draft, issueDate, expiryDate: expiry, autoExpiry })
+                    }}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -381,6 +394,11 @@ export function EmployeeComplianceEditSheet({
                     disabled={locked}
                     onChange={e => setDraft({ ...draft, expiryDate: e.target.value })}
                   />
+                  {item.hasExpiry !== false && item.defaultValidityMonths ? (
+                    <p className="text-[11px] text-muted-foreground" data-testid="compliance-expiry-default-hint">
+                      {validityHint(item.defaultValidityMonths, 'the start date')}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 

@@ -1,4 +1,5 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+import type { SupervisionSettings } from '@/features/supervision/api'
 
 export type TimeDisplayFormat = 'HH_XX' | 'HH_MM'
 export type DateDisplayFormat = 'DD_MM_YYYY' | 'MM_DD_YYYY' | 'YYYY_MM_DD'
@@ -185,9 +186,44 @@ export type DomLateVisitZoneAlert = {
   notificationEmployeeIds: string[]
 }
 
+export type ComplianceReminderStage =
+  | 'EXPIRY_90_DAYS'
+  | 'EXPIRY_60_DAYS'
+  | 'EXPIRY_30_DAYS'
+  | 'EXPIRY_7_DAYS'
+  | 'EXPIRED'
+
+/** Organisation override of one assessment review schedule; unset keys use the built-in value. */
+export type AssessmentIntervalOverride = {
+  defaultIntervalDays?: number
+  elevatedRiskIntervalDays?: number
+  dueSoonLeadDays?: number
+}
+
+/**
+ * Settings → Reviews & reminders. The API returns every key with its default filled in
+ * (careflow-api review-settings.util.ts), so the admin keeps no copy of the defaults.
+ */
+export type ReviewSettings = {
+  reminderHour: number
+  reminderRepeatDays: number
+  carePlanDueSoonDays: number
+  carePlanListDueWithinDays: number
+  assessmentRemindersEnabled: boolean
+  assessmentIntervals: Record<string, AssessmentIntervalOverride>
+  complianceRemindersEnabled: boolean
+  complianceReminderStages: ComplianceReminderStage[]
+  complianceNotifyEmployee: boolean
+  complianceEmailReminders: boolean
+  riskReviewDays: { HIGH: number; MEDIUM: number; LOW: number }
+  visitPlanFirstReviewDays: number
+  visitPlanSuspensionReviewDays: number
+  medicationDueSoonDays: number
+  medicationReviewDueSoonDays: number
+}
+
 export type OrganisationGeneralSettings = {
   id: string
-  reviewCarePlanAfterDays: number
   handoverReportLastHours: number
   /** Incidents: Duty of Candour flagged overdue after this many days; null = off. */
   incidentCandourOverdueDays: number | null
@@ -196,6 +232,8 @@ export type OrganisationGeneralSettings = {
   dateDisplayFormat: DateDisplayFormat
   /** IANA timezone for operational calendar (schedules, ECM, today). */
   timezone: string
+  /** Bank holidays for working-day timescales (survey alerts): UK = England and Wales. */
+  bankHolidayRegion?: 'UK' | 'SCOTLAND' | 'NORTHERN_IRELAND'
   defaultCarerStatus: DefaultCarerStatus
   sendEmailWhenEmployeeActive: boolean
   allowMultipleRoles: boolean
@@ -263,6 +301,10 @@ export type OrganisationGeneralSettings = {
   domCareShiftDefinitions: DomCareShiftDefinition[]
   domCareAllocationRules: DomCareAllocationRule[]
   serviceUserWeeklyHoursSettings?: ServiceUserWeeklyHoursSettings
+  /** Settings → Supervision. */
+  supervisionSettings?: SupervisionSettings
+  /** Settings → Reviews & reminders. */
+  reviewSettings?: ReviewSettings
   incidentDetailsEditableMinutes: number
   incidentDisplayHours: number
   incidentDefaultStatus: IncidentDefaultStatus

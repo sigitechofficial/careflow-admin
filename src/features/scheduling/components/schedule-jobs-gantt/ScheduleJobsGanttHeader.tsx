@@ -130,7 +130,7 @@ export function ScheduleJobsGanttHeader({
                     </span>
                   ) : null}
                 </span>
-                <span className="mt-0.5 text-[9px] font-medium tabular-nums opacity-80">
+                <span className="mt-0.5 text-[9px] font-medium tabular-nums">
                   {displayFormat.formatPeriodRange(band)}
                 </span>
               </div>
@@ -162,7 +162,7 @@ export function ScheduleJobsGanttHeader({
                     {displayFormat.formatHourLabel(hour)}
                   </span>
                   {isPeriodStart ? (
-                    <span className="mt-0.5 block truncate text-[8px] font-semibold uppercase tracking-wide text-muted-foreground/90">
+                    <span className="mt-0.5 block truncate text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
                       {band.label}
                     </span>
                   ) : null}

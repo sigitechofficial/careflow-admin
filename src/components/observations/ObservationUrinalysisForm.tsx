@@ -180,7 +180,7 @@ export function ObservationUrinalysisForm({
               disabled={!canSave}
               placeholder="Select Date"
             />
-            <span className="inline-flex items-center rounded-r-md bg-destructive px-3 text-white">
+            <span className="inline-flex items-center rounded-r-md bg-destructive px-3 text-destructive-foreground">
               <Calendar className="h-4 w-4" />
             </span>
           </div>

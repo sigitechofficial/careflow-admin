@@ -296,7 +296,7 @@ export function StaffListFilters({
               onChange={(e) => onSearchInputChange(e.target.value)}
               placeholder="Search name, email, username"
               disabled={disabled}
-              className="h-9 min-w-0 flex-1 rounded-l-md border border-border border-r-0 bg-background px-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
+              className="h-9 min-w-0 flex-1 rounded-l-md border border-input border-r-0 bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
               data-testid="employee-staff-search"
             />
             <span

@@ -930,7 +930,7 @@ export function ServiceUserPersonalDetailsForm({
                     serviceEndDate: e.target.checked ? '' : p.serviceEndDate,
                   }))
                 }
-                className="h-4 w-4 rounded border-border"
+                className="h-4 w-4 rounded border-input"
               />
               Ongoing
             </label>

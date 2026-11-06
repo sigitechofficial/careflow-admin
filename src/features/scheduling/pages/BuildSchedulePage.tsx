@@ -69,7 +69,7 @@ export default function BuildSchedulePage() {
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="h-10 w-full max-w-xs border border-border rounded-md px-3 text-sm bg-background"
+            className="h-10 w-full max-w-xs border border-input rounded-md px-3 text-sm bg-background"
           />
         </div>
 
@@ -79,7 +79,7 @@ export default function BuildSchedulePage() {
             value={notes}
             onChange={e => setNotes(e.target.value)}
             rows={3}
-            className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background"
           />
         </div>
 

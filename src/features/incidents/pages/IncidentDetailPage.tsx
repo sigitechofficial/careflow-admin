@@ -104,7 +104,7 @@ function StepTabLabel({ n, label, state }: { n: number; label: string; state: Wo
       <span
         className={cn(
           'flex h-5 w-5 items-center justify-center rounded-full border text-[11px] font-semibold',
-          state === 'complete' && 'border-success bg-success text-white',
+          state === 'complete' && 'border-success bg-success text-success-foreground',
           state === 'current' && 'border-primary text-primary',
           state === 'upcoming' && 'border-muted-foreground/40 text-muted-foreground',
         )}
@@ -172,7 +172,7 @@ export default function IncidentDetailPage() {
   if (isError || !incident) {
     return (
       <div className="mx-auto max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-sm">
-        <ShieldAlert className="mx-auto h-10 w-10 text-muted-foreground/60" aria-hidden />
+        <ShieldAlert className="mx-auto h-10 w-10 text-muted-foreground" aria-hidden />
         <p className="mt-3 text-sm text-muted-foreground">
           This incident could not be found, or you don’t have permission to view it.
         </p>

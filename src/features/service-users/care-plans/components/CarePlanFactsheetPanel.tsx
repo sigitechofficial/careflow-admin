@@ -2,6 +2,7 @@ import * as React from 'react'
 import { ChevronDown, ClipboardCopy } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
+import { RichTextHtml } from '@/shared/ui/rich-text-html'
 import {
   Select,
   SelectContent,
@@ -114,9 +115,9 @@ export function CarePlanFactsheetPanel({
               <li key={sheet.code} className="rounded-md border border-border bg-muted/20 px-3 py-3 text-sm">
                 <p className="font-medium text-foreground">{sheet.title}</p>
                 <p className="mt-1 text-muted-foreground">{sheet.summary}</p>
-                <div
+                <RichTextHtml
                   className="prose prose-sm mt-3 max-w-none dark:prose-invert"
-                  dangerouslySetInnerHTML={{ __html: sheet.contentHtml }}
+                  html={sheet.contentHtml}
                 />
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button type="button" size="sm" variant="outline" onClick={() => void onCopy(sheet.plainText)}>

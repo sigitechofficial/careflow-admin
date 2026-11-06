@@ -9,7 +9,7 @@ import {
 export const CARE_PLAN_LIST_STATUS_TOOLTIP: Record<CarePlanListStatus, string> = {
   none: 'No Care Plan',
   ok: 'No care plan outstanding',
-  due_within_week: 'Care plan review due within a week',
+  due_within_week: 'Care plan review due soon',
   overdue: 'Care plans outstanding',
 }
 

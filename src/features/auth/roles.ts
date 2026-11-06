@@ -537,6 +537,8 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'policies.audit.read',
   ],
   temporary_inspector: ['temporary_inspector.session'],
+  // Nothing by default: surveys.review.record comes from the API only while a grant is live.
+  independent_reviewer: [],
   service_user: ['service_user.portal.session'],
 }
 

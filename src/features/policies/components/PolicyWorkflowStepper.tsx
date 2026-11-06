@@ -37,7 +37,7 @@ export function PolicyWorkflowStepper({ status }: { status: PolicyStatus }) {
                   'font-medium',
                   active && 'text-foreground',
                   complete && 'text-muted-foreground',
-                  !active && !complete && 'text-muted-foreground/70',
+                  !active && !complete && 'text-muted-foreground',
                 )}
                 aria-current={active ? 'step' : undefined}
               >

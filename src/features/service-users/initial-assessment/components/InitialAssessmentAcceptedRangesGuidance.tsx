@@ -19,7 +19,7 @@ function RangeColumn({ rows }: { rows: ReturnType<typeof lookupRowsByColumn> }) 
             </dd>
           </div>
           {'referenceNote' in row && row.referenceNote ? (
-            <dd className="text-xs text-muted-foreground/80">{row.referenceNote}</dd>
+            <dd className="text-xs text-muted-foreground">{row.referenceNote}</dd>
           ) : null}
         </div>
       ))}

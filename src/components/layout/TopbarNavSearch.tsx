@@ -5,6 +5,7 @@ import {
   adminNavItems,
   filterNavByPermission,
   inspectorOnlyNavItems,
+  reviewerOnlyNavItems,
 } from '@/components/layout/Sidebar'
 import type { NavItem } from '@/components/layout/sidebar-types'
 import { useRecordSearch, type RecordSearchHit } from '@/components/layout/useRecordSearch'
@@ -93,9 +94,9 @@ function useNavSearchHits() {
   const can = useAuthStore(s => s.can)
   const role = useAuthStore(s => s.user?.role)
   return React.useMemo(() => {
-    const source = role === 'temporary_inspector' ? inspectorOnlyNavItems : adminNavItems
-    const visible =
-      role === 'temporary_inspector' ? source : filterNavByPermission(source, can, role)
+    const curated = role === 'temporary_inspector' ? inspectorOnlyNavItems : role === 'independent_reviewer' ? reviewerOnlyNavItems : null
+    const source = curated ?? adminNavItems
+    const visible = curated ? source : filterNavByPermission(source, can, role)
     return flattenNavItems(visible)
   }, [can, role])
 }

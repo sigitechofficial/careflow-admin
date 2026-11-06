@@ -55,7 +55,9 @@ import { EmployeeEditSuspensionsPanel } from '@/features/employees/components/Em
 import { EmployeeEditIncidentsPanel } from '@/features/employees/components/EmployeeEditIncidentsPanel'
 import { EmployeeEditAllocationsPanel } from '@/features/employees/components/EmployeeEditAllocationsPanel'
 import { EmployeeAppAccessSection } from '@/features/employees/components/EmployeeAppAccessSection'
+import { SurveyContactPreferencesSection } from '@/features/surveys/reminders/SurveyContactPreferencesSection'
 import { EmployeeEditReviewsPanel } from '@/features/employees/components/EmployeeEditReviewsPanel'
+import { SupervisionCarerCard } from '@/features/supervision/components/SupervisionCarerCard'
 import { EmployeeZoneBranchAreaMultiSelect } from '@/features/employees/components/EmployeeZoneBranchAreaMultiSelect'
 import {
   personalStepSchema,
@@ -1646,10 +1648,13 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                 </div>
               </form>
               {isEditMode && editEmployeeId ? (
-                <EmployeeAppAccessSection
-                  employeeId={editEmployeeId}
-                  defaultEmail={watch('email') || savedPersonal?.email}
-                />
+                <>
+                  <EmployeeAppAccessSection
+                    employeeId={editEmployeeId}
+                    defaultEmail={watch('email') || savedPersonal?.email}
+                  />
+                  <SurveyContactPreferencesSection subjectKind="EMPLOYEE" subjectId={editEmployeeId} />
+                </>
               ) : null}
               </div>
             )}
@@ -2324,7 +2329,10 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
             ) : null}
 
             {isEditMode && editTab === 'staff-reviews' && editEmployeeId ? (
-              <EmployeeEditReviewsPanel employeeId={editEmployeeId} />
+              <div className="space-y-8">
+                <EmployeeEditReviewsPanel employeeId={editEmployeeId} />
+                <SupervisionCarerCard employeeId={editEmployeeId} employeeLabel={editDisplayName || 'this carer'} />
+              </div>
             ) : null}
 
             {isEditMode && editTab === 'documents' && editEmployeeId ? (

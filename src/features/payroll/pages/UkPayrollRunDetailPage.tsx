@@ -965,7 +965,7 @@ export default function UkPayrollRunDetailPage() {
                   {data.employees.length === 0 ? (
                     <tr>
                       <td colSpan={11} className="px-4 py-10 text-center text-muted-foreground">
-                        <Users className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" aria-hidden />
+                        <Users className="mx-auto mb-2 h-8 w-8 text-muted-foreground" aria-hidden />
                         No employees enrolled yet. Use Enrol ready employees to start.
                       </td>
                     </tr>

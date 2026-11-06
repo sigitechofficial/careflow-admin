@@ -485,7 +485,7 @@ export default function UkPayrollPayslipsPage() {
                     <tr>
                       <td colSpan={12} className="px-4 py-12 text-center text-muted-foreground">
                         <FileText
-                          className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40"
+                          className="mx-auto mb-2 h-8 w-8 text-muted-foreground"
                           aria-hidden
                         />
                         {data.length === 0

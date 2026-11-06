@@ -122,7 +122,7 @@ export function IncidentVisitPicker({
           value={day}
           max={today}
           onChange={(e) => e.target.value && setDay(e.target.value > today ? today : e.target.value)}
-          className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+          className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
           aria-label="Show visits around this date"
         />
         <Button

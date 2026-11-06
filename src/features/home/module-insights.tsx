@@ -13,6 +13,7 @@ import type { ListServiceUsersParams } from '@/features/service-users/api'
 import { useEcmLiveDashboard } from '@/features/ecm/hooks/useEcm'
 import { useHousekeepingJobsNeedingAttention, useScheduleList } from '@/features/scheduling/hooks/useScheduling'
 import { useEmployeeChartSummary } from '@/features/employees/hooks/useEmployees'
+import { useSupervisionOverview } from '@/features/supervision/hooks'
 import { useHoursApprovals } from '@/features/hours-approvals/hooks'
 import { useLearningDashboard } from '@/features/learning/hooks/useLearning'
 import { useIncidentStats } from '@/features/incidents/hooks/useIncidents'
@@ -63,7 +64,7 @@ const TONE_TEXT: Record<Tone, string> = {
   warn: 'text-amber-600 dark:text-amber-400',
   good: 'text-emerald-600 dark:text-emerald-400',
   neutral: 'text-foreground',
-  muted: 'text-muted-foreground/70',
+  muted: 'text-muted-foreground',
 }
 const TONE_BAR: Record<Tone, string> = {
   bad: 'bg-rose-500',
@@ -150,7 +151,7 @@ function Planned({ label, art, needs }: { label: string; art: string; needs: str
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
         <Art name={art} className="h-8 w-8 opacity-45 grayscale-[60%]" />
       </div>
-      <span className="-mt-1 text-2xl font-bold leading-none text-muted-foreground/50">—</span>
+      <span className="-mt-1 text-2xl font-bold leading-none text-muted-foreground">—</span>
       <span className="mt-1 inline-flex w-fit rounded-full bg-amber-100/80 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-950 dark:text-amber-300">
         Not tracked yet
       </span>
@@ -266,7 +267,7 @@ function ServiceUsersInsights() {
         <Kpi label="Assessments not started" value={iaNone.value} art="page-facing-up" tone={attn(iaNone.value, 'warn')} loading={iaNone.loading} to="/service-users/initial-assessment" />
         <Kpi label="Assessments in progress" value={iaProgress.value} art="writing-hand" loading={iaProgress.loading} to="/service-users/initial-assessment" />
         <Kpi label="Waiting for review" value={iaReview.value} art="magnifying-glass-tilted-left" tone={attn(iaReview.value, 'warn')} loading={iaReview.loading} to="/initial-assessments/review-queue" />
-        <Kpi label="Care plan reviews overdue" value={cpOverdue.value} art="memo" tone={attn(cpOverdue.value, 'bad')} loading={cpOverdue.loading} to="/care-plans/reviews" hint={`${n0(cpWeek.value)} due within a week`} />
+        <Kpi label="Care plan reviews overdue" value={cpOverdue.value} art="memo" tone={attn(cpOverdue.value, 'bad')} loading={cpOverdue.loading} to="/care-plans/reviews" hint={`${n0(cpWeek.value)} due soon`} />
         {can('service_users.assessments.read') ? (
           <Kpi label="Scheduled assessments overdue" value={assessments.data?.meta?.overdueCount} art="check-mark-button" tone={attn(assessments.data?.meta?.overdueCount, 'bad')} loading={assessments.isLoading} to="/assessments/review-queue" hint={`${n0(assessments.data?.meta?.dueSoonCount)} due soon`} />
         ) : null}
@@ -511,7 +512,7 @@ function MedicationInsights() {
         <Kpi label="Service users on medication" value={m?.serviceUsersOnMedication} art="older-person" loading={L} to="/service-users/all" />
         <Kpi label="Active medicines" value={m?.active} art="pill" loading={L} hint={`${n0(m?.regular)} regular · ${n0(m?.prn)} PRN`} />
         <Kpi label="Time-critical medicines" value={m?.timeCritical} art="alarm-clock" loading={L} hint="Must be given within a tight window" />
-        <Kpi label="Ending in 14 days" value={m?.endingSoon} art="hourglass-done" tone={attn(m?.endingSoon, 'warn')} loading={L} hint="Check for a new prescription" />
+        <Kpi label={d?.windows ? `Ending in ${d.windows.dueSoonDays} days` : 'Ending soon'} value={m?.endingSoon} art="hourglass-done" tone={attn(m?.endingSoon, 'warn')} loading={L} hint="Check for a new prescription" />
         <Kpi label="Past expiry date" value={m?.expired} art="wastebasket" tone={attn(m?.expired, 'bad')} loading={L} hint="Still active with an expired supply" />
         <Kpi label="Allergies recorded" value={d?.allergies.onMedicationWithAllergies} art="warning" loading={L} hint={`Of ${n0(m?.serviceUsersOnMedication)} on medication · ${n0(d?.allergies.serviceUsersWithAllergies)} across all service users`} />
       </Group>
@@ -527,7 +528,7 @@ function MedicationInsights() {
       <Group title="Packs, deliveries & stock" description="Supply from the pharmacy · stock over 30 days">
         <Kpi label="Active packs" value={pk?.active} art="package" loading={L} hint={`${n0(pk?.draft)} in draft`} />
         <Kpi label="Prescription not checked" value={pk?.prescriptionNotChecked} art="memo" tone={attn(pk?.prescriptionNotChecked, 'bad')} loading={L} hint="Active packs not checked against the prescription" />
-        <Kpi label="Pack review due (14 days)" value={pk?.reviewDue} art="calendar" tone={attn(pk?.reviewDue, 'warn')} loading={L} />
+        <Kpi label={d?.windows ? `Pack review due (${d.windows.dueSoonDays} days)` : 'Pack review due soon'} value={pk?.reviewDue} art="calendar" tone={attn(pk?.reviewDue, 'warn')} loading={L} />
         <Kpi label="Deliveries to countersign" value={pk?.deliveriesAwaitingCountersign} art="fountain-pen" tone={attn(pk?.deliveriesAwaitingCountersign, 'warn')} loading={L} hint={`${n0(pk?.deliveriesFlagged)} flagged`} />
         <Kpi label="Damaged deliveries" value={pk?.deliveriesDamaged} art="delivery-truck" tone={attn(pk?.deliveriesDamaged, 'bad')} loading={L} />
         <Kpi label="Stock received" value={d?.stock.ADDED} art="inbox-tray" loading={L} to="/medication/stock" hint={`${n0(d?.stock.USED)} used · ${n0(d?.stock.ADJUSTED)} adjusted`} />
@@ -562,12 +563,18 @@ function WorkforceInsights() {
   const off = useStaffOffToday(locationId, canOff)
   const hours = useHoursApprovals('PENDING')
   const recruit = useRecruitmentSummary(canRecruit)
+  const canSupervision = can('supervision.read')
+  const sup = useSupervisionOverview(locationId ?? null, canSupervision)
+  const s = sup.data
+  const supervisedPct = s && s.activeStaff ? pct(s.supervisedLast3Months, s.activeStaff) : null
 
   const staff = chart.data?.staff
   const c = comp.data
   const compliancePct = c && c.totalRequired ? pct(c.valid, c.totalRequired) : null
   const reviews = chart.data?.reviews
-  const reviewPct = reviews && reviews.reviewed + reviews.outstanding ? pct(reviews.reviewed, reviews.reviewed + reviews.outstanding) : null
+  const reviewTotal = reviews ? reviews.upToDate + reviews.dueSoon + reviews.overdue : 0
+  // Not overdue = done on time or not due yet.
+  const reviewPct = reviews && reviewTotal ? pct(reviews.upToDate + reviews.dueSoon, reviewTotal) : null
 
   return (
     <>
@@ -601,11 +608,10 @@ function WorkforceInsights() {
         {canHours ? <Kpi label="Hours awaiting approval" value={hours.data?.length} art="stopwatch" tone={attn(hours.data?.length, 'warn')} loading={hours.isLoading} to="/hours-approvals" /> : null}
         {canEmp ? (
           <>
-            <Kpi label="Staff reviews done" value={reviewPct === null ? null : `${reviewPct}%`} progress={reviewPct} art="handshake" tone={reviewPct === null ? 'neutral' : reviewPct >= 90 ? 'good' : 'warn'} loading={chart.isLoading} hint={`${n0(reviews?.outstanding)} outstanding`} to="/employee/staff-list" />
+            <Kpi label="Staff reviews on time" value={reviewPct === null ? null : `${reviewPct}%`} progress={reviewPct} art="handshake" tone={reviewPct === null ? 'neutral' : reviewPct >= 90 ? 'good' : 'warn'} loading={chart.isLoading} hint={`${n0(reviews?.overdue)} overdue · ${n0(reviews?.dueSoon)} due soon`} to="/employee/review-status" />
             <Kpi label="Skills tracked" value={chart.data?.skills?.length} art="bullseye" loading={chart.isLoading} to="/employee/staff-list" />
           </>
         ) : null}
-        <Planned label="Supervisions overdue" art="spiral-notepad" needs="Supervision records with a next-due date per carer." />
         <Planned label="Overtime hours this month" art="hourglass-done" needs="Hours worked above contract from approved hours." />
         <Planned label="Contracted hours used" art="bar-chart" needs="Scheduled hours compared with each carer's contract." />
       </Group>
@@ -616,6 +622,16 @@ function WorkforceInsights() {
           <Kpi label="Active candidates" value={recruit.data?.activeCandidates} art="busts-in-silhouette" loading={recruit.isLoading} />
           <Kpi label="Recent applications" value={recruit.data?.recentApplications?.length} art="inbox-tray" loading={recruit.isLoading} />
           <Planned label="Time to hire" art="stopwatch" needs="Days from application to start date per hire." />
+        </Group>
+      ) : null}
+
+      {canSupervision ? (
+        <Group title="Supervision" description="Supervision, spot checks and appraisals (CQC Regulation 18, NICE QS123)">
+          <Kpi label="Supervision overdue" value={s?.supervision.overdue} art="spiral-notepad" tone={attn(s?.supervision.overdue, 'bad')} loading={sup.isLoading} to="/employee/review-status" hint={`${n0(s?.supervision.dueSoon)} due in the next ${n0(s?.dueSoonDays)} days`} />
+          <Kpi label="Supervised in last 3 months" value={supervisedPct === null ? null : `${supervisedPct}%`} progress={supervisedPct} art="handshake" tone={supervisedPct === null ? 'neutral' : supervisedPct >= 90 ? 'good' : supervisedPct >= 70 ? 'warn' : 'bad'} loading={sup.isLoading} to="/employee/review-status" hint={`${n0(s?.supervisedLast3Months)} of ${n0(s?.activeStaff)} current staff`} />
+          <Kpi label="Never supervised" value={s?.supervision.noRecord} art="bust-in-silhouette" tone={attn(s?.supervision.noRecord, 'warn')} loading={sup.isLoading} to="/employee/review-status" hint="Current staff with no supervision on record" />
+          <Kpi label="Other reviews overdue" value={s?.otherReviews.overdue} art="clipboard" tone={attn(s?.otherReviews.overdue, 'warn')} loading={sup.isLoading} to="/employee/review-status" hint={`Spot checks, appraisals and more · ${n0(s?.otherReviews.dueSoon)} due soon`} />
+          <Kpi label="Awaiting carer sign-off" value={s?.awaitingSignOff} art="writing-hand" tone={attn(s?.awaitingSignOff, 'warn')} loading={sup.isLoading} hint="Signed by the supervisor, not yet by the carer" />
         </Group>
       ) : null}
 

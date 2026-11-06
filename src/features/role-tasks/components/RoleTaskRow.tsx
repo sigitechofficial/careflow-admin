@@ -55,6 +55,8 @@ export function RoleTaskRow({ task, showRole = true }: { task: RoleTask; showRol
 
   const done = task.status === 'DONE'
   const pageLabel = rolePageLabel(task.link)
+  // Survey alerts are closed on their follow-up, which asks what was done.
+  const closedOnPage = Boolean(task.link?.startsWith('/surveys/follow-ups'))
 
   return (
     <li className="flex flex-wrap items-start gap-3 px-4 py-3">
@@ -129,18 +131,20 @@ export function RoleTaskRow({ task, showRole = true }: { task: RoleTask; showRol
                 Start
               </Button>
             ) : null}
-            <Button
-              type="button"
-              size="sm"
-              leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
-              disabled={mutation.isPending}
-              onClick={() => {
-                setNote(task.note ?? '')
-                setDoneOpen(true)
-              }}
-            >
-              Mark done
-            </Button>
+            {closedOnPage ? null : (
+              <Button
+                type="button"
+                size="sm"
+                leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                disabled={mutation.isPending}
+                onClick={() => {
+                  setNote(task.note ?? '')
+                  setDoneOpen(true)
+                }}
+              >
+                Mark done
+              </Button>
+            )}
           </>
         )}
       </div>
@@ -162,7 +166,7 @@ export function RoleTaskRow({ task, showRole = true }: { task: RoleTask; showRol
               rows={3}
               maxLength={2000}
               placeholder="e.g. October salaries calculated and sent for approval"
-              className="mt-1 w-full rounded-md border border-border bg-background px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="mt-1 w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </DialogBody>
           <DialogFooter>

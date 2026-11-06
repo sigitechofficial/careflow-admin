@@ -122,6 +122,8 @@ export type PolicyVersion = {
   publishedAt: string | null
   publishedById: string | null
   archivedAt: string | null
+  /** Staff must read and acknowledge this version (within 14 days of publication). */
+  acknowledgementRequired?: boolean
   createdAt: string
   updatedAt: string
   applicability: PolicyApplicability[]
@@ -227,6 +229,7 @@ export type PolicyWriteInput = {
   contentHtml?: string
   effectiveDate?: string
   reviewDate?: string
+  acknowledgementRequired?: boolean
   applicability?: PolicyApplicabilityInput[]
   audiences?: PolicyAudienceInput[]
   links?: PolicyLinkInput[]
@@ -278,3 +281,96 @@ export const POLICY_LINK_MODULE_OPTIONS: Array<{ value: PolicyLinkModuleType; la
 ]
 
 export const POLICY_IN_PROGRESS_STATUSES: PolicyStatus[] = ['DRAFT', 'IN_REVIEW', 'APPROVED']
+
+// ---------------------------------------------------------------------------
+// Staff read-and-acknowledge
+// ---------------------------------------------------------------------------
+
+export type PolicyAcknowledgementStatus = 'PENDING' | 'VIEWED' | 'ACKNOWLEDGED'
+
+export type PolicyAcknowledgementItem = {
+  documentId: string
+  versionId: string
+  reference: string
+  title: string
+  category: string | null
+  versionLabel: string
+  publishedAt: string | null
+  dueAt: string | null
+  status: PolicyAcknowledgementStatus
+  viewedAt: string | null
+  acknowledgedAt: string | null
+  overdue: boolean
+}
+
+export type MyPolicyAcknowledgements = {
+  employeeLinked: boolean
+  reason: string | null
+  dueWithinDays: number
+  counts: { total: number; acknowledged: number; outstanding: number; viewed: number; overdue: number }
+  items: PolicyAcknowledgementItem[]
+}
+
+/** Response of POST /policy-acknowledgements/:documentId/viewed and /acknowledge. */
+export type PolicyAcknowledgementStatusResult = {
+  documentId: string
+  versionId: string | null
+  versionLabel: string | null
+  required: boolean
+  dueWithinDays: number
+  status: PolicyAcknowledgementStatus | null
+  viewedAt: string | null
+  acknowledgedAt: string | null
+  dueAt: string | null
+  overdue: boolean
+}
+
+export type PolicyAcknowledgementReportRow = {
+  employeeId: string
+  name: string
+  branch: string | null
+  jobTitle: string | null
+  status: PolicyAcknowledgementStatus
+  viewedAt: string | null
+  acknowledgedAt: string | null
+  dueAt: string | null
+  overdue: boolean
+}
+
+export type PolicyAcknowledgementReport = {
+  documentId: string
+  reference: string
+  title: string
+  versionId: string | null
+  versionLabel: string | null
+  publishedAt: string | null
+  acknowledgementRequired: boolean
+  dueWithinDays: number
+  branchScoped: boolean
+  totals: { required: number; acknowledged: number; viewedOnly: number; notOpened: number; overdue: number }
+  rows: PolicyAcknowledgementReportRow[]
+}
+
+/** GET /policy-acknowledgements/policies/:id/publish-preview (working version, as if published now). */
+export type PolicyPublishPreview = {
+  documentId: string
+  versionId: string | null
+  versionLabel: string | null
+  acknowledgementRequired: boolean
+  dueWithinDays: number
+  inScope: number
+  staffCount: number
+  alreadyAcknowledged: number
+  dueAt: string | null
+}
+
+export type PolicyAcknowledgementSummaryRow = {
+  documentId: string
+  versionId: string
+  reference: string
+  title: string
+  versionLabel: string
+  required: number
+  acknowledged: number
+  overdue: number
+}

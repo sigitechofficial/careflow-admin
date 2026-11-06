@@ -892,7 +892,7 @@ export default function ServiceUsersPage() {
                       <th className="w-10 px-2 py-2.5 sm:px-3">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-border"
+                          className="h-4 w-4 rounded border-input"
                           checked={allVisibleSelected}
                           ref={(el) => {
                             if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected
@@ -941,7 +941,7 @@ export default function ServiceUsersPage() {
                         <td className="px-2 py-3 align-middle sm:px-3">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 rounded border-border"
+                            className="h-4 w-4 rounded border-input"
                             checked={selectedIds.has(user.id)}
                             onChange={() => toggleSelectOne(user.id)}
                             disabled={bulkWorking}
@@ -1025,7 +1025,7 @@ export default function ServiceUsersPage() {
                     <div className="flex gap-3">
                       <input
                         type="checkbox"
-                        className="mt-1 h-4 w-4 shrink-0 rounded border-border"
+                        className="mt-1 h-4 w-4 shrink-0 rounded border-input"
                         checked={selectedIds.has(user.id)}
                         onChange={() => toggleSelectOne(user.id)}
                         disabled={bulkWorking}
