@@ -31,25 +31,15 @@ import {
 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/shared/ui/dialog'
 import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
-  useDeleteSurvey,
   useMoveTemplateToSurveys,
   useSaveSurveyAsTemplate,
   useSurveys,
 } from '@/features/surveys/hooks/useSurveys'
 import { SurveyPreviewDialog } from '@/features/surveys/components/SurveyPreviewDialog'
+import { SurveyDeleteDialog } from '@/features/surveys/components/SurveyDeleteDialog'
 import { SurveyCompletionProgress } from '@/features/surveys/components/SurveyCompletionProgress'
 import {
   NewSurveyDialog,
@@ -129,7 +119,6 @@ export default function SurveysPage() {
     () => (groupFilter ? allSurveys.filter(s => s.audienceGroup === groupFilter) : allSurveys),
     [allSurveys, groupFilter],
   )
-  const deleteMut = useDeleteSurvey()
   const saveAsTemplateMut = useSaveSurveyAsTemplate()
   const moveToSurveysMut = useMoveTemplateToSurveys()
   // Branch names only (service-user lookups load just the location tree).
@@ -180,17 +169,6 @@ export default function SurveysPage() {
   // The one New survey dialog: start from blank / a template / the ready-made library, or duplicate.
   const [newSurvey, setNewSurvey] = React.useState<NewSurveyStart | null>(null)
   const openNew = () => setNewSurvey(isTemplatesView ? { kind: 'blank', asTemplate: true } : { kind: 'choose' })
-
-  const handleDelete = async () => {
-    if (!toDelete) return
-    try {
-      await deleteMut.mutateAsync(toDelete.id)
-      toastSuccess(toDelete.isTemplate ? 'Template deleted' : 'Survey deleted')
-      setToDelete(null)
-    } catch (e) {
-      toastApiError(e, 'Could not delete')
-    }
-  }
 
   const handleSaveAsTemplate = async (s: SurveyListItem) => {
     try {
@@ -731,32 +709,8 @@ export default function SurveysPage() {
       {/* Form-style preview */}
       <SurveyPreviewDialog surveyId={previewId} open={previewId != null} onOpenChange={o => !o && setPreviewId(null)} />
 
-      {/* Delete confirm */}
-      <AlertDialog open={toDelete != null} onOpenChange={o => !o && setToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{toDelete?.title}”?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {toDelete?.isTemplate
-                ? 'This removes the template. Surveys already created from it are not affected.'
-                : 'This removes the survey and its questions from the list. Recipients and responses are kept in the audit trail. This cannot be undone.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMut.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteMut.isPending}
-              onClick={e => {
-                e.preventDefault()
-                void handleDelete()
-              }}
-            >
-              {deleteMut.isPending ? 'Deleting…' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete confirm (a closed survey whose CQC evidence cannot be taken: the reason, and delete anyway for admins) */}
+      <SurveyDeleteDialog target={toDelete} onClose={() => setToDelete(null)} />
     </div>
   )
 }

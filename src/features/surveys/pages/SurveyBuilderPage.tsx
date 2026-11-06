@@ -458,6 +458,12 @@ export default function SurveyBuilderPage() {
   const forPublic = survey.targetKind === 'PUBLIC'
   const audienceLower = SURVEY_TARGET_KIND_LABELS[survey.targetKind].toLowerCase()
   const isClosed = survey.status === 'CLOSED'
+  // Answers deleted under the retention period (all, or some): a closed survey cannot be reopened (the API refuses too).
+  const answersDeleted: 'ALL' | 'SOME' | null = survey.answersDeletedAt
+    ? 'ALL'
+    : isClosed && survey.answersDeletedBefore
+      ? 'SOME'
+      : null
   // Anonymity cannot change once sent or answered, nor on a ready-made survey (its privacy notice says which).
   const anonymityFixed = survey.settingsLocked || Boolean(survey.anonymityLocked)
   const isPeriod = Boolean(survey.clonedFromId)
@@ -688,8 +694,9 @@ export default function SurveyBuilderPage() {
                     className="gap-1.5"
                     disabled={openMut.isPending || noQuestions}
                     onClick={() =>
-                      // Past its end date: ask for a new one (or none) first, or it would close again.
-                      surveyEndPassed(survey.closesAt) ? setReopenOpen(true) : void reopen({})
+                      // Answers deleted under retention (it cannot be reopened: the dialog says why), or past its
+                      // end date (ask for a new one, or none, first, or it would close again).
+                      answersDeleted || surveyEndPassed(survey.closesAt) ? setReopenOpen(true) : void reopen({})
                     }
                   >
                     <Unlock className="h-3.5 w-3.5" aria-hidden />
@@ -749,7 +756,13 @@ export default function SurveyBuilderPage() {
             : survey.closedAtEndDate
               ? `This survey closed at its end date${survey.closesAt ? ` (${formatSurveyDateTime(survey.closesAt)})` : ''} and no longer accepts responses.`
               : 'This survey is closed and no longer accepts responses.'}
-          {canManage ? (isSeries ? ' Use Restart repeating to start it again.' : ' Use Reopen survey to accept responses again.') : ''}
+          {canManage
+            ? isSeries
+              ? ' Use Restart repeating to start it again.'
+              : answersDeleted
+                ? ` ${answersDeleted === 'ALL' ? 'Its' : 'Some of its'} answers were deleted under its retention period, so duplicate it to run it again.`
+                : ' Use Reopen survey to accept responses again.'
+            : ''}
         </div>
       ) : null}
 
@@ -1400,6 +1413,7 @@ export default function SurveyBuilderPage() {
         open={reopenOpen}
         onOpenChange={setReopenOpen}
         closesAt={survey.closesAt}
+        answersDeleted={answersDeleted}
         pending={openMut.isPending || publishMut.isPending}
         onReopen={closesAt => void reopen({ closesAt }).then(ok => ok && setReopenOpen(false))}
       />

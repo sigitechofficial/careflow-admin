@@ -102,6 +102,19 @@ export async function deleteSurvey(id: string): Promise<void> {
   await apiJson<ApiEnvelope<unknown>>(`/surveys/${id}`, { method: 'DELETE' })
 }
 
+/** The API's error code when a closed survey is not deleted because its CQC evidence could not be taken. */
+export const SURVEY_EVIDENCE_CAPTURE_FAILED = 'SURVEY_EVIDENCE_CAPTURE_FAILED'
+export const DELETE_WITHOUT_EVIDENCE_REASON_MIN = 5
+export const DELETE_WITHOUT_EVIDENCE_REASON_MAX = 300
+
+/** Delete a closed survey anyway when its CQC evidence could not be taken (company-wide admins; audited with the reason). */
+export async function deleteSurveyWithoutEvidence(id: string, reason: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/surveys/${id}/delete-without-evidence`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
 /** Overrides applied to a duplicated survey; anything omitted is copied from the source. */
 export type DuplicateSurveyInput = {
   /** Who it's for (audience group code; OTHER with the group in words). */

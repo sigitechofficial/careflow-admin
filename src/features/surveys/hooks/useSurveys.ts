@@ -7,6 +7,7 @@ import {
   closeSurvey,
   createSurvey,
   deleteSurvey,
+  deleteSurveyWithoutEvidence,
   duplicateSurvey,
   type DuplicateSurveyInput,
   fetchPortalSurveyAnswers,
@@ -132,6 +133,14 @@ export function useDeleteSurvey() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => deleteSurvey(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: surveyKeys.all() }),
+  })
+}
+
+export function useDeleteSurveyWithoutEvidence() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (args: { id: string; reason: string }) => deleteSurveyWithoutEvidence(args.id, args.reason),
     onSuccess: () => qc.invalidateQueries({ queryKey: surveyKeys.all() }),
   })
 }

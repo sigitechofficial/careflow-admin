@@ -24,6 +24,7 @@ vi.mock('@/features/surveys/hooks/useSurveys', () => ({
   useSurvey: () => ({ data: undefined, isLoading: false }),
   useCreateSurvey: mutation,
   useDeleteSurvey: mutation,
+  useDeleteSurveyWithoutEvidence: mutation,
   useMoveTemplateToSurveys: mutation,
   useSaveSurveyAsTemplate: mutation,
   useDuplicateSurvey: mutation,

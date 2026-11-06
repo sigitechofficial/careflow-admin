@@ -1015,6 +1015,26 @@ describe('SurveyBuilderPage', () => {
       expect(openSurvey).not.toHaveBeenCalled()
     })
 
+    it('a survey whose answers were deleted under retention (all, or some) is never reopened: the dialog says why', async () => {
+      for (const [over, words] of [
+        [{ answersDeletedAt: '2026-10-01T00:00:00.000Z' }, 'Its answers were deleted under its retention period, so it cannot be reopened.'],
+        [{ answersDeletedBefore: '2026-10-01T00:00:00.000Z' }, 'Some of its answers were deleted under its retention period, so it cannot be reopened.'],
+      ] as const) {
+        state.survey = survey({ status: 'CLOSED', closesAt: '2099-01-01T09:00:00.000Z', ...over })
+        const { unmount } = render(<SurveyBuilderPage />)
+        await userEvent.click(actions().getByRole('button', { name: /Reopen survey/ }))
+        const dialog = within(screen.getByRole('dialog'))
+        expect(dialog.getByTestId('reopen-answers-deleted')).toHaveTextContent(words)
+        expect(dialog.getByTestId('reopen-answers-deleted')).toHaveTextContent('Duplicate it to run it again.')
+        expect(dialog.queryByRole('button', { name: /Reopen with/ })).not.toBeInTheDocument()
+        expect(openSurvey).not.toHaveBeenCalled()
+        expect(publishSurvey).not.toHaveBeenCalled()
+        await userEvent.click(dialog.getByRole('button', { name: 'OK' }))
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+        unmount()
+      }
+    })
+
     it('a closed survey whose end date is still ahead reopens straight away, keeping it', async () => {
       state.survey = survey({ status: 'CLOSED', closesAt: '2099-01-01T09:00:00.000Z' })
       render(<SurveyBuilderPage />)
