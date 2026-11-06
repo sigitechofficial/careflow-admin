@@ -55,6 +55,8 @@ export type SendOutsideInput = {
   familyContactIds?: string[]
   aboutServiceUserId?: string | null
   contactRuleOverride?: { reason: string }
+  /** A survey about one person who has died: why these people are asked now (audited). */
+  afterDeathReason?: string
 }
 export type SendOutsideCheck = {
   total: number
@@ -67,6 +69,8 @@ export type SendOutsideCheck = {
   noConsent: number
   /** Family members whose person we supported has died (only the bereaved-family survey goes to them). */
   died?: number
+  /** People who are sent a survey about one person who has died only with a reason. */
+  afterDeath?: number
 }
 
 const key = ['surveys', 'outside'] as const

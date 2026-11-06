@@ -12,6 +12,7 @@ import { RemindOneButton } from '@/features/surveys/reminders/RemindOneButton'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiJson } from '@/shared/api/api-client'
 import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { LinksCopiedHistory, PersonalLinkRowActions, PersonalLinksToolbar, type PersonalLinksContext } from '@/features/surveys/sharing/SurveyPersonalLinks'
 
@@ -225,24 +226,44 @@ export function SurveyRecipientsPanel({
  */
 function ResendLapsedButton({ surveyId, recipientId, name }: { surveyId: string; recipientId: string; name: string }) {
   const qc = useQueryClient()
+  // Outside people on a survey about someone who has died: sent again only with a reason (asked for when needed).
+  const [askReason, setAskReason] = React.useState(false)
+  const [reason, setReason] = React.useState('')
   const resend = useMutation({
-    mutationFn: () => apiJson(`/surveys/${surveyId}/recipients/${recipientId}/resend`, { method: 'POST' }),
+    mutationFn: (why?: string) =>
+      apiJson(`/surveys/${surveyId}/recipients/${recipientId}/resend`, { method: 'POST', ...(why ? { body: JSON.stringify({ reason: why }) } : {}) }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['surveys'] }),
   })
+  const go = (why?: string) =>
+    void resend.mutateAsync(why).then(
+      () => {
+        setAskReason(false)
+        toastSuccess('Sent again')
+      },
+      e => {
+        if (!why && /has died\. Say why/i.test(e instanceof Error ? e.message : String(e))) setAskReason(true)
+        else toastApiError(e, 'Could not send it again')
+      },
+    )
+  if (askReason) {
+    return (
+      <span className="flex items-center gap-2">
+        <Input
+          value={reason}
+          maxLength={300}
+          onChange={e => setReason(e.target.value)}
+          placeholder="Why ask them now (kept in the audit trail)"
+          aria-label={`Why send it again to ${name} now that the person has died`}
+          className="h-8 w-56"
+        />
+        <Button type="button" size="sm" variant="outline" disabled={resend.isPending || reason.trim().length < 5} onClick={() => go(reason.trim())}>
+          Send again
+        </Button>
+      </span>
+    )
+  }
   return (
-    <Button
-      type="button"
-      size="sm"
-      variant="ghost"
-      disabled={resend.isPending}
-      aria-label={`Send it again to ${name}`}
-      onClick={() =>
-        void resend.mutateAsync().then(
-          () => toastSuccess('Sent again'),
-          e => toastApiError(e, 'Could not send it again'),
-        )
-      }
-    >
+    <Button type="button" size="sm" variant="ghost" disabled={resend.isPending} aria-label={`Send it again to ${name}`} onClick={() => go()}>
       Send again
     </Button>
   )

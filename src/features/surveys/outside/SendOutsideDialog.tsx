@@ -42,6 +42,8 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
   const [about, setAbout] = React.useState(true)
   const [anyway, setAnyway] = React.useState(false)
   const [reason, setReason] = React.useState('')
+  const [afterDeath, setAfterDeath] = React.useState(false)
+  const [deathReason, setDeathReason] = React.useState('')
   React.useEffect(() => {
     if (open) {
       setContactIds([])
@@ -50,6 +52,8 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
       setFamilyIds([])
       setAnyway(false)
       setReason('')
+      setAfterDeath(false)
+      setDeathReason('')
     }
   }, [open])
   React.useEffect(() => setFamilyIds([]), [person])
@@ -67,7 +71,11 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
 
   const submit = async () => {
     try {
-      const res = await send.mutateAsync({ ...input, ...(anyway ? { contactRuleOverride: { reason: reason.trim() } } : {}) })
+      const res = await send.mutateAsync({
+        ...input,
+        ...(anyway ? { contactRuleOverride: { reason: reason.trim() } } : {}),
+        ...(afterDeath ? { afterDeathReason: deathReason.trim() } : {}),
+      })
       toastSuccess(res.message ?? 'Sent')
       onOpenChange(false)
     } catch (e) {
@@ -172,6 +180,26 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
               {check.noDetails ? <p className="text-muted-foreground">{check.noDetails} have no email or mobile.</p> : null}
               {check.noConsent ? <p className="text-muted-foreground">{check.noConsent} family {check.noConsent === 1 ? 'member has' : 'members have'} not agreed to be contacted.</p> : null}
               {check.died ? <p className="text-muted-foreground">{check.died} family {check.died === 1 ? 'member' : 'members'} will not be sent it because the person we supported has died.</p> : null}
+              {check.afterDeath ? (
+                <>
+                  <p>
+                    The person this survey is about has died, so {check.afterDeath} {check.afterDeath === 1 ? 'person' : 'people'} will not be sent it unless you give a reason.
+                  </p>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" className="h-4 w-4 rounded border-input" checked={afterDeath} onChange={e => setAfterDeath(e.target.checked)} />
+                    Send to them, with a reason
+                  </label>
+                  {afterDeath ? (
+                    <Input
+                      value={deathReason}
+                      maxLength={300}
+                      onChange={e => setDeathReason(e.target.value)}
+                      placeholder="For example, an end-of-life care review (required, kept in the audit trail)"
+                      aria-label="Why ask them now that the person has died"
+                    />
+                  ) : null}
+                </>
+              ) : null}
               {check.heldBack ? (
                 <>
                   <p>
@@ -194,7 +222,13 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
             Cancel
           </Button>
           <Button
-            disabled={send.isPending || !chosen || (anyway && reason.trim().length < 5) || Boolean(check && check.sendNow === 0 && !(anyway && check.heldBack))}
+            disabled={
+              send.isPending ||
+              !chosen ||
+              (anyway && reason.trim().length < 5) ||
+              (afterDeath && deathReason.trim().length < 5) ||
+              Boolean(check && check.sendNow === 0 && !(anyway && check.heldBack) && !(afterDeath && check.afterDeath))
+            }
             onClick={() => void submit()}
           >
             Send
