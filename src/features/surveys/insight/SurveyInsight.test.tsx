@@ -83,7 +83,7 @@ describe('branch heatmap', () => {
     })
     wrap(<SurveyHeatmapPanel surveyId="s1" />)
     expect(await screen.findByText('Other branches (combined)')).toBeInTheDocument()
-    expect(screen.getByLabelText('Too few answers to show')).toBeInTheDocument()
+    expect(screen.getByText('Too few answers to show')).toHaveClass('sr-only')
     expect(screen.getByText(/at least 5 answers/)).toBeInTheDocument()
   })
 })

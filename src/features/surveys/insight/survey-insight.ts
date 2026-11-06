@@ -69,6 +69,8 @@ export type SurveyHeatmap = {
   }>
   note: string | null
   unitsLeftOut?: number
+  /** A repeating survey: the one period shown (branches are compared one period at a time). */
+  period?: { id: string; label: string } | null
 }
 
 export type ThemeCount = { code: string; label: string; count: number | null }

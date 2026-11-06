@@ -157,7 +157,14 @@ export function SurveyHeatmapPanel({ surveyId }: { surveyId: string }) {
                       className={cn('px-2 py-2 text-right tabular-nums', heatClass(c.percent))}
                       title={c.percent === null ? 'Too few answers to show' : `${c.percent}% of ${c.base}`}
                     >
-                      {c.percent === null ? <span aria-label="Too few answers to show">·</span> : `${c.percent}%`}
+                      {c.percent === null ? (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span className="sr-only">Too few answers to show</span>
+                        </>
+                      ) : (
+                        `${c.percent}%`
+                      )}
                     </td>
                   ))}
                 </tr>
