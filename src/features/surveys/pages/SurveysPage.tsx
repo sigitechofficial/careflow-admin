@@ -27,8 +27,7 @@ import {
   TriangleAlert,
   Users,
   UsersRound,
-  type LucideIcon,
-} from 'lucide-react'
+  type LucideIcon, ClipboardPen } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { useAuthStore } from '@/features/auth/store'
@@ -108,6 +107,7 @@ const sourceOf = (s: SurveyListItem): NewSurveySource => ({
 
 export default function SurveysPage() {
   const canManage = useAuthStore(s => s.can('surveys.manage'))
+  const canRecord = useAuthStore(s => s.can('surveys.responses.record'))
   const navigate = useNavigate()
   const search = useSearch({ strict: false }) as { view?: string }
   const [view, setView] = React.useState<'surveys' | 'templates'>(search.view === 'templates' ? 'templates' : 'surveys')
@@ -521,6 +521,14 @@ export default function SurveysPage() {
               Insight
             </Link>
           </Button>
+          {canRecord ? (
+            <Button type="button" size="sm" variant="outline" className="gap-1.5" asChild>
+              <Link to="/surveys/to-collect" data-testid="surveys-to-collect-link">
+                <ClipboardPen className="h-4 w-4" aria-hidden />
+                To collect
+              </Link>
+            </Button>
+          ) : null}
           <Button type="button" size="sm" variant="outline" className="gap-1.5" asChild>
             <Link to="/surveys/follow-ups" data-testid="survey-follow-ups-link">
               <BellRing className="h-4 w-4" aria-hidden />

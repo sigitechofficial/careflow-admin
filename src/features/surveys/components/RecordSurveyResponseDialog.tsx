@@ -102,6 +102,8 @@ type Props = {
   initialPerson?: { id: string; name: string; phone?: string | null } | null
   /** An independent reviewer (SUR-CQC-001): their sample only, recorded through /survey-reviews. */
   asReviewer?: boolean
+  /** How the answers were collected, chosen already (e.g. In person after a care plan review). */
+  initialChannel?: StaffRecordedChannel
   onClose: () => void
 }
 
@@ -129,6 +131,7 @@ export function RecordSurveyResponseDialog({
   sectionIntros,
   initialPerson,
   asReviewer = false,
+  initialChannel,
   onClose,
 }: Props) {
   const isEdit = Boolean(editing)
@@ -151,6 +154,26 @@ export function RecordSurveyResponseDialog({
   const [consent, setConsent] = React.useState(false)
   const [answers, setAnswers] = React.useState<Record<string, SurveyAnswerInput>>({})
   const [reason, setReason] = React.useState('')
+  // Quick entry (a pile of paper forms): how many were saved with "Save and record another" since opening.
+  const [savedCount, setSavedCount] = React.useState(0)
+  const bodyRef = React.useRef<HTMLDivElement>(null)
+  // Several people one after another: offered when nobody was chosen beforehand (not for corrections).
+  const canRecordAnother = !isEdit && !initialPerson && !asReviewer
+
+  /** Clears the person and their answers for the next form; keeps how and when they were collected. */
+  const resetForNext = () => {
+    setAnonymous(false)
+    setPersonId('')
+    setPersonSearch('')
+    setRelation('SELF')
+    setRespondentName('')
+    setRespondentContactId('')
+    setContactNumber('')
+    setContactNotes('')
+    setConsent(false)
+    setAnswers({})
+    bodyRef.current?.parentElement?.scrollTo?.({ top: 0 })
+  }
 
   React.useEffect(() => {
     if (!open) return
@@ -164,7 +187,7 @@ export function RecordSurveyResponseDialog({
       setContactNotes(editing.contactNotes ?? '')
       setAnswers(answersFromResponse(editing))
     } else {
-      setChannel('TELEPHONE')
+      setChannel(initialChannel ?? 'TELEPHONE')
       setAnonymous(false)
       setPersonId(initialPerson?.id ?? '')
       setPersonSearch(initialPerson?.name ?? '')
@@ -175,8 +198,10 @@ export function RecordSurveyResponseDialog({
       setContactNotes('')
       setConsent(false)
       setAnswers({})
+      setRespondentContactId('')
     }
     setReason('')
+    setSavedCount(0)
     // initialPerson is read when the dialog opens only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing])
@@ -234,7 +259,7 @@ export function RecordSurveyResponseDialog({
     return null
   })()
 
-  const submit = async () => {
+  const submit = async (another = false) => {
     if (blocker) return
     const sent = answersToSend(asked, answers)
     // A held-back text answer left empty is sent as a bare answer, so the server keeps the saved text;
@@ -264,6 +289,12 @@ export function RecordSurveyResponseDialog({
           personId: anonymous ? undefined : personId,
           consentGiven: isTelephone ? consent : undefined,
         })
+        if (another) {
+          setSavedCount(n => n + 1)
+          toastSuccess('Response recorded', 'Ready for the next one.')
+          resetForNext()
+          return
+        }
         toastSuccess('Response recorded')
       }
       onClose()
@@ -287,6 +318,16 @@ export function RecordSurveyResponseDialog({
         </DialogHeader>
 
         <DialogBody className="max-h-[70vh] space-y-5 overflow-y-auto">
+          <div ref={bodyRef} hidden />
+          {savedCount > 0 ? (
+            <p
+              className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+              role="status"
+              data-testid="record-saved-count"
+            >
+              {savedCount} {savedCount === 1 ? 'response' : 'responses'} saved. Choose the next person and enter their answers.
+            </p>
+          ) : null}
           {isEdit && editingNote ? (
             <p
               className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
@@ -523,6 +564,17 @@ export function RecordSurveyResponseDialog({
           <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
+          {canRecordAnother ? (
+            <Button
+              variant="outline"
+              onClick={() => void submit(true)}
+              disabled={saving || Boolean(blocker)}
+              aria-describedby={blocker ? 'record-blocker' : undefined}
+              data-testid="record-submit-another"
+            >
+              Save and record another
+            </Button>
+          ) : null}
           <Button
             onClick={() => void submit()}
             disabled={saving || Boolean(blocker)}
@@ -530,7 +582,7 @@ export function RecordSurveyResponseDialog({
             leftIcon={saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : undefined}
             data-testid="record-submit"
           >
-            {isEdit ? 'Save correction' : 'Save response'}
+            {isEdit ? 'Save correction' : savedCount > 0 ? 'Save and finish' : 'Save response'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -69,6 +69,8 @@ export type SurveyCallPerson = {
   lastReminderAt: string | null
   due: boolean
   optedOut: boolean
+  /** Taken off the call list (e.g. does not want to take part). */
+  declined?: boolean
   open: boolean
   calls: Array<{ id: string; outcome: string; notes: string | null; at: string; by: string | null }>
 }
@@ -181,4 +183,29 @@ export function describeContactPlan(plan: SurveyContactPlan | null): string {
     )
   }
   return parts.join(' ')
+}
+
+/** An open named survey with the people still to collect (GET /surveys-to-collect). */
+export type SurveyToCollect = {
+  survey: { id: string; title: string; targetKind: SurveyTargetKind; closesAt: string | null; libraryReference: string | null }
+  people: SurveyCallPerson[]
+}
+
+export const toCollectKey = (filter: { serviceUserId?: string; employeeId?: string } = {}) =>
+  ['surveys', 'to-collect', filter.serviceUserId ?? '', filter.employeeId ?? ''] as const
+
+/** Surveys still to collect: everyone the user may record for, or one person (`serviceUserId` / `employeeId`). */
+export function useSurveysToCollect(filter: { serviceUserId?: string; employeeId?: string } = {}, enabled = true) {
+  return useQuery({
+    queryKey: toCollectKey(filter),
+    enabled,
+    retry: false,
+    queryFn: async () => {
+      const qs = new URLSearchParams()
+      if (filter.serviceUserId) qs.set('serviceUserId', filter.serviceUserId)
+      if (filter.employeeId) qs.set('employeeId', filter.employeeId)
+      const suffix = qs.toString() ? `?${qs}` : ''
+      return ((await apiJson<ApiEnvelope<SurveyToCollect[]>>(`/surveys-to-collect${suffix}`, { method: 'GET' })).data ?? []) as SurveyToCollect[]
+    },
+  })
 }

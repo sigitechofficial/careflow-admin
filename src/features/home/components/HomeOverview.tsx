@@ -1,3 +1,4 @@
+import { useSurveysToCollect } from '@/features/surveys/reminders/survey-reminders'
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
@@ -732,6 +733,25 @@ function AppointmentsTodayRow({ locationId }: { locationId: string | null }) {
   )
 }
 
+/** Survey answers still to collect (phone or visit), across every open named survey the user can record for. */
+function SurveysToCollectRow() {
+  const q = useSurveysToCollect()
+  const people = (q.data ?? []).flatMap((i) => i.people.map((p) => ({ survey: i.survey, p })))
+  return (
+    <Row
+      illustration="clipboard"
+      label="Survey answers to collect"
+      detail="Not answered yet: phone or visit and record"
+      value={people.length}
+      to="/surveys/to-collect"
+      loading={q.isLoading}
+      tone="neutral"
+      items={people.slice(0, 8).map(({ survey, p }) => ({ id: `${survey.id}-${p.recipientId}`, primary: p.name, secondary: survey.title }))}
+      testId="home-surveys-to-collect"
+    />
+  )
+}
+
 function ComingUp({ locationId }: { locationId: string | null }) {
   const can = useCan()
   const canSu = can('service_users.read')
@@ -744,6 +764,7 @@ function ComingUp({ locationId }: { locationId: string | null }) {
         {canSu ? <ServiceUserExpiryRows key="su" locationId={locationId} /> : null}
         {can('learning.dashboard.read') ? <OverdueTrainingRow key="train" locationId={locationId} /> : null}
         {can('policies.read') ? <PolicyReviewRow key="pol" /> : null}
+        {can('surveys.responses.record') ? <SurveysToCollectRow key="surveys" /> : null}
       </RowList>
     </Section>
   )

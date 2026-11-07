@@ -1,4 +1,5 @@
-﻿import * as React from 'react'
+﻿import { askForDueSurveys } from '@/features/surveys/reminders/SurveyDuePrompt'
+import * as React from 'react'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
@@ -331,6 +332,7 @@ export default function ServiceUserCarePlanFormPage() {
           return
         }
         toastSuccess('Care Plan published successfully')
+        askForDueSurveys(serviceUserId, 'the care plan review')
         await navigate({
           to: '/service-users/$serviceUserId/care-plan',
           params: { serviceUserId },

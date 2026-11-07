@@ -10,6 +10,7 @@ vi.mock('@/features/service-users/components/ServiceUserPortalAccessSection', ()
   ServiceUserPortalAccessSection: () => <div>portal-access</div>,
 }))
 vi.mock('@/features/surveys/outside/SurveysAboutPersonSection', () => ({ SurveysAboutPersonSection: () => null }))
+vi.mock('@/features/surveys/reminders/SurveysDueForPersonSection', () => ({ SurveysDueForPersonSection: () => null }))
 vi.mock('@/features/surveys/reminders/SurveyContactPreferencesSection', () => ({
   SurveyContactPreferencesSection: ({ subjectKind }: { subjectKind: string }) => <div>survey-contact-preferences {subjectKind}</div>,
 }))

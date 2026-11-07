@@ -141,6 +141,8 @@ import SurveyFollowUpsPage from '@/features/surveys/pages/SurveyFollowUpsPage'
 import SurveyInsightPage, { Survey360Page, SurveyPoolPage } from '@/features/surveys/insight/SurveyInsightPages'
 import SurveyActionsPage from '@/features/surveys/actions/SurveyActionsPage'
 import SurveyBenchmarksPage from '@/features/surveys/insight/SurveyBenchmarksPage'
+import SurveysToCollectPage from '@/features/surveys/reminders/SurveysToCollectPage'
+import { SurveyDuePromptHost } from '@/features/surveys/reminders/SurveyDuePrompt'
 import { PublicUpdatePage, SurveyPackPage, SurveyUpdateLetterPage } from '@/features/surveys/actions/SurveyPrintPages'
 import PathwayCasesListPage from '@/features/specialist-pathways/pages/PathwayCasesListPage'
 import PathwayCaseDetailPage from '@/features/specialist-pathways/pages/PathwayCaseDetailPage'
@@ -320,6 +322,7 @@ const pageTitles: Record<string, string> = {
   '/surveys/insight/pool': 'All copies together',
   '/surveys/insight/360': '360 report',
   '/surveys/insight/benchmarks': 'Compared with other agencies',
+  '/surveys/to-collect': 'Surveys to collect',
   '/service-users': 'Service Users',
   '/service-users/all': 'Service Users',
   '/service-users/hours': 'Service User hours',
@@ -641,6 +644,7 @@ function AppRootShell() {
         <CarerHoursStopDialog />
         <SentHoursRequestsDialog />
         <UrgentOfficeAlertHost />
+        <SurveyDuePromptHost />
         <DevUiTraceChip />
         <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
           <Outlet />
@@ -1851,6 +1855,14 @@ const surveyBenchmarksRoute = createRoute({
   component: SurveyBenchmarksPage,
 })
 
+// Surveys still to collect across every open named survey: the coordinators' working list.
+const surveysToCollectRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/to-collect',
+  beforeLoad: requirePermission('surveys.responses.record'),
+  component: SurveysToCollectPage,
+})
+
 const surveyPoolRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/surveys/insight/pool',
@@ -2984,6 +2996,7 @@ const routeTree = rootRoute.addChildren([
     surveyPoolRoute,
     survey360Route,
     surveyBenchmarksRoute,
+    surveysToCollectRoute,
     surveyActionsRoute,
     surveyBuilderRoute,
     surveyResponsesRoute,

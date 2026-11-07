@@ -372,6 +372,42 @@ describe('RecordSurveyResponseDialog', () => {
   })
 })
 
+describe('RecordSurveyResponseDialog — several paper forms in a row', () => {
+  it('"Save and record another" saves, keeps how they were collected, and clears the form for the next one', async () => {
+    recordAsync.mockReset().mockResolvedValue({})
+    const onClose = vi.fn()
+    render(<RecordSurveyResponseDialog surveyId="s1" targetKind="SERVICE_USER" questions={questions} open onClose={onClose} />)
+    await userEvent.click(screen.getByTestId('record-channel-paper'))
+    await userEvent.click(screen.getByTestId('record-anonymous'))
+    await userEvent.click(screen.getByRole('radio', { name: 'Usually' }))
+    await userEvent.click(screen.getByTestId('record-submit-another'))
+    await waitFor(() => expect(recordAsync).toHaveBeenCalledTimes(1))
+    expect(recordAsync.mock.calls[0][0]).toMatchObject({ channel: 'PAPER', isAnonymous: true })
+    expect(onClose).not.toHaveBeenCalled()
+    expect(await screen.findByTestId('record-saved-count')).toHaveTextContent('1 response saved')
+    expect(screen.getByTestId('record-channel-paper')).toBeChecked()
+    expect(screen.getByTestId('record-anonymous')).not.toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Usually' })).not.toBeChecked()
+    expect(screen.getByTestId('record-submit')).toHaveTextContent('Save and finish')
+  })
+
+  it('is not offered when the person was chosen already, and starts with the channel given', () => {
+    render(
+      <RecordSurveyResponseDialog
+        surveyId="s1"
+        targetKind="SERVICE_USER"
+        questions={questions}
+        open
+        initialPerson={{ id: 'su1', name: 'Pat Jones' }}
+        initialChannel="IN_PERSON"
+        onClose={() => {}}
+      />,
+    )
+    expect(screen.queryByTestId('record-submit-another')).not.toBeInTheDocument()
+    expect(screen.getByTestId('record-channel-in_person')).toBeChecked()
+  })
+})
+
 describe('recordCandidateDescription', () => {
   it('marks people whose care has ended', () => {
     const base = { id: 'su-1', name: 'Dan Ward', recipientStatus: 'SENT' as const, hasResponse: false, hasPortal: false }

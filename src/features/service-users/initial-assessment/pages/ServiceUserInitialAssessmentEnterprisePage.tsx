@@ -1,3 +1,4 @@
+import { askForDueSurveys } from '@/features/surveys/reminders/SurveyDuePrompt'
 import * as React from 'react'
 import { useWaterlowReviewSchedule } from '@/features/service-users/assessments/hooks/useServiceUserAssessments'
 import { useQueryClient } from '@tanstack/react-query'
@@ -3085,6 +3086,7 @@ function InitialAssessmentEnterprisePageContent() {
       )
       setSubmitModalOpen(false)
       setHubTab('schedule')
+      if (selectedId) askForDueSurveys(selectedId, 'the assessment')
       toastSuccess(
         'Submitted',
         skipIncompleteValidation
