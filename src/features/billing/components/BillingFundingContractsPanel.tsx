@@ -224,7 +224,7 @@ export function BillingFundingContractsPanel() {
                       <ul className="mt-2 max-w-[260px] space-y-0.5 text-xs leading-snug text-muted-foreground">
                         {row.readinessIssues.map(issue => (
                           <li key={issue} className="flex gap-1.5">
-                            <span className="text-muted-foreground/60" aria-hidden>
+                            <span className="text-muted-foreground" aria-hidden>
                               ·
                             </span>
                             <span>{issue}</span>

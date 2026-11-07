@@ -63,6 +63,8 @@ const TOOLTIPS = {
   rotaHorizonMode:
     'Fixed days uses the horizon below. Calendar month generates through the end of the month when To date is left blank.',
   autoExtendRotaRunHour: 'Hour (UK time) when the daily rolling rota extension runs. Default is 12 (noon).',
+  maxBackfillDays:
+    'Most days back a manager may create visits for with Backfill past visits (visit plan and Bulk generate rota). 0 turns backfill off. The rolling rota never backfills.',
   multiCarerFunderCharge:
     'Controls how double-up / multi-carer visits are charged to the service-user funder. Carer pay is always calculated per carer.',
 } as const
@@ -89,6 +91,7 @@ type DomCareDraft = {
   domRotaHorizonDays: number
   domRotaHorizonMode: RotaHorizonMode
   domAutoExtendRotaRunHour: number
+  domMaxBackfillDays: number
   domShowWeeklyHours: boolean
   domShowServiceUserName: boolean
   domShowBlockedCarersInSchedule: boolean
@@ -124,6 +127,7 @@ const DEFAULTS: DomCareDraft = {
   domRotaHorizonDays: 28,
   domRotaHorizonMode: 'FIXED_DAYS',
   domAutoExtendRotaRunHour: 12,
+  domMaxBackfillDays: 14,
   domShowWeeklyHours: true,
   domShowServiceUserName: true,
   domShowBlockedCarersInSchedule: false,
@@ -168,6 +172,7 @@ function toDraft(s: OrganisationGeneralSettings, scheduleAreas: ScheduleAreaRow[
     domRotaHorizonDays: s.domRotaHorizonDays ?? 28,
     domRotaHorizonMode: s.domRotaHorizonMode ?? 'FIXED_DAYS',
     domAutoExtendRotaRunHour: s.domAutoExtendRotaRunHour ?? 12,
+    domMaxBackfillDays: s.domMaxBackfillDays ?? 14,
     domShowWeeklyHours: s.domShowWeeklyHours,
     domShowServiceUserName: s.domShowServiceUserName,
     domShowBlockedCarersInSchedule: s.domShowBlockedCarersInSchedule ?? false,
@@ -358,6 +363,7 @@ export function GeneralSettingsDomCarePanel() {
         domFutureVisitsDays: clampInt(draft.domFutureVisitsDays, 0, 365),
         domRotaHorizonDays: clampInt(draft.domRotaHorizonDays, 1, 90),
         domAutoExtendRotaRunHour: clampInt(draft.domAutoExtendRotaRunHour, 0, 23),
+        domMaxBackfillDays: clampInt(draft.domMaxBackfillDays, 0, 31),
         domLateVisitAlertMinutes: clampInt(draft.domLateVisitAlertMinutes, 1, 240),
         domJobCancellationRules: draft.domJobCancellationRules.map(r => ({
           ...r,
@@ -602,6 +608,25 @@ export function GeneralSettingsDomCarePanel() {
           />
           <span>:00 UK time</span>
           <SettingsHint text={TOOLTIPS.autoExtendRotaRunHour} />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+          <span>Allow backfill of past visits up to</span>
+          <Input
+            type="number"
+            min={0}
+            max={31}
+            className="h-9 w-16 text-center tabular-nums"
+            value={draft.domMaxBackfillDays}
+            disabled={!canUpdate}
+            onChange={e =>
+              setDraft(d => ({
+                ...d,
+                domMaxBackfillDays: Number.parseInt(e.target.value, 10) || 0,
+              }))
+            }
+          />
+          <span>days back</span>
+          <SettingsHint text={TOOLTIPS.maxBackfillDays} />
         </div>
       </GeneralSettingsCard>
 

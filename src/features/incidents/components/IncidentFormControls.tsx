@@ -65,7 +65,7 @@ export function MultiSelectDropdown({
                 type="checkbox"
                 checked={selected.includes(o.value)}
                 onChange={() => toggle(o.value)}
-                className="h-4 w-4 rounded border-border"
+                className="h-4 w-4 rounded border-input"
               />
               {o.label}
             </label>

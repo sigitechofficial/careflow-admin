@@ -147,7 +147,7 @@ export default function AuditLogPage() {
     <div className="space-y-4">
       <PageHeader
         title="Audit log"
-        description="Who did what, for which service user, when, and from which IP. Filter by date range, IP, module, and event type."
+        description="Who did what, for which service user, when, and from which IP. Filter by date range, IP, module, and event type. Survey entries show only for surveys whose results you can see; answers given without a name are counted per day, never listed one by one."
         icon={<FileText className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[
           { label: 'Home', href: '/' },

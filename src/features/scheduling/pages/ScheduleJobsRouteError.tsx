@@ -19,7 +19,9 @@ export function ScheduleJobsRouteError({ error }: { error: Error }) {
           Reload page
         </Button>
         <Button type="button" variant="ghost" asChild>
-          <Link to="/scheduling/view">Back to scheduling</Link>
+          <Link to="/apps/$module" params={{ module: 'care-operations' }}>
+            Back to Care Operations
+          </Link>
         </Button>
       </div>
     </div>

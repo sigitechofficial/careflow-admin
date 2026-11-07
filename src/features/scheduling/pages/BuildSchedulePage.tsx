@@ -52,7 +52,7 @@ export default function BuildSchedulePage() {
         description="Create or refresh the schedule batch for a day and schedule areas."
         breadcrumb={[
           { label: 'Home', href: '/' },
-          { label: 'Scheduling', href: '/scheduling/view' },
+          { label: 'Scheduling', href: '/scheduling/schedule-jobs' },
           { label: 'Build Schedule' },
         ]}
       />
@@ -69,7 +69,7 @@ export default function BuildSchedulePage() {
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="h-10 w-full max-w-xs border border-border rounded-md px-3 text-sm bg-background"
+            className="h-10 w-full max-w-xs border border-input rounded-md px-3 text-sm bg-background"
           />
         </div>
 
@@ -79,7 +79,7 @@ export default function BuildSchedulePage() {
             value={notes}
             onChange={e => setNotes(e.target.value)}
             rows={3}
-            className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background"
           />
         </div>
 
@@ -107,7 +107,7 @@ export default function BuildSchedulePage() {
             Build schedule
           </Button>
           <Button variant="outline" asChild>
-            <Link to="/scheduling/view">View schedule</Link>
+            <Link to="/scheduling/schedule-jobs" search={{ date }}>Open Schedule Jobs</Link>
           </Button>
         </div>
       </div>

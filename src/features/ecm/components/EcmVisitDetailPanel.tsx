@@ -350,7 +350,7 @@ function VisitDetailCheckInGrantCard({
       {grant.carerNote ? (
         <p className="text-sm text-foreground">
           <span className="font-medium text-foreground/80">Carer note</span>
-          <span className="mx-1.5 text-muted-foreground/80">·</span>
+          <span className="mx-1.5 text-muted-foreground">·</span>
           {grant.carerNote}
         </p>
       ) : voiceNotes?.length ? null : (
@@ -432,7 +432,7 @@ function VisitDetailCheckInGrantCard({
       ) : grant.officeNote ? (
         <p className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground/80">Office reason</span>
-          <span className="mx-1.5 text-muted-foreground/80">·</span>
+          <span className="mx-1.5 text-muted-foreground">·</span>
           {grant.officeNote}
         </p>
       ) : null}
@@ -678,7 +678,7 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
             <Hash className="h-4 w-4 shrink-0" aria-hidden />
             <span>
               <span className="font-medium text-foreground/80">Visit ID</span>
-              <span className="mx-1.5 text-muted-foreground/80">·</span>
+              <span className="mx-1.5 text-muted-foreground">·</span>
               <span className="font-mono text-[13px] font-semibold tracking-tight text-foreground">
                 {d.visit.visitRef.trim()}
               </span>

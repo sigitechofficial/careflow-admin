@@ -92,6 +92,8 @@ export function useBulkGenerateRotaPage() {
   }, [generalSettingsQuery.data?.domRotaHorizonDays, generalSettingsQuery.data?.domRotaHorizonMode])
   const defaultRotaHorizonDays =
     generalSettingsQuery.data?.domRotaHorizonDays ?? DEFAULT_GENERATE_ROTA_DAYS
+  /** Settings → Dom Care; 0 = backfill off. */
+  const maxBackfillDays = generalSettingsQuery.data?.domMaxBackfillDays ?? 14
   const defaultRotaHorizonMode: RotaHorizonMode =
     generalSettingsQuery.data?.domRotaHorizonMode ?? 'FIXED_DAYS'
   const defaultRotaToDate = React.useMemo(
@@ -184,7 +186,7 @@ export function useBulkGenerateRotaPage() {
         planIds,
         locationId: effectiveLocationId || undefined,
         readyOnly: generateReadyOnly,
-        backfillDays: backfillDays > 0 ? backfillDays : undefined,
+        backfillDays: backfillDays > 0 ? Math.min(backfillDays, maxBackfillDays) || undefined : undefined,
         scheduleAreaId: scheduleAreaId || undefined,
       },
       {
@@ -199,6 +201,7 @@ export function useBulkGenerateRotaPage() {
     )
   }, [
     backfillDays,
+    maxBackfillDays,
     candidatesQuery,
     effectiveLocationId,
     formatDate,
@@ -239,6 +242,7 @@ export function useBulkGenerateRotaPage() {
     showDefaultRotaRange: !generateTo.trim(),
     backfillDays,
     setBackfillDays,
+    maxBackfillDays,
     scheduleAreaId,
     setScheduleAreaId,
     generateReadyOnly,

@@ -271,7 +271,7 @@ export default function PayrollEmployeesPage() {
                   {filteredEmployees.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
-                        <Users className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" aria-hidden />
+                        <Users className="mx-auto mb-2 h-8 w-8 text-muted-foreground" aria-hidden />
                         {data.length === 0
                           ? 'No employees found.'
                           : 'No employees match your search.'}

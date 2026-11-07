@@ -7,12 +7,11 @@ import { SERVICE_USER_EDIT_ROUTE } from '@/features/service-users/service-user-p
 const su = '11111111-1111-1111-1111-111111111111'
 
 describe('ServiceUserModuleTabs active state', () => {
-  it('places Profile first, then Overview, then Invoices', () => {
-    expect(SERVICE_USER_MODULE_TABS[0]?.id).toBe('profile')
-    expect(SERVICE_USER_MODULE_TABS[1]?.id).toBe('overview')
-    expect(SERVICE_USER_MODULE_TABS[2]?.id).toBe('invoices')
+  it('places Profile first, then Overview, Initial Assessment and Invoices', () => {
+    expect(SERVICE_USER_MODULE_TABS.slice(0, 4).map(t => t.id)).toEqual(['profile', 'overview', 'initial-assessment', 'invoices'])
     expect(SERVICE_USER_MODULE_TABS[0]?.to).toBe('/service-users/$serviceUserId/profile')
-    expect(SERVICE_USER_MODULE_TABS[2]?.to).toBe('/service-users/$serviceUserId/invoices')
+    expect(SERVICE_USER_MODULE_TABS[2]?.to).toBe('/service-users/$serviceUserId/initial-assessment')
+    expect(SERVICE_USER_MODULE_TABS[3]?.to).toBe('/service-users/$serviceUserId/invoices')
   })
 
   it('marks Profile active on the profile route only', () => {

@@ -58,14 +58,14 @@ export function NotificationBell() {
             {isLoading ? (
               <Loader2 className="absolute top-1.5 right-1.5 h-3 w-3 animate-spin text-muted-foreground" />
             ) : unread > 0 ? (
-              <span className="absolute top-1.5 right-1.5 flex h-3.5 min-w-3.5 px-0.5 items-center justify-center rounded-full bg-destructive text-[8px] font-bold text-white">
+              <span className="absolute top-1.5 right-1.5 flex h-3.5 min-w-3.5 px-0.5 items-center justify-center rounded-full bg-destructive text-[8px] font-bold text-destructive-foreground">
                 {unread > 99 ? '99+' : unread}
               </span>
             ) : null}
             {anySoundOn ? (
-              <Volume2 className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 text-muted-foreground/80" aria-hidden />
+              <Volume2 className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 text-muted-foreground" aria-hidden />
             ) : (
-              <VolumeX className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 text-muted-foreground/60" aria-hidden />
+              <VolumeX className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 text-muted-foreground" aria-hidden />
             )}
           </Button>
         </DropdownMenuTrigger>

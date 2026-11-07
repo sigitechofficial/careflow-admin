@@ -95,7 +95,7 @@ export function Combobox({
           aria-haspopup="listbox"
           className={cn(
             'flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors',
-            'ring-offset-background placeholder:text-muted-foreground/60',
+            'ring-offset-background placeholder:text-muted-foreground',
             'hover:bg-accent/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0',
             'data-[state=open]:border-ring data-[state=open]:ring-2 data-[state=open]:ring-ring data-[state=open]:ring-offset-0',
             'disabled:cursor-not-allowed disabled:opacity-50',
@@ -142,7 +142,7 @@ export function Combobox({
                 placeholder={searchPlaceholder}
                 className={cn(
                   'flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm',
-                  'placeholder:text-muted-foreground/60',
+                  'placeholder:text-muted-foreground',
                   'outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0',
                   loading && 'pr-9',
                 )}

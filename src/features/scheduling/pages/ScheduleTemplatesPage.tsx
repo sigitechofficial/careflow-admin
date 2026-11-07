@@ -12,7 +12,7 @@ export default function ScheduleTemplatesPage() {
         description="Reusable visit patterns for automated schedule builds."
         breadcrumb={[
           { label: 'Home', href: '/' },
-          { label: 'Scheduling', href: '/scheduling/view' },
+          { label: 'Scheduling', href: '/scheduling/schedule-jobs' },
           { label: 'Templates' },
         ]}
       />

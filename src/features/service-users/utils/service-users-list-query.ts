@@ -175,7 +175,7 @@ export const EMPTY_SERVICE_USERS_ADVANCED_FILTERS: ServiceUsersAdvancedFilters =
 export const CARE_PLAN_LIST_STATUS_FILTER_LABELS: Record<CarePlanListStatus, string> = {
   none: 'No published care plan',
   ok: 'Care plan up to date',
-  due_within_week: 'Review due within 7 days',
+  due_within_week: 'Review due soon',
   overdue: 'Care plan review overdue',
 }
 

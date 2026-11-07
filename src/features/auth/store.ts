@@ -236,10 +236,15 @@ function tokenPair() {
   return { at: `acc_${id}`, rt: `rfs_${id}r` }
 }
 
+/** Same name as the API (careflow-api/src/common/auth/independent-reviewer.ts). */
+export const INDEPENDENT_REVIEWER_ROLE = 'Independent reviewer'
+
 /** Map Nest role names (e.g. "Super Admin") to UI RoleId for default permission merge. */
-function backendRolesToRoleId(roles: string[], accountKind?: string): RoleId {
+export function backendRolesToRoleId(roles: string[], accountKind?: string): RoleId {
   if (accountKind === 'temporary_inspector') return 'temporary_inspector'
   if (accountKind === 'service_user') return 'service_user'
+  // An independent survey reviewer: the account's only role (any other role makes it a staff account).
+  if (roles.length && roles.every(r => r === INDEPENDENT_REVIEWER_ROLE)) return 'independent_reviewer'
   const lower = roles.map(r => r.toLowerCase())
   if (lower.some(r => r.includes('super') && r.includes('admin'))) return 'super_admin'
   if (lower.some(r => r === 'admin' || r === 'administrator' || r === 'system admin')) return 'admin'
@@ -250,6 +255,8 @@ function backendRolesToRoleId(roles: string[], accountKind?: string): RoleId {
 }
 
 function mergeBackendPermissions(mappedRole: RoleId, apiPermissions: string[]): Permission[] {
+  // A reviewer account never borrows the SPA's staff defaults: only what the API gives.
+  if (mappedRole === 'independent_reviewer') return (apiPermissions ?? []) as Permission[]
   // API mode: trust server ACL only. Merging SPA role defaults inflated the sidebar
   // (e.g. HR mapped to "staff" got service_users/scheduling tabs they cannot use).
   const fromApi = (apiPermissions ?? []) as Permission[]

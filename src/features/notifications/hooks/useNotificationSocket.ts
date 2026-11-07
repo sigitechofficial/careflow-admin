@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/features/auth/store'
 import { useToastStore } from '@/store/toast.store'
 import {
+  canUseNotificationSocket,
   connectNotificationSocket,
   disconnectNotificationSocket,
 } from '@/features/notifications/socket/notifications.socket'
@@ -13,6 +14,7 @@ import { useUrgentOfficeAlertStore } from '@/features/ecm/store/urgent-office-al
 import { isUrgentOfficeAlertKind, isUrgentOfficeDialogKind } from '@/features/ecm/utils/ecm-urgent-alert.util'
 import { urgentDialogAlertFromNotification } from '@/features/ecm/utils/ecm-urgent-dialog.util'
 import { schedulingKeys } from '@/features/scheduling/keys'
+import { surveyKeys } from '@/features/surveys/keys'
 import { notificationDeepLink } from '@/features/notifications/utils/notification-deep-link'
 
 function severityToToastVariant(
@@ -43,7 +45,7 @@ export function useNotificationSocket() {
     const ok =
       !!token &&
       isAuthed &&
-      user?.role !== 'temporary_inspector' &&
+      canUseNotificationSocket(user?.role) &&
       can &&
       !!useAuthStore.getState().user
     if (!ok) {
@@ -57,6 +59,10 @@ export function useNotificationSocket() {
       void qc.invalidateQueries({ queryKey: ['notifications'], exact: false })
       void qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
       void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
+      // A survey closed at its end date: pages showing it refetch.
+      if (payload.metadata?.eventType === 'SURVEY_CLOSED_AT_END_DATE') {
+        void qc.invalidateQueries({ queryKey: surveyKeys.all() })
+      }
       const kind =
         typeof payload.metadata?.kind === 'string' ? payload.metadata.kind : null
       const urgent = isUrgentOfficeAlertKind(kind) || isUrgentOfficeDialogKind(kind)

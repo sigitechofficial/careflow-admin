@@ -59,9 +59,10 @@ export function Topbar({ pageTitle, className, variant = 'admin' }: TopbarProps)
 
       {/* Page title (mobile) */}
       {pageTitle && (
-        <h1 className="font-display font-semibold text-sm text-foreground lg:hidden">
+        // Not a heading: each page has its own single h1, and the tab title names the page.
+        <p className="font-display font-semibold text-sm text-foreground lg:hidden">
           {pageTitle}
-        </h1>
+        </p>
       )}
 
       {/* Search sidebar tabs / sub-tabs */}

@@ -308,7 +308,7 @@ export default function UkPayrollRunsPage() {
                     {data.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                          <Wallet className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" aria-hidden />
+                          <Wallet className="mx-auto mb-2 h-8 w-8 text-muted-foreground" aria-hidden />
                           No UK payroll runs yet. Create a run after generating periods.
                         </td>
                       </tr>

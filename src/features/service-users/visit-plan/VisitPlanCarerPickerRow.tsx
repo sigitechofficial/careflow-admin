@@ -184,7 +184,7 @@ export function VisitPlanCarerPickerRow({
                   'inline-flex h-5 w-5 items-center justify-center rounded border text-[10px] font-medium',
                   onSlot
                     ? dayChipTone(day, c.availability)
-                    : 'border-transparent text-muted-foreground/60',
+                    : 'border-transparent text-muted-foreground',
                 )}
               >
                 {VISIT_PLAN_DAY_LABELS[day]?.charAt(0)}

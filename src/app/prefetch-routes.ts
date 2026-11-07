@@ -468,14 +468,6 @@ export function prefetchSettingsTab(qc: QueryClient, tab: SettingsTabId = 'job-t
   }
 }
 
-export function prefetchSchedulingView(qc: QueryClient, date = todayIso()) {
-  void qc.prefetchQuery({
-    queryKey: schedulingKeys.dayRuns(date),
-    queryFn: () => getJobsDayRuns(date, { limit: 300 }),
-    staleTime: ROUTE_STALE_MS,
-  })
-}
-
 export function prefetchSchedulingScheduleJobs(qc: QueryClient, date = todayIso()) {
   void qc.prefetchQuery({
     queryKey: schedulingKeys.employeesDay(date),

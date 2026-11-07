@@ -76,7 +76,7 @@ export function ColorPicker({ value = "#3b82f6", onChange, disabled, className }
               value={hex.replace("#", "")}
               onChange={e => handleHex(`#${e.target.value}`)}
               maxLength={6}
-              className="flex-1 bg-transparent font-mono text-sm outline-none border-b border-border pb-0.5 focus:border-primary transition-colors"
+              className="flex-1 bg-transparent font-mono text-sm outline-none border-b border-input pb-0.5 focus:border-primary transition-colors"
               placeholder="3b82f6"
             />
             <input

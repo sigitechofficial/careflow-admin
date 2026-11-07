@@ -55,6 +55,9 @@ function editSearch(complianceTypeCode?: string | null) {
   }
 }
 
+/** Supervision, appraisal and probation cells come from the review schedule: open Staff reviews. */
+const REVIEW_SEARCH = { tab: 'staff-reviews' as const }
+
 function displayStatusBadge(status: ComplianceBoardDisplayStatus | undefined, blocked: boolean) {
   const resolved: ComplianceBoardDisplayStatus =
     status ?? (blocked ? 'BLOCKED' : 'COMPLIANT')
@@ -285,6 +288,7 @@ export function ComplianceBoardPanel() {
   const query = useComplianceBoard(canRead, true, boardFilters)
   const summary = query.data?.summary
   const columns = query.data?.columns ?? []
+  const reviewCodes = new Set(columns.filter(c => c.source === 'REVIEW').map(c => c.code))
   const rows = query.data?.rows ?? []
   const groups = React.useMemo(() => buildGroupedColumns(columns), [columns])
   const matrixColCount = columns.length
@@ -580,7 +584,7 @@ export function ComplianceBoardPanel() {
 
         {!query.isLoading && !query.isError && columns.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-            <Users className="h-8 w-8 text-muted-foreground/50" aria-hidden />
+            <Users className="h-8 w-8 text-muted-foreground" aria-hidden />
             <p className="text-sm text-muted-foreground">
               No board columns available. Ensure compliance types are seeded under Settings →
               Compliance types.
@@ -697,7 +701,7 @@ export function ComplianceBoardPanel() {
                           <Link
                             to="/employee/$employeeId/edit"
                             params={{ employeeId: row.employeeId }}
-                            search={editSearch(row.nextAction.typeCode)}
+                            search={reviewCodes.has(row.nextAction.typeCode) ? REVIEW_SEARCH : editSearch(row.nextAction.typeCode)}
                             className="block"
                           >
                             <NextActionCell action={row.nextAction} />
@@ -721,8 +725,9 @@ export function ComplianceBoardPanel() {
                               <Link
                                 to="/employee/$employeeId/edit"
                                 params={{ employeeId: row.employeeId }}
-                                search={editSearch(cell.code)}
+                                search={cell.source === 'REVIEW' ? REVIEW_SEARCH : editSearch(cell.code)}
                                 className="block"
+                                title={cell.source === 'REVIEW' ? 'From the review schedule: open Staff reviews' : undefined}
                                 data-testid={`compliance-board-cell-${row.employeeId}-${cell.code}`}
                               >
                                 {inner}

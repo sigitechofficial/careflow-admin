@@ -11,6 +11,9 @@ export type NotificationType =
   | 'REPORT_READY'
   | 'SECURITY_ALERT'
   | 'SYSTEM_MESSAGE'
+  | 'SUPERVISION_DUE'
+  | 'POLICY_ACKNOWLEDGEMENT_DUE'
+  | 'POLICY_ACKNOWLEDGEMENT_SUMMARY'
 
 export type NotificationSeverity = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' | 'CRITICAL'
 
@@ -24,6 +27,8 @@ export type NotificationModule =
   | 'REPORT'
   | 'SECURITY'
   | 'SYSTEM'
+  | 'HR'
+  | 'POLICY'
 
 export type NotificationListItem = {
   id: string

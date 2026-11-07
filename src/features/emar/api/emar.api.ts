@@ -10,6 +10,8 @@ export type StockMovementType = 'ADDED' | 'USED' | 'ADJUSTED' | 'WASTED'
 /** API: GET /dashboard/medication-overview — the Medication module dashboard. */
 export type MedicationOverview = {
   period: { from: string; to: string; days: number }
+  /** Look-ahead windows from Settings → Reviews & reminders (medication due soon / reviews). */
+  windows?: { dueSoonDays: number; reviewDueSoonDays: number }
   today: { recorded: number; exceptions: number; byStatus: Record<DoseStatus, number> }
   doses: {
     recorded: number

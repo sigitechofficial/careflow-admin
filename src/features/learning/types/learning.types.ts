@@ -205,7 +205,8 @@ export type LearningCourseInput = {
   passingScore?: number
   maximumAttempts?: number
   certificateEnabled?: boolean
-  certificateValidityDays?: number
+  /** Null = use the Learning settings default (defaultCertificateValidityDays). */
+  certificateValidityDays?: number | null
   refresherFrequencyDays?: number
 }
 

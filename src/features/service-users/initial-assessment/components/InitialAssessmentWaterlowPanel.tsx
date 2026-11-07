@@ -8,6 +8,7 @@ import {
 import { Label } from '@/shared/ui/form-field'
 import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { Input } from '@/shared/ui/input'
+import { useWaterlowReviewSchedule } from '@/features/service-users/assessments/hooks/useServiceUserAssessments'
 import { cn } from '@/shared/lib/utils'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import {
@@ -39,6 +40,7 @@ import {
   waterlowSelectionBreakdown,
   type WaterlowMetadata,
   type WaterlowTableSection,
+  waterlowNextReviewHint,
 } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 
 type Props = {
@@ -46,7 +48,6 @@ type Props = {
   disabled?: boolean
   onChange: (next: WaterlowMetadata) => void
   /** Shown under the next review date (IA only: where the default interval comes from). */
-  nextReviewHint?: string
 }
 
 function ScoreBadge({ score }: { score: number }) {
@@ -273,7 +274,8 @@ function WeightLossRows({
   )
 }
 
-export function InitialAssessmentWaterlowPanel({ value, disabled, onChange, nextReviewHint }: Props) {
+export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Props) {
+  const nextReviewHint = waterlowNextReviewHint(useWaterlowReviewSchedule())
   const patch = (partial: Partial<WaterlowMetadata>) => {
     onChange(enrichWaterlowMetadata({ ...value, ...partial }))
   }

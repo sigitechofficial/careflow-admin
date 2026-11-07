@@ -6,7 +6,8 @@ export type IdName = { id: string; name: string }
 
 export type RoleTask = {
   id: string
-  templateId: string
+  /** Null for a task raised by another feature (e.g. a survey alert). */
+  templateId: string | null
   title: string
   description: string | null
   link: string | null

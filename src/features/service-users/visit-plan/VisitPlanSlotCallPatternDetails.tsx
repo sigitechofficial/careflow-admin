@@ -186,7 +186,7 @@ export function VisitPlanSlotCallPatternDetails({
                     contentTagClass,
                     slot.daysOfWeek.includes(dayIndex)
                       ? 'bg-teal-100 text-teal-900 dark:bg-teal-950 dark:text-teal-100'
-                      : 'bg-muted/40 text-muted-foreground/70',
+                      : 'bg-muted/40 text-muted-foreground',
                   )}
                 >
                   {day}

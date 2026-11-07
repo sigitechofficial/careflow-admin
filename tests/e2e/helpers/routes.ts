@@ -42,7 +42,6 @@ export function majorRoutes(suId: string): { path: string; label: string }[] {
     { path: '/employee/skills', label: 'Employee skills' },
     { path: '/employee/documents', label: 'Employee documents' },
     { path: '/employee/add', label: 'Add employee' },
-    { path: '/scheduling/view', label: 'View schedule' },
     { path: '/scheduling/schedule-jobs', label: 'Schedule jobs' },
     { path: '/scheduling/build', label: 'Build schedule' },
     { path: '/scheduling/report', label: 'Scheduling report' },

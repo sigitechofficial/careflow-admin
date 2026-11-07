@@ -12,7 +12,9 @@ import { adminNavItems, filterNavByPermission } from '@/components/layout/Sideba
 const labels = (organisationPayScope: boolean) => {
   const nav = filterNavByPermission(adminNavItems, () => true, undefined, organisationPayScope)
   const children = (group: string) => nav.find(n => n.label === group)?.children?.map(c => c.label) ?? []
-  return { payroll: children('UK Payroll'), billing: children('Billing') }
+  // Billing, carer pay and UK payroll are one "Finance" group since the nav regroup (15 Oct 2026).
+  const finance = children('Finance')
+  return { payroll: finance, billing: finance }
 }
 
 describe('organisation-wide pay access (R-13)', () => {
@@ -31,7 +33,7 @@ describe('organisation-wide pay access (R-13)', () => {
 
   it('the menu of a branch-limited user keeps the branch screens and drops the organisation-wide ones', () => {
     const branch = labels(false)
-    expect(branch.billing).toEqual(expect.arrayContaining(['Billing management', 'Visit reconciliation', 'Salary']))
+    expect(branch.billing).toEqual(expect.arrayContaining(['Billing management', 'Salary']))
     expect(branch.billing).not.toContain('Pay items')
     expect(branch.billing).not.toContain('Employee payouts')
     expect(branch.payroll).toEqual(expect.arrayContaining(['Payslips', 'Employee setup']))
@@ -42,7 +44,7 @@ describe('organisation-wide pay access (R-13)', () => {
 
   it('the menu of an organisation-wide user is unchanged', () => {
     const org = labels(true)
-    expect(org.billing).toEqual(expect.arrayContaining(['Pay items', 'Employee payouts', 'Visit reconciliation', 'Salary']))
+    expect(org.billing).toEqual(expect.arrayContaining(['Pay items', 'Employee payouts', 'Salary']))
     expect(org.payroll).toEqual(expect.arrayContaining(['UK payroll runs', 'Payslips', 'Taxes', 'Employee setup']))
   })
 

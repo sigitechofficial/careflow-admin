@@ -42,7 +42,7 @@ function PageHeader({ title, description, info, actions, breadcrumb, icon, child
           <nav className={cn('flex flex-wrap items-center gap-1.5', contentHelperClass)} aria-label="Breadcrumb">
             {breadcrumb.map((item, i) => (
               <React.Fragment key={i}>
-                {i > 0 && <span className="text-muted-foreground/70">/</span>}
+                {i > 0 && <span className="text-muted-foreground">/</span>}
                 {item.href ? (
                   <a href={item.href} className="hover:text-foreground transition-colors">
                     {item.label}

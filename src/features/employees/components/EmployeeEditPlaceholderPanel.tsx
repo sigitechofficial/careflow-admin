@@ -11,7 +11,7 @@ export function EmployeeEditPlaceholderPanel({ title }: { title: string }) {
           This section is not available in CareAdmin yet. We are still building it to match the legacy employee profile.
         </p>
       </div>
-      <Construction className="h-8 w-8 text-muted-foreground/50" aria-hidden />
+      <Construction className="h-8 w-8 text-muted-foreground" aria-hidden />
     </div>
   )
 }

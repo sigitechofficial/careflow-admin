@@ -66,9 +66,30 @@ interface DatePickerProps {
   minDate?: Date
   maxDate?: Date
   className?: string
+  /** date-fns format for the chosen date (default "PPP"); e.g. "dd/MM/yyyy" for a UK numeric date. */
+  displayFormat?: string
+  /** First day of the week in the calendar (default: the calendar's own, Sunday). */
+  weekStartsOn?: 0 | 1
+  /** Month the calendar opens on (default: the calendar's own, the current month). */
+  defaultMonth?: Date
+  id?: string
+  "aria-label"?: string
 }
 
-export function DatePicker({ value, onChange, placeholder = "Pick a date", disabled, minDate, maxDate, className }: DatePickerProps) {
+export function DatePicker({
+  value,
+  onChange,
+  placeholder = "Pick a date",
+  disabled,
+  minDate,
+  maxDate,
+  className,
+  displayFormat = "PPP",
+  weekStartsOn,
+  defaultMonth,
+  id,
+  "aria-label": ariaLabel,
+}: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
@@ -76,9 +97,11 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", disab
         <PopoverPrimitive.Trigger asChild>
           <button
             type="button"
+            id={id}
+            aria-label={ariaLabel}
             disabled={disabled}
             className={cn(
-              "flex h-10 w-full items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm transition-colors",
+              "flex h-10 w-full items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm transition-colors",
               "hover:border-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
               "disabled:cursor-not-allowed disabled:opacity-50",
               !value && "text-muted-foreground",
@@ -87,7 +110,7 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", disab
           >
             <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="flex-1 text-left">
-              {value ? format(value, "PPP") : placeholder}
+              {value ? format(value, displayFormat) : placeholder}
             </span>
           </button>
         </PopoverPrimitive.Trigger>
@@ -117,6 +140,8 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", disab
             selected={value}
             onSelect={(d) => { onChange?.(d); setOpen(false) }}
             disabled={(d) => (minDate ? d < minDate : false) || (maxDate ? d > maxDate : false)}
+            defaultMonth={defaultMonth}
+            weekStartsOn={weekStartsOn}
             autoFocus
           />
         </PopoverPrimitive.Content>
@@ -144,7 +169,7 @@ export function DateRangePicker({ value, onChange, placeholder = "Pick a date ra
             type="button"
             disabled={disabled}
             className={cn(
-              "flex h-10 w-full items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm transition-colors",
+              "flex h-10 w-full items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm transition-colors",
               "hover:border-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
               "disabled:cursor-not-allowed disabled:opacity-50",
               !value?.from && "text-muted-foreground",

@@ -376,7 +376,7 @@ export default function PayrollSchedulesPage() {
                     {schedules.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                          <CalendarClock className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" aria-hidden />
+                          <CalendarClock className="mx-auto mb-2 h-8 w-8 text-muted-foreground" aria-hidden />
                           No schedules yet. Add a schedule to start generating periods.
                         </td>
                       </tr>
@@ -457,7 +457,7 @@ export default function PayrollSchedulesPage() {
                           colSpan={canPeriods ? 6 : 5}
                           className="px-4 py-10 text-center text-muted-foreground"
                         >
-                          <CalendarRange className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" aria-hidden />
+                          <CalendarRange className="mx-auto mb-2 h-8 w-8 text-muted-foreground" aria-hidden />
                           No periods for the selected filters. Choose a schedule and tax year, then
                           generate.
                         </td>

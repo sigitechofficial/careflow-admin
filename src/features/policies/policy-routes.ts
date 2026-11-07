@@ -6,6 +6,8 @@ export const POLICY_PATHS = {
   edit: '/policies/$policyId/edit',
   categories: '/policies/categories',
   tags: '/policies/tags',
+  readyMade: '/policies/ready-made',
+  mine: '/policies/mine',
 } as const
 
 export type PolicyLibrarySearch = {

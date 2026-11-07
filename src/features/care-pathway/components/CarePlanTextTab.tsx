@@ -14,6 +14,7 @@ import {
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/form-field'
+import { RichTextHtml } from '@/shared/ui/rich-text-html'
 import {
   Dialog,
   DialogBody,
@@ -217,10 +218,7 @@ export function CarePlanTextTab() {
             <DialogTitle>Preview</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <div
-              className="prose prose-sm max-w-none dark:prose-invert"
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
-            />
+            <RichTextHtml className="prose prose-sm max-w-none dark:prose-invert" html={previewHtml} />
           </DialogBody>
         </DialogContent>
       </Dialog>

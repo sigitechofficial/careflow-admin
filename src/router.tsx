@@ -78,7 +78,6 @@ import CandidatesPipelinePage from '@/features/hr/recruitment/pages/CandidatesPi
 import CandidateDetailPage from '@/features/hr/recruitment/pages/CandidateDetailPage'
 
 // ΓöÇΓöÇ Scheduling pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-import ViewSchedulePage from '@/features/scheduling/pages/ViewSchedulePage'
 import ScheduleJobsPage from '@/features/scheduling/pages/ScheduleJobsPage'
 import CarerVisitHubPage from '@/features/scheduling/pages/CarerVisitHubPage'
 import SchedulingReportPage from '@/features/scheduling/pages/SchedulingReportPage'
@@ -129,7 +128,22 @@ import IncidentsListPage from '@/features/incidents/pages/IncidentsListPage'
 import SurveysPage from '@/features/surveys/pages/SurveysPage'
 import SurveyBuilderPage from '@/features/surveys/pages/SurveyBuilderPage'
 import SurveyResponsesPage from '@/features/surveys/pages/SurveyResponsesPage'
+import SurveyCallListPage from '@/features/surveys/reminders/SurveyCallListPage'
+import SurveyPreviewPage from '@/features/surveys/pages/SurveyPreviewPage'
 import TakeSurveyPage from '@/features/surveys/pages/TakeSurveyPage'
+import KioskSurveyPage from '@/features/surveys/kiosk/KioskSurveyPage'
+import SurveyUnsubscribePage from '@/features/surveys/pages/SurveyUnsubscribePage'
+import SurveyPaperCopyPage from '@/features/surveys/sharing/SurveyPaperCopyPage'
+import SurveyPosterPage from '@/features/surveys/sharing/SurveyPosterPage'
+import ReadyMadeSurveysPage from '@/features/surveys/pages/ReadyMadeSurveysPage'
+import OutsidePeoplePage from '@/features/surveys/outside/OutsidePeoplePage'
+import SurveyFollowUpsPage from '@/features/surveys/pages/SurveyFollowUpsPage'
+import SurveyInsightPage, { Survey360Page, SurveyPoolPage } from '@/features/surveys/insight/SurveyInsightPages'
+import SurveyActionsPage from '@/features/surveys/actions/SurveyActionsPage'
+import SurveyBenchmarksPage from '@/features/surveys/insight/SurveyBenchmarksPage'
+import SurveysToCollectPage from '@/features/surveys/reminders/SurveysToCollectPage'
+import { SurveyDuePromptHost } from '@/features/surveys/reminders/SurveyDuePrompt'
+import { PublicUpdatePage, SurveyPackPage, SurveyUpdateLetterPage } from '@/features/surveys/actions/SurveyPrintPages'
 import PathwayCasesListPage from '@/features/specialist-pathways/pages/PathwayCasesListPage'
 import PathwayCaseDetailPage from '@/features/specialist-pathways/pages/PathwayCaseDetailPage'
 import SafeguardingListPage from '@/features/safeguarding/pages/SafeguardingListPage'
@@ -144,6 +158,7 @@ import HoursApprovalsPage from '@/features/hours-approvals/pages/HoursApprovalsP
 import HoursHistoryPage from '@/features/hours-approvals/pages/HoursHistoryPage'
 import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
 import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
+import SupervisionSessionPage from '@/features/supervision/pages/SupervisionSessionPage'
 import IncidentsDashboardPage from '@/features/incidents/pages/IncidentsDashboardPage'
 import MyActionsPage from '@/features/incidents/pages/MyActionsPage'
 import IncidentAnalyticsPage from '@/features/incidents/pages/IncidentAnalyticsPage'
@@ -181,6 +196,7 @@ import PayrollEmployeeDetailPage from '@/features/payroll/pages/PayrollEmployeeD
 import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesPage'
 import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
 import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
+import MySurveysPage, { MySurveyAnswerPage } from '@/features/surveys/my-surveys/MySurveysPage'
 import CarerReportsPage from '@/features/employees/pages/CarerReportsPage'
 import TimebankPage from '@/features/timebank/pages/TimebankPage'
 import TimebankServiceUserPage from '@/features/timebank/pages/TimebankServiceUserPage'
@@ -203,9 +219,13 @@ import LearningSettingsPage from '@/features/learning/pages/LearningSettingsPage
 import PoliciesLibraryPage from '@/features/policies/pages/PoliciesLibraryPage'
 import PolicyNewPage from '@/features/policies/pages/PolicyNewPage'
 import PolicyDetailPage from '@/features/policies/pages/PolicyDetailPage'
+import PolicyPrintPage from '@/features/policies/pages/PolicyPrintPage'
+import ReadyMadePolicyPrintPage from '@/features/policies/pages/ReadyMadePolicyPrintPage'
 import PolicyEditPage from '@/features/policies/pages/PolicyEditPage'
 import PolicyCategoriesPage from '@/features/policies/pages/PolicyCategoriesPage'
 import PolicyTagsPage from '@/features/policies/pages/PolicyTagsPage'
+import ReadyMadePoliciesPage from '@/features/policies/pages/ReadyMadePoliciesPage'
+import MyPoliciesPage from '@/features/policies/pages/MyPoliciesPage'
 import ComplianceDashboardPage from '@/features/compliance/pages/ComplianceDashboardPage'
 import { validatePolicyLibrarySearch } from '@/features/policies/policy-routes'
 import {
@@ -229,6 +249,7 @@ import type { SettingsTabId } from '@/features/settings/pages/SettingsPage'
 import CalendarPage from '@/features/service-users/calendar/pages/CalendarPage'
 import ServiceUserHoursPage from '@/features/service-users/pages/ServiceUserHoursPage'
 import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
+import { SurveyReviewsPage } from '@/features/surveys/reviewers/SurveyReviewers'
 import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
 import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
 import EmployeeTimesheetsPage from '@/features/employees/pages/EmployeeTimesheetsPage'
@@ -272,7 +293,6 @@ import {
   prefetchSchedulingList,
   prefetchSchedulingReport,
   prefetchSchedulingScheduleJobs,
-  prefetchSchedulingView,
   prefetchServiceUserCalendar,
   prefetchServiceUserCarePlanFormRoute,
   prefetchServiceUserCarePlanRoute,
@@ -296,6 +316,15 @@ type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 
 
 const pageTitles: Record<string, string> = {
   '/': 'Home',
+  '/surveys': 'Surveys',
+  '/surveys/ready-made': 'Ready-made surveys',
+  '/surveys/outside-people': 'Outside people',
+  '/surveys/follow-ups': 'Survey follow-ups',
+  '/surveys/insight': 'Survey insight',
+  '/surveys/insight/pool': 'All copies together',
+  '/surveys/insight/360': '360 report',
+  '/surveys/insight/benchmarks': 'Compared with other agencies',
+  '/surveys/to-collect': 'Surveys to collect',
   '/service-users': 'Service Users',
   '/service-users/all': 'Service Users',
   '/service-users/hours': 'Service User hours',
@@ -307,8 +336,8 @@ const pageTitles: Record<string, string> = {
   '/service-users/$serviceUserId/alerts': 'Medical & alerts',
   '/service-users/$serviceUserId/invoices': 'Invoices',
   '/service-users/$serviceUserId': 'Edit Service User',
-  '/scheduling/view': 'View Schedule',
   '/scheduling/schedule-jobs': 'Schedule Jobs',
+  '/supervision/sessions/$sessionId': 'Supervision session',
   '/scheduling/visits/$jobId': 'Visit',
   '/scheduling/report': 'Scheduling Reports',
   '/scheduling/jobs': 'Scheduled Jobs Housekeeping',
@@ -317,7 +346,7 @@ const pageTitles: Record<string, string> = {
   '/scheduling/templates': 'Schedule Templates',
   '/scheduling/bulk-generate-rota': 'Bulk Generate Rota',
   '/employee': 'Employee',
-  '/employee/staff-list': 'Employee',
+  '/employee/staff-list': 'Staff list',
   '/employee/hours': 'Employee hours',
   '/employee/absences': 'Absence tracker',
   '/employee/timesheets': 'Timesheets',
@@ -331,6 +360,7 @@ const pageTitles: Record<string, string> = {
   '/employee/allocations': 'Employee',
   '/employee/reports': 'Employee',
   '/employee/temp-inspector': 'Temporary Inspector Login',
+  '/survey-reviews': 'Surveys to record',
   '/employee/documents': 'General Employee Documents',
   '/employee/add': 'Add Employee',
   '/hr': 'HR',
@@ -389,6 +419,7 @@ const pageTitles: Record<string, string> = {
   '/office-salaries': 'Office salaries',
   '/checklist': 'Checklist',
   '/my-tasks': 'My tasks',
+  '/my-surveys': 'My surveys',
   '/reports/carers': 'Carer reports',
   '/reports/timebank': 'Timebank',
   '/reports/timebank/$serviceUserId': 'Timebank',
@@ -425,6 +456,7 @@ const pageTitles: Record<string, string> = {
   '/policies/$policyId/edit': 'Edit policy',
   '/policies/categories': 'Policy categories',
   '/policies/tags': 'Policy tags',
+  '/policies/mine': 'My policies',
   '/compliance': 'Compliance dashboard',
   '/medication/exceptions': 'Missed & refused doses',
   '/medication/late': 'Late doses',
@@ -521,7 +553,15 @@ function AppRootShell() {
   const pageTitle =
     pageTitles[pathname] ??
     (pathname.startsWith('/apps/') ? moduleLabelForSlug(pathname.split('/')[2] ?? '') : undefined) ??
-    (/^\/employee\/[^/]+\/edit$/.test(pathname)
+    (/^\/surveys\/[^/]+\/responses$/.test(pathname)
+      ? 'Survey results'
+      : /^\/surveys\/[^/]+\/actions$/.test(pathname)
+        ? 'Acting on results'
+      : /^\/surveys\/[^/]+\/preview$/.test(pathname)
+        ? 'Survey preview'
+      : /^\/surveys\/[^/]+$/.test(pathname)
+        ? 'Survey'
+      : /^\/employee\/[^/]+\/edit$/.test(pathname)
       ? 'Edit Employee'
       : /^\/service-users\/[^/]+\/profile$/.test(pathname)
         ? 'Profile'
@@ -573,7 +613,6 @@ function AppRootShell() {
   const fullBleed =
     pathname === '/service-users/all' ||
     pathname === '/service-users/initial-assessment' ||
-    pathname === '/scheduling/view' ||
     pathname === '/scheduling/schedule-jobs' ||
     /^\/service-users\/[^/]+\/profile$/.test(pathname) ||
     /^\/service-users\/[^/]+\/view$/.test(pathname) ||
@@ -607,6 +646,7 @@ function AppRootShell() {
         <CarerHoursStopDialog />
         <SentHoursRequestsDialog />
         <UrgentOfficeAlertHost />
+        <SurveyDuePromptHost />
         <DevUiTraceChip />
         <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
           <Outlet />
@@ -693,6 +733,59 @@ const publicTakeSurveyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/survey/$token',
   component: TakeSurveyPage,
+})
+
+/** Kiosk: the shared link on a tablet, one person after another, kept while offline (no login). */
+const publicKioskSurveyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/survey/$token/kiosk',
+  component: KioskSurveyPage,
+})
+
+/** "Unsubscribe from all surveys" from a survey message (no login). */
+const publicSurveyUnsubscribeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/survey-unsubscribe/$token',
+  component: SurveyUnsubscribePage,
+})
+
+/** "You said, we did" public page (no login): only while published with the public link. */
+const publicSurveyUpdateRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/you-said-we-did/$token',
+  component: PublicUpdatePage,
+})
+
+// CQC and commissioner pack, and the "You said, we did" letter: print views without the app shell.
+const surveyPackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/surveys/$surveyId/pack',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyPackPage,
+})
+
+const surveyUpdateLetterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/surveys/$surveyId/you-said-we-did/$updateId/letter',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyUpdateLetterPage,
+})
+
+// Print views (paper copy, poster): full page without the app shell, so they print cleanly.
+const surveyPaperCopyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/surveys/$surveyId/paper-copy',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyPaperCopyPage,
+})
+
+const surveyPosterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/surveys/$surveyId/poster',
+  validateSearch: (raw: Record<string, unknown>): { link?: string } =>
+    typeof raw.link === 'string' && /^(main|[0-9a-f-]{36})$/.test(raw.link) ? { link: raw.link } : {},
+  beforeLoad: requirePermission('surveys.manage'),
+  component: SurveyPosterPage,
 })
 
 /** Portal pages format dates with plain helpers, so render them once org settings have loaded. */
@@ -809,6 +902,10 @@ const appShellRoute = createRoute({
 const indexRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/',
+  // An independent survey reviewer's account has one page.
+  beforeLoad: () => {
+    if (useAuthStore.getState().user?.role === 'independent_reviewer') throw redirect({ to: '/survey-reviews' })
+  },
   component: HomePage,
 })
 
@@ -1302,14 +1399,13 @@ const serviceUsersEditRoute = createRoute({
   component: EditServiceUserPage,
 })
 
+/** Old day view, replaced by Schedule Jobs; kept so bookmarks and `?date=` links still land on the rota. */
 const schedulingViewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/scheduling/view',
-  beforeLoad: requireScheduleAccess(),
-  loader: ({ context: { queryClient: qc } }) => {
-    prefetchSchedulingView(qc)
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: '/scheduling/schedule-jobs', search, replace: true })
   },
-  component: ViewSchedulePage,
 })
 
 const schedulingScheduleJobsRoute = createRoute({
@@ -1578,6 +1674,20 @@ const employeeReportsRoute = createRoute({
   component: () => <EmployeeRouteWrapper tab="reports" />,
 })
 
+/**
+ * An independent reviewer's account: the surveys they may record answers on (SUR-CQC-001/002). Open
+ * to the reviewer account even with no live grant (it then says there is nothing to record).
+ */
+const surveyReviewsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/survey-reviews',
+  beforeLoad: () => {
+    const { user, can } = useAuthStore.getState()
+    if (user?.role !== 'independent_reviewer' && !can('surveys.review.record')) throw redirect({ to: '/' })
+  },
+  component: SurveyReviewsPage,
+})
+
 const employeeTempInspectorRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/employee/temp-inspector',
@@ -1716,8 +1826,94 @@ const incidentsDashboardRoute = createRoute({
 const surveysRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/surveys',
+  // `?view=templates` opens the Templates tab (e.g. after adopting ready-made surveys).
+  validateSearch: (raw: Record<string, unknown>): { view?: 'templates' } =>
+    raw.view === 'templates' ? { view: 'templates' } : {},
   beforeLoad: requirePermission('surveys.read'),
   component: SurveysPage,
+})
+
+// Families, professionals and commissioners that public surveys are sent to (surveys.manage).
+const surveyOutsidePeopleRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/outside-people',
+  beforeLoad: requirePermission('surveys.manage'),
+  component: OutsidePeoplePage,
+})
+
+// Survey insight (Phase 2 part 5): role dashboards, pooled copies, the 360 report. Figures need results access.
+const surveyInsightRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/insight',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyInsightPage,
+})
+
+// Anonymised sector benchmarks (Phase 3): sharing needs surveys.manage (and company settings, in the API).
+const surveyBenchmarksRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/insight/benchmarks',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyBenchmarksPage,
+})
+
+// Surveys still to collect across every open named survey: the coordinators' working list.
+const surveysToCollectRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/to-collect',
+  beforeLoad: requirePermission('surveys.responses.record'),
+  component: SurveysToCollectPage,
+})
+
+const surveyPoolRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/insight/pool',
+  validateSearch: (raw: Record<string, unknown>): { templateId?: string; libraryReference?: string } => ({
+    ...(typeof raw.templateId === 'string' ? { templateId: raw.templateId } : {}),
+    ...(typeof raw.libraryReference === 'string' ? { libraryReference: raw.libraryReference } : {}),
+  }),
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyPoolPage,
+})
+
+// Acting on results (Phase 2 part 6): actions, team discussions, "You said, we did". Results access in the API.
+const surveyActionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/$surveyId/actions',
+  validateSearch: (raw: Record<string, unknown>): { action?: string } => (typeof raw.action === 'string' ? { action: raw.action } : {}),
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyActionsPage,
+})
+
+const survey360Route = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/insight/360',
+  beforeLoad: requirePermission('surveys.read'),
+  component: Survey360Page,
+})
+
+const surveyReadyMadeRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/ready-made',
+  beforeLoad: requirePermission('surveys.read'),
+  component: ReadyMadeSurveysPage,
+})
+
+// Survey alerts and contact-me requests. Open to every office user: the API shows survey readers
+// all of them in their branches and anyone else only those given to their roles (task links).
+const surveyFollowUpsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/follow-ups',
+  validateSearch: (
+    raw: Record<string, unknown>,
+  ): { alert?: string; view?: 'open' | 'overdue' | 'contact' | 'done' | 'all'; surveyId?: string } => ({
+    ...(typeof raw.alert === 'string' ? { alert: raw.alert } : {}),
+    ...(typeof raw.view === 'string' && ['open', 'overdue', 'contact', 'done', 'all'].includes(raw.view)
+      ? { view: raw.view as 'open' | 'overdue' | 'contact' | 'done' | 'all' }
+      : {}),
+    ...(typeof raw.surveyId === 'string' ? { surveyId: raw.surveyId } : {}),
+  }),
+  component: SurveyFollowUpsPage,
 })
 
 const surveyBuilderRoute = createRoute({
@@ -1732,6 +1928,22 @@ const surveyResponsesRoute = createRoute({
   path: '/surveys/$surveyId/responses',
   beforeLoad: requirePermission('surveys.read'),
   component: SurveyResponsesPage,
+})
+
+// Survey call list (named surveys): opened from the call list task. The API allows people who may see
+// the survey's individual responses, or who hold the role making the calls.
+const surveyCallListRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/$surveyId/calls',
+  beforeLoad: requirePermission('surveys.responses.record'),
+  component: SurveyCallListPage,
+})
+
+const surveyPreviewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/$surveyId/preview',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyPreviewPage,
 })
 
 const hoursApprovalsRoute = createRoute({
@@ -1807,6 +2019,13 @@ const incidentDetailRoute = createRoute({
   path: '/incidents/$incidentId',
   beforeLoad: requirePermission('incidents.read'),
   component: IncidentDetailPage,
+})
+
+const supervisionSessionRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/supervision/sessions/$sessionId',
+  beforeLoad: requirePermission('supervision.read'),
+  component: SupervisionSessionPage,
 })
 
 const accountRoute = createRoute({
@@ -1955,6 +2174,7 @@ const GENERAL_SETTINGS_TAB_IDS: GeneralSettingsTabId[] = [
   'dom-care-shifts',
   'dom-rules',
   'incident-management',
+  'supervision',
   'optional',
   'pre-assessment',
   'alerts',
@@ -2319,6 +2539,19 @@ const myTasksRoute = createRoute({
   component: MyTasksPage,
 })
 
+// Any office user who is also a member of staff: surveys sent to them (answered here or in the carer app).
+const mySurveysRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/my-surveys',
+  component: MySurveysPage,
+})
+
+const mySurveyAnswerRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/my-surveys/$surveyId',
+  component: MySurveyAnswerPage,
+})
+
 const roleTasksRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/role-tasks',
@@ -2579,6 +2812,20 @@ const policyTagsRoute = createRoute({
   component: PolicyTagsPage,
 })
 
+const policyReadyMadeRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/ready-made',
+  beforeLoad: requirePermission('policies.read'),
+  component: ReadyMadePoliciesPage,
+})
+
+const myPoliciesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/mine',
+  beforeLoad: requirePermission('policies.acknowledgements.me'),
+  component: MyPoliciesPage,
+})
+
 /** Unified compliance view; each area card is gated by its own read permission. */
 const COMPLIANCE_DASHBOARD_PERMISSIONS: Permission[] = [
   'employees.compliance.reports.read',
@@ -2603,6 +2850,30 @@ const policyDetailRoute = createRoute({
   path: '/policies/$policyId',
   beforeLoad: requirePermission('policies.read'),
   component: PolicyDetailPage,
+})
+
+// Printed copy of a policy: the document alone, without the app around it (signed in, policies.read).
+const policyPrintRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/policies/$policyId/print',
+  validateSearch: (raw: Record<string, unknown>): { version?: string; print?: string } => ({
+    version: typeof raw.version === 'string' && raw.version ? raw.version : undefined,
+    // ?print=0 arrives as the number 0 (search values are parsed), so compare as text.
+    print: raw.print === undefined || raw.print === null || raw.print === '' ? undefined : String(raw.print),
+  }),
+  beforeLoad: requirePermission('policies.read'),
+  component: PolicyPrintPage,
+})
+
+// Printed copy of a ready-made policy from the library (signed in, policies.read).
+const readyMadePolicyPrintRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/policies/ready-made/$libraryId/print',
+  validateSearch: (raw: Record<string, unknown>): { print?: string } => ({
+    print: raw.print === undefined || raw.print === null || raw.print === '' ? undefined : String(raw.print),
+  }),
+  beforeLoad: requirePermission('policies.read'),
+  component: ReadyMadePolicyPrintPage,
 })
 
 const policyEditRoute = createRoute({
@@ -2647,7 +2918,16 @@ const routeTree = rootRoute.addChildren([
     authBlockedRoute,
   ]),
   legalPrivacyPolicyRoute,
+  policyPrintRoute,
+  readyMadePolicyPrintRoute,
   publicTakeSurveyRoute,
+  publicKioskSurveyRoute,
+  publicSurveyUnsubscribeRoute,
+  publicSurveyUpdateRoute,
+  surveyPackRoute,
+  surveyUpdateLetterRoute,
+  surveyPaperCopyRoute,
+  surveyPosterRoute,
   portalLoginRoute,
   portalShellRoute.addChildren([
     portalIndexRoute,
@@ -2723,6 +3003,7 @@ const routeTree = rootRoute.addChildren([
     employeeAllocationsRoute,
     employeeReportsRoute,
     employeeTempInspectorRoute,
+    surveyReviewsRoute,
     employeeGeneralDocumentsRoute,
     employeeAddRoute,
     employeeEditRoute,
@@ -2736,8 +3017,19 @@ const routeTree = rootRoute.addChildren([
     accidentsIncidentsViewRoute,
     accidentsIncidentsRaiseRoute,
     surveysRoute,
+    surveyReadyMadeRoute,
+    surveyOutsidePeopleRoute,
+    surveyFollowUpsRoute,
+    surveyInsightRoute,
+    surveyPoolRoute,
+    survey360Route,
+    surveyBenchmarksRoute,
+    surveysToCollectRoute,
+    surveyActionsRoute,
     surveyBuilderRoute,
     surveyResponsesRoute,
+    surveyCallListRoute,
+    surveyPreviewRoute,
     hoursApprovalsRoute,
     hoursHistoryRoute,
     incidentsDashboardRoute,
@@ -2748,6 +3040,7 @@ const routeTree = rootRoute.addChildren([
     complaintsComplimentsRoute,
     feedbackDetailRoute,
     incidentDetailRoute,
+    supervisionSessionRoute,
     accountRoute,
     adminSecurityRoute,
     adminAuditRoute,
@@ -2795,6 +3088,8 @@ const routeTree = rootRoute.addChildren([
     officeSalariesRoute,
     setupChecklistRoute,
     myTasksRoute,
+    mySurveysRoute,
+    mySurveyAnswerRoute,
     carerReportsRoute,
     timebankRoute,
     timebankServiceUserRoute,
@@ -2831,6 +3126,8 @@ const routeTree = rootRoute.addChildren([
     policyNewRoute,
     policyCategoriesRoute,
     policyTagsRoute,
+    policyReadyMadeRoute,
+    myPoliciesRoute,
     complianceDashboardRoute,
     policyDetailRoute,
     policyEditRoute,

@@ -15,6 +15,9 @@ import { ServiceUserNfcTagsSection } from '@/features/service-users/components/S
 import { ServiceUserPersonalDetailsForm } from '@/features/service-users/components/ServiceUserPersonalDetailsForm'
 import { ServiceUserPhotosTab } from '@/features/service-users/components/ServiceUserPhotosTab'
 import { ServiceUserPortalAccessSection } from '@/features/service-users/components/ServiceUserPortalAccessSection'
+import { SurveyContactPreferencesSection } from '@/features/surveys/reminders/SurveyContactPreferencesSection'
+import { PersonSurveysSection } from '@/features/surveys/reminders/PersonSurveysSection'
+import { SurveysAboutPersonSection } from '@/features/surveys/outside/SurveysAboutPersonSection'
 import { ServiceUserIncidentsComplaintsPanel } from '@/features/service-users/components/ServiceUserIncidentsComplaintsPanel'
 import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
 import { ServiceUserReferralsTab } from '@/features/service-users/referrals/components/ServiceUserReferralsTab'
@@ -59,6 +62,9 @@ export function ServiceUserProfileSectionContent({
               onSaved={onSaved}
             />
             <ServiceUserPortalAccessSection serviceUserId={serviceUserId} defaultEmail={detail.email} />
+            <SurveyContactPreferencesSection subjectKind="SERVICE_USER" subjectId={serviceUserId} />
+            <PersonSurveysSection serviceUserId={serviceUserId} />
+            <SurveysAboutPersonSection serviceUserId={serviceUserId} />
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Loading…</p>

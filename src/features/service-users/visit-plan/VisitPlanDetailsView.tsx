@@ -199,7 +199,7 @@ function CallPatternOverviewCard({
                     ? 'bg-muted/40 text-muted-foreground'
                     : slot.daysOfWeek.includes(dayIndex)
                       ? 'bg-teal-100 text-teal-900 dark:bg-teal-950 dark:text-teal-100'
-                      : 'bg-muted/30 text-muted-foreground/60',
+                      : 'bg-muted/30 text-muted-foreground',
                 )}
                 title={day}
               >

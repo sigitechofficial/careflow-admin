@@ -114,9 +114,9 @@ export function cellToneClass(tone: CellPresentation['tone']): string {
     case 'missing':
       return 'border border-dashed border-border/80 text-foreground/80'
     case 'muted':
-      return 'text-muted-foreground/45'
+      return 'text-muted-foreground'
     case 'quiet':
     default:
-      return 'text-muted-foreground/65'
+      return 'text-muted-foreground'
   }
 }

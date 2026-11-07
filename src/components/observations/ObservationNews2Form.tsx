@@ -33,7 +33,7 @@ type Props = {
 
 function UnitSuffix({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex shrink-0 items-center rounded-r-md bg-destructive px-3 text-sm font-semibold text-white">
+    <span className="inline-flex shrink-0 items-center rounded-r-md bg-destructive px-3 text-sm font-semibold text-destructive-foreground">
       {children}
     </span>
   )
@@ -168,7 +168,7 @@ export function ObservationNews2Form({
             className="rounded-r-none"
             disabled={!canSave}
           />
-          <span className="flex items-center bg-destructive px-2 text-sm font-semibold text-white">/</span>
+          <span className="flex items-center bg-destructive px-2 text-sm font-semibold text-destructive-foreground">/</span>
           <Input
             type="number"
             placeholder="Diastolic"

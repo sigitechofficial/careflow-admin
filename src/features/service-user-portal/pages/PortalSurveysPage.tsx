@@ -14,6 +14,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
+import { SurveySectionHeading } from '@/features/surveys/components/SurveySectionHeading'
+import { withSectionHeadings } from '@/features/surveys/survey-sections'
+import { usePortalUpdates } from '@/features/surveys/actions/survey-actions'
 
 function MyAnswersDialog({ survey, onClose }: { survey: PortalSurveyItem | null; onClose: () => void }) {
   const { data, isLoading, isError } = usePortalSurveyAnswers(survey?.token ?? null)
@@ -34,21 +37,32 @@ function MyAnswersDialog({ survey, onClose }: { survey: PortalSurveyItem | null;
         </DialogHeader>
         <DialogBody className="space-y-2">
           {isLoading ? (
-            <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading your answers…
+            <div role="status" className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading your answers…
             </div>
           ) : isError || !data ? (
-            <p className="py-6 text-center text-sm text-destructive">Could not load your answers.</p>
+            <p role="alert" className="py-6 text-center text-sm text-destructive">
+              Could not load your answers.
+            </p>
           ) : data.answers.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">No answers recorded.</p>
           ) : (
-            data.answers.map((a, idx) => (
-              <div key={a.questionId} className="rounded-lg border border-border bg-card px-3 py-2.5">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Q{idx + 1}. {a.questionText}
-                </p>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{a.displayValue}</p>
-              </div>
+            withSectionHeadings(data.answers).map(({ item: a, index: idx, heading }) => (
+              <React.Fragment key={a.questionId}>
+                {heading ? <SurveySectionHeading title={heading} /> : null}
+                <div className="rounded-lg border border-border bg-card px-3 py-2.5">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Q{idx + 1}. {a.questionText}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{a.displayValue}</p>
+                  {a.comment ? (
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+                      <span className="text-xs font-medium text-muted-foreground">Your comment: </span>
+                      {a.comment}
+                    </p>
+                  ) : null}
+                </div>
+              </React.Fragment>
             ))
           )}
         </DialogBody>
@@ -59,6 +73,8 @@ function MyAnswersDialog({ survey, onClose }: { survey: PortalSurveyItem | null;
 
 function SurveyCard({ survey, onViewAnswers }: { survey: PortalSurveyItem; onViewAnswers: () => void }) {
   const completed = survey.state === 'COMPLETED'
+  // Answered without their name (or an anonymous survey): nothing is kept against them to show.
+  const canViewAnswers = completed && survey.answersAvailable !== false
   return (
     <li className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -72,17 +88,21 @@ function SurveyCard({ survey, onViewAnswers }: { survey: PortalSurveyItem; onVie
           {completed ? <CheckCircle2 className="h-5 w-5" aria-hidden /> : <ClipboardList className="h-5 w-5" aria-hidden />}
         </div>
         <div className="min-w-0">
-          <p className="font-medium text-foreground">{survey.title}</p>
+          <h2 className="font-medium text-foreground">{survey.title}</h2>
           {survey.description ? (
             <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{survey.description}</p>
           ) : null}
           <p className="mt-1 text-xs text-muted-foreground">
             {completed
-              ? `Completed ${formatPortalDate(survey.completedAt)}${
-                  survey.respondentRelation
-                    ? ` · ${describeSurveyRespondent(survey.respondentRelation)}`
-                    : ''
-                }`
+              ? survey.answeredWithoutName
+                ? 'Completed · answered without your name, so your answers are not kept against your name'
+                : !survey.completedAt
+                  ? 'Completed'
+                  : `Completed ${formatPortalDate(survey.completedAt)}${
+                      survey.respondentRelation
+                        ? ` · ${describeSurveyRespondent(survey.respondentRelation)}`
+                        : ''
+                    }`
               : survey.state === 'OPEN'
                 ? survey.closesAt
                   ? `Please answer by ${formatPortalDate(survey.closesAt)}`
@@ -94,12 +114,12 @@ function SurveyCard({ survey, onViewAnswers }: { survey: PortalSurveyItem; onVie
       {survey.state === 'OPEN' ? (
         <Button asChild>
           <Link to="/survey/$token" params={{ token: survey.token }}>
-            Answer survey
+            Answer survey<span className="sr-only">: {survey.title}</span>
           </Link>
         </Button>
-      ) : completed ? (
+      ) : canViewAnswers ? (
         <Button type="button" variant="outline" className="gap-1.5" onClick={onViewAnswers}>
-          <Eye className="h-4 w-4" aria-hidden /> View my answers
+          <Eye className="h-4 w-4" aria-hidden /> View my answers<span className="sr-only">: {survey.title}</span>
         </Button>
       ) : null}
     </li>
@@ -111,10 +131,18 @@ export default function PortalSurveysPage() {
   const [viewing, setViewing] = React.useState<PortalSurveyItem | null>(null)
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading surveys…</p>
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        Loading surveys…
+      </p>
+    )
   }
   if (isError) {
-    return <p className="text-sm text-destructive">Could not load your surveys.</p>
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        Could not load your surveys.
+      </p>
+    )
   }
 
   const surveys = data ?? []
@@ -136,14 +164,44 @@ export default function PortalSurveysPage() {
           <p className="text-sm text-muted-foreground">You have no surveys right now.</p>
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-3" aria-label="Your surveys">
           {surveys.map(s => (
             <SurveyCard key={s.token} survey={s} onViewAnswers={() => setViewing(s)} />
           ))}
         </ul>
       )}
 
+      <PortalYouSaidWeDid />
+
       <MyAnswersDialog survey={viewing} onClose={() => setViewing(null)} />
     </div>
+  )
+}
+
+/** "You said, we did": what changed because of what people told us (published by the office for this branch). */
+function PortalYouSaidWeDid() {
+  const { data } = usePortalUpdates()
+  const updates = data?.updates ?? []
+  if (!updates.length) return null
+  return (
+    <section aria-labelledby="ysw-portal-heading" className="space-y-3">
+      <h2 id="ysw-portal-heading" className="text-lg font-semibold text-foreground">
+        You said, we did
+      </h2>
+      {updates.map(u => (
+        <article key={u.id} className="rounded-xl border border-border bg-card p-4" data-testid="portal-ysw">
+          <h3 className="font-medium text-foreground">{u.title}</h3>
+          {u.intro ? <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{u.intro}</p> : null}
+          <dl className="mt-2 space-y-2 text-sm">
+            {u.items.map((i, n) => (
+              <div key={n}>
+                <dt className="font-medium">You said: {i.youSaid}</dt>
+                <dd>We did: {i.weDid}</dd>
+              </div>
+            ))}
+          </dl>
+        </article>
+      ))}
+    </section>
   )
 }

@@ -455,7 +455,7 @@ export function VisitPlanCalendarTab({
     return (
       <section className={cn('visit-plan-cal-root mar-cal-root', className)}>
         <div className="vp-cal-empty">
-          <CalendarDays className="mx-auto h-10 w-10 text-muted-foreground/50" aria-hidden />
+          <CalendarDays className="mx-auto h-10 w-10 text-muted-foreground" aria-hidden />
           <h3 className={cn('mt-3', contentTitleClass)}>Visit calendar</h3>
           <p className={cn('mx-auto mt-2 max-w-md', contentBodyClass)}>
             Enable at least one call slot on the visit plan to preview scheduled visits on the calendar.
@@ -618,7 +618,7 @@ export function VisitPlanCalendarTab({
           <div className="vp-cal-list">
             {visitList.length === 0 ? (
               <div className="vp-cal-list-empty">
-                <LayoutList className="mx-auto h-8 w-8 text-muted-foreground/50" aria-hidden />
+                <LayoutList className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden />
                 <p className="mt-2 text-sm text-muted-foreground">No visits planned in this period.</p>
               </div>
             ) : (

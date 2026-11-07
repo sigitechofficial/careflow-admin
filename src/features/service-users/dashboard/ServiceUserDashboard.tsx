@@ -1,3 +1,4 @@
+import { PersonSurveysSection } from '@/features/surveys/reminders/PersonSurveysSection'
 import * as React from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
 import {
@@ -677,6 +678,8 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
           serviceUserId={serviceUserId}
           omitFlashFromImmediate={Boolean(flashData)}
         />
+
+        <PersonSurveysSection serviceUserId={serviceUserId} />
 
         {attentionItems.length > 0 ? (
           <SimpleCard title="Needs attention">

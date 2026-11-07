@@ -79,18 +79,18 @@ export function DiffViewer({ oldContent, newContent, oldLabel = "Before", newLab
                 line.type === "removed" && "bg-destructive/8",
               )}>
                 {/* Old line number */}
-                <td className={cn("select-none w-10 border-r border-border/30 px-2 py-0.5 text-right text-muted-foreground/60", line.type === "added" && "bg-success/5")}>
+                <td className={cn("select-none w-10 border-r border-border/30 px-2 py-0.5 text-right text-muted-foreground", line.type === "added" && "bg-success/5")}>
                   {line.lineNum?.old ?? ""}
                 </td>
                 {/* New line number */}
-                <td className={cn("select-none w-10 border-r border-border px-2 py-0.5 text-right text-muted-foreground/60", line.type === "removed" && "bg-destructive/5")}>
+                <td className={cn("select-none w-10 border-r border-border px-2 py-0.5 text-right text-muted-foreground", line.type === "removed" && "bg-destructive/5")}>
                   {line.lineNum?.new ?? ""}
                 </td>
                 {/* Symbol */}
                 <td className={cn("select-none w-6 px-2 py-0.5 font-bold",
                   line.type === "added" && "text-success",
                   line.type === "removed" && "text-destructive",
-                  line.type === "unchanged" && "text-muted-foreground/40"
+                  line.type === "unchanged" && "text-muted-foreground"
                 )}>
                   {line.type === "added" ? "+" : line.type === "removed" ? "âˆ’" : " "}
                 </td>
