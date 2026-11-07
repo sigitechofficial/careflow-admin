@@ -30,6 +30,7 @@ vi.mock('@/features/auth/store', () => ({
 }))
 vi.mock('@/features/surveys/platform/SurveyPlatformPanel', () => ({ SurveyPlatformPanel: () => <div data-testid="survey-platform" /> }))
 vi.mock('@/features/surveys/translations/SurveyTranslationsPanel', () => ({ SurveyTranslationsPanel: () => <div data-testid="survey-translations" /> }))
+vi.mock('@/features/surveys/applicants/SurveyApplicantInvitesPanel', () => ({ SurveyApplicantInvitesPanel: () => <div data-testid="survey-applicant-invites" /> }))
 vi.mock('@/features/surveys/insight/SurveyScoringPanel', () => ({ SurveyScoringPanel: () => <div data-testid="survey-scoring" /> }))
 vi.mock('@/features/surveys/hooks/useSurveys', () => ({
   useSurvey: () => ({ data: state.survey, isLoading: false, isError: false }),

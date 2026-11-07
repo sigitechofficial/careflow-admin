@@ -102,6 +102,7 @@ import { SurveyEventTriggerPanel } from '@/features/surveys/event-triggers/Surve
 import { SurveyScoringPanel } from '@/features/surveys/insight/SurveyScoringPanel'
 import { SurveyPlatformPanel } from '@/features/surveys/platform/SurveyPlatformPanel'
 import { SurveyTranslationsPanel } from '@/features/surveys/translations/SurveyTranslationsPanel'
+import { SurveyApplicantInvitesPanel } from '@/features/surveys/applicants/SurveyApplicantInvitesPanel'
 import { SendOutsideDialog } from '@/features/surveys/outside/SendOutsideDialog'
 import { SurveySharePanel } from '@/features/surveys/sharing/SurveySharePanel'
 import {
@@ -1169,6 +1170,7 @@ export default function SurveyBuilderPage() {
         ) : null}
         <SurveyPlatformPanel surveyId={survey.id} questions={questions} canEdit={canEdit} isTemplate={isTemplate} />
         <SurveyTranslationsPanel surveyId={survey.id} canEdit={canEdit} />
+        {forPublic && survey.isAnonymous && canManage && !isTemplate && !isSeries ? <SurveyApplicantInvitesPanel surveyId={survey.id} /> : null}
         {!isTemplate && !survey.clonedFromId && !isSeries ? (
           <SurveyEventTriggerPanel surveyId={survey.id} canEdit={canEdit} />
         ) : null}
