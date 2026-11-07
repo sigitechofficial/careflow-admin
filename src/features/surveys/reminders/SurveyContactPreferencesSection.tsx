@@ -9,7 +9,7 @@ import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { formatSurveyDate } from '@/features/surveys/survey-datetime'
 
 /** API: careflow-api src/surveys/survey-reminders.service.ts (getOptOuts / setOptOuts). */
-export type SurveyOptOutSubject = 'EMPLOYEE' | 'SERVICE_USER'
+export type SurveyOptOutSubject = 'EMPLOYEE' | 'SERVICE_USER' | 'CANDIDATE'
 export type SurveyOptOutChannel = 'ALL' | 'EMAIL' | 'TEXT' | 'APP' | 'PORTAL' | 'PHONE'
 type Preferences = {
   channels: SurveyOptOutChannel[]
@@ -33,6 +33,8 @@ const CHANNELS: Record<SurveyOptOutSubject, Array<{ value: SurveyOptOutChannel; 
     { value: 'TEXT', label: 'Text messages' },
     { value: 'PHONE', label: 'Phone calls' },
   ],
+  // Applicants are only ever emailed (the applicant survey invitation).
+  CANDIDATE: [{ value: 'EMAIL', label: 'Email' }],
 }
 
 export const surveyContactPreferencesKey = (subjectKind: SurveyOptOutSubject, subjectId: string) =>
@@ -104,7 +106,9 @@ export function SurveyContactPreferencesSection({
         Survey contact preferences
       </h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        {subjectKind === 'EMPLOYEE'
+        {subjectKind === 'CANDIDATE'
+          ? 'Use this when they have asked not to be sent surveys, or must never be (an offer withdrawn for false information or forged documents, the police asked us not to contact them, or a referral to the Disclosure and Barring Service). The weekly applicant survey invitation follows it.'
+          : subjectKind === 'EMPLOYEE'
           ? 'Use this when they have asked not to be sent surveys, or not in some ways. Survey invitations, reminders and phone calls follow it.'
           : 'Use this when they (or the person who speaks for them) have asked not to be sent surveys, or not in some ways. Survey invitations, reminders and phone calls follow it.'}
       </p>
@@ -127,7 +131,7 @@ export function SurveyContactPreferencesSection({
             />
             <span className="font-medium">Do not contact them about surveys at all</span>
           </label>
-          {!none ? (
+          {!none && options.length > 1 ? (
             <div className="space-y-2 pl-6">
               <p className="text-xs text-muted-foreground">Or stop only these:</p>
               {options.map(o => (

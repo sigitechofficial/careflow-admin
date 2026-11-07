@@ -12,7 +12,7 @@ vi.mock('@/features/auth/store', () => ({
 
 import { SurveyContactPreferencesSection } from './SurveyContactPreferencesSection'
 
-const renderSection = (subjectKind: 'EMPLOYEE' | 'SERVICE_USER' = 'EMPLOYEE') =>
+const renderSection = (subjectKind: 'EMPLOYEE' | 'SERVICE_USER' | 'CANDIDATE' = 'EMPLOYEE') =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <SurveyContactPreferencesSection subjectKind={subjectKind} subjectId="p1" />
@@ -53,5 +53,20 @@ describe('SurveyContactPreferencesSection', () => {
     expect(screen.getByLabelText('Text messages')).toBeChecked()
     expect(screen.getByText(/They replied STOP to a survey text/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save survey contact preferences' })).toBeNull()
+  })
+
+  it('keeps a job applicant out of survey invitations altogether (they are only ever emailed)', async () => {
+    perms.add('surveys.manage')
+    apiJson.mockImplementation(async (_url: string, init: RequestInit) =>
+      init.method === 'GET' ? { data: { channels: [], reason: null, since: null } } : { data: {} },
+    )
+    renderSection('CANDIDATE')
+    fireEvent.click(await screen.findByLabelText('Do not contact them about surveys at all'))
+    expect(screen.getByText(/Disclosure and Barring Service/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Email')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Save survey contact preferences' }))
+    await waitFor(() => expect(apiJson).toHaveBeenCalledWith('/surveys-contact-preferences', expect.objectContaining({ method: 'PUT' })))
+    const put = apiJson.mock.calls.find((c) => c[1].method === 'PUT')!
+    expect(JSON.parse(put[1].body)).toEqual({ subjectKind: 'CANDIDATE', subjectId: 'p1', channels: ['ALL'], reason: null })
   })
 })
