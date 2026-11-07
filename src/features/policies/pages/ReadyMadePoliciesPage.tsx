@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { BookCopy, CheckCircle2, Loader2, RefreshCw, Search } from 'lucide-react'
+import { BookCopy, CheckCircle2, Loader2, Printer, RefreshCw, Search } from 'lucide-react'
+import { PolicyDownloadButtons } from '@/features/policies/components/PolicyDownloadButtons'
 import { useAuthStore } from '@/features/auth/store'
 import { PolicySectionLayout } from '@/features/policies/components/PolicySectionLayout'
 import { POLICY_PATHS } from '@/features/policies/policy-routes'
@@ -268,7 +269,23 @@ export default function ReadyMadePoliciesPage() {
               </>
             )}
           </DialogBody>
-          <DialogFooter>
+          <DialogFooter className="flex-wrap gap-2">
+            {shown ? (
+              <span className="mr-auto flex flex-wrap items-center gap-2" data-testid="ready-made-print-actions">
+                <Link
+                  to="/policies/ready-made/$libraryId/print"
+                  params={{ libraryId: shown.id }}
+                  target="_blank"
+                  rel="noopener"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+                  data-testid="ready-made-print-link"
+                  aria-label={`Print ${shown.title}, opens in a new tab`}
+                >
+                  <Printer className="h-4 w-4" aria-hidden /> Print
+                </Link>
+                <PolicyDownloadButtons target={{ kind: 'library', libraryId: shown.id }} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60" />
+              </span>
+            ) : null}
             <Button type="button" variant="outline" onClick={() => setPreviewId(null)}>
               Close
             </Button>

@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { Link } from '@tanstack/react-router'
+import { Printer } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import {
   Dialog,
@@ -16,6 +18,8 @@ import type { PolicyVersion } from '@/features/policies/types/policy.types'
 type Props = {
   versions: PolicyVersion[]
   onOpenVersion: (version: PolicyVersion) => void
+  /** The policy, so an opened version can be printed (any version, e.g. the published one while a draft is in progress). */
+  policyId?: string
   selected?: PolicyVersion | null
   selectedLoading?: boolean
   onCloseSelected: () => void
@@ -24,6 +28,7 @@ type Props = {
 export function PolicyVersionHistory({
   versions,
   onOpenVersion,
+  policyId,
   selected,
   selectedLoading,
   onCloseSelected,
@@ -78,6 +83,20 @@ export function PolicyVersionHistory({
             )}
           </DialogBody>
           <DialogFooter>
+            {policyId && selected ? (
+              <Button asChild variant="outline" className="gap-1.5">
+                <Link
+                  to="/policies/$policyId/print"
+                  params={{ policyId }}
+                  search={{ version: selected.id }}
+                  target="_blank"
+                  rel="noopener"
+                  data-testid="policy-version-print"
+                >
+                  <Printer className="h-4 w-4" aria-hidden /> Print {selected.versionLabel}
+                </Link>
+              </Button>
+            ) : null}
             <Button type="button" variant="outline" onClick={onCloseSelected}>
               Close
             </Button>

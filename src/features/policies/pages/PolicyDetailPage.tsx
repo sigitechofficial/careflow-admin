@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { Printer } from 'lucide-react'
 import { Skeleton } from '@/shared/ui/misc'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { RichTextHtml } from '@/shared/ui/rich-text-html'
@@ -28,6 +29,7 @@ import {
 import { usePolicyLookups } from '@/features/policies/hooks/usePolicyLookups'
 import { extractPolicyText, htmlForPolicyDisplay, isBlankPolicyHtml } from '@/features/policies/policy-content'
 import { PolicySourceDocument } from '@/features/policies/components/PolicySourceDocument'
+import { PolicyDownloadButtons } from '@/features/policies/components/PolicyDownloadButtons'
 import { policyErrorCopy } from '@/features/policies/policy-error'
 import {
   formatPolicyDate,
@@ -152,6 +154,28 @@ export default function PolicyDetailPage() {
               <span className="text-sm text-muted-foreground">
                 Current version {document.currentVersion?.versionLabel ?? '—'}
               </span>
+              {contentVersion ? (
+                <span className="ml-auto flex flex-wrap items-center gap-2" data-testid="policy-print-actions">
+                {contentVersion.hasDocument || contentVersion.contentKind === 'UPLOAD' ? null : (
+                  <PolicyDownloadButtons
+                    target={{ kind: 'policy', policyId: document.id, versionId: contentVersion.id }}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                )}
+                <Link
+                  to="/policies/$policyId/print"
+                  params={{ policyId: document.id }}
+                  search={{ version: contentVersion.id }}
+                  target="_blank"
+                  rel="noopener"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+                  data-testid="policy-print-link"
+                  aria-label={`Print ${document.title} (${contentVersion.versionLabel}), opens in a new tab`}
+                >
+                  <Printer className="h-4 w-4" aria-hidden /> Print
+                </Link>
+                </span>
+              ) : null}
             </div>
             <PolicyWorkflowStepper status={working?.status ?? document.status} />
             {working && working.id !== document.currentVersionId ? (
@@ -387,6 +411,7 @@ export default function PolicyDetailPage() {
         <Section title="Version history" description="Previous versions are always read-only.">
           <PolicyVersionHistory
             versions={versions}
+            policyId={document.id}
             onOpenVersion={(version: PolicyVersion) => setSelectedVersionId(version.id)}
             selected={selectedQuery.data ?? null}
             selectedLoading={selectedQuery.isFetching && Boolean(selectedVersionId)}

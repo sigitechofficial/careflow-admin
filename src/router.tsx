@@ -219,6 +219,8 @@ import LearningSettingsPage from '@/features/learning/pages/LearningSettingsPage
 import PoliciesLibraryPage from '@/features/policies/pages/PoliciesLibraryPage'
 import PolicyNewPage from '@/features/policies/pages/PolicyNewPage'
 import PolicyDetailPage from '@/features/policies/pages/PolicyDetailPage'
+import PolicyPrintPage from '@/features/policies/pages/PolicyPrintPage'
+import ReadyMadePolicyPrintPage from '@/features/policies/pages/ReadyMadePolicyPrintPage'
 import PolicyEditPage from '@/features/policies/pages/PolicyEditPage'
 import PolicyCategoriesPage from '@/features/policies/pages/PolicyCategoriesPage'
 import PolicyTagsPage from '@/features/policies/pages/PolicyTagsPage'
@@ -2850,6 +2852,30 @@ const policyDetailRoute = createRoute({
   component: PolicyDetailPage,
 })
 
+// Printed copy of a policy: the document alone, without the app around it (signed in, policies.read).
+const policyPrintRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/policies/$policyId/print',
+  validateSearch: (raw: Record<string, unknown>): { version?: string; print?: string } => ({
+    version: typeof raw.version === 'string' && raw.version ? raw.version : undefined,
+    // ?print=0 arrives as the number 0 (search values are parsed), so compare as text.
+    print: raw.print === undefined || raw.print === null || raw.print === '' ? undefined : String(raw.print),
+  }),
+  beforeLoad: requirePermission('policies.read'),
+  component: PolicyPrintPage,
+})
+
+// Printed copy of a ready-made policy from the library (signed in, policies.read).
+const readyMadePolicyPrintRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/policies/ready-made/$libraryId/print',
+  validateSearch: (raw: Record<string, unknown>): { print?: string } => ({
+    print: raw.print === undefined || raw.print === null || raw.print === '' ? undefined : String(raw.print),
+  }),
+  beforeLoad: requirePermission('policies.read'),
+  component: ReadyMadePolicyPrintPage,
+})
+
 const policyEditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/policies/$policyId/edit',
@@ -2892,6 +2918,8 @@ const routeTree = rootRoute.addChildren([
     authBlockedRoute,
   ]),
   legalPrivacyPolicyRoute,
+  policyPrintRoute,
+  readyMadePolicyPrintRoute,
   publicTakeSurveyRoute,
   publicKioskSurveyRoute,
   publicSurveyUnsubscribeRoute,
