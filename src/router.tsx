@@ -131,6 +131,7 @@ import SurveyResponsesPage from '@/features/surveys/pages/SurveyResponsesPage'
 import SurveyCallListPage from '@/features/surveys/reminders/SurveyCallListPage'
 import SurveyPreviewPage from '@/features/surveys/pages/SurveyPreviewPage'
 import TakeSurveyPage from '@/features/surveys/pages/TakeSurveyPage'
+import KioskSurveyPage from '@/features/surveys/kiosk/KioskSurveyPage'
 import SurveyUnsubscribePage from '@/features/surveys/pages/SurveyUnsubscribePage'
 import SurveyPaperCopyPage from '@/features/surveys/sharing/SurveyPaperCopyPage'
 import SurveyPosterPage from '@/features/surveys/sharing/SurveyPosterPage'
@@ -724,6 +725,13 @@ const publicTakeSurveyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/survey/$token',
   component: TakeSurveyPage,
+})
+
+/** Kiosk: the shared link on a tablet, one person after another, kept while offline (no login). */
+const publicKioskSurveyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/survey/$token/kiosk',
+  component: KioskSurveyPage,
 })
 
 /** "Unsubscribe from all surveys" from a survey message (no login). */
@@ -2863,6 +2871,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   legalPrivacyPolicyRoute,
   publicTakeSurveyRoute,
+  publicKioskSurveyRoute,
   publicSurveyUnsubscribeRoute,
   publicSurveyUpdateRoute,
   surveyPackRoute,

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { Code2, Copy, Download, ExternalLink, Link2, Mail, MessageCircle, Printer, QrCode, RefreshCw, Smartphone } from 'lucide-react'
+import { Code2, Copy, Download, ExternalLink, Link2, Mail, MessageCircle, Printer, QrCode, RefreshCw, Smartphone, Tablet } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import {
   AlertDialog,
@@ -42,6 +42,11 @@ const SHARED_LINK_TRADE_OFFS = [
   'Turning the link off stops it at once. Turning it on again gives a new link.',
 ]
 
+/** The shared link as a kiosk on a tablet (KioskSurveyPage). */
+export function kioskUrl(url: string): string {
+  return `${url.replace(/\/+$/, '')}/kiosk`
+}
+
 async function copyText(text: string, done: string) {
   try {
     await navigator.clipboard.writeText(text)
@@ -75,7 +80,7 @@ function CopyBlock({ id, label, value, rows = 4, actions }: { id: string; label:
   )
 }
 
-type Section = 'messages' | 'qr' | 'website'
+type Section = 'messages' | 'qr' | 'website' | 'kiosk'
 
 /**
  * Share a survey: its shared link (always on public surveys; staff and service-user surveys turn it
@@ -239,6 +244,7 @@ export function SurveySharePanel({
             {sectionButton('messages', <MessageCircle className="h-3.5 w-3.5" aria-hidden />, 'Messages to send')}
             {sectionButton('qr', <QrCode className="h-3.5 w-3.5" aria-hidden />, 'QR code and poster')}
             {sectionButton('website', <Code2 className="h-3.5 w-3.5" aria-hidden />, 'Website button')}
+            {sectionButton('kiosk', <Tablet className="h-3.5 w-3.5" aria-hidden />, 'Tablet (kiosk)')}
           </div>
 
           {section === 'messages' && messages ? (
@@ -306,6 +312,39 @@ export function SurveySharePanel({
                       <Printer className="h-3.5 w-3.5" aria-hidden /> Printable poster
                     </Link>
                   </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {section === 'kiosk' && url ? (
+            <div id={`${headingId}-kiosk`} className="space-y-3" data-testid="share-kiosk">
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>
+                  For a tablet in the office, a day centre or at an event: one person answers after another. After each
+                  answer it says thank you and starts again for the next person. Answers left half-done are cleared after a
+                  few minutes, so the next person never sees them.
+                </p>
+                <p>
+                  It works without the internet for a while: answers are kept on the tablet and sent when it reconnects.
+                  Connect it at least once a day (answers kept for more than 24 hours cannot be sent). Nobody signs in on
+                  the tablet, so CareFlow itself cannot be reached from it.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-start gap-4">
+                <SurveyQrCode url={kioskUrl(url)} label={`QR code to open ${survey.title} on a tablet`} className="w-28 rounded-md border border-border p-1" />
+                <div className="space-y-2 text-xs text-muted-foreground">
+                  <p>Scan this with the tablet’s camera, or open the link on the tablet and add it to its home screen.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => void copyText(kioskUrl(url), 'Tablet link copied')}>
+                      <Copy className="h-3.5 w-3.5" aria-hidden /> Copy tablet link
+                    </Button>
+                    <Button asChild size="sm" variant="outline" className="gap-1">
+                      <a href={kioskUrl(url)} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Open on this device
+                      </a>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -14,7 +14,7 @@ import type { SurveyLanguageOption } from '@/features/surveys/types'
 export type DisplayOptions = { size: 1 | 1.25 | 1.5 | 2; contrast: boolean; readableFont: boolean; spacing: boolean }
 
 const DEFAULT_DISPLAY: DisplayOptions = { size: 1, contrast: false, readableFont: false, spacing: false }
-const DISPLAY_KEY = 'careflow-survey-display'
+export const DISPLAY_KEY = 'careflow-survey-display'
 const SIZES: DisplayOptions['size'][] = [1, 1.25, 1.5, 2]
 
 function readDisplay(): DisplayOptions {

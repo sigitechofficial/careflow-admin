@@ -57,7 +57,7 @@ export function languageOf(form: PublicSurveyForm, code: string | null): SurveyL
   return (code && form.languages?.find(l => l.code === code)) || null
 }
 
-const STORAGE_KEY = 'careflow-survey-language'
+export const STORAGE_KEY = 'careflow-survey-language'
 
 /**
  * The language to start in: the one this person chose before (kept on this device only), else their
