@@ -17,7 +17,10 @@ describe('QA demo pain assessment (generic Service User)', () => {
       const expected = computeAbbeyTotal(pain.abbey)
       expect(pain.abbey?.total).toBe(expected)
       expect(pain.abbey?.severityBand).toBe(abbeySeverityFromTotal(expected))
-      expect(pain.nrsScore).not.toBe(Math.round(expected / 2))
+      // With pain, the NRS is scored on its own, never derived from the Abbey total. With no pain at all
+      // (Stable: Abbey 0) both are 0, which is correct, so the check does not apply.
+      if (expected > 0) expect(pain.nrsScore).not.toBe(Math.round(expected / 2))
+      else expect(pain.nrsScore ?? 0).toBe(0)
     },
   )
 
