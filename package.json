@@ -11,6 +11,7 @@
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
     "test:e2e:ia-fill": "playwright test tests/e2e/service-users/fill-initial-assessment.spec.ts --project=chromium",
+    "test:e2e:survey-journey": "playwright test tests/e2e/surveys/survey-journey.spec.ts --project=api --workers=1 --reporter=list",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 100",

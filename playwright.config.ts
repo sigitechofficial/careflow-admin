@@ -31,6 +31,11 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts/,
     },
     {
+      /** API-only journeys (no browser, no sign-in page): e.g. the survey journey. */
+      name: 'api',
+      testMatch: /survey-journey\.spec\.ts/,
+    },
+    {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],

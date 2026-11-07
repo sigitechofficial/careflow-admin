@@ -69,3 +69,6 @@ $RECYCLE.BIN/
 # ─── Deploy ───────────────────────────────────────────────────
 .vercel/
 .netlify/
+
+# Survey journey test: state and report (tests/e2e/surveys/survey-journey.spec.ts)
+.survey-journey/
