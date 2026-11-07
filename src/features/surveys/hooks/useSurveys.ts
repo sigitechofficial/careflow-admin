@@ -323,6 +323,7 @@ function invalidateSurveyResponses(qc: ReturnType<typeof useQueryClient>, survey
   void qc.invalidateQueries({ queryKey: surveyKeys.detail(surveyId) })
   void qc.invalidateQueries({ queryKey: [...surveyKeys.all(), 'record-candidates', surveyId] })
   void qc.invalidateQueries({ queryKey: ['surveys', 'to-collect'] })
+  void qc.invalidateQueries({ queryKey: ['surveys', 'person-history'] })
   void qc.invalidateQueries({ queryKey: ['surveys', 'calls', surveyId] })
 }
 

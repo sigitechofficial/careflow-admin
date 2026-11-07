@@ -16,7 +16,7 @@ import { ServiceUserPersonalDetailsForm } from '@/features/service-users/compone
 import { ServiceUserPhotosTab } from '@/features/service-users/components/ServiceUserPhotosTab'
 import { ServiceUserPortalAccessSection } from '@/features/service-users/components/ServiceUserPortalAccessSection'
 import { SurveyContactPreferencesSection } from '@/features/surveys/reminders/SurveyContactPreferencesSection'
-import { SurveysDueForPersonSection } from '@/features/surveys/reminders/SurveysDueForPersonSection'
+import { PersonSurveysSection } from '@/features/surveys/reminders/PersonSurveysSection'
 import { SurveysAboutPersonSection } from '@/features/surveys/outside/SurveysAboutPersonSection'
 import { ServiceUserIncidentsComplaintsPanel } from '@/features/service-users/components/ServiceUserIncidentsComplaintsPanel'
 import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
@@ -63,7 +63,7 @@ export function ServiceUserProfileSectionContent({
             />
             <ServiceUserPortalAccessSection serviceUserId={serviceUserId} defaultEmail={detail.email} />
             <SurveyContactPreferencesSection subjectKind="SERVICE_USER" subjectId={serviceUserId} />
-            <SurveysDueForPersonSection serviceUserId={serviceUserId} />
+            <PersonSurveysSection serviceUserId={serviceUserId} />
             <SurveysAboutPersonSection serviceUserId={serviceUserId} />
           </div>
         ) : (

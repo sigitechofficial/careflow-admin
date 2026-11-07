@@ -33,7 +33,6 @@ vi.mock('@/features/surveys/components/RecordSurveyResponseDialog', () => ({
 
 import { SurveysToCollectList, countToCollect } from './SurveysToCollectList'
 import { filterToCollect } from './SurveysToCollectPage'
-import { SurveysDueForPersonSection } from './SurveysDueForPersonSection'
 import { SurveyDuePromptHost, askForDueSurveys, useSurveyDuePromptStore } from './SurveyDuePrompt'
 
 const person = (over: Partial<SurveyCallPerson> = {}): SurveyCallPerson => ({
@@ -95,19 +94,6 @@ describe('Surveys to collect', () => {
     expect(filterToCollect(items, 'ALL', 'sam').flatMap(i => i.people.map(p => p.name))).toEqual(['Sam Lee'])
     expect(filterToCollect(items, 'EMPLOYEE', '').map(i => i.survey.id)).toEqual(['s2'])
     expect(filterToCollect(items, 'SERVICE_USER', 'zara')).toEqual([])
-  })
-
-  it('a person’s record shows Surveys due only to staff who can record answers', async () => {
-    apiJson.mockResolvedValue({ data: [items[0]] })
-    const { unmount } = wrap(<SurveysDueForPersonSection serviceUserId="su1" />)
-    expect(screen.queryByTestId('surveys-due-person')).toBeNull()
-    expect(apiJson).not.toHaveBeenCalled()
-    unmount()
-
-    perms.add('surveys.responses.record')
-    wrap(<SurveysDueForPersonSection serviceUserId="su1" />)
-    expect(await screen.findByTestId('surveys-due-person')).toBeInTheDocument()
-    expect(apiJson).toHaveBeenCalledWith('/surveys-to-collect?serviceUserId=su1', { method: 'GET' })
   })
 })
 

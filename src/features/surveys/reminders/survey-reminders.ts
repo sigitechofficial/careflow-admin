@@ -209,3 +209,47 @@ export function useSurveysToCollect(filter: { serviceUserId?: string; employeeId
     },
   })
 }
+
+/** One person's surveys on their record (GET /surveys-person-history). */
+export type PersonSurveyHistory = {
+  comingUp: Array<{ id: string; surveyId: string; title: string; event: string; eventLabel: string; eventOn: string; dueOn: string; status: string }>
+  notAnswered: Array<{
+    recipientId: string
+    surveyId: string
+    title: string
+    sentAt: string | null
+    closesAt: string | null
+    surveyStatus: string
+    recipientStatus: string
+    open: boolean
+    reminders: number
+    lastReminderAt: string | null
+    person: SurveyCallPerson | null
+    canRecord: boolean
+  }>
+  answered: Array<{
+    recipientId: string
+    surveyId: string
+    title: string
+    sentAt: string | null
+    answeredAt: string | null
+    channel: string | null
+    respondentRelation: string | null
+    respondentName: string | null
+    recordedBy: string | null
+    canViewAnswers: boolean
+  }>
+  anonymous: Array<{ recipientId: string; surveyId: string; title: string; sentAt: string }>
+}
+
+export function usePersonSurveyHistory(filter: { serviceUserId?: string; employeeId?: string }, enabled = true) {
+  return useQuery({
+    queryKey: ['surveys', 'person-history', filter.serviceUserId ?? '', filter.employeeId ?? ''],
+    enabled,
+    retry: false,
+    queryFn: async () => {
+      const qs = filter.serviceUserId ? `serviceUserId=${filter.serviceUserId}` : `employeeId=${filter.employeeId}`
+      return (await apiJson<ApiEnvelope<PersonSurveyHistory>>(`/surveys-person-history?${qs}`, { method: 'GET' })).data as PersonSurveyHistory
+    },
+  })
+}
