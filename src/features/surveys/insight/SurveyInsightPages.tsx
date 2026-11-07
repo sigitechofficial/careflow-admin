@@ -191,6 +191,11 @@ export default function SurveyInsightPage() {
                   360 report: people, families, staff and professionals by CQC key question
                 </Link>
               </li>
+              <li>
+                <Link to="/surveys/insight/benchmarks" className="text-primary underline-offset-2 hover:underline">
+                  Compared with other agencies (anonymised benchmarks)
+                </Link>
+              </li>
               {(pools.data ?? []).map(p => (
                 <li key={p.templateId ?? p.libraryReference}>
                   <Link

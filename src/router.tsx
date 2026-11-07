@@ -140,6 +140,7 @@ import OutsidePeoplePage from '@/features/surveys/outside/OutsidePeoplePage'
 import SurveyFollowUpsPage from '@/features/surveys/pages/SurveyFollowUpsPage'
 import SurveyInsightPage, { Survey360Page, SurveyPoolPage } from '@/features/surveys/insight/SurveyInsightPages'
 import SurveyActionsPage from '@/features/surveys/actions/SurveyActionsPage'
+import SurveyBenchmarksPage from '@/features/surveys/insight/SurveyBenchmarksPage'
 import { PublicUpdatePage, SurveyPackPage, SurveyUpdateLetterPage } from '@/features/surveys/actions/SurveyPrintPages'
 import PathwayCasesListPage from '@/features/specialist-pathways/pages/PathwayCasesListPage'
 import PathwayCaseDetailPage from '@/features/specialist-pathways/pages/PathwayCaseDetailPage'
@@ -318,6 +319,7 @@ const pageTitles: Record<string, string> = {
   '/surveys/insight': 'Survey insight',
   '/surveys/insight/pool': 'All copies together',
   '/surveys/insight/360': '360 report',
+  '/surveys/insight/benchmarks': 'Compared with other agencies',
   '/service-users': 'Service Users',
   '/service-users/all': 'Service Users',
   '/service-users/hours': 'Service User hours',
@@ -1841,6 +1843,14 @@ const surveyInsightRoute = createRoute({
   component: SurveyInsightPage,
 })
 
+// Anonymised sector benchmarks (Phase 3): sharing needs surveys.manage (and company settings, in the API).
+const surveyBenchmarksRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/insight/benchmarks',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyBenchmarksPage,
+})
+
 const surveyPoolRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/surveys/insight/pool',
@@ -2973,6 +2983,7 @@ const routeTree = rootRoute.addChildren([
     surveyInsightRoute,
     surveyPoolRoute,
     survey360Route,
+    surveyBenchmarksRoute,
     surveyActionsRoute,
     surveyBuilderRoute,
     surveyResponsesRoute,
