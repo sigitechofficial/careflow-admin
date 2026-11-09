@@ -20,7 +20,7 @@ vi.mock('./SurveysToCollectList', () => ({
   ),
 }))
 
-import { PersonSurveysSection, answeredByWords } from './PersonSurveysSection'
+import { PersonSurveysSection, SurveyContactSettingsLink, answeredByWords } from './PersonSurveysSection'
 
 const person = { recipientId: 'r1', employeeId: 'e1', serviceUserId: null, name: 'Ezra Testcarer', phones: [], died: false, sentAt: null, reminders: 0, lastReminderAt: null, due: false, optedOut: false, open: true, calls: [] }
 
@@ -102,5 +102,31 @@ describe('Surveys on a person’s record', () => {
     expect(answeredByWords('SELF', null, true)).toBe('Themselves')
     expect(answeredByWords('FAMILY_MEMBER', 'Ann Jones', false)).toBe('Family member (Ann Jones)')
     expect(answeredByWords('REPRESENTATIVE', null, false)).toBe('A representative')
+  })
+
+  it('the overview shows only the counts, with a link to open the person’s Surveys', async () => {
+    perms.add('surveys.read')
+    apiJson.mockResolvedValue({ data: history() })
+    wrap(<PersonSurveysSection employeeId="e1" summary allSurveysLink={<a>Open surveys</a>} />)
+    const box = await screen.findByTestId('person-surveys-summary')
+    // 1 coming up, 1 open to answer (the closed survey is history), 2 answered.
+    expect(box).toHaveTextContent('1 coming up · 1 waiting for answers · 2 answered')
+    expect(within(box).getByText('Open surveys')).toBeInTheDocument()
+    expect(screen.queryByTestId('to-collect-list')).toBeNull()
+    expect(screen.queryByTestId('person-surveys-answered')).toBeNull()
+  })
+
+  it('the overview says so when there are none', async () => {
+    perms.add('surveys.read')
+    apiJson.mockResolvedValue({ data: history({ comingUp: [], notAnswered: [], answered: [], anonymous: [] }) })
+    wrap(<PersonSurveysSection employeeId="e1" summary />)
+    expect(await screen.findByTestId('person-surveys-summary')).toHaveTextContent('No surveys sent yet, and none coming up.')
+  })
+
+  it('the note on a person’s Surveys opens Personal Details to change their survey contact preferences', async () => {
+    const open = vi.fn()
+    render(<SurveyContactSettingsLink forStaff openPersonalDetails={open} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Personal Details → Survey contact preferences' }))
+    expect(open).toHaveBeenCalled()
   })
 })

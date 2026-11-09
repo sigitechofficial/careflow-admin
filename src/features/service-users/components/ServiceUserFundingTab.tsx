@@ -6,7 +6,6 @@ import type {
   EnterpriseFunderRow,
   EnterpriseServiceUserFundingRow,
 } from '@/features/service-users/types'
-import { updateEnterpriseFunder } from '@/features/service-users/api/service-users.api'
 import {
   DEFAULT_PAYMENT_TERMS,
   PAYMENT_TERMS_OPTIONS,
@@ -28,6 +27,9 @@ import { useChargeCards } from '@/features/billing/hooks/useChargeCards'
 import type { ChargeCard } from '@/features/billing/types/billing-cards.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
+import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
+import { FunderFormDialog } from '@/features/settings/components/FunderFormDialog'
+import { ChargeCardPicker } from '@/features/billing/components/ChargeCardPicker'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Switch, Checkbox } from '@/shared/ui/toggle-controls'
@@ -104,14 +106,14 @@ const FUNDING_FIELD_TOOLTIPS = {
   status: 'Lifecycle of this funding line — e.g. pending approval, active, suspended, or ended.',
   startDate: 'Date this funding arrangement becomes effective.',
   endDate: 'Date funding ends. Leave blank if the contract is open-ended.',
-  fundingReference: 'External reference from the funder or council (package ID, client number).',
-  approvalReference: 'Approval or assessment reference from the commissioning body.',
+  fundingReference: "The funder's own number for this package (package ID, client number). Printed on the invoice as \"Your ref\".",
+  approvalReference: "The approval panel's reference from the council or NHS. Shown on the funding line for your records.",
   packageName: 'Care package or contract name shown on invoices and reports.',
   weeklyBudget: 'Maximum weekly amount authorised by the funder for this package (informational). Visit charges come from the charge card.',
   splitPercent:
     'Share of invoice lines allocated to this funder when multiple funders apply. Combined splits must total 100% for Mixed Funding.',
   splitPriority: 'Billing order when multiple funders apply — 1 is invoiced first; highest number receives the remainder.',
-  purchaseOrderNumber: 'Purchase order number that must appear on invoices for this funder.',
+  purchaseOrderNumber: "The funder's purchase order. Printed on the invoice; visit checks warn when it is missing or expired.",
   purchaseOrderExpiresAt: 'Date after which the purchase order is no longer valid for billing.',
   authorisedWeeklyHours: 'Maximum care hours per week authorised under this contract.',
   defaultChargeCardId:
@@ -138,6 +140,10 @@ type FundingPayerMode = 'SINGLE' | 'MIXED'
 
 type MixedFunderShare = {
   funderId: string
+  /** Invoices go to the funder's billing details (Settings → Funders). False = this line has its own. */
+  useFunderBilling?: boolean
+  /** How this share is funded (a funding route under the funder's type). */
+  fundingRouteId?: string
   splitPercent: string
   paymentTerms: string
   billingContactName: string
@@ -217,6 +223,55 @@ function funderHasAddress(funder: EnterpriseFunderRow | undefined): boolean {
   )
 }
 
+/** True when a funding line has billing details of its own (not the funder's). */
+function rowHasOwnBilling(row: EnterpriseServiceUserFundingRow): boolean {
+  return [
+    row.billingContactName,
+    row.billingContactEmail,
+    row.billingContactPhone,
+    row.billingAddressLine1,
+    row.billingAddressLine2,
+    row.billingTown,
+    row.billingCounty,
+    row.billingCountry,
+    row.billingPostcode,
+  ].some((v) => Boolean(v?.trim()))
+}
+
+/** The funder's billing details, read-only, with where to change them. */
+function FunderBillingSummary({ funder }: { funder: EnterpriseFunderRow | undefined }) {
+  if (!funder) return null
+  const address = [funder.addressLine1, funder.addressLine2, funder.town, funder.county, funder.postcode]
+    .map((v) => v?.trim())
+    .filter(Boolean)
+    .join(', ')
+  const contact = [funder.contactName, funder.email, funder.phone].map((v) => v?.trim()).filter(Boolean).join(' · ')
+  if (!address && !contact) {
+    return (
+      <p className="text-xs font-medium text-amber-700 dark:text-amber-400" data-testid="funder-billing-missing">
+        {funder.name} has no billing contact or address yet. Add them in Settings → Funders.
+      </p>
+    )
+  }
+  return (
+    <div className="space-y-0.5 text-xs text-muted-foreground" data-testid="funder-billing-summary">
+      {contact ? <p>{contact}</p> : null}
+      {address ? <p>{address}</p> : null}
+      <p>Change these in Settings → Funders.</p>
+    </div>
+  )
+}
+
+/** Payment terms are the funder's (Settings → Funders); shown here for reference. */
+function FunderPaymentTerms({ funder }: { funder: EnterpriseFunderRow | undefined }) {
+  if (!funder) return null
+  return (
+    <p className="text-xs text-muted-foreground" data-testid="funder-payment-terms">
+      Payment terms: {funder.paymentTerms?.trim() || DEFAULT_PAYMENT_TERMS} (set on the funder in Settings → Funders)
+    </p>
+  )
+}
+
 function chargeCardOptionLabel(card: ChargeCard): string {
   return `${card.name} (${card.code})`
 }
@@ -266,6 +321,12 @@ type FundingForm = {
   mixedShares: MixedFunderShare[]
   fundingTypeId: string
   funderId: string
+  /** How this line is funded, e.g. "LA — spot purchase". Only routes under the funder's type are offered. */
+  fundingRouteId: string
+  /** Invoices go to the funder's billing details (Settings → Funders). False = this line has its own. */
+  useFunderBilling: boolean
+  /** Where this line's rates come from (screen choice; only EXISTING / OWN keep a charge card on the line). */
+  ratesMode: FundingRatesMode
   /** Payment terms for the selected funder (saved on Funder). */
   paymentTerms: string
   status: EnterpriseFundingStatus
@@ -303,6 +364,9 @@ function emptyForm(): FundingForm {
     mixedShares: [],
     fundingTypeId: '',
     funderId: '',
+    fundingRouteId: '',
+    useFunderBilling: true,
+    ratesMode: 'FUNDER',
     paymentTerms: DEFAULT_PAYMENT_TERMS,
     status: 'UNKNOWN',
     fundingReference: '',
@@ -340,6 +404,9 @@ function rowToForm(row: EnterpriseServiceUserFundingRow): FundingForm {
     mixedShares: [],
     fundingTypeId: row.fundingTypeId,
     funderId: row.funderId ?? '',
+    fundingRouteId: row.fundingRouteId ?? '',
+    useFunderBilling: !rowHasOwnBilling(row),
+    ratesMode: row.defaultChargeCardId ? 'EXISTING' : row.funder?.defaultChargeCardId ? 'FUNDER' : 'LATER',
     paymentTerms: row.funder?.paymentTerms?.trim() || DEFAULT_PAYMENT_TERMS,
     status: row.status,
     fundingReference: row.fundingReference ?? '',
@@ -395,6 +462,8 @@ function rowToEditForm(
       splitPercent: '',
       mixedShares: splitRows.map((r) => ({
         funderId: r.funderId!,
+        fundingRouteId: r.fundingRouteId ?? '',
+        useFunderBilling: !rowHasOwnBilling(r),
         splitPercent: r.splitPercent != null ? String(Number(r.splitPercent)) : '',
         paymentTerms: r.funder?.paymentTerms?.trim() || DEFAULT_PAYMENT_TERMS,
         ...billingFieldsFromFundingRow(r),
@@ -406,9 +475,13 @@ function rowToEditForm(
 }
 
 function formToBody(f: FundingForm): CreateEnterpriseServiceUserFundingBody {
+  // Using the funder's billing details: the line keeps none of its own, so invoices follow Settings → Funders.
+  const own = !f.useFunderBilling
+  const b = (v: string) => (own ? v || null : null)
   return {
     fundingTypeId: f.fundingTypeId,
     funderId: f.funderId || null,
+    fundingRouteId: f.fundingRouteId || null,
     status: f.status,
     fundingReference: f.fundingReference || null,
     approvalReference: f.approvalReference || null,
@@ -421,17 +494,17 @@ function formToBody(f: FundingForm): CreateEnterpriseServiceUserFundingBody {
     purchaseOrderNumber: f.purchaseOrderNumber || null,
     purchaseOrderExpiresAt: f.purchaseOrderExpiresAt || null,
     authorisedWeeklyHours: f.authorisedWeeklyHours === '' ? null : Number(f.authorisedWeeklyHours),
-    billingContactName: f.billingContactName || null,
-    billingContactEmail: f.billingContactEmail || null,
-    billingContactPhone: f.billingContactPhone || null,
-    billingAddressLine1: f.billingAddressLine1 || null,
-    billingAddressLine2: f.billingAddressLine2 || null,
-    billingTown: f.billingTown || null,
-    billingCounty: f.billingCounty || null,
-    billingCountry: f.billingCountry || null,
-    billingPostcode: f.billingPostcode || null,
-    invoiceGroupingRule: f.invoiceGroupingRule || null,
-    defaultChargeCardId: f.defaultChargeCardId || null,
+    billingContactName: b(f.billingContactName),
+    billingContactEmail: b(f.billingContactEmail),
+    billingContactPhone: b(f.billingContactPhone),
+    billingAddressLine1: b(f.billingAddressLine1),
+    billingAddressLine2: b(f.billingAddressLine2),
+    billingTown: b(f.billingTown),
+    billingCounty: b(f.billingCounty),
+    billingCountry: b(f.billingCountry),
+    billingPostcode: b(f.billingPostcode),
+    defaultChargeCardId:
+      f.ratesMode === 'EXISTING' || f.ratesMode === 'OWN' ? f.defaultChargeCardId || null : null,
     isPrimary: f.isPrimary,
     reviewDate: f.reviewDate || null,
     notes: f.notes || null,
@@ -459,6 +532,8 @@ function mixedShareToBody(
       ...f,
       payerMode: 'MIXED',
       funderId: share.funderId,
+      fundingRouteId: share.fundingRouteId ?? '',
+      useFunderBilling: share.useFunderBilling !== false,
       fundingTypeId,
       splitPercent: share.splitPercent,
       splitPriority: String(splitPriority),
@@ -532,6 +607,63 @@ function setMixedSharePaymentTerms(
   })
 }
 
+/** Where a funding line's rates come from. */
+type FundingRatesMode = 'FUNDER' | 'EXISTING' | 'OWN' | 'LATER'
+
+/** Dropdown value that opens "Add funder" instead of choosing a funder. */
+const ADD_FUNDER_OPTION = '__add_funder__'
+
+type FundingRouteOption = { id: string; name: string; billingFundingTypeId?: string | null }
+
+/** Whether a funding route can go with a funder of this billing type (routes with no type set fit any). */
+function routeFits(routes: FundingRouteOption[], routeId: string, billingTypeId: string | null | undefined): boolean {
+  if (!routeId) return true
+  const r = routes.find((x) => x.id === routeId)
+  return !r?.billingFundingTypeId || !billingTypeId || r.billingFundingTypeId === billingTypeId
+}
+
+/** Funding route picker, offering only the routes under the funder's billing type. */
+function FundingRouteSelect({
+  routes,
+  billingTypeId,
+  value,
+  onChange,
+  label,
+}: {
+  routes: FundingRouteOption[]
+  billingTypeId: string
+  value: string
+  onChange: (v: string) => void
+  label: string
+}) {
+  if (!billingTypeId) return null
+  const options = routes
+    .filter((r) => r.billingFundingTypeId === billingTypeId || r.id === value)
+    .sort((a, b) => a.name.localeCompare(b.name))
+  return (
+    <div className="mt-2 space-y-1">
+      <label className="text-xs font-medium text-muted-foreground">Funding route</label>
+      <select
+        aria-label={label}
+        data-testid="funding-route-select"
+        className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">— Choose how this is funded —</option>
+        {options.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.name}
+          </option>
+        ))}
+      </select>
+      <p className="text-xs text-muted-foreground">
+        How this funder pays, e.g. spot purchase or framework. Routes are set up in Settings → Funding routes.
+      </p>
+    </div>
+  )
+}
+
 export function ServiceUserFundingTab({
   serviceUserId,
   displayName,
@@ -580,10 +712,15 @@ export function ServiceUserFundingTab({
   }, [initialNhsNumber, initialSocialServicesRef])
 
   const [dialogOpen, setDialogOpen] = React.useState(false)
+  /** Adding a funder that is not in the list yet, without leaving the funding form. */
+  const [addFunderOpen, setAddFunderOpen] = React.useState(false)
+  const canCreateFunder = can('funders.create')
   const [editingId, setEditingId] = React.useState<string | null>(null)
   /** Funding row ids belonging to the arrangement being edited (1 for Single, N for Mixed). */
   const [editingGroupIds, setEditingGroupIds] = React.useState<string[]>([])
   const [form, setForm] = React.useState<FundingForm>(() => emptyForm())
+  const lookupsQuery = useServiceUserLookups()
+  const fundingRoutes = lookupsQuery.data?.fundingTypes ?? []
   const saving =
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
@@ -694,6 +831,8 @@ export function ServiceUserFundingTab({
               ? [
                   {
                     funderId: f.funderId,
+                    fundingRouteId: f.fundingRouteId,
+                    useFunderBilling: f.useFunderBilling,
                     splitPercent: '',
                     paymentTerms: f.paymentTerms || DEFAULT_PAYMENT_TERMS,
                     billingContactName: f.billingContactName,
@@ -718,6 +857,8 @@ export function ServiceUserFundingTab({
         payerMode: 'SINGLE',
         mixedShares: [],
         funderId: firstShare?.funderId ?? f.funderId,
+        fundingRouteId: firstShare?.fundingRouteId ?? f.fundingRouteId,
+        useFunderBilling: firstShare ? firstShare.useFunderBilling !== false : f.useFunderBilling,
         paymentTerms:
           firstShare?.paymentTerms || f.paymentTerms || DEFAULT_PAYMENT_TERMS,
         billingContactName: firstShare?.billingContactName ?? f.billingContactName,
@@ -773,13 +914,6 @@ export function ServiceUserFundingTab({
       }
 
       try {
-        for (const share of form.mixedShares) {
-          if (share.paymentTerms.trim()) {
-            await updateEnterpriseFunder(share.funderId, {
-              paymentTerms: share.paymentTerms.trim(),
-            })
-          }
-        }
         if (!editingId) {
           const basePriority = nextSplitPriority(rows)
           let shareIndex = 0
@@ -838,6 +972,7 @@ export function ServiceUserFundingTab({
                   ...formToBody({
                     ...form,
                     funderId: leftover.funderId ?? '',
+                    fundingRouteId: leftover.fundingRouteId ?? '',
                     fundingTypeId: leftover.fundingTypeId,
                     splitPercent: '',
                     splitPriority: '1',
@@ -900,11 +1035,6 @@ export function ServiceUserFundingTab({
           editingRow?.isPrimary
           && rows.filter(isPrimaryEligibleFunding).filter((row) => row.isPrimary).length === 1,
         )
-      if (form.funderId && form.paymentTerms.trim()) {
-        await updateEnterpriseFunder(form.funderId, {
-          paymentTerms: form.paymentTerms.trim(),
-        })
-      }
       if (editingId) {
         await updateMutation.mutateAsync({ fundingId: editingId, body })
         // If this row used to be part of a Mixed group, remove the other funder lines.
@@ -929,6 +1059,16 @@ export function ServiceUserFundingTab({
     } catch (e) {
       toastApiError(e, 'Save failed')
     }
+  }
+
+  const onFunderAdded = (funder: EnterpriseFunderRow) => {
+    void fundersQuery.refetch()
+    const typeId = funder.fundingType?.id ?? funder.fundingTypeId ?? ''
+    setForm((f) =>
+      f.payerMode === 'MIXED'
+        ? { ...f, mixedShares: toggleMixedFunder(f.mixedShares, funder.id, true, DEFAULT_PAYMENT_TERMS, funder) }
+        : { ...f, funderId: funder.id, fundingTypeId: typeId, fundingRouteId: '' },
+    )
   }
 
   const onSetPrimary = async (row: EnterpriseServiceUserFundingRow) => {
@@ -1045,7 +1185,17 @@ export function ServiceUserFundingTab({
             Loading…
           </div>
         ) : rows.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">No funding records yet.</p>
+          <div
+            className="mt-4 rounded-md border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-950/30"
+            data-testid="funding-none-set-up"
+          >
+            <p className="font-medium text-amber-900 dark:text-amber-200">No funding set up yet</p>
+            <p className="mt-1 text-amber-900/80 dark:text-amber-200/80">
+              Nobody can be invoiced for this person&apos;s care until you add who pays, and their visits are
+              flagged in billing until then. Use Add funding once you know who pays. If the person or their
+              family pays, choose &quot;Private / Self-Funded&quot; or &quot;Family Funded&quot; as the funder.
+            </p>
+          </div>
         ) : (
           <div className="mt-4 space-y-3">
             {configuredSplitRows.length >= 2 ? (
@@ -1105,6 +1255,11 @@ export function ServiceUserFundingTab({
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-foreground">{row.fundingType.name}</span>
+                      {row.fundingRoute ? (
+                        <span className="text-sm text-muted-foreground" data-testid="funding-line-route">
+                          · {row.fundingRoute.name}
+                        </span>
+                      ) : null}
                       {row.isPrimary ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-900">
                           <Star className="h-3 w-3" /> Primary
@@ -1114,6 +1269,17 @@ export function ServiceUserFundingTab({
                     </div>
                     {row.funder ? <p className="mt-1 text-sm text-muted-foreground">Funder: {row.funder.name}</p> : null}
                     {row.packageName ? <p className="text-sm text-muted-foreground">Package: {row.packageName}</p> : null}
+                    {row.fundingReference || row.approvalReference || row.purchaseOrderNumber ? (
+                      <p className="text-sm text-muted-foreground" data-testid="funding-line-refs">
+                        {[
+                          row.fundingReference ? `Funding ref ${row.fundingReference}` : null,
+                          row.approvalReference ? `Approval ref ${row.approvalReference}` : null,
+                          row.purchaseOrderNumber ? `PO ${row.purchaseOrderNumber}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    ) : null}
                     {row.splitPercent ? (
                       <p className="text-sm text-muted-foreground">
                         Split: {row.splitPercent}% · Priority {row.splitPriority ?? 1}
@@ -1242,9 +1408,9 @@ export function ServiceUserFundingTab({
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Select each funder, set their invoice split %, payment terms, and billing
-                  details. Splits must total 100%.
+                  Select each funder and set their invoice split % and funding route. Splits must total 100%.
                 </p>
+
                 <div className="max-h-[28rem] space-y-2 overflow-y-auto rounded-lg border border-border p-3">
                   {funders.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No funders available.</p>
@@ -1302,50 +1468,42 @@ export function ServiceUserFundingTab({
                           </div>
                           {checked && share ? (
                             <div className="space-y-3 pl-7">
-                              <div>
-                                <FundingFieldLabel
-                                  className="mb-1"
-                                  label="Payment terms"
-                                  tooltip={FUNDING_FIELD_TOOLTIPS.paymentTerms}
-                                />
-                                <Select
-                                  value={share.paymentTerms || DEFAULT_PAYMENT_TERMS}
-                                  onValueChange={(v) =>
-                                    setForm((f) => ({
-                                      ...f,
-                                      mixedShares: setMixedSharePaymentTerms(
-                                        f.mixedShares,
-                                        funder.id,
-                                        v,
-                                      ),
-                                    }))
-                                  }
-                                >
-                                  <SelectTrigger className="h-8">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {!PAYMENT_TERMS_OPTIONS.some(
-                                      (o) =>
-                                        o.value ===
-                                        (share.paymentTerms || DEFAULT_PAYMENT_TERMS),
-                                    ) && share.paymentTerms ? (
-                                      <SelectItem value={share.paymentTerms}>
-                                        {share.paymentTerms}
-                                      </SelectItem>
-                                    ) : null}
-                                    {PAYMENT_TERMS_OPTIONS.map((opt) => (
-                                      <SelectItem key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                              <FundingRouteSelect
+                                routes={fundingRoutes}
+                                billingTypeId={funder.fundingType?.id ?? ''}
+                                value={share.fundingRouteId ?? ''}
+                                onChange={(v) =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    mixedShares: patchMixedShare(f.mixedShares, funder.id, { fundingRouteId: v }),
+                                  }))
+                                }
+                                label={`Funding route for ${funder.name}`}
+                              />
+                              <FunderPaymentTerms funder={funder} />
                               <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
                                 <p className="text-xs font-medium text-foreground">
                                   Billing details for {funder.name}
                                 </p>
+                                <label className="flex items-center gap-2 text-xs">
+                                  <Checkbox
+                                    checked={share.useFunderBilling !== false}
+                                    onCheckedChange={(value) =>
+                                      setForm((f) => ({
+                                        ...f,
+                                        mixedShares: patchMixedShare(f.mixedShares, funder.id, {
+                                          useFunderBilling: value === true,
+                                        }),
+                                      }))
+                                    }
+                                    aria-label={`Send invoices to ${funder.name}'s billing details`}
+                                  />
+                                  Send invoices to the funder&apos;s billing details
+                                </label>
+                                {share.useFunderBilling !== false ? (
+                                  <FunderBillingSummary funder={funder} />
+                                ) : (
+                                <>
                                 <div className="grid gap-2 sm:grid-cols-2">
                                   <div>
                                     <FundingFieldLabel
@@ -1567,6 +1725,8 @@ export function ServiceUserFundingTab({
                                     />
                                   </div>
                                 </div>
+                                </>
+                                )}
                               </div>
                             </div>
                           ) : null}
@@ -1574,6 +1734,15 @@ export function ServiceUserFundingTab({
                       )
                     })
                   )}
+                  {canCreateFunder ? (
+                    <button
+                      type="button"
+                      className="w-full border-t border-border pt-2 text-left text-sm font-medium text-primary hover:underline"
+                      onClick={() => setAddFunderOpen(true)}
+                    >
+                      + Add a funder that isn&apos;t listed
+                    </button>
+                  ) : null}
                 </div>
                 {form.mixedShares.length > 0 ? (
                   <p
@@ -1609,13 +1778,26 @@ export function ServiceUserFundingTab({
                     required
                   />
                   <Select
-                    value={form.funderId || undefined}
+                    value={form.funderId}
                     onValueChange={(v) => {
+                      if (v === ADD_FUNDER_OPTION) {
+                        setAddFunderOpen(true)
+                        return
+                      }
                       const funder = funders.find((x) => x.id === v)
                       setForm((f) => ({
                         ...f,
                         funderId: v,
+                        fundingRouteId: routeFits(fundingRoutes, f.fundingRouteId, funder?.fundingType?.id)
+                          ? f.fundingRouteId
+                          : '',
                         fundingTypeId: funder?.fundingType?.id ?? '',
+                        ratesMode:
+                          f.ratesMode === 'EXISTING' || f.ratesMode === 'OWN'
+                            ? f.ratesMode
+                            : funder?.defaultChargeCardId
+                              ? 'FUNDER'
+                              : 'LATER',
                         paymentTerms:
                           funder?.paymentTerms?.trim() || DEFAULT_PAYMENT_TERMS,
                       }))
@@ -1630,45 +1812,26 @@ export function ServiceUserFundingTab({
                           {x.name}
                         </SelectItem>
                       ))}
+                      {canCreateFunder ? (
+                        <SelectItem
+                          value={ADD_FUNDER_OPTION}
+                          className="mt-1 border-t border-border font-medium text-primary"
+                          data-testid="funding-add-funder"
+                        >
+                          + Add a funder that isn&apos;t listed
+                        </SelectItem>
+                      ) : null}
                     </SelectContent>
                   </Select>
+                  <FundingRouteSelect
+                    routes={fundingRoutes}
+                    billingTypeId={form.fundingTypeId}
+                    value={form.fundingRouteId}
+                    onChange={(v) => setForm((f) => ({ ...f, fundingRouteId: v }))}
+                    label="Funding route"
+                  />
                 </div>
-                {form.funderId ? (
-                  <div>
-                    <FundingFieldLabel
-                      className="mb-1"
-                      label="Payment terms"
-                      tooltip={FUNDING_FIELD_TOOLTIPS.paymentTerms}
-                    />
-                    <Select
-                      value={form.paymentTerms || DEFAULT_PAYMENT_TERMS}
-                      onValueChange={(v) =>
-                        setForm((f) => ({ ...f, paymentTerms: v }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {!PAYMENT_TERMS_OPTIONS.some(
-                          (o) => o.value === (form.paymentTerms || DEFAULT_PAYMENT_TERMS),
-                        ) && form.paymentTerms ? (
-                          <SelectItem value={form.paymentTerms}>
-                            {form.paymentTerms}
-                          </SelectItem>
-                        ) : null}
-                        {PAYMENT_TERMS_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Saved on this funder. Invoice due date = invoice date + these terms.
-                    </p>
-                  </div>
-                ) : null}
+                <FunderPaymentTerms funder={funders.find((x) => x.id === form.funderId)} />
               </div>
             )}
             <div>
@@ -1760,18 +1923,91 @@ export function ServiceUserFundingTab({
                   onChange={(e) => setForm((f) => ({ ...f, authorisedWeeklyHours: e.target.value }))}
                 />
               </div>
-              <div>
-                <FundingFieldLabel className="mb-1" label="Charge card" tooltip={FUNDING_FIELD_TOOLTIPS.defaultChargeCardId} />
-                <Combobox
-                  options={chargeCardOptions}
-                  value={form.defaultChargeCardId}
-                  onChange={value => setForm(f => ({ ...f, defaultChargeCardId: value }))}
-                  placeholder="Select charge card for this contract"
-                  allowDeselect
-                />
+              <div className="space-y-2" data-testid="funding-rates-mode">
+                <FundingFieldLabel className="mb-1" label="Rates" tooltip={FUNDING_FIELD_TOOLTIPS.defaultChargeCardId} />
+                {(() => {
+                  const funder = !isMixedMode ? funders.find((x) => x.id === form.funderId) : undefined
+                  const standard = funder?.defaultChargeCard?.name ?? null
+                  const options: Array<{ mode: FundingRatesMode; label: string; hint: string }> = [
+                    ...(isMixedMode || funder?.defaultChargeCardId
+                      ? [
+                          {
+                            mode: 'FUNDER' as const,
+                            label: isMixedMode ? "Use each funder's standard rates" : `Use ${funder?.name}'s standard rates`,
+                            hint: isMixedMode
+                              ? 'Each funder is billed at its own standard charge card (Settings → Funders).'
+                              : `${standard ?? 'Their standard charge card'}. Rate changes there apply to everyone they fund.`,
+                          },
+                        ]
+                      : []),
+                    { mode: 'EXISTING', label: 'Use another existing charge card', hint: 'Pick a card that is already set up.' },
+                    {
+                      mode: 'OWN',
+                      label: 'Set rates just for this person',
+                      hint: 'Create a charge card for this person (opens in a new tab), then pick it here.',
+                    },
+                    {
+                      mode: 'LATER',
+                      label: 'Add rates later',
+                      hint: 'Visits are flagged in billing until rates are added.',
+                    },
+                  ]
+                  return (
+                    <>
+                      {options.map((o) => (
+                        <label key={o.mode} className="flex cursor-pointer items-start gap-2 text-sm">
+                          <input
+                            type="radio"
+                            name="funding-rates-mode"
+                            className="mt-1"
+                            checked={form.ratesMode === o.mode}
+                            onChange={() =>
+                              setForm((f) => ({
+                                ...f,
+                                ratesMode: o.mode,
+                                defaultChargeCardId: o.mode === 'EXISTING' || o.mode === 'OWN' ? f.defaultChargeCardId : '',
+                              }))
+                            }
+                          />
+                          <span>
+                            <span className="font-medium">{o.label}</span>
+                            <span className="block text-xs text-muted-foreground">{o.hint}</span>
+                          </span>
+                        </label>
+                      ))}
+                      {!isMixedMode && funder && !funder.defaultChargeCardId ? (
+                        <p className="text-xs text-muted-foreground">
+                          {funder.name} has no standard rates yet. You can set them in Settings → Funders.
+                        </p>
+                      ) : null}
+                      {form.ratesMode === 'EXISTING' || form.ratesMode === 'OWN' ? (
+                        <ChargeCardPicker
+                          value={form.defaultChargeCardId}
+                          onChange={(id) => setForm((f) => ({ ...f, defaultChargeCardId: id }))}
+                          testId="funding-charge-card"
+                        />
+                      ) : null}
+                    </>
+                  )
+                })()}
               </div>
-              {!isMixedMode ? (
+              {!isMixedMode && form.funderId ? (
                 <>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={form.useFunderBilling}
+                  onCheckedChange={(value) => setForm((f) => ({ ...f, useFunderBilling: value === true }))}
+                  aria-label="Send invoices to the funder's billing details"
+                />
+                Send invoices to the funder&apos;s billing details
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Untick only when someone else receives the invoice, for example a family member or an appointee.
+              </p>
+              {form.useFunderBilling ? (
+                <FunderBillingSummary funder={funders.find((x) => x.id === form.funderId)} />
+              ) : (
+              <>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <FundingFieldLabel
@@ -1904,20 +2140,10 @@ export function ServiceUserFundingTab({
                   </div>
                 </div>
               </div>
+              </>
+              )}
                 </>
               ) : null}
-              <div>
-                <FundingFieldLabel
-                  className="mb-1"
-                  label="Invoice grouping rule"
-                  tooltip={FUNDING_FIELD_TOOLTIPS.invoiceGroupingRule}
-                />
-                <Input
-                  placeholder="e.g. One invoice per service user"
-                  value={form.invoiceGroupingRule}
-                  onChange={(e) => setForm((f) => ({ ...f, invoiceGroupingRule: e.target.value }))}
-                />
-              </div>
             </div>
 
             <div className="space-y-3 border-t border-border pt-4">
@@ -2007,6 +2233,8 @@ export function ServiceUserFundingTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <FunderFormDialog open={addFunderOpen} onOpenChange={setAddFunderOpen} onSaved={onFunderAdded} />
     </div>
   )
 }

@@ -16,7 +16,9 @@ import { ServiceUserPersonalDetailsForm } from '@/features/service-users/compone
 import { ServiceUserPhotosTab } from '@/features/service-users/components/ServiceUserPhotosTab'
 import { ServiceUserPortalAccessSection } from '@/features/service-users/components/ServiceUserPortalAccessSection'
 import { SurveyContactPreferencesSection } from '@/features/surveys/reminders/SurveyContactPreferencesSection'
-import { PersonSurveysSection } from '@/features/surveys/reminders/PersonSurveysSection'
+import { useNavigate } from '@tanstack/react-router'
+import { ServiceUserPrivacyTab } from '@/features/service-users/privacy/ServiceUserPrivacyTab'
+import { PersonSurveysSection, SurveyContactSettingsLink } from '@/features/surveys/reminders/PersonSurveysSection'
 import { SurveysAboutPersonSection } from '@/features/surveys/outside/SurveysAboutPersonSection'
 import { ServiceUserIncidentsComplaintsPanel } from '@/features/service-users/components/ServiceUserIncidentsComplaintsPanel'
 import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
@@ -32,14 +34,6 @@ type Props = {
   onSaved: () => void
 }
 
-function PlaceholderTab({ title }: { title: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center text-sm text-muted-foreground">
-      {title} data is not available in the API yet. This section is reserved for future CareAdmin modules.
-    </div>
-  )
-}
-
 /** Shared section bodies for workspace Profile and the legacy Edit Service User page. */
 export function ServiceUserProfileSectionContent({
   tab,
@@ -49,6 +43,7 @@ export function ServiceUserProfileSectionContent({
   locations,
   onSaved,
 }: Props) {
+  const navigate = useNavigate()
   return (
     <div data-testid={`service-user-profile-section-${tab}`}>
       {tab === 'personal' &&
@@ -60,11 +55,16 @@ export function ServiceUserProfileSectionContent({
               locations={locations}
               serviceUserId={serviceUserId}
               onSaved={onSaved}
+              onOpenFunding={() =>
+                void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: 'funding' }) })
+              }
             />
             <ServiceUserPortalAccessSection serviceUserId={serviceUserId} defaultEmail={detail.email} />
-            <SurveyContactPreferencesSection subjectKind="SERVICE_USER" subjectId={serviceUserId} />
-            <PersonSurveysSection serviceUserId={serviceUserId} />
-            <SurveysAboutPersonSection serviceUserId={serviceUserId} />
+            <SurveyContactPreferencesSection
+              subjectKind="SERVICE_USER"
+              subjectId={serviceUserId}
+              generalPreference={detail.references?.find((r) => r.referenceType === 'SU_PROFILE_PREF_CONTACT')?.referenceValue ?? null}
+            />
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Loading…</p>
@@ -77,6 +77,7 @@ export function ServiceUserProfileSectionContent({
             detail={detail}
             lookups={lookups}
             onSaved={onSaved}
+            openPrivacy={() => void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: 'privacy' }) })}
           />
         ) : (
           <p className="text-sm text-muted-foreground">Loading…</p>
@@ -103,9 +104,24 @@ export function ServiceUserProfileSectionContent({
 
       {tab === 'incidents' && <ServiceUserIncidentsComplaintsPanel serviceUserId={serviceUserId} />}
 
+      {tab === 'surveys' && (
+        <div className="space-y-4">
+          <SurveyContactSettingsLink
+            openPersonalDetails={() => void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: 'personal' }) })}
+          />
+          <PersonSurveysSection serviceUserId={serviceUserId} />
+          <SurveysAboutPersonSection serviceUserId={serviceUserId} />
+        </div>
+      )}
+
       {tab === 'calendar' && <ServiceUserCalendarTab serviceUserId={serviceUserId} />}
 
-      {tab === 'privacy' && <PlaceholderTab title="Privacy" />}
+      {tab === 'privacy' && (
+        <ServiceUserPrivacyTab
+          serviceUserId={serviceUserId}
+          openContacts={() => void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: 'contacts' }) })}
+        />
+      )}
 
       {tab === 'dom' && (
         <ServiceUserDomCareTab serviceUserId={serviceUserId} detail={detail} onSaved={onSaved} />

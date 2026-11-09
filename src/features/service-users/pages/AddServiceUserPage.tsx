@@ -623,13 +623,15 @@ export default function AddServiceUserPage() {
     if (!refFunder && !refHours) return
     setFundingRates((prev) => {
       if (prev.funderId || prev.authorisedWeeklyHours) return prev
+      const funderId = refFunder || prev.funderId
       return {
         ...prev,
-        funderId: refFunder || prev.funderId,
+        funderId,
+        ratesMode: funders.find((f) => f.id === funderId)?.defaultChargeCardId ? 'FUNDER' : prev.ratesMode,
         authorisedWeeklyHours: refHours || prev.authorisedWeeklyHours,
       }
     })
-  }, [referralForm.funderId, referralForm.requestedHoursPerWeek])
+  }, [referralForm.funderId, referralForm.requestedHoursPerWeek, funders])
 
   React.useEffect(() => {
     const t = window.setTimeout(() => setKwDebounced(kwSearch), 300)
@@ -804,8 +806,12 @@ export default function AddServiceUserPage() {
             (payload.serviceStartDate
               ? payload.serviceStartDate.slice(0, 10)
               : new Date().toISOString().slice(0, 10))
-          // The funder's per-hour rates live on a charge card attached to the new funding line.
-          const card = await createChargeCardMutation.mutateAsync({
+          // Rates: only "just for this person" creates a new charge card. The funder's standard rates need no
+          // card on the line (billing falls back to the funder's); an existing card is attached; "later" leaves it empty.
+          const card =
+            fundingRates.ratesMode !== 'OWN'
+              ? null
+              : await createChargeCardMutation.mutateAsync({
             name: cardName,
             code: slugBillingCode(cardName),
             assignmentLevel: 'FUNDING_CONTRACT',
@@ -819,13 +825,19 @@ export default function AddServiceUserPage() {
           await createServiceUserEnterpriseFunding(created.id, {
             fundingTypeId,
             funderId: fundingRates.funderId,
+            fundingRouteId: fundingRates.fundingRouteId || null,
             status: 'ACTIVE',
             isPrimary: true,
             startDate: effectiveFrom,
             authorisedWeeklyHours: fundingRates.authorisedWeeklyHours
               ? Number(fundingRates.authorisedWeeklyHours)
               : null,
-            defaultChargeCardId: card.id,
+            defaultChargeCardId:
+              fundingRates.ratesMode === 'OWN'
+                ? (card?.id ?? null)
+                : fundingRates.ratesMode === 'EXISTING'
+                  ? fundingRates.existingChargeCardId || null
+                  : null,
           })
         } catch (fundErr) {
           toastApiError(
@@ -1339,10 +1351,6 @@ export default function AddServiceUserPage() {
             />
             <div />
 
-            <div>
-              <LabelWithTip tip="Funding route / type.">Funding Route</LabelWithTip>
-              {lookups ? mapSelect('fundingTypeId', 'Select funding', lookups.fundingTypes) : <Input disabled />}
-            </div>
             <div>
               <LabelWithTip tip="Category or package of care.">Category of Care</LabelWithTip>
               {lookups ? mapSelect('careTypeId', 'Please select a Category of Care', lookups.careTypes) : <Input disabled />}

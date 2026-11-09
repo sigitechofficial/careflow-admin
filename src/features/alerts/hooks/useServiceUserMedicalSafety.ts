@@ -89,7 +89,8 @@ export function useServiceUserMedicalSafety(
     serviceUserId: id,
     profile: profile.data,
     allergies: allergies.data,
-    medicationAllergies: medAllergies.data,
+    // Medicine allergies are part of the one allergy list above (the Meds tab shows a filtered view of it).
+    medicationAllergies: undefined,
     flash: flash.data,
     documents: documents.data,
     iaRisks: iaRisks.data,

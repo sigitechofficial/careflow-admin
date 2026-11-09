@@ -284,7 +284,6 @@ export function ServiceUserDomCareTab({
       const d = await patchMutation.mutateAsync({
         accessInstruction: data.accessInstruction,
         accessRisks: data.accessRisks,
-        doorCode: data.doorCode,
         careInstructions: data.careInstructions,
         weeklyContractedHours: needsApproval ? savedHours : data.weeklyContractedHours,
         numberOfCarers: n,
@@ -302,6 +301,17 @@ export function ServiceUserDomCareTab({
       }
     } catch (e) {
       toastApiError(e, 'Save failed')
+    }
+  }
+
+  const clearOldDoorCode = async () => {
+    if (!canUpdate) return
+    try {
+      const d = await patchMutation.mutateAsync({ doorCode: null })
+      setData((prev) => (prev ? { ...prev, doorCode: d.doorCode } : d))
+      toastSuccess('Old door code cleared')
+    } catch (e) {
+      toastApiError(e, 'Could not clear the old code')
     }
   }
 
@@ -380,39 +390,47 @@ export function ServiceUserDomCareTab({
               rows={4}
             />
           </div>
-          <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(140px,200px)_1fr] md:gap-x-6">
-            <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
-              <button
-                type="button"
-                className="rounded p-1 text-foreground hover:bg-muted"
-                title={doorVisible ? 'Hide key safe code' : 'Show key safe code'}
-                onClick={() => setDoorVisible((v) => !v)}
-              >
-                {doorVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-              <span>Legacy door code</span>
-            </div>
-            <div className="space-y-1.5">
-              <Input
-                type={doorVisible ? 'text' : 'password'}
-                // Not a login: "off" is ignored on password fields, and the browser then fills the saved
-                // login email into the header search box.
-                autoComplete="new-password"
-                value={data.doorCode ?? ''}
-                onChange={(e) => setField('doorCode', e.target.value === '' ? null : e.target.value)}
-                disabled={!canUpdate}
-                className="max-w-md"
-              />
-              <p className="text-xs text-muted-foreground">
-                Not shown to carers. Carers see the key safe code in Home &amp; access above.
-              </p>
-              {legacyDoorCodeDiffers(data.doorCode, detail.address?.keySafeNumber) && (
-                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
-                  This differs from the Home &amp; access key safe code — confirm which is correct.
+          {data.doorCode?.trim() ? (
+            <div
+              className="grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(140px,200px)_1fr] md:gap-x-6"
+              data-testid="dom-care-old-door-code"
+            >
+              <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
+                <button
+                  type="button"
+                  className="rounded p-1 text-foreground hover:bg-muted"
+                  title={doorVisible ? 'Hide old door code' : 'Show old door code'}
+                  onClick={() => setDoorVisible((v) => !v)}
+                >
+                  {doorVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+                <span>Old door code</span>
+              </div>
+              <div className="space-y-1.5 pt-2 text-sm">
+                <p className="font-mono">{doorVisible ? data.doorCode : '••••••'}</p>
+                <p className="text-xs text-muted-foreground">
+                  An older code saved here before the key safe code moved to Home &amp; access above. Carers do not
+                  see it. Enter the correct code in Home &amp; access, then clear this one.
                 </p>
-              )}
+                {legacyDoorCodeDiffers(data.doorCode, detail.address?.keySafeNumber) && (
+                  <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                    This differs from the Home &amp; access key safe code — confirm which is correct.
+                  </p>
+                )}
+                {canUpdate ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={saving}
+                    onClick={() => void clearOldDoorCode()}
+                  >
+                    Clear old code
+                  </Button>
+                ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </section>
 
@@ -451,6 +469,31 @@ export function ServiceUserDomCareTab({
                   Also used by the visit plan. Once set, changes need a manager&apos;s approval.
                 </p>
               )}
+              {(() => {
+                const agreed = domCareQuery.data?.authorisedWeeklyHours ?? null
+                const planned = parseWeeklyContractedHours(data.weeklyContractedHours)
+                if (agreed == null) {
+                  return (
+                    <p className="mt-1 text-xs text-muted-foreground" data-testid="dom-care-agreed-hours">
+                      No agreed hours on the funding lines yet (Funding tab).
+                    </p>
+                  )
+                }
+                const over = planned != null ? Math.round((planned - agreed) * 100) / 100 : 0
+                return over > 0 ? (
+                  <p
+                    className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400"
+                    data-testid="dom-care-unfunded-hours"
+                  >
+                    Funders have agreed {agreed} hours a week, so {over} planned hours a week are not paid for.
+                    Check the funding lines (Funding tab).
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground" data-testid="dom-care-agreed-hours">
+                    Funders have agreed {agreed} hours a week (Funding tab).
+                  </p>
+                )
+              })()}
               <div className="mt-1">
                 <TimebankBalanceNote serviceUserId={serviceUserId} />
               </div>

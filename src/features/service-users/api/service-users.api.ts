@@ -9,6 +9,8 @@ export type SuLookupRow = {
   code: string
   color?: string | null
   category?: string
+  /** Funding routes only: the broad billing type (Funding tab) the route comes under. */
+  billingFundingTypeId?: string | null
 }
 
 export type ServiceUserLookupsBundle = {
@@ -241,6 +243,12 @@ export type ServiceUserDetail = {
   careType: { id: string; name: string; code: string } | null
   careLevel?: 'STANDARD' | 'COMPLEX' | null
   fundingType: { id: string; name: string; code: string } | null
+  /** Broad billing type of the primary funding line (Funding tab); the route above is a more detailed list. */
+  billingFundingType?: string | null
+  /** True when the funding route comes from the main funding line (change it on the Funding tab). */
+  fundingRouteFromLine?: boolean
+  /** Who pays: the funder on the main funding line. Null when no funding is set up. */
+  currentFunderName?: string | null
   riskLevel: { id: string; name: string; code: string; color: string | null } | null
   location: {
     id: string
@@ -314,7 +322,16 @@ export type EnterpriseFunderRow = {
   id: string
   name: string
   code: string | null
+  fundingTypeId?: string | null
   fundingType?: { id: string; name: string; code: string } | null
+  defaultChargeCardId?: string | null
+  /** The funder's standard rates. */
+  defaultChargeCard?: { id: string; name: string } | null
+  contactName?: string | null
+  email?: string | null
+  phone?: string | null
+  notes?: string | null
+  isActive?: boolean
   paymentTerms?: string | null
   addressLine1?: string | null
   addressLine2?: string | null
@@ -329,6 +346,8 @@ export type EnterpriseServiceUserFundingRow = {
   serviceUserId: string
   fundingTypeId: string
   funderId: string | null
+  fundingRouteId?: string | null
+  fundingRoute?: { id: string; name: string; code: string; billingFundingTypeId: string | null } | null
   status: EnterpriseFundingStatus
   fundingReference: string | null
   approvalReference: string | null
@@ -412,6 +431,25 @@ export type UpdateEnterpriseFunderBody = {
   notes?: string | null
   paymentTerms?: string | null
   defaultChargeCardId?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  town?: string | null
+  county?: string | null
+  postcode?: string | null
+}
+
+export async function createEnterpriseFunder(
+  body: UpdateEnterpriseFunderBody & { name: string },
+): Promise<EnterpriseFunderRow> {
+  const res = await apiJson<ApiEnvelope<EnterpriseFunderRow>>('/funders', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function deleteEnterpriseFunder(funderId: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/funders/${funderId}`, { method: 'DELETE' })
 }
 
 export async function updateEnterpriseFunder(
@@ -465,6 +503,8 @@ export async function getServiceUserEnterpriseFunding(
 export type CreateEnterpriseServiceUserFundingBody = {
   fundingTypeId: string
   funderId?: string | null
+  /** How this line is funded (a funding route under the funder's type). */
+  fundingRouteId?: string | null
   status?: EnterpriseFundingStatus
   fundingReference?: string | null
   approvalReference?: string | null
@@ -2065,6 +2105,8 @@ export type ServiceUserDomCareCarerBrief = {
 }
 
 export type ServiceUserDomCareData = {
+  /** Weekly hours the funders agreed to pay for, across all live funding lines (read-only). */
+  authorisedWeeklyHours?: number | null
   serviceUserId: string
   accessInstruction: string
   accessRisks: string

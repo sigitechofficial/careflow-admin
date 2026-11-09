@@ -14,6 +14,41 @@ import { useClientPagination } from '@/features/settings/hooks/useClientPaginati
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { useAuthStore } from '@/features/auth/store'
+import { useEnterpriseFundingTypes } from '@/features/service-users/hooks/useServiceUserTabs'
+
+const SELECT_CLS = 'h-8 w-full rounded-md border border-input bg-background px-2 text-sm'
+
+/** Billing type picker: the broad type a funding line uses on the Funding tab. */
+function BillingTypeSelect({
+  value,
+  onChange,
+  options,
+  disabled,
+  label,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: Array<{ id: string; name: string }>
+  disabled?: boolean
+  label: string
+}) {
+  return (
+    <select
+      aria-label={label}
+      className={SELECT_CLS}
+      value={value}
+      disabled={disabled}
+      onChange={e => onChange(e.target.value)}
+    >
+      <option value="">— Not set —</option>
+      {options.map(o => (
+        <option key={o.id} value={o.id}>
+          {o.name}
+        </option>
+      ))}
+    </select>
+  )
+}
 
 function slugCode(name: string): string {
   return name
@@ -29,6 +64,8 @@ export function ServiceUserFundingTypesSettingsPanel() {
   const createMutation = useCreateServiceUserFundingType()
   const updateMutation = useUpdateServiceUserFundingType()
   const deleteMutation = useDeleteServiceUserFundingType()
+  const billingTypesQuery = useEnterpriseFundingTypes()
+  const billingTypes = billingTypesQuery.data ?? []
 
   const rows = listQuery.data ?? []
   const loading = listQuery.isLoading
@@ -43,10 +80,12 @@ export function ServiceUserFundingTypesSettingsPanel() {
 
   const [name, setName] = React.useState('')
   const [code, setCode] = React.useState('')
+  const [billingId, setBillingId] = React.useState('')
   const [filter, setFilter] = React.useState('')
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [editName, setEditName] = React.useState('')
   const [editCode, setEditCode] = React.useState('')
+  const [editBillingId, setEditBillingId] = React.useState('')
   const [actionError, setActionError] = React.useState<string | null>(null)
 
   const filtered = React.useMemo(() => {
@@ -63,12 +102,14 @@ export function ServiceUserFundingTypesSettingsPanel() {
     setEditingId(null)
     setEditName('')
     setEditCode('')
+    setEditBillingId('')
   }
 
   const startEdit = (row: ServiceUserFundingTypeRow) => {
     setEditingId(row.id)
     setEditName(row.name)
     setEditCode(row.code)
+    setEditBillingId(row.billingFundingTypeId ?? '')
   }
 
   const onAdd = async () => {
@@ -77,9 +118,10 @@ export function ServiceUserFundingTypesSettingsPanel() {
     if (!n || !c || !canManage) return
     setActionError(null)
     try {
-      await createMutation.mutateAsync({ name: n, code: c })
+      await createMutation.mutateAsync({ name: n, code: c, billingFundingTypeId: billingId || null })
       setName('')
       setCode('')
+      setBillingId('')
     } catch (e) {
       setActionError(e instanceof ApiError ? e.message : 'Could not add funding type.')
     }
@@ -92,7 +134,10 @@ export function ServiceUserFundingTypesSettingsPanel() {
     if (!n || !c) return
     setActionError(null)
     try {
-      await updateMutation.mutateAsync({ id: editingId, body: { name: n, code: c } })
+      await updateMutation.mutateAsync({
+        id: editingId,
+        body: { name: n, code: c, billingFundingTypeId: editBillingId || null },
+      })
       cancelEdit()
     } catch (e) {
       setActionError(e instanceof ApiError ? e.message : 'Could not save changes.')
@@ -117,13 +162,18 @@ export function ServiceUserFundingTypesSettingsPanel() {
     <div className="space-y-4">
       <div>
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-foreground">Funding types</h2>
+          <h2 className="text-lg font-semibold text-foreground">Funding routes</h2>
           <FundingTypesSourceInfo />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {rows.length > 0
             ? `${rows.length.toLocaleString()} funding routes for service user profiles — NHS CHC, local authority, direct payments, self-funding, and mixed packages. Use the info icon for official references.`
             : 'Used on service user personal details and initial assessment funding type fields.'}
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          These are the detailed funding routes chosen in Personal Details. <strong>Billed as</strong> links each
+          one to the broad type used on funding lines (Funding tab), which drives invoices and cancellation
+          charging. On the Funding tab, only the routes under the chosen funder's type are offered.
         </p>
       </div>
 
@@ -149,6 +199,16 @@ export function ServiceUserFundingTypesSettingsPanel() {
               value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
               placeholder="e.g. LOCAL_AUTHORITY"
+              disabled={saving}
+            />
+          </div>
+          <div className="min-w-[160px] flex-1 space-y-1">
+            <label className="text-xs text-muted-foreground">Billed as</label>
+            <BillingTypeSelect
+              label="Billed as"
+              value={billingId}
+              onChange={setBillingId}
+              options={billingTypes}
               disabled={saving}
             />
           </div>
@@ -179,6 +239,7 @@ export function ServiceUserFundingTypesSettingsPanel() {
               <tr className="border-b border-border bg-muted/40 text-left">
                 <th className="px-3 py-2 font-medium">Name</th>
                 <th className="px-3 py-2 font-medium">Code</th>
+                <th className="px-3 py-2 font-medium">Billed as</th>
                 {canManage ? <th className="w-28 px-3 py-2 font-medium">Actions</th> : null}
               </tr>
             </thead>
@@ -186,7 +247,7 @@ export function ServiceUserFundingTypesSettingsPanel() {
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={canManage ? 3 : 2}
+                    colSpan={canManage ? 4 : 3}
                     className="px-3 py-8 text-center text-muted-foreground"
                   >
                     {rows.length === 0 ? 'No funding types yet.' : 'No matches.'}
@@ -212,6 +273,15 @@ export function ServiceUserFundingTypesSettingsPanel() {
                         />
                       </td>
                       <td className="px-3 py-2">
+                        <BillingTypeSelect
+                          label={`Billed as for ${row.name}`}
+                          value={editBillingId}
+                          onChange={setEditBillingId}
+                          options={billingTypes}
+                          disabled={saving}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
                         <div className="flex gap-1">
                           <Button
                             type="button"
@@ -232,6 +302,11 @@ export function ServiceUserFundingTypesSettingsPanel() {
                     <tr key={row.id} className="border-b border-border last:border-0">
                       <td className="px-3 py-2">{row.name}</td>
                       <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{row.code}</td>
+                      <td className="px-3 py-2" data-testid="funding-route-billed-as">
+                        {row.billingFundingType?.name ?? (
+                          <span className="text-amber-700 dark:text-amber-400">Not set</span>
+                        )}
+                      </td>
                       {canManage ? (
                         <td className="px-3 py-2">
                           <div className="flex gap-1">

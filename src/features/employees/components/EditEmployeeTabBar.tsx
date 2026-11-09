@@ -12,6 +12,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   LayoutGrid,
+  MessageSquareText,
   Package,
   ShieldCheck,
   Star,
@@ -31,6 +32,7 @@ export type EditEmployeeTabId =
   | 'salary'
   | 'skills'
   | 'staff-reviews'
+  | 'surveys'
   | 'documents'
   | 'non-core-activity'
   | 'holidays'
@@ -56,6 +58,7 @@ export const EDIT_EMPLOYEE_TABS: {
   { id: 'salary', label: 'Salary', Icon: Banknote, iconClassName: 'text-lime-700 dark:text-lime-400' },
   { id: 'skills', label: 'Skills', Icon: Award, iconClassName: 'text-amber-600 dark:text-amber-400' },
   { id: 'staff-reviews', label: 'Staff Reviews', Icon: Star, iconClassName: 'text-yellow-600 dark:text-yellow-400' },
+  { id: 'surveys', label: 'Surveys', Icon: MessageSquareText, iconClassName: 'text-emerald-600 dark:text-emerald-400' },
   { id: 'documents', label: 'Documents', Icon: FileText, iconClassName: 'text-slate-600 dark:text-slate-300' },
   { id: 'non-core-activity', label: 'Non Core Activities', Icon: LayoutGrid, iconClassName: 'text-fuchsia-600 dark:text-fuchsia-400' },
   { id: 'holidays', label: 'Holidays & Leave', Icon: CalendarDays, iconClassName: 'text-rose-600 dark:text-rose-400' },

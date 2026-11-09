@@ -64,6 +64,8 @@ export type SurveyCallPerson = {
   name: string
   phones: Array<{ label: string; number: string }>
   died: boolean
+  /** How they need information (Profile → Privacy), e.g. "Large print · Interpreter: Polish"; empty when none. */
+  needs?: string
   sentAt: string | null
   reminders: number
   lastReminderAt: string | null

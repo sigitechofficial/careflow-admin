@@ -1,4 +1,5 @@
 ﻿import { askForDueSurveys } from '@/features/surveys/reminders/SurveyDuePrompt'
+import { askAboutPrivacyAtReview } from '@/features/service-users/privacy/PrivacyReviewPrompt'
 import * as React from 'react'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { ArrowLeft, Loader2 } from 'lucide-react'
@@ -333,6 +334,7 @@ export default function ServiceUserCarePlanFormPage() {
         }
         toastSuccess('Care Plan published successfully')
         askForDueSurveys(serviceUserId, 'the care plan review')
+        askAboutPrivacyAtReview(serviceUserId)
         await navigate({
           to: '/service-users/$serviceUserId/care-plan',
           params: { serviceUserId },

@@ -123,6 +123,11 @@ export default function SurveyCallListPage() {
                       {p.optedOut ? ' · asked not to be phoned about surveys' : ''}
                       {p.died ? ' · has died' : ''}
                     </p>
+                    {p.needs ? (
+                      <p className="mt-0.5 text-xs font-medium text-amber-800 dark:text-amber-300" data-testid="call-list-needs">
+                        Needs: {p.needs}
+                      </p>
+                    ) : null}
                     {p.phones.length ? (
                       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                         {p.phones.map((ph) => (

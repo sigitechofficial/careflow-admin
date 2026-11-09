@@ -235,7 +235,6 @@ export function EmployeeAbsenceFormDialog({
       managerAction: draft.managerAction.trim() || null,
       comments: draft.comments.trim() || null,
       cosWorkerRef: draft.cosWorkerRef.trim() || null,
-      visaRtwExpiry: draft.visaRtwExpiry.trim() || null,
       evidenceTypeRequired: draft.evidenceTypeRequired.trim() || null,
       evidenceReceivedDate: draft.evidenceReceivedDate || null,
       continuousWorkingDaysAbsent: continuousDays,

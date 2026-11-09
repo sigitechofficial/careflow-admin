@@ -679,7 +679,20 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
           omitFlashFromImmediate={Boolean(flashData)}
         />
 
-        <PersonSurveysSection serviceUserId={serviceUserId} />
+        <PersonSurveysSection
+          serviceUserId={serviceUserId}
+          summary
+          allSurveysLink={
+            <Link
+              to="/service-users/$serviceUserId/profile"
+              params={{ serviceUserId }}
+              search={{ tab: 'surveys' }}
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Open surveys
+            </Link>
+          }
+        />
 
         {attentionItems.length > 0 ? (
           <SimpleCard title="Needs attention">

@@ -7,6 +7,30 @@ import { formatSurveyDate } from '@/features/surveys/survey-datetime'
 import { SURVEY_RESPONSE_CHANNEL_LABELS, type SurveyResponseChannel } from '@/features/surveys/types'
 import { usePersonSurveyHistory, type PersonSurveyHistory } from './survey-reminders'
 import { SurveysToCollectList } from './SurveysToCollectList'
+import { showSurveyContactPreferences } from './SurveyContactPreferencesSection'
+
+/**
+ * At the top of a person's Surveys: where to change how they may be contacted about surveys (it lives with their
+ * personal details). `openPersonalDetails` switches to that tab; the section is then scrolled into view.
+ */
+export function SurveyContactSettingsLink({ openPersonalDetails, forStaff }: { openPersonalDetails: () => void; forStaff?: boolean }) {
+  return (
+    <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground" data-testid="survey-contact-settings-note">
+      To change how {forStaff ? 'they are' : 'this person is'} contacted about surveys (or stop surveys for them), go to{' '}
+      <button
+        type="button"
+        className="font-medium text-primary underline-offset-2 hover:underline"
+        onClick={() => {
+          openPersonalDetails()
+          showSurveyContactPreferences()
+        }}
+      >
+        Personal Details → Survey contact preferences
+      </button>
+      .
+    </p>
+  )
+}
 
 /** Who gave the answers, in plain words for the record they are shown on. */
 export function answeredByWords(relation: string | null, name: string | null, forStaff: boolean): string {
@@ -38,7 +62,19 @@ function Heading({ icon, children, count }: { icon: React.ReactNode; children: R
  * due), sent and not answered (record their answers), and answered (when, how and by whom, with their answers
  * for staff who may see them). Anonymous surveys show only that they were sent.
  */
-export function PersonSurveysSection({ serviceUserId, employeeId }: { serviceUserId?: string; employeeId?: string }) {
+export function PersonSurveysSection({
+  serviceUserId,
+  employeeId,
+  summary = false,
+  allSurveysLink,
+}: {
+  serviceUserId?: string
+  employeeId?: string
+  /** Dashboards and overviews: just the counts, with `allSurveysLink` to open the person's Surveys. */
+  summary?: boolean
+  /** Shown with the counts: the link to the person's Surveys. */
+  allSurveysLink?: React.ReactNode
+}) {
   const canSee = useAuthStore(s => s.can('surveys.read') || s.can('surveys.manage') || s.can('surveys.responses.record'))
   const forStaff = Boolean(employeeId)
   const { data } = usePersonSurveyHistory(serviceUserId ? { serviceUserId } : { employeeId }, canSee && Boolean(serviceUserId || employeeId))
@@ -48,6 +84,39 @@ export function PersonSurveysSection({ serviceUserId, employeeId }: { serviceUse
   const openOnes = data.notAnswered.filter(n => n.open && n.person)
   const closedOnes = data.notAnswered.filter(n => !(n.open && n.person))
   const answered = allAnswered ? data.answered : data.answered.slice(0, SHOW_AT_FIRST)
+  if (summary) {
+    const parts = [
+      { n: data.comingUp.length, words: 'coming up' },
+      { n: openOnes.length, words: 'waiting for answers' },
+      { n: data.answered.length, words: 'answered' },
+    ].filter(p => p.n > 0)
+    return (
+      <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="person-surveys" data-testid="person-surveys-summary">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 id="person-surveys" className="flex items-center gap-2 text-sm font-semibold">
+            <ClipboardList className="h-4 w-4 text-muted-foreground" aria-hidden />
+            Surveys
+          </h3>
+          {allSurveysLink ? <div className="text-sm">{allSurveysLink}</div> : null}
+        </div>
+        <p className="mt-1 text-sm text-foreground">
+          {parts.length ? (
+            parts.map((p, i) => (
+              <React.Fragment key={p.words}>
+                {i ? <span className="text-muted-foreground"> · </span> : null}
+                <span className={p.words === 'waiting for answers' ? 'font-semibold' : undefined}>
+                  {p.n} {p.words}
+                </span>
+              </React.Fragment>
+            ))
+          ) : (
+            <span className="text-muted-foreground">No surveys sent yet, and none coming up.</span>
+          )}
+        </p>
+      </section>
+    )
+  }
+  const notAnswered = data.notAnswered
 
   return (
     <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="person-surveys" data-testid="person-surveys">
@@ -80,9 +149,9 @@ export function PersonSurveysSection({ serviceUserId, employeeId }: { serviceUse
             </div>
           ) : null}
 
-          {data.notAnswered.length ? (
+          {notAnswered.length ? (
             <div className="space-y-2" data-testid="person-surveys-not-answered">
-              <Heading icon={<Clock className="h-3.5 w-3.5" aria-hidden />} count={data.notAnswered.length}>
+              <Heading icon={<Clock className="h-3.5 w-3.5" aria-hidden />} count={notAnswered.length}>
                 Not answered
               </Heading>
               {openOnes.length ? (
