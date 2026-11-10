@@ -46,7 +46,7 @@ export function NotificationItem({ item, onMarkRead, onDismiss, onOpen }: Props)
         >
           <p className="text-xs font-medium leading-snug">{item.title}</p>
           <p className="text-xs text-muted-foreground line-clamp-2">{item.message}</p>
-          <p className="text-[10px] text-muted-foreground/80">
+          <p className="text-[10px] text-muted-foreground">
             {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
           </p>
         </button>
@@ -54,7 +54,7 @@ export function NotificationItem({ item, onMarkRead, onDismiss, onOpen }: Props)
         <div className="min-w-0 flex-1 space-y-0.5">
           <p className="text-xs font-medium leading-snug">{item.title}</p>
           <p className="text-xs text-muted-foreground line-clamp-2">{item.message}</p>
-          <p className="text-[10px] text-muted-foreground/80">
+          <p className="text-[10px] text-muted-foreground">
             {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
           </p>
         </div>

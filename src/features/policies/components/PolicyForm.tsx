@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import { FormField, Textarea } from '@/shared/ui/form-field'
 import { Input } from '@/shared/ui/input'
+import { Checkbox } from '@/shared/ui/toggle-controls'
 import { RichTextEditor } from '@/shared/ui/rich-text-editor'
 import {
   PolicyApplicabilityEditor,
@@ -47,6 +48,8 @@ export type PolicyFormValues = {
   approverId: string
   effectiveDate: string
   reviewDate: string
+  /** Staff must read and acknowledge this policy (within 14 days of each new version). */
+  acknowledgementRequired: boolean
   contentMode: PolicyContentMode
   contentHtml: string
   contentJson: Record<string, unknown> | null
@@ -70,6 +73,7 @@ export function emptyPolicyForm(userId: string, organisationWide: boolean): Poli
     approverId: '',
     effectiveDate: '',
     reviewDate: '',
+    acknowledgementRequired: false,
     contentMode: 'EDITOR',
     contentHtml: '',
     contentJson: null,
@@ -99,6 +103,7 @@ export function formFromPolicy(document: PolicyDocument, version: PolicyVersion 
     approverId: document.approverId ?? '',
     effectiveDate: current?.effectiveDate ?? '',
     reviewDate: current?.reviewDate ?? '',
+    acknowledgementRequired: current?.acknowledgementRequired ?? false,
     contentMode: uploaded ? 'UPLOAD' : 'EDITOR',
     contentHtml: editorHtmlFromVersion(current?.contentJson, current?.contentHtml),
     contentJson: isPolicyTiptapDoc(current?.contentJson) ? current.contentJson.doc : null,
@@ -151,6 +156,7 @@ export function policyFormToWriteInput(values: PolicyFormValues): PolicyWriteInp
     documentType: values.documentType,
     primaryCategoryId: values.primaryCategoryId,
     source: values.contentMode,
+    acknowledgementRequired: values.acknowledgementRequired,
   }
   if (values.description.trim()) payload.description = values.description.trim()
   if (values.ownerId) payload.ownerId = values.ownerId
@@ -266,6 +272,7 @@ export function PolicyForm({
                 placeholder="Write the policy…"
                 disabled={readOnly}
                 minHeight={280}
+                contentClassName="policy-doc"
                 onChange={(html, json) => patch({ contentHtml: html, contentJson: json ?? values.contentJson })}
               />
             </div>
@@ -444,6 +451,26 @@ export function PolicyForm({
         workAreas={lookups.workAreas}
         locations={lookups.locations}
       />
+
+      <section className="space-y-3" data-testid="policy-acknowledgement-setting">
+        <div>
+          <h2 className="text-base font-semibold">Staff acknowledgement</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Staff in the audience above must read and acknowledge each new version within 14 days. Minor
+            versions do not need acknowledging again.
+          </p>
+        </div>
+        <label htmlFor="policy-acknowledgement-required" className="flex items-start gap-3 text-sm">
+          <Checkbox
+            id="policy-acknowledgement-required"
+            className="mt-0.5"
+            checked={values.acknowledgementRequired}
+            onCheckedChange={checked => patch({ acknowledgementRequired: checked === true })}
+            disabled={readOnly}
+          />
+          <span>Staff must read and acknowledge this policy</span>
+        </label>
+      </section>
 
       <PolicyLinksEditor
         value={values.links}

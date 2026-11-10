@@ -33,6 +33,7 @@ import { StaffListBranchesCell } from '@/features/employees/components/StaffList
 import { StaffListFilters } from '@/features/employees/components/StaffListFilters'
 import { EmployeeNonCoreActivityTab } from '@/features/employees/components/EmployeeNonCoreActivityTab'
 import { EmployeeAllocationsTab } from '@/features/employees/components/EmployeeAllocationsTab'
+import { ReviewStatusBadge } from '@/features/employees/components/ReviewStatusBadge'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import {
@@ -117,10 +118,10 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
     <div className="space-y-4" data-testid="employee-management-page">
       <div className="bg-card rounded-xl border border-border shadow-sm">
         <div className="p-5 space-y-1.5">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Filter className="h-4 w-4 text-muted-foreground" />
+          <h1 className="flex items-center gap-2 text-sm font-semibold">
+            <Filter className="h-4 w-4 text-muted-foreground" aria-hidden />
             Employee Management
-          </div>
+          </h1>
           <p className="text-sm text-muted-foreground">
             Manage staff, compliance, reviews, and reports.
           </p>
@@ -170,7 +171,7 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               )}
             >
-              <span className={cn(activeTab === tab.id ? 'text-primary' : 'text-muted-foreground/70')}>
+              <span className={cn(activeTab === tab.id ? 'text-primary' : 'text-muted-foreground')}>
                 {tab.icon}
               </span>
               <span>{tab.label}</span>
@@ -221,7 +222,7 @@ function StaffStatusCard({
     <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
       <h3 className="text-center font-bold text-sm mb-4">Staff Status Chart</h3>
       {loading ? (
-        <p className="text-xs text-muted-foreground text-center py-6">Loading?</p>
+        <p className="text-xs text-muted-foreground text-center py-6">Loading…</p>
       ) : error ? (
         <p className="text-xs text-amber-800 dark:text-amber-200 text-center">{error}</p>
       ) : (
@@ -246,7 +247,82 @@ function StaffStatusCard({
   )
 }
 
-const COMPLIANCE_PIE_COLORS = { up: '#1e3a4a', near: '#4db6d4' }
+/** Green / amber / red, readable in light and dark themes. */
+const STATUS_COLORS = { good: '#22a06b', warn: '#f5a524', bad: '#e5484d' }
+
+/**
+ * A status pie for the summary row: what it measures (subtitle), the split, and a link to the page
+ * behind it, so the numbers can be acted on.
+ */
+function StatusPieCard({
+  title,
+  subtitle,
+  loading,
+  error,
+  slices,
+  emptyText,
+  linkLabel,
+  onOpen,
+}: {
+  title: string
+  subtitle: string
+  loading: boolean
+  error: string | null
+  slices: Array<{ name: string; value: number; color: string }>
+  emptyText: string
+  linkLabel: string
+  onOpen: () => void
+}) {
+  const total = slices.reduce((n, d) => n + d.value, 0)
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col items-center">
+      <h3 className="font-bold text-sm">{title}</h3>
+      <p className="mb-1 text-center text-[11px] text-muted-foreground">{subtitle}</p>
+      {loading ? (
+        <p className="text-xs text-muted-foreground py-12">Loading…</p>
+      ) : error ? (
+        <p className="text-xs text-amber-800 dark:text-amber-200 text-center px-2 py-6">{error}</p>
+      ) : total === 0 ? (
+        <p className="text-xs text-muted-foreground py-12 text-center px-2">{emptyText}</p>
+      ) : (
+        <>
+          <ResponsiveContainer width="100%" height={130}>
+            <PieChart>
+              <Tooltip
+                formatter={(value, name) => [String(value), String(name ?? '')]}
+                contentStyle={{ fontSize: '11px', borderRadius: '8px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }}
+              />
+              <Pie
+                data={slices.filter(d => d.value > 0)}
+                cx="50%"
+                cy="50%"
+                outerRadius={58}
+                dataKey="value"
+                nameKey="name"
+                startAngle={90}
+                endAngle={-270}
+              >
+                {slices.filter(d => d.value > 0).map(entry => <Cell key={entry.name} fill={entry.color} />)}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex gap-3 text-[11px] mt-1 flex-wrap justify-center">
+            {slices.map(d => (
+              <div key={d.name} className="flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: d.color }} />
+                <span className="text-muted-foreground">{d.name}</span>
+                <span className="text-foreground font-medium">{d.value}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      <button type="button" onClick={onOpen} className="mt-2 text-xs font-medium text-primary hover:underline">
+        {linkLabel} →
+      </button>
+    </div>
+  )
+}
 
 /* --- Compliance Card ----------------------------------------- */
 function ComplianceCard({
@@ -258,44 +334,22 @@ function ComplianceCard({
   error: string | null
   compliance: EmployeeChartSummary['compliance'] | null
 }) {
-  const up = compliance?.upToDate ?? 0
-  const near = compliance?.needsAttention ?? 0
-  const pieData = [
-    { name: 'Up to date', value: up, color: COMPLIANCE_PIE_COLORS.up },
-    { name: 'Needs attention', value: near, color: COMPLIANCE_PIE_COLORS.near },
-  ]
-  const hasData = up + near > 0
-
+  const navigate = useNavigate()
   return (
-    <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col items-center">
-      <h3 className="font-bold text-sm mb-1">Compliance</h3>
-      {loading ? (
-        <p className="text-xs text-muted-foreground py-12">Loading?</p>
-      ) : error ? (
-        <p className="text-xs text-amber-800 dark:text-amber-200 text-center px-2 py-6">{error}</p>
-      ) : !hasData ? (
-        <p className="text-xs text-muted-foreground py-12 text-center px-2">No compliance records yet.</p>
-      ) : (
-        <>
-          <ResponsiveContainer width="100%" height={130}>
-            <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" outerRadius={58} dataKey="value" startAngle={90} endAngle={-270}>
-                {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex gap-4 text-[10px] mt-1 flex-wrap justify-center">
-            {pieData.map(d => (
-              <div key={d.name} className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: d.color }} />
-                <span className="text-muted-foreground">{d.name}</span>
-                <span className="text-foreground font-medium">({d.value})</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    <StatusPieCard
+      title="Compliance"
+      subtitle="Staff, by compliance board status"
+      loading={loading}
+      error={error}
+      slices={[
+        { name: 'Compliant', value: compliance?.compliant ?? 0, color: STATUS_COLORS.good },
+        { name: 'Needs attention', value: compliance?.attention ?? 0, color: STATUS_COLORS.warn },
+        { name: 'Blocked', value: compliance?.blocked ?? 0, color: STATUS_COLORS.bad },
+      ]}
+      emptyText="No staff to show."
+      linkLabel="Compliance board"
+      onOpen={() => void navigate({ to: '/employee/compliance' })}
+    />
   )
 }
 
@@ -318,13 +372,13 @@ function SkillsChartCard({
       <h3 className="font-bold text-sm mb-0.5">Skills Chart</h3>
       {loading || error ? null : hasData ? (
         <p className="mb-2 text-center text-[10px] text-muted-foreground">
-          {totalAssignments} skill assignment{totalAssignments === 1 ? '' : 's'} ? from database
+          {totalAssignments} skill assignment{totalAssignments === 1 ? '' : 's'} · from staff records
         </p>
       ) : (
         <p className="mb-2 text-center text-[10px] text-muted-foreground">From employee skill assignments</p>
       )}
       {loading ? (
-        <p className="text-xs text-muted-foreground py-12">Loading?</p>
+        <p className="text-xs text-muted-foreground py-12">Loading…</p>
       ) : error ? (
         <p className="text-xs text-amber-800 dark:text-amber-200 text-center px-2 py-6">{error}</p>
       ) : !hasData ? (
@@ -372,8 +426,6 @@ function SkillsChartCard({
   )
 }
 
-const REVIEWS_PIE_COLORS = { reviewed: '#7ec8d8', outstanding: '#b8e8ee' }
-
 /* --- Reviews Card -------------------------------------------- */
 function ReviewsCard({
   loading,
@@ -384,44 +436,22 @@ function ReviewsCard({
   error: string | null
   reviews: EmployeeChartSummary['reviews'] | null
 }) {
-  const reviewed = reviews?.reviewed ?? 0
-  const outstanding = reviews?.outstanding ?? 0
-  const pieData = [
-    { name: 'Reviewed', value: reviewed, color: REVIEWS_PIE_COLORS.reviewed },
-    { name: 'Outstanding', value: outstanding, color: REVIEWS_PIE_COLORS.outstanding },
-  ]
-  const hasData = reviewed + outstanding > 0
-
+  const navigate = useNavigate()
   return (
-    <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col items-center">
-      <h3 className="font-bold text-sm mb-1">Reviews</h3>
-      {loading ? (
-        <p className="text-xs text-muted-foreground py-12">Loading?</p>
-      ) : error ? (
-        <p className="text-xs text-amber-800 dark:text-amber-200 text-center px-2 py-6">{error}</p>
-      ) : !hasData ? (
-        <p className="text-xs text-muted-foreground py-12 text-center px-2">No reviews yet.</p>
-      ) : (
-        <>
-          <ResponsiveContainer width="100%" height={145}>
-            <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" outerRadius={65} dataKey="value" startAngle={90} endAngle={-270}>
-                {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex gap-4 text-[10px] mt-1 flex-wrap justify-center">
-            {pieData.map(d => (
-              <div key={d.name} className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: d.color }} />
-                <span className="text-muted-foreground">{d.name}</span>
-                <span className="text-foreground font-medium">({d.value})</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    <StatusPieCard
+      title="Reviews"
+      subtitle="Supervision, appraisal and other staff reviews, by schedule"
+      loading={loading}
+      error={error}
+      slices={[
+        { name: 'Up to date', value: reviews?.upToDate ?? 0, color: STATUS_COLORS.good },
+        { name: 'Due soon', value: reviews?.dueSoon ?? 0, color: STATUS_COLORS.warn },
+        { name: 'Overdue', value: reviews?.overdue ?? 0, color: STATUS_COLORS.bad },
+      ]}
+      emptyText="No reviews due or recorded yet."
+      linkLabel="Review status"
+      onOpen={() => void navigate({ to: '/employee/review-status' })}
+    />
   )
 }
 
@@ -748,7 +778,7 @@ function StaffListTab() {
             {loading ? (
               <tr data-testid="employee-staff-loading">
                 <td colSpan={tableColumnCount} className="px-3 py-10 text-center text-muted-foreground">
-                  Loading?
+                  Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
@@ -763,7 +793,7 @@ function StaffListTab() {
               </tr>
             ) : (
               rows.map(emp => {
-                const name = emp.fullName?.trim() || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || '?'
+                const name = emp.fullName?.trim() || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || '—'
                 const { label: statusLabel, norm: statusNorm } = staffRowEffectiveStatus(emp)
                 const photoSrc = resolveMediaUrl(emp.photoUrl)
                 const rowStatusSwitch =
@@ -838,9 +868,9 @@ function StaffListTab() {
                     <td className="px-3 py-3 align-top text-muted-foreground">
                       <StaffListBranchesCell scope={branchScope} />
                     </td>
-                    <td className="px-3 py-3 text-muted-foreground">{emp.role?.name ?? '?'}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{emp.role?.name ?? '—'}</td>
                     <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
-                      {emp.contractType?.name ?? '?'}
+                      {emp.contractType?.name ?? '—'}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
@@ -895,27 +925,33 @@ function ReviewStatusTab() {
   const jwtPresent = Boolean(useAuthStore(s => s.accessToken)?.includes('.'))
   const canRead = useAuthStore(s => s.can('employees.read'))
   const overviewQuery = useEmployeeReviewsOverview(apiConfigured && jwtPresent && canRead)
-  const rows = overviewQuery.data ?? []
+  // Recorded reviews plus those due from a schedule with nothing recorded yet (new starters,
+  // probation and induction milestones), soonest first.
+  const rows = React.useMemo(() => {
+    const data = overviewQuery.data
+    if (!data) return []
+    const recorded = data.rows.map(r => ({ ...r, key: r.id, fromSchedule: false }))
+    const upcoming = data.upcoming.map(u => ({
+      ...u,
+      key: `${u.employeeId}:${u.reviewTypeId}`,
+      lastDone: null,
+      fromSchedule: true,
+    }))
+    return [...recorded, ...upcoming].sort(
+      (a, b) => (a.nextDue ? Date.parse(a.nextDue) : Infinity) - (b.nextDue ? Date.parse(b.nextDue) : Infinity),
+    )
+  }, [overviewQuery.data])
 
-  const formatReviewDate = (iso: string | null | undefined) => {
-    if (!iso) return '?'
-    const formatted = formatDate(iso)
-    return formatted === '—' ? '?' : formatted
-  }
+  const formatReviewDate = (iso: string | null | undefined) => (iso ? formatDate(iso) : '—')
 
   const employeeName = (row: (typeof rows)[number]) => {
     const p = row.employee?.personalDetail
-    if (!p) return '?'
+    if (!p) return '—'
     return `${p.firstName} ${p.lastName}`.trim()
   }
 
-  const isOverdue = (nextDue: string | null | undefined) => {
-    if (!nextDue) return false
-    return new Date(nextDue).getTime() < Date.now()
-  }
-
   if (overviewQuery.isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading review status?</p>
+    return <p className="text-sm text-muted-foreground">Loading review status…</p>
   }
 
   if (overviewQuery.error) {
@@ -958,15 +994,18 @@ function ReviewStatusTab() {
             </tr>
           ) : (
             rows.map(row => {
-              const overdue = isOverdue(row.nextDue)
+              const overdue = row.status === 'OVERDUE'
               return (
-                <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                <tr key={row.key} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                   <td className="px-3 py-2.5 font-medium whitespace-nowrap">{employeeName(row)}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{row.reviewType?.name ?? '?'}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">
+                    {row.reviewType?.name ?? '—'}
+                    {row.fromSchedule ? (
+                      <span className="ml-1 text-xs text-muted-foreground">(from schedule, nothing recorded yet)</span>
+                    ) : null}
+                  </td>
                   <td className="px-3 py-2.5">
-                    <Badge variant={overdue ? 'warning' : 'success'} size="sm">
-                      {row.status ?? (overdue ? 'Overdue' : 'Scheduled')}
-                    </Badge>
+                    <ReviewStatusBadge status={row.status} />
                   </td>
                   <td className="px-3 py-2.5 text-muted-foreground">{formatReviewDate(row.lastDone)}</td>
                   <td className={cn('px-3 py-2.5 font-medium', overdue ? 'text-destructive' : 'text-muted-foreground')}>

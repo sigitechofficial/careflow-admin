@@ -2,6 +2,7 @@
 import {
   AlertTriangle,
   Bell,
+  CalendarClock,
   ClipboardList,
   Home,
   Info,
@@ -12,6 +13,7 @@ import {
   Shield,
   Smartphone,
   SlidersHorizontal,
+  UserCheck,
   Users,
   Workflow,
 } from 'lucide-react'
@@ -25,6 +27,8 @@ import { GeneralSettingsDomCarePanel } from '@/features/settings/components/Gene
 import { GeneralSettingsDomCareShiftsPanel } from '@/features/settings/components/GeneralSettingsDomCareShiftsPanel'
 import { GeneralSettingsDomRulesPanel } from '@/features/settings/components/GeneralSettingsDomRulesPanel'
 import { GeneralSettingsIncidentManagementPanel } from '@/features/settings/components/GeneralSettingsIncidentManagementPanel'
+import { GeneralSettingsSupervisionPanel } from '@/features/settings/components/GeneralSettingsSupervisionPanel'
+import { GeneralSettingsReviewsPanel } from '@/features/settings/components/GeneralSettingsReviewsPanel'
 import { GeneralSettingsOptionalPanel } from '@/features/settings/components/GeneralSettingsOptionalPanel'
 import { GeneralSettingsPreAssessmentPanel } from '@/features/settings/components/GeneralSettingsPreAssessmentPanel'
 import { GeneralSettingsAlertsPanel } from '@/features/settings/components/GeneralSettingsAlertsPanel'
@@ -41,6 +45,8 @@ export type GeneralSettingsTabId =
   | 'dom-care-shifts'
   | 'dom-rules'
   | 'incident-management'
+  | 'supervision'
+  | 'reviews'
   | 'optional'
   | 'pre-assessment'
   | 'alerts'
@@ -57,6 +63,8 @@ const GENERAL_SETTINGS_TABS: { id: GeneralSettingsTabId; label: string; Icon: Lu
   { id: 'dom-care-shifts', label: 'Dom Care Shifts & Allocation', Icon: ListChecks },
   { id: 'dom-rules', label: 'Dom Rules', Icon: Scale },
   { id: 'incident-management', label: 'Incident Management', Icon: AlertTriangle },
+  { id: 'supervision', label: 'Supervision', Icon: UserCheck },
+  { id: 'reviews', label: 'Reviews & reminders', Icon: CalendarClock },
   { id: 'optional', label: 'Optional Settings', Icon: SlidersHorizontal },
   { id: 'pre-assessment', label: 'Pre Assessment', Icon: ClipboardList },
   { id: 'alerts', label: 'Alerts', Icon: Bell },
@@ -142,6 +150,8 @@ export default function GeneralSettingsPage() {
           {activeTab === 'dom-care-shifts' && <GeneralSettingsDomCareShiftsPanel />}
           {activeTab === 'dom-rules' && <GeneralSettingsDomRulesPanel />}
           {activeTab === 'incident-management' && <GeneralSettingsIncidentManagementPanel />}
+          {activeTab === 'supervision' && <GeneralSettingsSupervisionPanel />}
+          {activeTab === 'reviews' && <GeneralSettingsReviewsPanel />}
           {activeTab === 'optional' && <GeneralSettingsOptionalPanel />}
           {activeTab === 'pre-assessment' && <GeneralSettingsPreAssessmentPanel />}
           {activeTab === 'alerts' && <GeneralSettingsAlertsPanel />}

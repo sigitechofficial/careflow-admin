@@ -133,7 +133,7 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId, onSelectP
   if (sortedPlans.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
-        <History className="mx-auto h-8 w-8 text-muted-foreground/60" aria-hidden />
+        <History className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden />
         <p className={cn('mt-3', contentBodyClass)}>No visit plans recorded yet.</p>
       </div>
     )

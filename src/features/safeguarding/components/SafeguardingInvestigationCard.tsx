@@ -275,7 +275,7 @@ function InvestigationForm({
                 type="checkbox"
                 checked={factors.includes(f.value)}
                 onChange={() => toggleFactor(f.value)}
-                className="h-3.5 w-3.5 rounded border-border"
+                className="h-3.5 w-3.5 rounded border-input"
               />
               {f.label}
             </label>

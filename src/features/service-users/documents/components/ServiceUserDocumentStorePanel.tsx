@@ -474,7 +474,7 @@ export function ServiceUserDocumentStorePanel({ serviceUserId }: { serviceUserId
             </>
           ) : visibleDocuments.length === 0 ? (
             <div className="flex h-full min-h-[18rem] flex-col items-center justify-center gap-3 text-center">
-              <FolderOpen className="h-14 w-14 text-muted-foreground/35" strokeWidth={1.25} />
+              <FolderOpen className="h-14 w-14 text-muted-foreground" strokeWidth={1.25} />
               <p className="text-sm text-muted-foreground">This folder is empty.</p>
               {canUpload ? (
                 <Button type="button" size="sm" variant="outline" onClick={() => openUpload(openedFolder.id)}>

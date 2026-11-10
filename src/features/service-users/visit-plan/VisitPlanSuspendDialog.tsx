@@ -8,6 +8,7 @@ import type { SuspendVisitPlanPayload } from '@/features/service-users/visit-pla
 import { previewVisitPlanSuspendScheduleImpact } from '@/features/service-users/visit-plan/api'
 import { addDaysToIsoDate } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
 import { operationalTodayIso } from '@/shared/lib/operational-day.util'
+import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { Input } from '@/shared/ui/input'
@@ -30,8 +31,9 @@ import {
 
 type PauseReason = SuLookupRow & { suggestsUseAbsence?: boolean }
 
-function defaultReviewDueIso(): string {
-  return addDaysToIsoDate(operationalTodayIso(), 7)
+/** Settings → Reviews & reminders `visitPlanSuspensionReviewDays`; blank until known (the API then applies it). */
+function defaultReviewDueIso(days: number | undefined): string {
+  return days ? addDaysToIsoDate(operationalTodayIso(), days) : ''
 }
 
 function todayIso(): string {
@@ -65,7 +67,8 @@ export function VisitPlanSuspendDialog({
   const [retrospectiveReason, setRetrospectiveReason] = React.useState('')
   const [expectedResumeAt, setExpectedResumeAt] = React.useState('')
   const [indefinite, setIndefinite] = React.useState(true)
-  const [reviewDueAt, setReviewDueAt] = React.useState(defaultReviewDueIso())
+  const suspensionReviewDays = useGeneralSettings(open).data?.reviewSettings?.visitPlanSuspensionReviewDays
+  const [reviewDueAt, setReviewDueAt] = React.useState(defaultReviewDueIso(suspensionReviewDays))
   const [contingencyNotes, setContingencyNotes] = React.useState('')
   const [cancelFutureVisits, setCancelFutureVisits] = React.useState(cancelFutureVisitsDefault)
   const [impactPreview, setImpactPreview] = React.useState<number | null>(null)
@@ -84,13 +87,13 @@ export function VisitPlanSuspendDialog({
     setRetrospectiveReason('')
     setExpectedResumeAt('')
     setIndefinite(true)
-    setReviewDueAt(defaultReviewDueIso())
+    setReviewDueAt(defaultReviewDueIso(suspensionReviewDays))
     setContingencyNotes('')
     setCancelFutureVisits(cancelFutureVisitsDefault)
     setImpactPreview(null)
     setConfirmStep(false)
     setNoCancelAck(false)
-  }, [open, cancelFutureVisitsDefault])
+  }, [open, cancelFutureVisitsDefault, suspensionReviewDays])
 
   React.useEffect(() => {
     if (!open || !cancelFutureVisits || !effectiveFrom.trim() || !planId) {
@@ -263,7 +266,11 @@ export function VisitPlanSuspendDialog({
                 value={reviewDueAt}
                 onChange={(e) => setReviewDueAt(e.target.value)}
               />
-              <p className={cn('mt-1', contentHelperClass)}>Defaults to 7 days — re-check decision & welfare.</p>
+              <p className={cn('mt-1', contentHelperClass)}>
+                {suspensionReviewDays
+                  ? `Defaults to ${suspensionReviewDays} days (Settings → Reviews & reminders) — re-check decision & welfare.`
+                  : 'Left blank, the organisation default from Settings → Reviews & reminders is used.'}
+              </p>
             </div>
           </div>
 

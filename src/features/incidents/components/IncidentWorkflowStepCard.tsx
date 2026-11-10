@@ -101,7 +101,7 @@ export function IncidentWorkflowStepCard({
           <div
             className={cn(
               'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-semibold',
-              isComplete && 'border-success bg-success text-white',
+              isComplete && 'border-success bg-success text-success-foreground',
               isCurrent && 'border-primary bg-background text-primary',
               state === 'upcoming' && 'border-muted-foreground/30 text-muted-foreground',
             )}

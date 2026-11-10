@@ -642,7 +642,7 @@ export default function RaiseIncidentPage() {
                   setDetailErrors({})
                   setSubtypeId('')
                 }}
-                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">Select…</option>
                 {categories.map((c) => (
@@ -659,7 +659,7 @@ export default function RaiseIncidentPage() {
                   id="inc-subtype"
                   value={subtypeId}
                   onChange={(e) => setSubtypeId(e.target.value)}
-                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">Select…</option>
                   {selectedCategory.subtypes.map((s) => (
@@ -759,7 +759,7 @@ export default function RaiseIncidentPage() {
                 id="inc-location"
                 value={locationId}
                 onChange={(e) => setLocationId(e.target.value)}
-                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 disabled={locationsQuery.isLoading}
               >
                 <option value="">{locationsQuery.isLoading ? 'Loading branches…' : 'Select branch…'}</option>
@@ -782,7 +782,7 @@ export default function RaiseIncidentPage() {
                 id="inc-where"
                 value={locationKey}
                 onChange={(e) => setLocationKey(e.target.value)}
-                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">Not specified</option>
                 {INCIDENT_LOCATION_GROUPS.map((g) => (

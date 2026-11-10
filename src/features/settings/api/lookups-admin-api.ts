@@ -188,6 +188,9 @@ export type ServiceUserFundingTypeRow = {
   name: string
   code: string
   isActive: boolean
+  /** Funding routes only: the broad billing type (Funding tab) this route comes under. */
+  billingFundingTypeId?: string | null
+  billingFundingType?: { id: string; name: string; code: string } | null
 }
 
 export type BodyMapRecordTypeRow = {
@@ -643,6 +646,7 @@ export async function fetchServiceUserFundingTypesList(): Promise<ServiceUserFun
 export async function createServiceUserFundingType(body: {
   name: string
   code: string
+  billingFundingTypeId?: string | null
 }): Promise<ServiceUserFundingTypeRow> {
   const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
     '/lookups/service-user-funding-types',
@@ -653,7 +657,7 @@ export async function createServiceUserFundingType(body: {
 
 export async function updateServiceUserFundingType(
   id: string,
-  body: { name?: string; code?: string },
+  body: { name?: string; code?: string; billingFundingTypeId?: string | null },
 ): Promise<ServiceUserFundingTypeRow> {
   const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
     `/lookups/service-user-funding-types/${id}`,

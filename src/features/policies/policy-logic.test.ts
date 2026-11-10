@@ -442,6 +442,8 @@ describe('partial draft round-trip', () => {
       documentType: 'POLICY',
       primaryCategoryId: 'c1',
       source: 'EDITOR',
+      // Always sent, so unticking "Staff must read and acknowledge" on edit is saved.
+      acknowledgementRequired: false,
       ownerId: 'u1',
     })
     expect(payload.applicability).toBeUndefined()

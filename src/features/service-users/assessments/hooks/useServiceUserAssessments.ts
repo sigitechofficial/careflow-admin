@@ -4,6 +4,7 @@ import {
   fetchAssessmentCatalogue,
   fetchAssessmentCompletion,
   fetchAssessmentCompletions,
+  fetchAssessmentReviewSchedules,
   fetchCarePlanAssessmentLinks,
   fetchServiceUserAssessments,
   linkAssessmentToCarePlan,
@@ -115,4 +116,20 @@ export function useUnlinkAssessmentFromCarePlan(serviceUserId: string, carePlanF
       })
     },
   })
+}
+
+/** Review schedules in force; the API owns the intervals (built-in CQC/NICE values + organisation overrides). */
+export function useAssessmentReviewSchedules(enabled = true) {
+  return useQuery({
+    queryKey: serviceUserAssessmentKeys.reviewSchedules(),
+    queryFn: ({ signal }) => fetchAssessmentReviewSchedules({ signal }),
+    enabled,
+    staleTime: 5 * 60_000,
+  })
+}
+
+/** The Waterlow schedule in force (null until loaded). */
+export function useWaterlowReviewSchedule() {
+  const { data } = useAssessmentReviewSchedules()
+  return data?.find(row => row.key === 'waterlow')?.schedule ?? null
 }

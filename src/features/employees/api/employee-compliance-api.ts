@@ -60,6 +60,9 @@ export type ComplianceChecklistItem = {
   complianceTypeId: string
   code: string | null
   name: string
+  /** From the compliance type: expiry defaults to start date + `defaultValidityMonths`. */
+  hasExpiry?: boolean
+  defaultValidityMonths?: number | null
   isMandatory: boolean
   requirementId: string | null
   record: EmployeeComplianceRow | null
@@ -267,8 +270,11 @@ export type ComplianceBoardColumn = {
   code: string
   shortLabel: string
   name: string
+  /** The review type id when `source` is REVIEW. */
   complianceTypeId: string
   group?: string
+  /** REVIEW: supervision, appraisal and probation, from the staff review schedule. */
+  source?: 'DOCUMENT' | 'REVIEW'
 }
 
 export type ComplianceBoardCell = {
@@ -283,6 +289,7 @@ export type ComplianceBoardCell = {
   critical: boolean
   blocksRostering?: boolean
   isMandatory?: boolean
+  source?: 'DOCUMENT' | 'REVIEW'
 }
 
 export type ComplianceBoardNextAction = {

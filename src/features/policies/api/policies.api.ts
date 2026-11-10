@@ -3,10 +3,15 @@ import { formatApiErrorMessage } from '@/shared/api/api-error-format'
 import { useAuthStore } from '@/features/auth/store'
 import type {
   ApplicablePoliciesParams,
+  MyPolicyAcknowledgements,
   PaginatedResult,
   PaginationMeta,
   PolicyCategory,
   PolicyCategoryInput,
+  PolicyAcknowledgementReport,
+  PolicyAcknowledgementStatusResult,
+  PolicyAcknowledgementSummaryRow,
+  PolicyPublishPreview,
   PolicyCategoryListParams,
   PolicyDocument,
   PolicyListParams,
@@ -237,4 +242,34 @@ export async function updatePolicyTag(id: string, body: { name: string }): Promi
 
 export async function deletePolicyTag(id: string): Promise<void> {
   await apiJson(`/policy-tags/${id}`, { method: 'DELETE' })
+}
+
+// Staff read-and-acknowledge
+
+export async function fetchMyPolicyAcknowledgements(): Promise<MyPolicyAcknowledgements> {
+  return fetchData<MyPolicyAcknowledgements>('/policy-acknowledgements/mine')
+}
+
+export async function recordPolicyViewed(documentId: string): Promise<PolicyAcknowledgementStatusResult> {
+  return fetchData<PolicyAcknowledgementStatusResult>(`/policy-acknowledgements/${documentId}/viewed`, {
+    method: 'POST',
+  })
+}
+
+export async function acknowledgePolicy(documentId: string): Promise<PolicyAcknowledgementStatusResult> {
+  return fetchData<PolicyAcknowledgementStatusResult>(`/policy-acknowledgements/${documentId}/acknowledge`, {
+    method: 'POST',
+  })
+}
+
+export async function fetchPolicyAcknowledgementReport(documentId: string): Promise<PolicyAcknowledgementReport> {
+  return fetchData<PolicyAcknowledgementReport>(`/policy-acknowledgements/policies/${documentId}`)
+}
+
+export async function fetchPolicyPublishPreview(documentId: string): Promise<PolicyPublishPreview> {
+  return fetchData<PolicyPublishPreview>(`/policy-acknowledgements/policies/${documentId}/publish-preview`)
+}
+
+export async function fetchPolicyAcknowledgementSummary(): Promise<PolicyAcknowledgementSummaryRow[]> {
+  return fetchData<PolicyAcknowledgementSummaryRow[]>('/policy-acknowledgements/summary')
 }

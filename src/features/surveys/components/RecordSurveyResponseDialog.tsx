@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import { Loader2, Phone } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
@@ -23,16 +25,21 @@ import {
   useSurveyRecordCandidates,
   useUpdateRecordedSurveyResponse,
 } from '@/features/surveys/hooks/useSurveys'
-import { QuestionField, hasValue } from '@/features/surveys/components/SurveyQuestionField'
+import { QuestionField, RequiredMark, hasValue } from '@/features/surveys/components/SurveyQuestionField'
 import {
   SURVEY_RESPONSE_CHANNEL_LABELS,
   type StaffRecordedChannel,
   type SurveyAnswerInput,
   type SurveyQuestion,
+  type SurveyRecordCandidate,
   type SurveyRespondentRelation,
   type SurveyResponseItem,
   type SurveyTargetKind,
 } from '@/features/surveys/types'
+import { SurveySectionHeading } from '@/features/surveys/components/SurveySectionHeading'
+import { withSectionHeadings } from '@/features/surveys/survey-sections'
+import { SurveyDateTimeField } from '@/features/surveys/components/SurveyDateTimeField'
+import { answerProblems, answersToSend, questionsAsked, visibleQuestions } from '@/features/surveys/survey-logic'
 
 const CHANNELS: { value: StaffRecordedChannel; label: string; hint: string }[] = [
   { value: 'TELEPHONE', label: 'Telephone', hint: 'Answers taken over a phone call' },
@@ -41,7 +48,7 @@ const CHANNELS: { value: StaffRecordedChannel; label: string; hint: string }[] =
 ]
 
 const FIELD_CLASS =
-  'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 function relationOptions(targetKind: SurveyTargetKind): { value: SurveyRespondentRelation; label: string }[] {
   return [
@@ -56,36 +63,81 @@ function relationOptions(targetKind: SurveyTargetKind): { value: SurveyResponden
   ]
 }
 
-function answersFromResponse(response: SurveyResponseItem): Record<string, SurveyAnswerInput> {
+export function answersFromResponse(response: SurveyResponseItem): Record<string, SurveyAnswerInput> {
   const out: Record<string, SurveyAnswerInput> = {}
   for (const a of response.answers) {
+    // An equality answer linked to no one came as its group (or "Not shown") only: never put back in
+    // the form as if it were the answer. It is kept as recorded unless staff choose a new one.
+    if (a.lookupGroupOnly) continue
     out[a.questionId] = {
       questionId: a.questionId,
       ...(a.booleanValue != null ? { booleanValue: a.booleanValue } : {}),
       ...(a.textValue != null ? { textValue: a.textValue } : {}),
       ...(a.numberValue != null ? { numberValue: a.numberValue } : {}),
       ...(a.selectedOptions != null ? { selectedOptions: a.selectedOptions } : {}),
+      ...(a.otherText ? { otherText: a.otherText } : {}),
+      ...(a.comment ? { comment: a.comment } : {}),
     }
   }
   return out
 }
 
 type Props = {
+  /** The survey the response is recorded on (for an edit: the survey it belongs to, e.g. its period). */
   surveyId: string
+  /** Editing from another survey's list (a repeating survey's "All periods"): refreshed after saving too. */
+  listedOnSurveyId?: string
   targetKind: SurveyTargetKind
   questions: SurveyQuestion[]
   open: boolean
   /** Omit to record a new response; pass a staff-recorded response to correct it. */
   editing?: SurveyResponseItem | null
+  /** Shown above the form when editing (e.g. why held-back answers differ from the list it was opened from). */
+  editingNote?: string | null
+  /** Anonymous survey: text boxes remind staff not to write names. */
+  isAnonymous?: boolean
+  /** Section introductions, read out with each heading. */
+  sectionIntros?: Record<string, string>
+  /** Recording for someone chosen already (the call list): the person (employee / service user id) and the number called. */
+  initialPerson?: { id: string; name: string; phone?: string | null } | null
+  /** An independent reviewer (SUR-CQC-001): their sample only, recorded through /survey-reviews. */
+  asReviewer?: boolean
+  /** How the answers were collected, chosen already (e.g. In person after a care plan review). */
+  initialChannel?: StaffRecordedChannel
   onClose: () => void
 }
 
+/** What the person picker says about someone: answered, sent (and how to reach them), or not sent. */
+export function recordCandidateDescription(c: SurveyRecordCandidate): string {
+  const ended = c.careEnded ? 'Care ended · ' : ''
+  if (c.statusHidden) return `${ended}Anonymous survey — whether they have answered is not shown`
+  if (c.hasResponse) return `${ended}Already answered`
+  if (!c.recipientStatus) return `${ended}Not sent yet`
+  return c.hasPortal === false
+    ? `${ended}Sent: no portal account — phone, visit or post`
+    : `${ended}Survey sent — not answered yet`
+}
+
 /** Office staff record survey answers collected by telephone, paper or in person. */
-export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, open, editing, onClose }: Props) {
+export function RecordSurveyResponseDialog({
+  surveyId,
+  listedOnSurveyId,
+  targetKind,
+  questions,
+  open,
+  editing,
+  editingNote,
+  isAnonymous,
+  sectionIntros,
+  initialPerson,
+  asReviewer = false,
+  initialChannel,
+  onClose,
+}: Props) {
   const isEdit = Boolean(editing)
   const forServiceUsers = targetKind === 'SERVICE_USER'
-  const recordMutation = useRecordSurveyResponse(surveyId)
-  const updateMutation = useUpdateRecordedSurveyResponse(surveyId)
+  const recordMutation = useRecordSurveyResponse(surveyId, asReviewer)
+  const updateMutation = useUpdateRecordedSurveyResponse(surveyId, listedOnSurveyId)
   const saving = recordMutation.isPending || updateMutation.isPending
 
   const [channel, setChannel] = React.useState<StaffRecordedChannel>('TELEPHONE')
@@ -94,12 +146,34 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
   const [personSearch, setPersonSearch] = React.useState('')
   const [relation, setRelation] = React.useState<SurveyRespondentRelation>('SELF')
   const [respondentName, setRespondentName] = React.useState('')
+  // Who answered for the person, chosen from their People involved (their own survey contact, decision P10).
+  const [respondentContactId, setRespondentContactId] = React.useState('')
   const [contactedAt, setContactedAt] = React.useState('')
   const [contactNumber, setContactNumber] = React.useState('')
   const [contactNotes, setContactNotes] = React.useState('')
   const [consent, setConsent] = React.useState(false)
   const [answers, setAnswers] = React.useState<Record<string, SurveyAnswerInput>>({})
   const [reason, setReason] = React.useState('')
+  // Quick entry (a pile of paper forms): how many were saved with "Save and record another" since opening.
+  const [savedCount, setSavedCount] = React.useState(0)
+  const bodyRef = React.useRef<HTMLDivElement>(null)
+  // Several people one after another: offered when nobody was chosen beforehand (not for corrections).
+  const canRecordAnother = !isEdit && !initialPerson && !asReviewer
+
+  /** Clears the person and their answers for the next form; keeps how and when they were collected. */
+  const resetForNext = () => {
+    setAnonymous(false)
+    setPersonId('')
+    setPersonSearch('')
+    setRelation('SELF')
+    setRespondentName('')
+    setRespondentContactId('')
+    setContactNumber('')
+    setContactNotes('')
+    setConsent(false)
+    setAnswers({})
+    bodyRef.current?.parentElement?.scrollTo?.({ top: 0 })
+  }
 
   React.useEffect(() => {
     if (!open) return
@@ -113,37 +187,65 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
       setContactNotes(editing.contactNotes ?? '')
       setAnswers(answersFromResponse(editing))
     } else {
-      setChannel('TELEPHONE')
+      setChannel(initialChannel ?? 'TELEPHONE')
       setAnonymous(false)
-      setPersonId('')
-      setPersonSearch('')
+      setPersonId(initialPerson?.id ?? '')
+      setPersonSearch(initialPerson?.name ?? '')
       setRelation('SELF')
       setRespondentName('')
       setContactedAt(nowOrgDatetimeLocal())
-      setContactNumber('')
+      setContactNumber(initialPerson?.phone ?? '')
       setContactNotes('')
       setConsent(false)
       setAnswers({})
+      setRespondentContactId('')
     }
     setReason('')
+    setSavedCount(0)
+    // initialPerson is read when the dialog opens only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing])
 
-  const candidatesQuery = useSurveyRecordCandidates(surveyId, personSearch, open && !isEdit && !anonymous)
+  const candidatesQuery = useSurveyRecordCandidates(surveyId, personSearch, open && !isEdit && !anonymous, asReviewer)
   const candidateOptions = (candidatesQuery.data ?? []).map(c => ({
     value: c.id,
     label: c.name,
-    description: c.hasResponse
-      ? 'Already answered'
-      : c.recipientStatus
-        ? 'Survey sent — not answered yet'
-        : 'Not sent yet',
+    description: recordCandidateDescription(c),
     disabled: c.hasResponse,
   }))
 
   const isTelephone = channel === 'TELEPHONE'
   const showName = !anonymous && relation !== 'SELF'
-  const missingRequired = questions.filter(q => q.isRequired && !hasValue(q.questionType, answers[q.id]))
-  const answeredCount = questions.filter(q => hasValue(q.questionType, answers[q.id])).length
+  const showContactPick =
+    !asReviewer && targetKind === 'SERVICE_USER' && !isAnonymous && !anonymous && Boolean(personId) && (relation === 'FAMILY_MEMBER' || relation === 'REPRESENTATIVE')
+
+  // Linked to no one (recorded as anonymous, or on an anonymous survey): nobody could reply, so the
+  // contact-me question is not asked — same rule as the server, which discards any answer to it.
+  const unlinked = Boolean(isAnonymous) || (isEdit ? Boolean(editing?.isAnonymous) : anonymous)
+  const asked = React.useMemo(() => questionsAsked(questions, unlinked), [questions, unlinked])
+  // An anonymous recording (anonymous survey, or recorded as Anonymous): the notes are not linked to
+  // anyone either, so staff are reminded not to name the person in them.
+  const noNames = Boolean(isAnonymous) || anonymous
+  // Anonymous survey still collecting answers: written answers are held back from staff too. They are
+  // kept as they are (the server keeps them) unless staff type a replacement.
+  const withheld = React.useMemo(
+    () => new Map((editing?.answers ?? []).filter(a => a.withheldFields?.length).map(a => [a.questionId, a.withheldFields!])),
+    [editing],
+  )
+  // Equality answers linked to no one (shown as their group only): kept as recorded unless replaced.
+  const keptLookup = React.useMemo(
+    () => new Set((editing?.answers ?? []).filter(a => a.lookupGroupOnly && a.selectedOptions?.length).map(a => a.questionId)),
+    [editing],
+  )
+  const keepsText = (questionId: string) =>
+    Boolean(withheld.get(questionId)?.includes('textValue')) ||
+    (keptLookup.has(questionId) && !answers[questionId]?.selectedOptions?.length)
+  // Questions with "Show only if" appear as the person's answers are entered.
+  const shown = visibleQuestions(asked, answers)
+  const problems = answerProblems(asked, answers)
+  const missingRequired = problems.missingRequired.filter(q => !keepsText(q.id))
+  const missingOtherText = problems.missingOtherText.filter(q => !withheld.get(q.id)?.includes('otherText'))
+  const answeredCount = shown.filter(q => hasValue(q.questionType, answers[q.id]) || keepsText(q.id)).length
 
   const blocker = (() => {
     if (!isEdit && !anonymous && !personId) {
@@ -152,23 +254,25 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
     if (!isEdit && isTelephone && !consent) return 'Confirm the person agreed to answer over the phone.'
     if (answeredCount === 0) return 'Enter at least one answer.'
     if (missingRequired[0]) return `Answer the required question: ${missingRequired[0].questionText}`
+    if (missingOtherText[0]) return `Type their “Other” answer for: ${missingOtherText[0].questionText}`
     if (isEdit && !reason.trim()) return 'Give a reason for the correction.'
     return null
   })()
 
-  const submit = async () => {
+  const submit = async (another = false) => {
     if (blocker) return
-    const payloadAnswers = questions
-      .map(q => answers[q.id])
-      .filter((a): a is SurveyAnswerInput => Boolean(a))
-      .filter(a => {
-        const q = questions.find(x => x.id === a.questionId)
-        return q ? hasValue(q.questionType, a) : false
-      })
+    const sent = answersToSend(asked, answers)
+    // A held-back text answer left empty is sent as a bare answer, so the server keeps the saved text;
+    // so is an equality answer shown as its group only and not replaced (its group is never sent).
+    const kept = shown
+      .filter(q => keepsText(q.id) && !sent.some(a => a.questionId === q.id))
+      .map(q => ({ questionId: q.id }))
+    const payloadAnswers = [...sent, ...kept]
     const details = {
       answers: payloadAnswers,
       respondentRelation: relation,
       respondentName: showName ? respondentName.trim() || undefined : undefined,
+      ...(!editing && showContactPick && respondentContactId ? { respondentContactId } : {}),
       contactedAt: orgDatetimeLocalToIso(contactedAt) || undefined,
       contactNumber: !anonymous && isTelephone ? contactNumber.trim() || undefined : undefined,
       contactNotes: contactNotes.trim() || undefined,
@@ -185,6 +289,12 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
           personId: anonymous ? undefined : personId,
           consentGiven: isTelephone ? consent : undefined,
         })
+        if (another) {
+          setSavedCount(n => n + 1)
+          toastSuccess('Response recorded', 'Ready for the next one.')
+          resetForNext()
+          return
+        }
         toastSuccess('Response recorded')
       }
       onClose()
@@ -208,9 +318,27 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
         </DialogHeader>
 
         <DialogBody className="max-h-[70vh] space-y-5 overflow-y-auto">
+          <div ref={bodyRef} hidden />
+          {savedCount > 0 ? (
+            <p
+              className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+              role="status"
+              data-testid="record-saved-count"
+            >
+              {savedCount} {savedCount === 1 ? 'response' : 'responses'} saved. Choose the next person and enter their answers.
+            </p>
+          ) : null}
+          {isEdit && editingNote ? (
+            <p
+              className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+              data-testid="record-editing-note"
+            >
+              {editingNote}
+            </p>
+          ) : null}
           {!isEdit ? (
-            <section className="space-y-2">
-              <p className="text-xs font-medium text-foreground">How were the answers collected?</p>
+            <fieldset className="min-w-0 space-y-2">
+              <legend className="text-xs font-medium text-foreground">How were the answers collected?</legend>
               <div className="grid gap-2 sm:grid-cols-3">
                 {CHANNELS.map(c => (
                   <label
@@ -233,15 +361,15 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
                   </label>
                 ))}
               </div>
-            </section>
+            </fieldset>
           ) : null}
 
           <section className="grid gap-4 sm:grid-cols-2">
             {!isEdit ? (
               <div className="space-y-1.5 sm:col-span-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-medium text-foreground">
-                    Whose response is this? {anonymous ? null : <span className="text-destructive">*</span>}
+                  <p id="record-whose-response" className="text-xs font-medium text-foreground">
+                    Whose response is this?{anonymous ? null : <RequiredMark />}
                   </p>
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -267,6 +395,7 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
                     placeholder={forServiceUsers ? 'Search service user…' : 'Search employee…'}
                     searchPlaceholder="Search by name…"
                     emptyText="No matching people."
+                    aria-label={`Whose response is this? Choose the ${forServiceUsers ? 'service user' : 'employee'}`}
                     data-testid="record-person"
                   />
                 )}
@@ -288,6 +417,17 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
                 ))}
               </select>
             </label>
+            {showContactPick && !editing && open ? (
+              <RespondentContactPicker
+                surveyId={surveyId}
+                serviceUserId={personId}
+                value={respondentContactId}
+                onChange={(id, name) => {
+                  setRespondentContactId(id)
+                  if (name && !respondentName.trim()) setRespondentName(name)
+                }}
+              />
+            ) : null}
             {showName ? (
               <label className="block space-y-1.5 text-sm">
                 <span className="text-xs font-medium text-foreground">
@@ -303,12 +443,16 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
           </section>
 
           <section className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-1.5 text-sm">
-              <span className="text-xs font-medium text-foreground">
+            <div className="space-y-1.5 text-sm">
+              <span className="block text-xs font-medium text-foreground">
                 {isTelephone ? 'Call date and time' : 'Date collected'}
               </span>
-              <Input type="datetime-local" value={contactedAt} onChange={e => setContactedAt(e.target.value)} />
-            </label>
+              <SurveyDateTimeField
+                label={isTelephone ? 'Call date and time' : 'Date collected'}
+                value={contactedAt}
+                onChange={setContactedAt}
+              />
+            </div>
             {isTelephone && !anonymous ? (
               <label className="block space-y-1.5 text-sm">
                 <span className="text-xs font-medium text-foreground">Number called</span>
@@ -327,7 +471,19 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
                 rows={2}
                 className={FIELD_CLASS}
                 placeholder={isTelephone ? 'Anything about the call…' : 'Anything about how the answers were collected…'}
+                data-testid="record-notes"
               />
+              {noNames ? (
+                <span className="block text-xs text-muted-foreground" data-testid="record-notes-no-names">
+                  Please do not include names.
+                </span>
+              ) : null}
+              {editing?.contactNotesWithheld ? (
+                <span className="block text-xs text-muted-foreground" data-testid="record-notes-withheld">
+                  The notes are held back until the survey has closed with enough answers, so they cannot be
+                  traced to anyone. They are kept as they are unless you type a replacement.
+                </span>
+              ) : null}
             </label>
             {isTelephone && !isEdit ? (
               <label className="flex items-start gap-2 text-sm sm:col-span-2">
@@ -340,32 +496,51 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
                 />
                 <span className="flex items-center gap-1.5">
                   <Phone className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                  The person agreed to answer this survey over the phone <span className="text-destructive">*</span>
+                  The person agreed to answer this survey over the phone
+                  <RequiredMark />
                 </span>
               </label>
             ) : null}
           </section>
 
-          <section className="space-y-3">
-            <p className="text-xs font-medium text-foreground">
-              Answers ({answeredCount}/{questions.length})
-            </p>
-            {questions.map((q, index) => (
-              <QuestionField
-                key={q.id}
-                q={q}
-                index={index}
-                value={answers[q.id]}
-                disabled={saving}
-                onChange={next => setAnswers(prev => ({ ...prev, [q.id]: next }))}
-              />
+          <section className="space-y-3" aria-labelledby="record-answers-title">
+            <h3 id="record-answers-title" className="text-xs font-medium text-foreground">
+              Answers ({answeredCount}/{shown.length})
+            </h3>
+            {withSectionHeadings(shown).map(({ item: q, index, heading }) => (
+              <React.Fragment key={q.id}>
+                {heading ? <SurveySectionHeading title={heading} introduction={sectionIntros?.[heading]} level={4} /> : null}
+                <QuestionField
+                  q={q}
+                  index={index}
+                  value={answers[q.id]}
+                  disabled={saving}
+                  headingLevel={shown.some(s => s.sectionTitle?.trim()) ? 5 : 4}
+                  anonymous={isAnonymous || anonymous}
+                  onChange={next => setAnswers(prev => ({ ...prev, [q.id]: next }))}
+                />
+                {withheld.has(q.id) ? (
+                  <p className="-mt-1 text-xs text-muted-foreground" data-testid="record-written-withheld">
+                    Their written answer is held back until the survey has closed with enough answers, so it
+                    cannot be traced to anyone. It is kept as it is unless you type a replacement.
+                  </p>
+                ) : null}
+                {keptLookup.has(q.id) ? (
+                  <p className="-mt-1 text-xs text-muted-foreground" data-testid="record-lookup-kept">
+                    The recorded answer is not shown, so it cannot point to anyone. It is kept as it is unless
+                    you choose a new answer.
+                  </p>
+                ) : null}
+
+              </React.Fragment>
             ))}
           </section>
 
           {isEdit ? (
             <label className="block space-y-1.5 text-sm">
               <span className="text-xs font-medium text-foreground">
-                Reason for the correction <span className="text-destructive">*</span>
+                Reason for the correction
+                <RequiredMark />
               </span>
               <textarea
                 value={reason}
@@ -381,20 +556,85 @@ export function RecordSurveyResponseDialog({ surveyId, targetKind, questions, op
         </DialogBody>
 
         <DialogFooter className="flex-wrap gap-2">
-          {blocker ? <p className="mr-auto text-xs text-muted-foreground">{blocker}</p> : null}
+          {blocker ? (
+            <p id="record-blocker" className="mr-auto text-xs text-muted-foreground">
+              {blocker}
+            </p>
+          ) : null}
           <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
+          {canRecordAnother ? (
+            <Button
+              variant="outline"
+              onClick={() => void submit(true)}
+              disabled={saving || Boolean(blocker)}
+              aria-describedby={blocker ? 'record-blocker' : undefined}
+              data-testid="record-submit-another"
+            >
+              Save and record another
+            </Button>
+          ) : null}
           <Button
             onClick={() => void submit()}
             disabled={saving || Boolean(blocker)}
+            aria-describedby={blocker ? 'record-blocker' : undefined}
             leftIcon={saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : undefined}
             data-testid="record-submit"
           >
-            {isEdit ? 'Save correction' : 'Save response'}
+            {isEdit ? 'Save correction' : savedCount > 0 ? 'Save and finish' : 'Save response'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Who answered for the person, from their People involved (names only): that family member's or
+ * representative's own survey contact (decision P10). Optional; never on anonymous answers.
+ */
+function RespondentContactPicker({
+  surveyId,
+  serviceUserId,
+  value,
+  onChange,
+}: {
+  surveyId: string
+  serviceUserId: string
+  value: string
+  onChange: (id: string, name: string | null) => void
+}) {
+  const { data: involved } = useQuery({
+    queryKey: ['surveys', 'respondent-contacts', surveyId, serviceUserId],
+    retry: false,
+    queryFn: async () =>
+      (
+        await apiJson<ApiEnvelope<Array<{ id: string; name: string; relationship: string | null }>>>(
+          `/surveys/${surveyId}/respondent-contacts?serviceUserId=${encodeURIComponent(serviceUserId)}`,
+          { method: 'GET' },
+        )
+      ).data,
+  })
+  if (!involved?.length) return null
+  return (
+    <label className="block space-y-1.5 text-sm">
+      <span className="text-xs font-medium text-foreground">Who from People involved (optional)</span>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value, involved.find(x => x.id === e.target.value)?.name ?? null)}
+        className={`${FIELD_CLASS} h-9`}
+        data-testid="record-respondent-contact"
+      >
+        <option value="">Not one of them / not said</option>
+        {involved.map(c => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+            {c.relationship ? ` (${c.relationship})` : ''}
+          </option>
+        ))}
+      </select>
+      <span className="block text-xs text-muted-foreground">Counts as their own survey contact, so they are not asked again within 4 weeks.</span>
+    </label>
   )
 }

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
-import { ChevronDown, Eye, Plus, Search } from 'lucide-react'
+import { BookCopy, ChevronDown, Eye, ListChecks, Plus, Search } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Combobox } from '@/shared/ui/combobox'
@@ -18,6 +18,7 @@ import { PolicyStatusBadge } from '@/features/policies/components/PolicyStatusBa
 import { PolicyConfirmDialog } from '@/features/policies/components/PolicyConfirmDialog'
 import { PolicyPublishSummary } from '@/features/policies/components/PolicyPublishSummary'
 import { useDeletePolicy, usePolicies, usePolicyCategories, usePublishPolicy } from '@/features/policies/hooks/usePolicies'
+import { usePolicyAcknowledgementSummary } from '@/features/policies/hooks/usePolicyAcknowledgements'
 import { useDebouncedValue } from '@/features/policies/hooks/useDebouncedValue'
 import { usePolicyLookups } from '@/features/policies/hooks/usePolicyLookups'
 import { POLICY_PATHS, type PolicyLibrarySearch } from '@/features/policies/policy-routes'
@@ -32,6 +33,13 @@ export function PolicyLibraryPanel() {
   const canCreate = useAuthStore(s => s.can('policies.create'))
   const canArchive = useAuthStore(s => s.can('policies.archive'))
   const canPublish = useAuthStore(s => s.can('policies.publish'))
+  const canAcknowledge = useAuthStore(s => s.can('policies.acknowledgements.me'))
+  const canManageAcknowledgements = useAuthStore(s => s.can('policies.acknowledgements.manage'))
+  const acknowledgementSummary = usePolicyAcknowledgementSummary(canManageAcknowledgements)
+  const acknowledgementByDocument = React.useMemo(
+    () => new Map((acknowledgementSummary.data ?? []).map(row => [row.documentId, row])),
+    [acknowledgementSummary.data],
+  )
   const userId = useAuthStore(s => s.user?.id)
   const navigate = useNavigate({ from: POLICY_PATHS.library })
   const search = useSearch({ strict: false }) as PolicyLibrarySearch
@@ -101,14 +109,30 @@ export function PolicyLibraryPanel() {
         title="Policy Library"
         description="Browse organisation policies, procedures, and related documents."
         action={
-          canCreate ? (
-            <Button size="sm" asChild>
-              <Link to={POLICY_PATHS.create}>
-                <Plus className="mr-1 h-4 w-4" />
-                Create policy
+          <div className="flex gap-2">
+            {canAcknowledge ? (
+              <Button size="sm" variant="outline" asChild>
+                <Link to={POLICY_PATHS.mine} data-testid="my-policies-link">
+                  <ListChecks className="mr-1 h-4 w-4" />
+                  My policies
+                </Link>
+              </Button>
+            ) : null}
+            <Button size="sm" variant="outline" asChild>
+              <Link to={POLICY_PATHS.readyMade} data-testid="ready-made-policies-link">
+                <BookCopy className="mr-1 h-4 w-4" />
+                Ready-made policies
               </Link>
             </Button>
-          ) : undefined
+            {canCreate ? (
+              <Button size="sm" asChild>
+                <Link to={POLICY_PATHS.create}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  Create policy
+                </Link>
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
@@ -217,6 +241,7 @@ export function PolicyLibraryPanel() {
                 <th className="px-3 py-2">Effective date</th>
                 <th className="px-3 py-2">Review date</th>
                 <th className="px-3 py-2">Updated</th>
+                {canManageAcknowledgements ? <th className="px-3 py-2">Staff acknowledged</th> : null}
                 <th className="px-3 py-2 text-right">Actions</th>
               </tr>
             </thead>
@@ -251,6 +276,11 @@ export function PolicyLibraryPanel() {
                     {formatPolicyDate(row.currentVersion?.reviewDate)}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">{formatPolicyDateTime(row.updatedAt)}</td>
+                  {canManageAcknowledgements ? (
+                    <td className="px-3 py-2" data-testid="policy-acknowledgement-summary">
+                      <AcknowledgementSummaryCell summary={acknowledgementByDocument.get(row.id)} />
+                    </td>
+                  ) : null}
                   <td className="px-3 py-2 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -354,6 +384,7 @@ export function PolicyLibraryPanel() {
             reference={pendingPublish.reference}
             effectiveDate={pendingPublish.currentVersion?.effectiveDate}
             links={pendingPublish.currentVersion?.links}
+            policyId={pendingPublish.id}
           />
         ) : null}
       </PolicyConfirmDialog>
@@ -400,6 +431,24 @@ function FormDate({
       <span className="whitespace-nowrap">{label}</span>
       <Input id={id} type="date" value={value} onChange={e => onChange(e.target.value)} className="w-40" />
     </label>
+  )
+}
+
+function AcknowledgementSummaryCell({
+  summary,
+}: {
+  summary?: { required: number; acknowledged: number; overdue: number }
+}) {
+  if (!summary) return <span className="text-muted-foreground">—</span>
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span>
+        {summary.acknowledged} of {summary.required}
+      </span>
+      {summary.overdue ? (
+        <span className="text-xs font-medium text-destructive">{summary.overdue} overdue</span>
+      ) : null}
+    </span>
   )
 }
 

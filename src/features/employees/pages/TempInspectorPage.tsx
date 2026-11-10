@@ -262,7 +262,7 @@ export default function TempInspectorPage() {
                       placeholder="Enter password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      className="flex h-9 w-full rounded-l-md border border-input border-r-0 bg-background px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex h-9 w-full rounded-l-md border border-input border-r-0 bg-background px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     <button
                       type="button"
@@ -280,7 +280,7 @@ export default function TempInspectorPage() {
                     placeholder="Enter reason for login"
                     value={reason}
                     onChange={e => setReason(e.target.value)}
-                    className="flex w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </FormRow>
 

@@ -1,13 +1,17 @@
+import * as React from 'react'
 import { Button } from '@/shared/ui/button'
 
 export function PolicyReadyToPublishBanner({
   canPublish,
   pending,
   onPublish,
+  note,
 }: {
   canPublish: boolean
   pending?: boolean
   onPublish: () => void
+  /** Extra line under the description (e.g. how many staff will need to acknowledge it). */
+  note?: React.ReactNode
 }) {
   return (
     <section
@@ -19,6 +23,7 @@ export function PolicyReadyToPublishBanner({
         <p className="text-sm text-foreground/80">
           This policy has been approved and is ready to be made available to staff.
         </p>
+        {note}
       </div>
       {canPublish ? (
         <Button

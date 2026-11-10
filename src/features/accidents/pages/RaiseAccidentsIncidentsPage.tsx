@@ -135,7 +135,7 @@ export default function RaiseAccidentsIncidentsPage() {
                   <select
                     value={reportType}
                     onChange={e => setReportType(e.target.value)}
-                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="Accident">Accident</option>
                     <option value="Incident">Incident</option>
@@ -150,7 +150,7 @@ export default function RaiseAccidentsIncidentsPage() {
                       type="datetime-local"
                       value={incidentAt}
                       onChange={e => setIncidentAt(e.target.value)}
-                      className="h-10 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <button
                       type="button"

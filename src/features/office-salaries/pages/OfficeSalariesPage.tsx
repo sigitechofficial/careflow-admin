@@ -208,11 +208,11 @@ function SalaryDialog({ row, onClose }: { row: OfficeSalaryRow | null; onClose: 
                   maxLength={2000}
                   value={form.notes}
                   onChange={(e) => set('notes', e.target.value)}
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.isActive} onChange={(e) => set('isActive', e.target.checked)} className="h-4 w-4 rounded border-border" />
+                <input type="checkbox" checked={form.isActive} onChange={(e) => set('isActive', e.target.checked)} className="h-4 w-4 rounded border-input" />
                 Salary is active (expected to be paid each month)
               </label>
               {error ? <p className="text-sm text-destructive">{error}</p> : null}

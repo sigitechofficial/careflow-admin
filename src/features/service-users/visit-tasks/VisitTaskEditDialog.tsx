@@ -108,7 +108,7 @@ export function VisitTaskEditDialog({
                 type="time"
                 value={dueTime}
                 onChange={(event) => setDueTime(event.target.value)}
-                className="h-9 w-36 rounded-lg border border-border bg-muted/40 px-2.5 text-sm tabular-nums outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="h-9 w-36 rounded-lg border border-input bg-muted/40 px-2.5 text-sm tabular-nums outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
               <p className="mt-1.5 text-[11px] text-muted-foreground">
                 The task shows on the visit whose time covers this, the same way medicine due
@@ -133,7 +133,7 @@ export function VisitTaskEditDialog({
               rows={4}
               value={carerInstructions}
               placeholder="What should the carer do? Put each step on its own line."
-              className="w-full resize-y rounded-lg border border-border bg-muted/40 px-2.5 py-2 text-xs leading-relaxed outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="w-full resize-y rounded-lg border border-input bg-muted/40 px-2.5 py-2 text-xs leading-relaxed outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
               onChange={(event) => setCarerInstructions(event.target.value)}
             />
           </section>

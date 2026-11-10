@@ -121,7 +121,7 @@ function StatusToggle({
             onClick={() => onChange(opt)}
             className={cn(
               'min-w-[5.5rem] px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50',
-              active && opt === 'Active' && 'bg-destructive text-white',
+              active && opt === 'Active' && 'bg-destructive text-destructive-foreground',
               active && opt !== 'Active' && 'bg-muted text-foreground',
               !active && 'bg-white dark:bg-card text-foreground hover:bg-muted/50',
             )}

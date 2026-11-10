@@ -20,8 +20,10 @@ export type EmployeeLookupsBundle = {
   locations: LookupRow[]
   zones: LookupRow[]
   leavingReasons: LookupRow[]
-  skillTypes: LookupRow[]
-  certificationTypes: LookupRow[]
+  /** `defaultRefreshMonths`: new skills default their expiry to today + this (Settings → Skill types). */
+  skillTypes: Array<LookupRow & { defaultRefreshMonths?: number | null }>
+  /** `defaultValidityMonths`: expiry defaults to issue date + this (Settings → Certification types). */
+  certificationTypes: Array<LookupRow & { defaultValidityMonths?: number | null }>
   complianceTypes: LookupRow[]
   reviewTypes: LookupRow[]
   nonCoreActivityReasons: LookupRow[]
@@ -47,6 +49,9 @@ export type EmployeeListRow = {
   fullName: string | null
   firstName: string | null
   lastName: string | null
+  /** Unique login name; with employeeNumber, tells staff with the same name apart. */
+  username?: string | null
+  employeeNumber?: string | null
   photoUrl: string | null
   status: { id: string; name: string } | null
   jobTitle: { id: string; name: string } | null
@@ -197,9 +202,11 @@ export async function fetchEmployee(id: string, init?: RequestInit): Promise<Emp
 
 export type EmployeeChartSummary = {
   staff: { total: number; active: number; inactive: number }
-  compliance: { upToDate: number; needsAttention: number }
+  /** Staff by compliance board status (the board's own rule). */
+  compliance: { compliant: number; attention: number; blocked: number }
   skills: { name: string; value: number; color: string }[]
-  reviews: { reviewed: number; outstanding: number }
+  /** Staff reviews by schedule status (due ones, plus finished ones as up to date). */
+  reviews: { upToDate: number; dueSoon: number; overdue: number }
   meta?: {
     cohortTotal: number
     scope: 'filtered' | 'organisation'

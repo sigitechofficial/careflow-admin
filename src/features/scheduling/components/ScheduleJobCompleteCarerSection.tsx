@@ -198,7 +198,7 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
           <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-border"
+              className="h-4 w-4 rounded border-input"
               checked={assignAsLead}
               disabled={disabled || !!allocatingEmployeeId}
               onChange={(event) => setAssignAsLead(event.target.checked)}

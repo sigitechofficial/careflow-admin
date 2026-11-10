@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/button'
 import { PolicyConfirmDialog } from '@/features/policies/components/PolicyConfirmDialog'
 import { PolicyPublishSummary } from '@/features/policies/components/PolicyPublishSummary'
 import { PolicyReadyToPublishBanner } from '@/features/policies/components/PolicyReadyToPublishBanner'
+import { PolicyPublishAcknowledgementNote } from '@/features/policies/components/PolicyPublishAcknowledgementNote'
 import { PolicyVersionCreateDialog } from '@/features/policies/components/PolicyVersionCreateDialog'
 import { POLICY_PATHS } from '@/features/policies/policy-routes'
 import {
@@ -38,6 +39,8 @@ type Props = {
   onDelete: () => Promise<void>
   onCreateVersion: (bump: 'minor' | 'major', reusePreviousContent: boolean) => Promise<void>
   contentKind?: 'EDITOR' | 'UPLOAD'
+  /** The working version requires staff to read and acknowledge it (shows the count when publishing). */
+  acknowledgementRequired?: boolean
 }
 
 export function PolicyWorkflowActions({
@@ -62,6 +65,7 @@ export function PolicyWorkflowActions({
   onDelete,
   onCreateVersion,
   contentKind = 'EDITOR',
+  acknowledgementRequired = false,
 }: Props) {
   const actions = visiblePolicyActions({ documentStatus, workingStatus, hasInProgress, versions, can })
   const readyToPublish = isReadyToPublish({ documentStatus, workingStatus })
@@ -91,7 +95,16 @@ export function PolicyWorkflowActions({
   return (
     <div className="flex w-full flex-col gap-4">
       {readyToPublish ? (
-        <PolicyReadyToPublishBanner canPublish={canPublish} pending={pending} onPublish={openPublish} />
+        <PolicyReadyToPublishBanner
+          canPublish={canPublish}
+          pending={pending}
+          onPublish={openPublish}
+          note={
+            acknowledgementRequired ? (
+              <PolicyPublishAcknowledgementNote policyId={policyId} variant="inline" />
+            ) : null
+          }
+        />
       ) : null}
 
       <div
@@ -189,6 +202,7 @@ export function PolicyWorkflowActions({
           reference={policyReference ?? ''}
           effectiveDate={effectiveDate}
           links={links}
+          policyId={acknowledgementRequired ? policyId : undefined}
         />
       </PolicyConfirmDialog>
       <PolicyConfirmDialog

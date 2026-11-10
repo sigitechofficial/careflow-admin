@@ -146,15 +146,14 @@ describe('PolicyContextPanel', () => {
     } as never)
   })
 
-  it('shows loading, empty, and error states without breaking the host', () => {
+  it('takes no space while loading or when nothing is linked, and prompts policy managers to link one', () => {
     vi.mocked(useApplicablePolicies).mockReturnValue({
       data: undefined,
       isLoading: true,
       isError: false,
     } as never)
     const { rerender } = render(<PolicyContextPanel moduleType="CARE_PLAN" />, { wrapper: wrapper() })
-    expect(screen.getByText('Policies & Guidance')).toBeInTheDocument()
-    expect(screen.getByTestId('policy-context-panel-loading')).toBeInTheDocument()
+    expect(screen.queryByTestId('policy-context-panel')).not.toBeInTheDocument()
 
     vi.mocked(useApplicablePolicies).mockReturnValue({
       data: { rows: [] },
@@ -162,9 +161,17 @@ describe('PolicyContextPanel', () => {
       isError: false,
     } as never)
     rerender(<PolicyContextPanel moduleType="CARE_PLAN" />)
-    expect(
-      screen.getByText('No policies or guidance are currently linked to this area.'),
-    ).toBeInTheDocument()
+    // Readers: nothing at all.
+    expect(screen.queryByTestId('policy-context-panel')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('policy-context-panel-empty')).not.toBeInTheDocument()
+
+    // Policy managers: a one-line prompt to link one.
+    useAuthStore.setState({
+      user: { id: 'u1', email: 'a@b.c', displayName: 'Admin', role: 'admin', permissions: ['policies.read', 'policies.create'] },
+    } as never)
+    rerender(<PolicyContextPanel moduleType="CARE_PLAN" />)
+    expect(screen.getByText('No policies are linked to this area yet.')).toBeInTheDocument()
+    expect(screen.getByText('Link one from the policy library')).toBeInTheDocument()
 
     vi.mocked(useApplicablePolicies).mockReturnValue({
       data: undefined,

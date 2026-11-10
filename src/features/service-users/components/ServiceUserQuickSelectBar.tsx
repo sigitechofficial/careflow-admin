@@ -174,7 +174,7 @@ function LegacySolidBtn({
 const CARE_PLAN_FILTERS: { id: CarePlanListStatus; tooltip: string }[] = [
   { id: 'none', tooltip: 'No care plan' },
   { id: 'ok', tooltip: 'Care plans up to date' },
-  { id: 'due_within_week', tooltip: 'Care plan review due within a week' },
+  { id: 'due_within_week', tooltip: 'Care plan review due soon' },
   { id: 'overdue', tooltip: 'Care plan review overdue' },
 ]
 

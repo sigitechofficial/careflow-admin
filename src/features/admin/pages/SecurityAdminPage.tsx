@@ -65,7 +65,7 @@ export default function SecurityAdminPage() {
             <input
               value={simulatedClientIp}
               onChange={e => setSimulatedClientIp(e.target.value)}
-              className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm font-mono"
+              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm font-mono"
             />
           </div>
           <div className="flex gap-2">
@@ -73,13 +73,13 @@ export default function SecurityAdminPage() {
               placeholder="CIDR e.g. 10.0.0.0/8"
               value={cidr}
               onChange={e => setCidr(e.target.value)}
-              className="h-9 flex-1 rounded-md border border-border px-2 text-sm font-mono"
+              className="h-9 flex-1 rounded-md border border-input px-2 text-sm font-mono"
             />
             <input
               placeholder="Note"
               value={note}
               onChange={e => setNote(e.target.value)}
-              className="h-9 flex-1 rounded-md border border-border px-2 text-sm"
+              className="h-9 flex-1 rounded-md border border-input px-2 text-sm"
             />
             <Button type="button" size="sm" onClick={addRule}>Add</Button>
           </div>

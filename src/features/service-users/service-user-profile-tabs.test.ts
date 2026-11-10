@@ -18,6 +18,7 @@ describe('service-user-profile-tabs', () => {
       'allergies',
       'absences',
       'incidents',
+      'surveys',
       'calendar',
       'privacy',
       'dom',

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { AlarmClock, FileInput, FolderOpen, Inbox, Plus, Search, TrendingUp, Trophy, X } from 'lucide-react'
+import { AlarmClock, FileInput, FolderOpen, Inbox, Paperclip, Plus, Search, TrendingUp, Trophy, X } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { StatCard } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
@@ -121,7 +121,10 @@ function EnquiryCard({
   onDragStart: () => void
   onDragEnd: () => void
 }) {
+  const navigate = useNavigate()
   const overdue = isFollowUpOverdue(e)
+  // Straight to the enquiry's Referral email card, where the files open.
+  const onOpenAttachments = () => void navigate({ to: '/crm/$enquiryId', params: { enquiryId: e.id }, hash: 'referral-email' })
   return (
     <Link
       to="/crm/$enquiryId"
@@ -175,6 +178,31 @@ function EnquiryCard({
       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <span className="truncate">{e.kind === 'REFERRAL' && e.referringOrganisation ? e.referringOrganisation : SOURCE_LABELS[e.source]}</span>
         <span className="flex shrink-0 items-center gap-2">
+          {e.attachmentCount ? (
+            <span
+              role="link"
+              tabIndex={0}
+              title={`${e.attachmentCount} attachment${e.attachmentCount === 1 ? '' : 's'}: open`}
+              aria-label={`${e.attachmentCount} attachment${e.attachmentCount === 1 ? '' : 's'}`}
+              data-testid={`crm-card-attachments-${e.id}`}
+              className="inline-flex items-center gap-0.5 rounded px-1 hover:bg-muted hover:text-foreground"
+              onClick={ev => {
+                ev.preventDefault()
+                ev.stopPropagation()
+                onOpenAttachments()
+              }}
+              onKeyDown={ev => {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                  ev.preventDefault()
+                  ev.stopPropagation()
+                  onOpenAttachments()
+                }
+              }}
+            >
+              <Paperclip className="h-3 w-3" aria-hidden />
+              {e.attachmentCount}
+            </span>
+          ) : null}
           <span>{daysSince(e.stageChangedAt)}d</span>
           <span
             title={e.ownerName ? `Owner: ${e.ownerName}` : 'Unassigned'}

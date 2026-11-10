@@ -635,7 +635,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                       </Link>
                     </Button>
                   ) : (
-                    <span className="text-xs text-muted-foreground">?</span>
+                    <span className="text-xs text-muted-foreground">—</span>
                   )
                 }
               />

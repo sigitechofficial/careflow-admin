@@ -9,6 +9,19 @@ vi.mock('@/features/service-users/components/ServiceUserPersonalDetailsForm', ()
 vi.mock('@/features/service-users/components/ServiceUserPortalAccessSection', () => ({
   ServiceUserPortalAccessSection: () => <div>portal-access</div>,
 }))
+vi.mock('@/features/surveys/outside/SurveysAboutPersonSection', () => ({ SurveysAboutPersonSection: () => <div>surveys-about-person</div> }))
+vi.mock('@/features/service-users/privacy/ServiceUserPrivacyTab', () => ({ ServiceUserPrivacyTab: () => <div>privacy-tab</div> }))
+const navigate = vi.fn()
+vi.mock('@tanstack/react-router', async importOriginal => ({ ...(await importOriginal<object>()), useNavigate: () => navigate }))
+vi.mock('@/features/surveys/reminders/PersonSurveysSection', () => ({
+  PersonSurveysSection: () => <div>person-surveys</div>,
+  SurveyContactSettingsLink: ({ openPersonalDetails }: { openPersonalDetails: () => void }) => (
+    <button type="button" onClick={openPersonalDetails}>contact-settings</button>
+  ),
+}))
+vi.mock('@/features/surveys/reminders/SurveyContactPreferencesSection', () => ({
+  SurveyContactPreferencesSection: ({ subjectKind }: { subjectKind: string }) => <div>survey-contact-preferences {subjectKind}</div>,
+}))
 vi.mock('@/features/service-users/components/ServiceUserContactsTab', () => ({
   ServiceUserContactsTab: () => <div>contacts-form</div>,
 }))
@@ -102,7 +115,7 @@ describe('ServiceUserProfileSectionContent', () => {
     ['allergies', 'allergies-form'],
     ['absences', 'absences-form'],
     ['calendar', 'calendar-form'],
-    ['privacy', 'Privacy'],
+    ['privacy', 'privacy-tab'],
     ['dom', 'dom-form'],
     ['nfc', 'nfc-form'],
     ['assessment', 'assessment-form'],
@@ -119,5 +132,20 @@ describe('ServiceUserProfileSectionContent', () => {
   it('includes portal access on Personal Details', () => {
     renderTab('personal')
     expect(screen.getByText('portal-access')).toBeInTheDocument()
+    expect(screen.getByText('survey-contact-preferences SERVICE_USER')).toBeInTheDocument()
+    // The survey history has its own section, not Personal Details.
+    expect(screen.queryByText('person-surveys')).toBeNull()
+  })
+
+  it('Surveys holds the person’s survey history and surveys about them', () => {
+    renderTab('surveys')
+    expect(screen.getByText('person-surveys')).toBeInTheDocument()
+    expect(screen.getByText('surveys-about-person')).toBeInTheDocument()
+    expect(screen.queryByText('survey-contact-preferences SERVICE_USER')).toBeNull()
+    // The link to the contact preferences switches to Personal Details.
+    screen.getByRole('button', { name: 'contact-settings' }).click()
+    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ to: '.' }))
+    const { search } = navigate.mock.calls[0][0] as { search: (p: Record<string, unknown>) => Record<string, unknown> }
+    expect(search({ focus: 'x' })).toEqual({ focus: 'x', tab: 'personal' })
   })
 })

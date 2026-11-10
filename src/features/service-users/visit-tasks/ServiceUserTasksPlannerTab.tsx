@@ -1156,7 +1156,7 @@ function PlannerRoundListSection({
                         rows={2}
                         value={meta.carerInstructions}
                         placeholder="Instructions for the carer…"
-                        className="w-full min-w-[200px] resize-y rounded-lg border border-border bg-muted/30 px-2.5 py-2 text-xs leading-relaxed outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="w-full min-w-[200px] resize-y rounded-lg border border-input bg-muted/30 px-2.5 py-2 text-xs leading-relaxed outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                         onChange={(event) =>
                           onInstructionsChange(meta.task.id, event.target.value)
                         }
@@ -1186,7 +1186,7 @@ function PlannerRoundListSection({
                         </button>
                         {meta.isEmarPrompt ? (
                           <span
-                            className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground/50"
+                            className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground"
                             title="Managed from eMAR — removed automatically when no scheduled meds remain for this slot"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -1341,7 +1341,7 @@ function SelectedTaskCard({
                 rows={3}
                 value={carerInstructions}
                 placeholder="What should the carer do? Put each step on its own line."
-                className="w-full resize-y rounded-lg border border-border bg-muted/30 px-2.5 py-2 text-xs leading-relaxed outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full resize-y rounded-lg border border-input bg-muted/30 px-2.5 py-2 text-xs leading-relaxed outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                 onChange={(event) => onInstructionsChange(event.target.value)}
               />
             </div>

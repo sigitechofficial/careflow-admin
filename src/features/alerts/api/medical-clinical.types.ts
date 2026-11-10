@@ -228,6 +228,17 @@ export const MEDICAL_ALERT_CATEGORIES = Object.keys(
   MEDICAL_ALERT_CATEGORY_LABELS,
 ) as MedicalAlertCategory[]
 
+/**
+ * Carers are warned about DNACPR and allergies from the real records (Documents → DNACPR, the allergy list),
+ * so these are not offered for new alerts. Older alerts of these types still show.
+ */
+export const RECORD_BACKED_ALERT_CATEGORIES: ReadonlySet<MedicalAlertCategory> = new Set<MedicalAlertCategory>(['DNACPR', 'ALLERGIES'])
+
+/** Categories to offer in the alert form; keeps an older alert's own category so it can still be saved. */
+export function medicalAlertCategoryOptions(current?: MedicalAlertCategory | ''): MedicalAlertCategory[] {
+  return MEDICAL_ALERT_CATEGORIES.filter(c => !RECORD_BACKED_ALERT_CATEGORIES.has(c) || c === current)
+}
+
 export const MEDICAL_ALERT_SEVERITY_LABELS: Record<MedicalAlertSeverity, string> = {
   CRITICAL: 'Critical',
   IMPORTANT: 'Important',
@@ -270,6 +281,14 @@ export const REASONABLE_ADJUSTMENT_TYPE_LABELS: Record<ReasonableAdjustmentType,
 export const REASONABLE_ADJUSTMENT_TYPES = Object.keys(
   REASONABLE_ADJUSTMENT_TYPE_LABELS,
 ) as ReasonableAdjustmentType[]
+
+/** Communication and sensory needs are recorded once, in Profile → Privacy → Communication needs. */
+export const COMMUNICATION_ADJUSTMENT_TYPES: ReadonlySet<ReasonableAdjustmentType> = new Set<ReasonableAdjustmentType>(['COMMUNICATION', 'SENSORY'])
+
+/** Types to offer in the adjustment form; keeps an older entry's own type so it can still be saved. */
+export function reasonableAdjustmentTypeOptions(current?: ReasonableAdjustmentType | ''): ReasonableAdjustmentType[] {
+  return REASONABLE_ADJUSTMENT_TYPES.filter(t => !COMMUNICATION_ADJUSTMENT_TYPES.has(t) || t === current)
+}
 
 export const MONITORING_KEY_LABELS: Record<MedicalMonitoringConfigKey, string> = {
   WEIGHT_CHANGE_THRESHOLD_KG: 'Weight change threshold',

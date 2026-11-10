@@ -102,7 +102,7 @@ export default function GeneralEmployeeDocumentsPage() {
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-            <FileText className="h-10 w-10 text-muted-foreground/50" />
+            <FileText className="h-10 w-10 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">No documents found.</p>
           </CardContent>
         </Card>

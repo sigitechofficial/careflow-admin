@@ -978,7 +978,7 @@ export function IncidentActionsSection({
                         >
                           <input
                             type="checkbox"
-                            className="h-3.5 w-3.5 rounded border-border"
+                            className="h-3.5 w-3.5 rounded border-input"
                             checked={form.addresses.includes(code)}
                             onChange={() =>
                               patch({
@@ -1035,7 +1035,7 @@ export function IncidentActionsSection({
                       type="checkbox"
                       checked={form.isMandatory}
                       onChange={(e) => patch({ isMandatory: e.target.checked })}
-                      className="h-4 w-4 rounded border-border"
+                      className="h-4 w-4 rounded border-input"
                     />
                     Mandatory
                   </label>

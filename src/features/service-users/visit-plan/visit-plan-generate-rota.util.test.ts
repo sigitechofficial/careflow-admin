@@ -55,14 +55,30 @@ describe('visit-plan-generate-rota.util', () => {
     ).toBe('2026-08-06')
   })
 
-  it('maxEnabledSlotBackfillDays uses enabled slots only and caps at 14', () => {
+  it('maxEnabledSlotBackfillDays uses enabled slots only and caps at the organisation limit', () => {
     expect(
-      maxEnabledSlotBackfillDays([
-        { isEnabled: true, allowBackfillDays: 3 },
-        { isEnabled: false, allowBackfillDays: 10 },
-        { isEnabled: true, allowBackfillDays: 20 },
-      ]),
+      maxEnabledSlotBackfillDays(
+        [
+          { isEnabled: true, allowBackfillDays: 3 },
+          { isEnabled: false, allowBackfillDays: 10 },
+          { isEnabled: true, allowBackfillDays: 20 },
+        ],
+        14,
+      ),
     ).toBe(14)
-    expect(maxEnabledSlotBackfillDays([{ isEnabled: true, allowBackfillDays: 0 }])).toBe(0)
+    expect(
+      maxEnabledSlotBackfillDays(
+        [
+          { isEnabled: true, allowBackfillDays: 3 },
+          { isEnabled: false, allowBackfillDays: 0 },
+        ],
+        14,
+      ),
+    ).toBe(3)
+  })
+
+  it('maxEnabledSlotBackfillDays: a call left at 0 uses the organisation limit; 0 limit turns backfill off', () => {
+    expect(maxEnabledSlotBackfillDays([{ isEnabled: true, allowBackfillDays: 0 }], 7)).toBe(7)
+    expect(maxEnabledSlotBackfillDays([{ isEnabled: true, allowBackfillDays: 5 }], 0)).toBe(0)
   })
 })

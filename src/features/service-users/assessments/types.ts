@@ -30,6 +30,29 @@ export type AssessmentReviewQueueMeta = {
   dueSoonCount: number
 }
 
+/** One assessment review schedule (GET /service-user-assessments/review-schedules). */
+export type AssessmentReviewSchedule = {
+  kind: 'interval' | 'event_driven'
+  defaultIntervalDays?: number
+  elevatedRiskIntervalDays?: number
+  dueSoonLeadDays: number
+  /** Score-based tools: a score of at least this uses the elevated-risk interval. */
+  elevatedRiskScoreFrom?: number
+  guidanceSource: string
+  guidanceSummary: string
+}
+
+export type AssessmentReviewScheduleRow = {
+  /** Key the organisation override is stored under (tool key or Care Pathway form slug). */
+  key: string
+  title: string
+  source: 'assessment_tool' | 'care_pathway_form'
+  /** Schedule in force (built-in values with the organisation's overrides). */
+  schedule: AssessmentReviewSchedule
+  builtIn: Pick<AssessmentReviewSchedule, 'defaultIntervalDays' | 'elevatedRiskIntervalDays' | 'dueSoonLeadDays'>
+  overridden: boolean
+}
+
 export type AssessmentReviewState = {
   status: 'not_started' | 'ok' | 'due_soon' | 'overdue' | 'event_driven'
   scheduleKind: 'interval' | 'event_driven'

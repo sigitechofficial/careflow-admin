@@ -17,7 +17,7 @@
     --popover-foreground: 220 13% 10%;
 
     /* Primary — Shopify Green */
-    --primary: 160 100% 25%;
+    --primary: 160 100% 22%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary */
@@ -26,31 +26,34 @@
 
     /* Muted */
     --muted: 220 13% 93%;
-    --muted-foreground: 220 8% 46%;
+    --muted-foreground: 220 9% 40%;
 
     /* Accent */
     --accent: 160 60% 94%;
     --accent-foreground: 160 100% 22%;
 
     /* Destructive */
-    --destructive: 0 84% 60%;
+    /* WCAG 2.2 AA: text in these colours is at least 4.5:1 on the card, page and muted backgrounds, and
+       the -foreground colour is at least 4.5:1 on a filled button or badge. */
+    --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
 
     /* Warning */
-    --warning: 38 92% 50%;
+    --warning: 32 95% 31%;
     --warning-foreground: 0 0% 100%;
 
     /* Success */
-    --success: 142 71% 45%;
+    --success: 142 72% 27%;
     --success-foreground: 0 0% 100%;
 
     /* Info */
-    --info: 210 100% 56%;
+    --info: 212 100% 38%;
     --info-foreground: 0 0% 100%;
 
     /* Border & Input */
     --border: 220 13% 88%;
-    --input: 220 13% 88%;
+    /* Form-control borders: at least 3:1 against the card and page (WCAG 1.4.11). */
+    --input: 220 9% 55%;
     --ring: 160 100% 25%;
 
     --radius: 0.5rem;
@@ -84,7 +87,7 @@
 
     /* Primary */
     --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 220 15% 8%;
 
     /* Secondary */
     --secondary: 220 13% 16%;
@@ -92,38 +95,40 @@
 
     /* Muted */
     --muted: 220 13% 15%;
-    --muted-foreground: 210 10% 55%;
+    --muted-foreground: 210 10% 60%;
 
     /* Accent */
     --accent: 160 40% 15%;
     --accent-foreground: 160 84% 60%;
 
     /* Destructive */
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
+    /* WCAG 2.2 AA: text in these colours is at least 4.5:1 on the card, page and muted backgrounds, and
+       the -foreground colour is at least 4.5:1 on a filled button or badge. */
+    --destructive: 0 80% 64%;
+    --destructive-foreground: 220 15% 8%;
 
     /* Warning */
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 220 15% 8%;
 
     /* Success */
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
+    --success: 142 69% 50%;
+    --success-foreground: 220 15% 8%;
 
     /* Info */
-    --info: 210 100% 56%;
-    --info-foreground: 0 0% 100%;
+    --info: 210 100% 62%;
+    --info-foreground: 220 15% 8%;
 
     /* Border & Input */
     --border: 220 13% 18%;
-    --input: 220 13% 18%;
+    --input: 220 9% 45%;
     --ring: 160 84% 39%;
 
     /* Sidebar */
     --sidebar-background: 220 13% 10%;
     --sidebar-foreground: 210 16% 80%;
     --sidebar-primary: 160 84% 39%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary-foreground: 220 15% 8%;
     --sidebar-accent: 160 30% 14%;
     --sidebar-accent-foreground: 160 84% 60%;
     --sidebar-border: 220 13% 17%;
@@ -442,3 +447,73 @@
 :root[data-text-weight='bold'] .font-medium { font-weight: 700; }
 :root[data-text-weight='bold'] .font-semibold { font-weight: 700; }
 :root[data-text-weight='bold'] .font-bold { font-weight: 800; }
+
+/* Long-form policy documents (policy page, ready-made policy reader, policy editor). */
+.policy-doc {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: hsl(var(--foreground));
+}
+.policy-doc > :first-child { margin-top: 0; }
+.policy-doc h2 {
+  margin: 1.75rem 0 0.6rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.policy-doc h3 {
+  margin: 1.25rem 0 0.45rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.policy-doc p { margin: 0 0 0.75rem; }
+.policy-doc ul,
+.policy-doc ol { margin: 0 0 0.85rem; padding-left: 1.4rem; }
+.policy-doc ul { list-style: disc; }
+.policy-doc ol { list-style: decimal; }
+.policy-doc li { margin: 0.3rem 0; padding-left: 0.15rem; }
+.policy-doc li > p { margin: 0; }
+.policy-doc a { color: hsl(var(--primary)); text-decoration: underline; text-underline-offset: 2px; }
+.policy-doc strong { font-weight: 600; }
+.policy-doc blockquote {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.9rem;
+  border-left: 3px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}
+.policy-doc table {
+  width: 100%;
+  margin: 0.25rem 0 1rem;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  display: block;
+  overflow-x: auto;
+}
+.policy-doc th,
+.policy-doc td {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid hsl(var(--border));
+  text-align: left;
+  vertical-align: top;
+}
+.policy-doc th { background: hsl(var(--muted)); font-weight: 600; }
+
+/* Survey answer page display options (SurveyPageOptions): high contrast and more space between lines. */
+.survey-high-contrast {
+  --muted-foreground: var(--foreground);
+  --border: 220 13% 32%;
+  --input: 220 13% 25%;
+}
+.dark .survey-high-contrast {
+  --border: 210 20% 72%;
+  --input: 210 20% 78%;
+}
+.survey-more-spacing,
+.survey-more-spacing * {
+  line-height: 1.9 !important;
+  letter-spacing: 0.02em;
+  word-spacing: 0.08em;
+}

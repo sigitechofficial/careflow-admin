@@ -1,4 +1,13 @@
-export type RoleId = 'super_admin' | 'admin' | 'manager' | 'staff' | 'auditor' | 'temporary_inspector' | 'service_user'
+export type RoleId =
+  | 'super_admin'
+  | 'admin'
+  | 'manager'
+  | 'staff'
+  | 'auditor'
+  | 'temporary_inspector'
+  | 'service_user'
+  /** An independent survey reviewer's account (only role "Independent reviewer"): "Surveys to record" only. */
+  | 'independent_reviewer'
 
 /** SPA + CareAdmin Nest (`/auth/me` permission keys). Legacy `employee.*` kept for demo-only roles. */
 export type Permission =
@@ -236,6 +245,8 @@ export type Permission =
   | 'surveys.manage'
   | 'surveys.respond'
   | 'surveys.responses.record'
+  /** An independent reviewer's temporary login while it holds a live survey grant (SUR-CQC-001/002). */
+  | 'surveys.review.record'
   | 'specialist_pathways.read'
   | 'specialist_pathways.manage'
   | 'specialist_pathways.approve'
@@ -243,6 +254,10 @@ export type Permission =
   | 'safeguarding.manage'
   | 'crm.read'
   | 'crm.manage'
+  | 'supervision.read'
+  | 'supervision.manage'
+  | 'supervision.read_confidential'
+  | 'supervision.settings'
   | 'carer_notifications.send'
   | 'on_call.read'
   | 'on_call.manage'

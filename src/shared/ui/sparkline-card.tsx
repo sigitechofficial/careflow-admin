@@ -36,7 +36,7 @@ export function SparklineCard({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex shrink-0 text-muted-foreground/80 transition-colors hover:text-foreground"
+                    className="inline-flex shrink-0 text-muted-foreground transition-colors hover:text-foreground"
                     aria-label={`About ${title}`}
                     onClick={e => e.stopPropagation()}
                   >

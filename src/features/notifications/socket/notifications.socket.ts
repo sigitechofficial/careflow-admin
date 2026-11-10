@@ -15,6 +15,14 @@ export function disconnectNotificationSocket() {
   }
 }
 
+/**
+ * Accounts that never open the notifications socket. The API refuses both at the handshake
+ * (temporary inspector tokens, independent reviewer accounts), so the app doesn't try.
+ */
+export function canUseNotificationSocket(role: string | null | undefined): boolean {
+  return !!role && role !== 'temporary_inspector' && role !== 'independent_reviewer'
+}
+
 /** Socket.IO URL + path so Vite `/api` proxy can forward the websocket to Nest. */
 export function notificationSocketConnectOptions(baseUrl: string): {
   url: string

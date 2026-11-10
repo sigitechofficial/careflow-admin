@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { EnquiryReferralEmailCard } from '@/features/crm/components/EnquiryReferralEmailCard'
 import {
   AlarmClock,
   ArrowLeft,
@@ -961,6 +962,7 @@ export default function EnquiryDetailPage() {
         <div className="grid items-start gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
             <DetailsCard enquiry={enquiry} canManage={canManage} />
+            <EnquiryReferralEmailCard enquiryId={enquiry.id} />
             <ActivityCard enquiry={enquiry} />
           </div>
           <div className="flex flex-col gap-6">

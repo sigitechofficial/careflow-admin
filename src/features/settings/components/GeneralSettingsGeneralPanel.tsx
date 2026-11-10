@@ -26,13 +26,13 @@ import { dateDisplayFormatLabel } from '@/shared/lib/display-format.util'
 import { useAuthStore } from '@/features/auth/store'
 
 const DEFAULTS = {
-  reviewCarePlanAfterDays: 180,
   handoverReportLastHours: 12,
   incidentCandourOverdueDays: null as number | null,
   archiveServiceUserAfterMonths: 3,
   timeDisplayFormat: 'HH_MM' as TimeDisplayFormat,
   dateDisplayFormat: 'DD_MM_YYYY' as DateDisplayFormat,
   timezone: DEFAULT_ORGANISATION_TIMEZONE as OrganisationTimezone,
+  bankHolidayRegion: 'UK' as 'UK' | 'SCOTLAND' | 'NORTHERN_IRELAND',
 }
 
 function NumericField({
@@ -80,13 +80,13 @@ function settingsToDraft(s: OrganisationGeneralSettings) {
     ? (s.timezone as OrganisationTimezone)
     : DEFAULT_ORGANISATION_TIMEZONE
   return {
-    reviewCarePlanAfterDays: s.reviewCarePlanAfterDays,
     handoverReportLastHours: s.handoverReportLastHours,
     incidentCandourOverdueDays: s.incidentCandourOverdueDays ?? null,
     archiveServiceUserAfterMonths: s.archiveServiceUserAfterMonths,
     timeDisplayFormat: s.timeDisplayFormat,
     dateDisplayFormat: s.dateDisplayFormat ?? 'DD_MM_YYYY',
     timezone: tz,
+    bankHolidayRegion: s.bankHolidayRegion ?? 'UK',
   }
 }
 
@@ -143,14 +143,6 @@ export function GeneralSettingsGeneralPanel() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <GeneralSettingsCard title="Care Information">
-          <NumericField
-            id="review-care-plan-days"
-            label="Review care plan after"
-            suffix="Days"
-            value={draft.reviewCarePlanAfterDays}
-            disabled={!canUpdate}
-            onChange={n => setDraft(d => ({ ...d, reviewCarePlanAfterDays: n }))}
-          />
           <NumericField
             id="handover-hours"
             label="Handover report last"
@@ -225,6 +217,28 @@ export function GeneralSettingsGeneralPanel() {
                 setDraft(d => ({ ...d, timezone: v as OrganisationTimezone }))
               }}
             />
+          </div>
+
+          <div className="space-y-1 pt-2">
+            <Label htmlFor="bank-holiday-region" className="text-sm font-medium text-foreground">
+              Bank holidays
+            </Label>
+            <p id="bank-holiday-region-hint" className="text-xs text-muted-foreground">
+              Which bank holidays are not counted as working days, for example in survey alert timescales. Your
+              organisation’s own special days always count as non-working.
+            </p>
+            <select
+              id="bank-holiday-region"
+              className="h-9 rounded-md border border-input bg-background px-2.5 text-sm"
+              value={draft.bankHolidayRegion}
+              disabled={!canUpdate}
+              aria-describedby="bank-holiday-region-hint"
+              onChange={e => setDraft(d => ({ ...d, bankHolidayRegion: e.target.value as typeof d.bankHolidayRegion }))}
+            >
+              <option value="UK">England and Wales</option>
+              <option value="SCOTLAND">Scotland</option>
+              <option value="NORTHERN_IRELAND">Northern Ireland</option>
+            </select>
           </div>
 
           <p className="pt-2 text-sm font-medium text-foreground">Time format</p>

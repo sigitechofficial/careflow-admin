@@ -1,9 +1,8 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 
 /**
- * MedicationAllergy — medication-domain allergy records.
- * Distinct from ServiceUserAllergy (general allergy catalogue).
- * Admin surfaces these read-only; CRUD is not implemented in admin UI yet.
+ * Medicine allergies: the medicine-type entries in the person's one allergy list (ServiceUserAllergy).
+ * The API keeps this endpoint for the Meds tab; it reads and writes the same list as Profile → Allergies.
  */
 export type MedicationAllergyRow = {
   id: string

@@ -77,7 +77,7 @@ export function HomeAccessFields({ value, onChange, disabled }: Props) {
         <label className="flex items-start gap-2 self-end rounded-md border border-border bg-muted/30 px-3 py-2.5 text-sm">
           <input
             type="checkbox"
-            className="mt-0.5 h-4 w-4 rounded border-border"
+            className="mt-0.5 h-4 w-4 rounded border-input"
             checked={backupOn}
             disabled={disabled}
             onChange={e => {

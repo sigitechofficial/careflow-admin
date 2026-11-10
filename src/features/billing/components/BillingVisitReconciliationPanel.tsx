@@ -612,7 +612,7 @@ export function BillingVisitReconciliationPanel({
                       type="checkbox"
                       checked={allSelected}
                       onChange={toggleSelectAll}
-                      className="h-4 w-4 rounded border-border"
+                      className="h-4 w-4 rounded border-input"
                       aria-label="Select all visits"
                       title={allSelected ? 'Clear selection' : 'Select all'}
                     />
@@ -719,7 +719,7 @@ export function BillingVisitReconciliationPanel({
                           type="checkbox"
                           checked={selectedIds.has(row.id)}
                           onChange={() => toggleSelected(row.id)}
-                          className="h-4 w-4 rounded border-border"
+                          className="h-4 w-4 rounded border-input"
                           aria-label={`Select ${row.visitRef}`}
                         />
                       </td>
@@ -1026,7 +1026,7 @@ export function BillingVisitReconciliationPanel({
                 rows={4}
                 maxLength={2000}
                 placeholder="Add a note for this approval decision…"
-                className="flex min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 data-testid="visit-recon-approve-reason"
               />
             </label>
@@ -1088,7 +1088,7 @@ export function BillingVisitReconciliationPanel({
                 rows={4}
                 maxLength={1000}
                 placeholder="e.g. Pay card rates updated from 1 October"
-                className="flex min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 data-testid="visit-recon-recalculate-reason"
               />
             </label>

@@ -10,6 +10,7 @@ import {
 } from '@/features/hr/recruitment/hooks/useRecruitment'
 import { RecruitmentStageBadge } from '@/features/hr/recruitment/components/RecruitmentStatusBadges'
 import { CandidateDocumentsPanel } from '@/features/hr/recruitment/components/CandidateDocumentsPanel'
+import { SurveyContactPreferencesSection } from '@/features/surveys/reminders/SurveyContactPreferencesSection'
 import {
   PIPELINE_STAGES,
   candidateStageLabel,
@@ -159,6 +160,8 @@ export default function CandidateDetailPage() {
             <h2 className="text-sm font-medium mb-4">Documents</h2>
             <CandidateDocumentsPanel candidateId={candidateId} />
           </div>
+
+          <SurveyContactPreferencesSection subjectKind="CANDIDATE" subjectId={candidateId} />
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">

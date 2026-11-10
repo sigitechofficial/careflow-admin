@@ -819,7 +819,7 @@ export function BillingServiceUserInvoicesPanel() {
             id="su-inv-month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="h-9 min-w-[9rem] rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-9 min-w-[9rem] rounded-md border border-input bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="">All months</option>
             {(overview?.months ?? []).map((m) => (

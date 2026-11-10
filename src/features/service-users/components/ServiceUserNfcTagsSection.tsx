@@ -265,7 +265,7 @@ function AddTagForm({
               className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre border border-transparent px-3 font-mono text-sm"
             >
               <span className="invisible">{uid}</span>
-              <span className="text-muted-foreground/50">{nfcUidMaskRemainder(uid)}</span>
+              <span className="text-muted-foreground">{nfcUidMaskRemainder(uid)}</span>
             </div>
           </div>
           <p

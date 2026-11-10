@@ -592,7 +592,7 @@ export function EmployeeNonCoreActivityTab() {
                   value={formNotes}
                   onChange={e => setFormNotes(e.target.value)}
                   placeholder="e.g. Approved by manager, half day…"
-                  className="flex min-h-[100px] w-full resize-y rounded-md border border-input bg-background px-3 py-2.5 text-sm shadow-sm transition-colors placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex min-h-[100px] w-full resize-y rounded-md border border-input bg-background px-3 py-2.5 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
             </div>

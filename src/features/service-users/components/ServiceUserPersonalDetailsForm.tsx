@@ -95,12 +95,12 @@ const FIELD_HELP = {
   mobile: 'Mobile number for calls or SMS where your service uses them.',
   email: 'Email address for notifications and written contact.',
   emailType: 'Classifies the email (for example personal, work, shared) if your organisation tracks it.',
-  otherContactMethod: 'Any other agreed channel (for example WhatsApp, relay service, or “via family member”).',
+  otherContactMethod: 'Any other agreed channel (for example WhatsApp or a relay service). If information must go through a family member, record that in Privacy → Communication needs (“Contact through”), which surveys and carers use.',
   serviceUserNumber: 'Your organisation’s own reference or case number for this person.',
   location: 'Zone and branch (e.g. Croydon) for rosters, location tree, and bulk scheduling.',
   serviceStartDate: 'Date the person became eligible for or started receiving this service.',
   serviceEndDate: 'Last day and time of service if known; tick Ongoing while the service is still active.',
-  dateOfDeath: 'If applicable, date of death for record closure and statutory reporting. Only record when verified.',
+  dateOfDeath: 'If applicable, date of death for record closure and statutory reporting. Only record when verified. Saving a date also sets their status to Deceased; to set Deceased, enter the date here.',
   keyWorker: 'Search for the employee who coordinates this person’s care. Type at least two characters of their name.',
   namedNurse: 'Search for the named nurse where your care model uses one. Type at least two characters of their name.',
   fundingType: 'Source or route of funding (for example local authority, NHS CHC, self-funder).',
@@ -471,15 +471,17 @@ export function ServiceUserPersonalDetailsForm({
   locations,
   serviceUserId,
   onSaved,
+  onOpenFunding,
 }: {
   detail: ServiceUserDetail
   lookups: ServiceUserLookupsBundle
   locations: LookupRow[]
   serviceUserId: string
   onSaved: (d: ServiceUserDetail) => void
+  /** Opens the Funding tab, the one place funding is entered. */
+  onOpenFunding?: () => void
 }) {
   const canUpdate = useAuthStore((s) => s.can('service_users.update'))
-  const currentUserName = useAuthStore((s) => s.user?.displayName ?? '')
   const canDomCare =
     useAuthStore((s) => s.can('service_users.dom_care.update')) || canUpdate
   const updateMutation = useUpdateServiceUser(serviceUserId)
@@ -590,20 +592,10 @@ export function ServiceUserPersonalDetailsForm({
       return
     }
     try {
-      // Referral: stamp who recorded it and when, the first time any referral
-      // detail is entered (kept stable on later edits).
-      const hasReferralInfo = Boolean(
-        form.referralAuthority.trim() ||
-          form.referralSource.trim() ||
-          form.referralDate.trim() ||
-          form.referralNotes.trim() ||
-          form.referralReceivedVia.trim() ||
-          form.referralReceivedAt.trim(),
-      )
-      const referralRecordedBy =
-        form.referralRecordedBy || (hasReferralInfo ? currentUserName : '')
-      const referralRecordedAt =
-        form.referralRecordedAt || (hasReferralInfo ? new Date().toISOString() : '')
+      // Referrals are recorded on the Referral & Quotes tab. The older referral text here is shown read-only
+      // and saved back unchanged (never stamped with whoever saves Personal Details).
+      const referralRecordedBy = form.referralRecordedBy
+      const referralRecordedAt = form.referralRecordedAt
 
       const withoutAs = buildSuProfileReferences(
         {
@@ -668,7 +660,6 @@ export function ServiceUserPersonalDetailsForm({
         statusId: form.statusId || undefined,
         careTypeId: form.careTypeId || undefined,
         careLevel: (form.careLevel || undefined) as 'STANDARD' | 'COMPLEX' | undefined,
-        fundingTypeId: form.fundingTypeId || undefined,
         riskLevelId: form.riskLevelId || undefined,
         keyWorkerId: form.keyWorkerId || undefined,
         namedNurseId: form.namedNurseId || undefined,
@@ -930,7 +921,7 @@ export function ServiceUserPersonalDetailsForm({
                     serviceEndDate: e.target.checked ? '' : p.serviceEndDate,
                   }))
                 }
-                className="h-4 w-4 rounded border-border"
+                className="h-4 w-4 rounded border-input"
               />
               Ongoing
             </label>
@@ -1024,14 +1015,28 @@ export function ServiceUserPersonalDetailsForm({
               </ul>
             )}
           </div>
-          <LookupSelect
-            label="Funding Route"
-            tooltip={FIELD_HELP.fundingType}
-            value={form.fundingTypeId}
-            onChange={set('fundingTypeId')}
-            rows={lookups.fundingTypes}
-            placeholder="Select funding"
-          />
+          <div className="space-y-1" data-testid="personal-details-funding">
+            <LabelWithTooltip
+              label="Funding"
+              tooltip="Who pays for this person's care. Set on the Funding tab, the only place funding is entered."
+            />
+            <p className="rounded-md border border-input bg-muted/40 px-3 py-2 text-sm">
+              {detail.currentFunderName
+                ? `${detail.currentFunderName}${detail.fundingRouteFromLine && detail.fundingType?.name ? ` — ${detail.fundingType.name}` : ''}`
+                : 'No funding set up'}
+            </p>
+            {onOpenFunding ? (
+              <button
+                type="button"
+                className="text-xs font-medium text-primary hover:underline"
+                onClick={onOpenFunding}
+              >
+                {detail.currentFunderName ? 'Change on the Funding tab' : 'Add who pays on the Funding tab'}
+              </button>
+            ) : (
+              <p className="text-xs text-muted-foreground">Set on the Funding tab.</p>
+            )}
+          </div>
           <LookupSelect
             label="Category of Care"
             tooltip={FIELD_HELP.careType}

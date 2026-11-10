@@ -1,4 +1,5 @@
 import { formatPolicyDate, summariseLink } from '@/features/policies/policy-format'
+import { PolicyPublishAcknowledgementNote } from '@/features/policies/components/PolicyPublishAcknowledgementNote'
 import type { PolicyLink, PolicyLinkInput } from '@/features/policies/types/policy.types'
 
 export function PolicyPublishSummary({
@@ -6,16 +7,19 @@ export function PolicyPublishSummary({
   reference,
   effectiveDate,
   links,
+  policyId,
 }: {
   title: string
   reference: string
   effectiveDate?: string | null
   links?: Array<PolicyLink | PolicyLinkInput>
+  /** When set, shows how many staff will need to read and acknowledge it (if the version requires it). */
+  policyId?: string
 }) {
   const areas =
     links?.length ? links.map(link => summariseLink(link)).join('; ') : 'None'
 
-  return (
+  const summary = (
     <dl className="grid gap-3 text-sm sm:grid-cols-2" data-testid="policy-publish-summary">
       <div>
         <dt className="text-xs uppercase tracking-wide text-muted-foreground">Policy title</dt>
@@ -34,5 +38,12 @@ export function PolicyPublishSummary({
         <dd className="mt-0.5">{areas}</dd>
       </div>
     </dl>
+  )
+  if (!policyId) return summary
+  return (
+    <div className="space-y-3">
+      {summary}
+      <PolicyPublishAcknowledgementNote policyId={policyId} />
+    </div>
   )
 }

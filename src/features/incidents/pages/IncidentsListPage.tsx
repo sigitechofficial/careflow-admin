@@ -375,7 +375,7 @@ export default function IncidentsListPage() {
               type="checkbox"
               checked={urlState.openOnly}
               onChange={(e) => patchUrlState({ openOnly: e.target.checked })}
-              className="h-4 w-4 rounded border-border"
+              className="h-4 w-4 rounded border-input"
             />
             Open only
           </label>

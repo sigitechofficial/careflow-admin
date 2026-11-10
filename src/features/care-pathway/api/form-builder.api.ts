@@ -3,9 +3,9 @@ import type {
   CareFormDetail,
   CareFormListRow,
   CarePathwayFormType,
-  FormFieldType,
   ListMeta,
 } from '../types/care-pathway.types'
+import type { SaveSchemaSectionPayload } from '../utils/form-builder-schema-payload.util'
 
 export async function listCareForms(params?: {
   page?: number
@@ -63,22 +63,7 @@ export async function updateCareForm(
 
 export async function saveCareFormSchema(
   id: string,
-  sections: {
-    title: string
-    description?: string
-    sortOrder: number
-    fields: {
-      label: string
-      fieldKey?: string | null
-      fieldType: FormFieldType
-      placeholder?: string
-      helpText?: string
-      required?: boolean
-      sortOrder: number
-      optionsJson?: { options: string[] } | null
-      conditionalLogicJson?: Record<string, unknown> | null
-    }[]
-  }[],
+  sections: SaveSchemaSectionPayload[],
 ): Promise<CareFormDetail> {
   const res = await apiJson<ApiEnvelope<CareFormDetail>>(`/form-builder/${id}/schema`, {
     method: 'PATCH',

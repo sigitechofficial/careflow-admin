@@ -1,80 +1,83 @@
-import * as React from 'react'
-import { Loader2 } from 'lucide-react'
-import { Button } from '@/shared/ui/button'
-import { useAuthStore } from '@/features/auth/store'
+import * as React from "react";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/shared/ui/button";
+import { useAuthStore } from "@/features/auth/store";
 import {
   useMedicationSupportProfile,
   useUpdateMedicationSupportProfile,
-} from '@/features/service-users/hooks/useMedicationSupportProfile'
-import type { MedicationSupportProfile } from '@/features/service-users/api/medication-support-profile.api'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+} from "@/features/service-users/hooks/useMedicationSupportProfile";
+import type { MedicationSupportProfile } from "@/features/service-users/api/medication-support-profile.api";
+import { toastApiError, toastSuccess } from "@/shared/lib/toast";
 
 type Props = {
-  serviceUserId: string
-}
+  serviceUserId: string;
+};
 
 function boolLabel(v: boolean): string {
-  return v ? 'Yes' : 'No'
+  return v ? "Yes" : "No";
 }
 
 export function MedicationSupportProfileTab({ serviceUserId }: Props) {
   const canEdit = React.useMemo(() => {
-    const p = (useAuthStore.getState().user?.permissions ?? []) as string[]
+    const p = (useAuthStore.getState().user?.permissions ?? []) as string[];
     return (
-      p.includes('service_users.update') ||
-      p.includes('service_users.medications.support_profile.update') ||
-      p.includes('service_users.medications.update')
-    )
-  }, [])
+      p.includes("service_users.update") ||
+      p.includes("service_users.medications.support_profile.update") ||
+      p.includes("service_users.medications.update")
+    );
+  }, []);
 
-  const profileQuery = useMedicationSupportProfile(serviceUserId)
-  const updateMutation = useUpdateMedicationSupportProfile(serviceUserId)
+  const profileQuery = useMedicationSupportProfile(serviceUserId);
+  const updateMutation = useUpdateMedicationSupportProfile(serviceUserId);
 
-  const [draft, setDraft] = React.useState<MedicationSupportProfile | null>(null)
-  const [dirty, setDirty] = React.useState(false)
+  const [draft, setDraft] = React.useState<MedicationSupportProfile | null>(
+    null,
+  );
+  const [dirty, setDirty] = React.useState(false);
 
   React.useEffect(() => {
     if (profileQuery.data && !dirty) {
-      setDraft(profileQuery.data)
+      setDraft(profileQuery.data);
     }
-  }, [profileQuery.data, dirty])
+  }, [profileQuery.data, dirty]);
 
-  const data = draft ?? profileQuery.data
+  const data = draft ?? profileQuery.data;
 
-  const setFlag = (key: keyof Pick<
-    MedicationSupportProfile,
-    | 'selfAdministersMedication'
-    | 'requiresPrompting'
-    | 'requiresSupervision'
-    | 'requiresCarerAdministration'
-    | 'familyMemberOrCarerSupportsMedication'
-  >) => {
-    setDirty(true)
-    setDraft(prev =>
-      prev
-        ? { ...prev, [key]: !prev[key] }
-        : prev,
-    )
-  }
+  const setFlag = (
+    key: keyof Pick<
+      MedicationSupportProfile,
+      | "selfAdministersMedication"
+      | "requiresPrompting"
+      | "requiresSupervision"
+      | "requiresCarerAdministration"
+      | "familyMemberOrCarerSupportsMedication"
+    >,
+  ) => {
+    setDirty(true);
+    setDraft((prev) => (prev ? { ...prev, [key]: !prev[key] } : prev));
+  };
 
   const save = async () => {
-    if (!draft) return
+    if (!draft) return;
     try {
       await updateMutation.mutateAsync({
         selfAdministersMedication: draft.selfAdministersMedication,
         requiresPrompting: draft.requiresPrompting,
         requiresSupervision: draft.requiresSupervision,
         requiresCarerAdministration: draft.requiresCarerAdministration,
-        familyMemberOrCarerSupportsMedication: draft.familyMemberOrCarerSupportsMedication,
-        storageLocation: draft.storageLocation?.trim() ? draft.storageLocation.trim() : null,
+        familyMemberOrCarerSupportsMedication:
+          draft.familyMemberOrCarerSupportsMedication,
+        storageLocation: draft.storageLocation?.trim()
+          ? draft.storageLocation.trim()
+          : null,
         notes: draft.notes?.trim() ? draft.notes.trim() : null,
-      })
-      toastSuccess('Support profile saved')
-      setDirty(false)
+      });
+      toastSuccess("Support profile saved");
+      setDirty(false);
     } catch (err) {
-      toastApiError(err, 'Could not save support profile')
+      toastApiError(err, "Could not save support profile");
     }
-  }
+  };
 
   if (profileQuery.isLoading) {
     return (
@@ -82,7 +85,7 @@ export function MedicationSupportProfileTab({ serviceUserId }: Props) {
         <Loader2 className="h-4 w-4 animate-spin" />
         Loading support profile…
       </div>
-    )
+    );
   }
 
   if (profileQuery.isError) {
@@ -90,110 +93,142 @@ export function MedicationSupportProfileTab({ serviceUserId }: Props) {
       <p className="text-sm text-destructive" role="alert">
         {profileQuery.error instanceof Error
           ? profileQuery.error.message
-          : 'Could not load support profile'}
+          : "Could not load support profile"}
       </p>
-    )
+    );
   }
 
-  if (!data) return null
+  if (!data) return null;
 
   const flags: {
     key: keyof Pick<
       MedicationSupportProfile,
-      | 'selfAdministersMedication'
-      | 'requiresPrompting'
-      | 'requiresSupervision'
-      | 'requiresCarerAdministration'
-      | 'familyMemberOrCarerSupportsMedication'
-    >
-    label: string
-    hint: string
+      | "selfAdministersMedication"
+      | "requiresPrompting"
+      | "requiresSupervision"
+      | "requiresCarerAdministration"
+      | "familyMemberOrCarerSupportsMedication"
+    >;
+    label: string;
+    hint: string;
   }[] = [
     {
-      key: 'selfAdministersMedication',
-      label: 'Self-administers medication',
-      hint: 'Service user takes their own medicines without carer administration.',
+      key: "selfAdministersMedication",
+      label: "Self-administers medication",
+      hint: "Service user takes their own medicines without carer administration.",
     },
     {
-      key: 'requiresPrompting',
-      label: 'Requires prompting',
-      hint: 'Carer may need to remind the person to take medication.',
+      key: "requiresPrompting",
+      label: "Requires prompting",
+      hint: "Carer may need to remind the person to take medication.",
     },
     {
-      key: 'requiresSupervision',
-      label: 'Requires supervision',
-      hint: 'Carer observes while the person takes medication.',
+      key: "requiresSupervision",
+      label: "Requires supervision",
+      hint: "Carer observes while the person takes medication.",
     },
     {
-      key: 'requiresCarerAdministration',
-      label: 'Requires carer administration',
-      hint: 'Carer must give medication directly.',
+      key: "requiresCarerAdministration",
+      label: "Requires carer administration",
+      hint: "Carer must give medication directly.",
     },
     {
-      key: 'familyMemberOrCarerSupportsMedication',
-      label: 'Family member or carer gives medicines support',
-      hint:
-        'A family member or carer may give medicines support that care staff would usually provide. Agree with the person and family how this is recorded on the MAR (CQC / NICE NG67).',
+      key: "familyMemberOrCarerSupportsMedication",
+      label: "Family member or carer gives medicines support",
+      hint: "A family member or carer may give medicines support that care staff would usually provide. Agree with the person and family how this is recorded on the MAR (CQC / NICE NG67).",
     },
-  ]
+  ];
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h2 className="text-lg font-semibold">Medication support profile</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          How this person is supported with medicines. Use notes for GP, pharmacy, risk context, or
-          other clinical detail not captured elsewhere.
+          How this person is supported with medicines. Use notes for pharmacy,
+          risk context, or other clinical detail not captured elsewhere.
         </p>
       </div>
 
-      <section className="rounded-lg border border-border bg-card">
-        <div className="divide-y divide-border">
-          {flags.map(item => (
-            <label
-              key={item.key}
-              className="flex cursor-pointer gap-3 px-4 py-3 has-[:disabled]:cursor-default"
-            >
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={data[item.key]}
-                disabled={!canEdit || updateMutation.isPending}
-                onChange={() => setFlag(item.key)}
-              />
-              <span>
-                <span className="block text-sm font-medium">{item.label}</span>
-                <span className="block text-xs text-muted-foreground">{item.hint}</span>
-                {!canEdit && (
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    Current: {boolLabel(data[item.key])}
+      {data.assessmentSupportLevel ? (
+        <section
+          className="rounded-lg border border-border bg-card px-4 py-3"
+          data-testid="med-support-assessment-level"
+        >
+          <p className="text-sm font-medium">
+            Support level: {data.assessmentSupportLevel.label}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            From the initial assessment (section 9)
+            {data.assessmentSupportLevel.pendingReview
+              ? ", waiting for manager review"
+              : ""}
+            . This is the level carers and the medication care plan use. To
+            change it, update the assessment.
+          </p>
+        </section>
+      ) : (
+        <section className="rounded-lg border border-border bg-card">
+          <p
+            className="border-b border-border px-4 py-2 text-xs text-muted-foreground"
+            data-testid="med-support-no-assessment"
+          >
+            No support level in the initial assessment yet. These ticks are used
+            until the assessment records one; after that, the assessment's level
+            is used everywhere.
+          </p>
+          <div className="divide-y divide-border">
+            {flags.map((item) => (
+              <label
+                key={item.key}
+                className="flex cursor-pointer gap-3 px-4 py-3 has-[:disabled]:cursor-default"
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={data[item.key]}
+                  disabled={!canEdit || updateMutation.isPending}
+                  onChange={() => setFlag(item.key)}
+                />
+                <span>
+                  <span className="block text-sm font-medium">
+                    {item.label}
                   </span>
-                )}
-              </span>
-            </label>
-          ))}
-        </div>
-      </section>
+                  <span className="block text-xs text-muted-foreground">
+                    {item.hint}
+                  </span>
+                  {!canEdit && (
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Current: {boolLabel(data[item.key])}
+                    </span>
+                  )}
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-2">
         <label htmlFor="med-support-storage" className="text-sm font-medium">
           Medication storage location
         </label>
         <p className="text-xs text-muted-foreground">
-          Where medicines are kept in the property. Shown on the carer app visit Overview (not the
-          home address).
+          Where medicines are kept in the property. Shown on the carer app visit
+          Overview (not the home address).
         </p>
         <textarea
           id="med-support-storage"
           rows={3}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          value={data.storageLocation ?? ''}
+          value={data.storageLocation ?? ""}
           disabled={!canEdit || updateMutation.isPending}
-          onChange={e => {
-            setDirty(true)
-            setDraft(d => (d ? { ...d, storageLocation: e.target.value } : d))
+          onChange={(e) => {
+            setDirty(true);
+            setDraft((d) =>
+              d ? { ...d, storageLocation: e.target.value } : d,
+            );
           }}
-          placeholder='e.g. Kitchen cupboard, above the sink (left-hand side, labelled “MAR”).'
+          placeholder="e.g. Kitchen cupboard, above the sink (left-hand side, labelled “MAR”)."
         />
       </section>
 
@@ -205,11 +240,11 @@ export function MedicationSupportProfileTab({ serviceUserId }: Props) {
           id="med-support-notes"
           rows={5}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          value={data.notes ?? ''}
+          value={data.notes ?? ""}
           disabled={!canEdit || updateMutation.isPending}
-          onChange={e => {
-            setDirty(true)
-            setDraft(d => (d ? { ...d, notes: e.target.value } : d))
+          onChange={(e) => {
+            setDirty(true);
+            setDraft((d) => (d ? { ...d, notes: e.target.value } : d));
           }}
           placeholder="e.g. GP: Dr Smith · Pharmacy: High Street · Allergies reviewed monthly"
         />
@@ -222,7 +257,7 @@ export function MedicationSupportProfileTab({ serviceUserId }: Props) {
             disabled={!dirty || updateMutation.isPending}
             onClick={() => void save()}
           >
-            {updateMutation.isPending ? 'Saving…' : 'Save profile'}
+            {updateMutation.isPending ? "Saving…" : "Save profile"}
           </Button>
           {dirty && (
             <Button
@@ -230,8 +265,8 @@ export function MedicationSupportProfileTab({ serviceUserId }: Props) {
               variant="outline"
               disabled={updateMutation.isPending}
               onClick={() => {
-                setDraft(profileQuery.data ?? null)
-                setDirty(false)
+                setDraft(profileQuery.data ?? null);
+                setDirty(false);
               }}
             >
               Reset
@@ -240,5 +275,5 @@ export function MedicationSupportProfileTab({ serviceUserId }: Props) {
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -296,7 +296,7 @@ export function AddBodyMapRecordWizard({
                   ? 'bg-indigo-100 text-indigo-900'
                   : i < step
                     ? 'text-muted-foreground'
-                    : 'text-muted-foreground/60',
+                    : 'text-muted-foreground',
               )}
             >
               {i + 1}. {label}

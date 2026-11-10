@@ -13,6 +13,8 @@ import {
   defaultWaterlowMetadata,
   waterlowSelectionBreakdown,
   waterlowFollowUpPrefill,
+  waterlowNextReviewHint,
+  waterlowReviewIntervalDays,
 } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 
 describe('waterlow-scoring', () => {
@@ -129,9 +131,18 @@ describe('waterlowSelectionBreakdown', () => {
 
 describe('waterlowFollowUpPrefill', () => {
   const scored = { singleOptionIds: { gender: 'female', age: '65-74' }, gender: 2, age: 3 }
+  // As served by GET /service-user-assessments/review-schedules (key waterlow).
+  const reviewSchedule = {
+    defaultIntervalDays: 30,
+    elevatedRiskIntervalDays: 7,
+    elevatedRiskScoreFrom: 15,
+    guidanceSource: 'NWCSP clinical recommendations',
+  }
 
-  it('fills empty follow-up fields with a one-month review date', () => {
-    expect(waterlowFollowUpPrefill(scored, { assessorName: 'A. Assessor', assessmentDate: '2026-09-30' })).toEqual({
+  it('fills empty follow-up fields with the review date from the schedule', () => {
+    expect(
+      waterlowFollowUpPrefill(scored, { assessorName: 'A. Assessor', assessmentDate: '2026-09-30', reviewSchedule }),
+    ).toEqual({
       recommendation: 'Minimal risk (0–9): Follow agency policy.',
       recommendationBy: 'A. Assessor',
       recommendationDate: '2026-09-30',
@@ -141,11 +152,24 @@ describe('waterlowFollowUpPrefill', () => {
 
   it('never overwrites what is already written, and waits for a score', () => {
     const filled = { ...scored, recommendation: '<p>Own text</p>', recommendationBy: 'X', recommendationDate: '2026-01-01', nextReviewDate: '2026-02-01' }
-    expect(waterlowFollowUpPrefill(filled, { assessorName: 'A', assessmentDate: '2026-09-30' })).toBeNull()
-    expect(waterlowFollowUpPrefill({}, { assessorName: 'A', assessmentDate: '2026-09-30' })).toBeNull()
+    expect(waterlowFollowUpPrefill(filled, { assessorName: 'A', assessmentDate: '2026-09-30', reviewSchedule })).toBeNull()
+    expect(waterlowFollowUpPrefill({}, { assessorName: 'A', assessmentDate: '2026-09-30', reviewSchedule })).toBeNull()
   })
 
-  it('clamps to the last day of a shorter month', () => {
-    expect(waterlowFollowUpPrefill(scored, { assessmentDate: '2027-01-31' })?.nextReviewDate).toBe('2027-02-28')
+  it('leaves the review date empty until the schedule has loaded', () => {
+    expect(waterlowFollowUpPrefill(scored, { assessmentDate: '2026-09-30' })?.nextReviewDate).toBeUndefined()
+  })
+
+  it('uses the high-risk interval from the threshold score', () => {
+    expect(waterlowReviewIntervalDays(14, reviewSchedule)).toBe(30)
+    expect(waterlowReviewIntervalDays(15, reviewSchedule)).toBe(7)
+    expect(waterlowReviewIntervalDays(15, { ...reviewSchedule, elevatedRiskIntervalDays: 3 })).toBe(3)
+    expect(waterlowReviewIntervalDays(15, null)).toBeNull()
+    expect(waterlowFollowUpPrefill(scored, { assessmentDate: '2027-01-31', reviewSchedule })?.nextReviewDate).toBe('2027-03-02')
+  })
+
+  it('describes where the date comes from', () => {
+    expect(waterlowNextReviewHint(reviewSchedule)).toContain('30 days after the assessment, or 7 days when the score is 15 or more')
+    expect(waterlowNextReviewHint(null)).toBeNull()
   })
 })

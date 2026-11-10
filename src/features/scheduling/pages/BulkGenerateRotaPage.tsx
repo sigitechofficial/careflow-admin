@@ -23,7 +23,7 @@ function BulkGenerateRotaPageContent() {
         }
         breadcrumb={[
           { label: 'Home', href: '/' },
-          { label: 'Scheduling', href: '/scheduling/view' },
+          { label: 'Scheduling', href: '/scheduling/schedule-jobs' },
           { label: 'Bulk generate rota' },
         ]}
       >
@@ -45,6 +45,7 @@ function BulkGenerateRotaPageContent() {
         timezoneHint={page.timezoneHint}
         isFromToday={page.isFromToday}
         backfillDays={page.backfillDays}
+        maxBackfillDays={page.maxBackfillDays}
         scheduleAreaId={page.scheduleAreaId}
         generateReadyOnly={page.generateReadyOnly}
         scheduleAreas={page.scheduleAreas}

@@ -138,7 +138,7 @@ export function TravelGapSettingsCard({ canManage }: { canManage: boolean }) {
       <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border p-2 text-sm">
         <input
           type="checkbox"
-          className="mt-0.5 h-4 w-4 shrink-0 rounded border-border"
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-input"
           checked={enabled}
           disabled={!canManage || mutation.isPending}
           onChange={e => setEnabled(e.target.checked)}

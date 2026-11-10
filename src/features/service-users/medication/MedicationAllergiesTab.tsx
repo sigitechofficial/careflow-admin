@@ -116,8 +116,9 @@ export function MedicationAllergiesTab({ serviceUserId }: { serviceUserId: strin
             ) : null}
           </p>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Tick the medication allergies that apply to this service user. These flag on the MAR and
-            when adding medications.
+            Tick the medicine allergies that apply. They are saved on the person’s one allergy list
+            (Profile → Allergies), so carers, the family portal and medicine warnings all see them. Medicine
+            warnings check every allergy on that list, not only these.
           </p>
         </div>
       </div>

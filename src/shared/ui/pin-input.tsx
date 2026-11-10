@@ -73,7 +73,7 @@ export function PinInput({
           className={cn(
             "h-12 w-12 rounded-lg border text-center text-lg font-semibold tracking-widest transition-colors outline-none",
             "focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:border-ring",
-            error ? "border-destructive bg-destructive/5" : "border-border bg-background",
+            error ? "border-destructive bg-destructive/5" : "border-input bg-background",
             disabled && "opacity-50 cursor-not-allowed"
           )}
         />

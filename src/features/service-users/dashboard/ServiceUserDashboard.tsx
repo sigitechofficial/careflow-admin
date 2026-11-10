@@ -1,3 +1,4 @@
+import { PersonSurveysSection } from '@/features/surveys/reminders/PersonSurveysSection'
 import * as React from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
 import {
@@ -676,6 +677,21 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
         <ServiceUserSafetySummary
           serviceUserId={serviceUserId}
           omitFlashFromImmediate={Boolean(flashData)}
+        />
+
+        <PersonSurveysSection
+          serviceUserId={serviceUserId}
+          summary
+          allSurveysLink={
+            <Link
+              to="/service-users/$serviceUserId/profile"
+              params={{ serviceUserId }}
+              search={{ tab: 'surveys' }}
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Open surveys
+            </Link>
+          }
         />
 
         {attentionItems.length > 0 ? (

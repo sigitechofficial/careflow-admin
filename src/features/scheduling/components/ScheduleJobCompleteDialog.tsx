@@ -905,7 +905,7 @@ export function ScheduleJobCompleteDialog({
                 </Label>
                 <textarea
                   id="schedule-job-overrun-reason"
-                  className="min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  className="min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={overrunReason}
                   disabled={busy}
                   onChange={event => setOverrunReason(event.target.value)}
@@ -956,7 +956,7 @@ export function ScheduleJobCompleteDialog({
                 </Label>
                 <textarea
                   id="schedule-job-timing-exception-notes"
-                  className="min-h-[64px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  className="min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={timingExceptionNotes}
                   disabled={busy}
                   onChange={(event) => setTimingExceptionNotes(event.target.value)}
@@ -1068,7 +1068,7 @@ export function ScheduleJobCompleteDialog({
               </Label>
               <textarea
                 id="schedule-job-missed-reason-notes"
-                className="min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                className="min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={missedReasonNotes}
                 disabled={busy}
                 onChange={(event) => setMissedReasonNotes(event.target.value)}
@@ -1145,7 +1145,7 @@ export function ScheduleJobCompleteDialog({
                   </Label>
                   <textarea
                     id="schedule-job-care-not-delivered-notes"
-                    className="min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                    className="min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={careNotDeliveredNotes}
                     disabled={busy}
                     onChange={(event) => setCareNotDeliveredNotes(event.target.value)}

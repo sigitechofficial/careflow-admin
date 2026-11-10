@@ -12,6 +12,8 @@ export type MedicationSupportProfile = {
   storageLocation: string | null
   notes: string | null
   isActive: boolean
+  /** The level carers and the medication care plan use, from the assessment (§9). Null when not recorded. */
+  assessmentSupportLevel?: { label: string; pendingReview: boolean } | null
 }
 
 export type UpdateMedicationSupportProfilePayload = {

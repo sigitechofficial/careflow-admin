@@ -16,6 +16,7 @@ import {
   useDeleteLearningSection,
   useLearningCourseVersion,
   useLearningCourseVersions,
+  useLearningSettings,
   usePublishLearningCourse,
   useUpdateLearningCourse,
 } from '@/features/learning/hooks/useLearning'
@@ -46,6 +47,7 @@ export function CourseBuilderPanel({ course, onCourseUpdated }: Props) {
   const version = versionQuery.data
 
   const updateCourseMut = useUpdateLearningCourse()
+  const { data: learningSettings } = useLearningSettings()
   const createSectionMut = useCreateLearningSection()
   const createContentMut = useCreateLearningContentItem()
   const deleteSectionMut = useDeleteLearningSection()
@@ -62,7 +64,8 @@ export function CourseBuilderPanel({ course, onCourseUpdated }: Props) {
     description: course.description ?? '',
     passingScore: course.passingScore ?? 80,
     maximumAttempts: course.maximumAttempts ?? 3,
-    certificateValidityDays: course.certificateValidityDays ?? 365,
+    /** Empty = inherit the Learning settings default (stored as null). */
+    certificateValidityDays: course.certificateValidityDays ?? null,
   })
 
   React.useEffect(() => {
@@ -72,7 +75,7 @@ export function CourseBuilderPanel({ course, onCourseUpdated }: Props) {
       description: course.description ?? '',
       passingScore: course.passingScore ?? 80,
       maximumAttempts: course.maximumAttempts ?? 3,
-      certificateValidityDays: course.certificateValidityDays ?? 365,
+      certificateValidityDays: course.certificateValidityDays ?? null,
     })
   }, [course])
 
@@ -397,14 +400,26 @@ export function CourseBuilderPanel({ course, onCourseUpdated }: Props) {
               disabled={!canManage}
             />
           </FormField>
-          <FormField label="Certificate validity (days)">
+          <FormField
+            label="Certificate validity (days)"
+            hint={
+              learningSettings?.defaultCertificateValidityDays
+                ? `Leave empty to use the Learning settings default (${learningSettings.defaultCertificateValidityDays} days).`
+                : 'Leave empty to use the Learning settings default.'
+            }
+          >
             <Input
               type="number"
               min={1}
-              value={detailsForm.certificateValidityDays}
-              onChange={e =>
-                setDetailsForm(prev => ({ ...prev, certificateValidityDays: Number(e.target.value) }))
-              }
+              value={detailsForm.certificateValidityDays ?? ''}
+              placeholder={learningSettings?.defaultCertificateValidityDays ? String(learningSettings.defaultCertificateValidityDays) : 'Default'}
+              onChange={e => {
+                const n = Number.parseInt(e.target.value, 10)
+                setDetailsForm(prev => ({
+                  ...prev,
+                  certificateValidityDays: e.target.value.trim() && Number.isInteger(n) && n >= 1 ? n : null,
+                }))
+              }}
               disabled={!canManage}
             />
           </FormField>

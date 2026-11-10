@@ -58,7 +58,7 @@ export function View({ label, value, wide }: { label: string; value: React.React
     <div className={wide ? 'sm:col-span-2' : undefined}>
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="mt-1 whitespace-pre-wrap text-sm font-medium text-foreground">
-        {value || <span className="font-normal italic text-muted-foreground/70">Not recorded</span>}
+        {value || <span className="font-normal italic text-muted-foreground">Not recorded</span>}
       </dd>
     </div>
   )
@@ -622,7 +622,7 @@ export function ChecklistCard({ caseData }: { caseData: SafeguardingCase }) {
           {caseData.checks.map(c => (
             <li key={c.key} className={`flex items-start gap-2.5 ${c.ok === null ? 'text-muted-foreground' : 'text-foreground'}`}>
               {c.ok === null ? (
-                <CircleSlash className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/60" aria-label="Not applicable" />
+                <CircleSlash className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-label="Not applicable" />
               ) : c.ok ? (
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-label="Done" />
               ) : (

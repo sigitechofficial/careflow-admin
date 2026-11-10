@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  Landmark,
   Activity,
   AlertTriangle,
   ClipboardList,
@@ -43,6 +44,7 @@ import { MedicationTimeSlotsSettingsPanel } from '@/features/settings/components
 import { ServiceUserCareTypesSettingsPanel } from '@/features/settings/components/ServiceUserCareTypesSettingsPanel'
 import { ServiceUserCodeNameLookupSettingsPanel } from '@/features/settings/components/ServiceUserCodeNameLookupSettingsPanel'
 import { ServiceUserFundingTypesSettingsPanel } from '@/features/settings/components/ServiceUserFundingTypesSettingsPanel'
+import { FundersSettingsPanel } from '@/features/settings/components/FundersSettingsPanel'
 import { AllergiesCatalogSettingsPanel } from '@/features/settings/components/AllergiesCatalogSettingsPanel'
 import { TaskCatalogueSettingsPanel } from '@/features/settings/components/TaskCatalogueSettingsPanel'
 import { BodyMapRecordTypesSettingsPanel } from '@/features/settings/components/BodyMapRecordTypesSettingsPanel'
@@ -79,6 +81,7 @@ export type SettingsTabId =
   | 'time-slots'
   | 'care-types'
   | 'funding-types'
+  | 'funders'
   | 'ethnicities'
   | 'languages'
   | 'genders'
@@ -118,7 +121,8 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string; Icon: LucideIcon }[] = 
   { id: 'time-slots', label: 'Time slots', Icon: Clock },
   { id: 'tasks-planner', label: 'Tasks planner', Icon: CheckSquare },
   { id: 'care-types', label: 'Care types', Icon: HeartPulse },
-  { id: 'funding-types', label: 'Funding types', Icon: Scale },
+  { id: 'funding-types', label: 'Funding routes', Icon: Scale },
+  { id: 'funders', label: 'Funders', Icon: Landmark },
   { id: 'ethnicities', label: 'Ethnicities', Icon: Users },
   { id: 'languages', label: 'Languages', Icon: Languages },
   { id: 'genders', label: 'Genders', Icon: UserRound },
@@ -211,7 +215,7 @@ export default function SettingsPage() {
               resource="job-titles"
               title="Job titles"
               description="Used on employee employment details and compliance matching."
-              placeholder="Filter job titlesâ€¦"
+              placeholder="Filter job titles…"
             />
           )}
           {activeTab === 'skills' && (
@@ -232,7 +236,7 @@ export default function SettingsPage() {
               resource="work-areas"
               title="Work areas"
               description="Determines which compliance checklist applies to an employee."
-              placeholder="Filter work areasâ€¦"
+              placeholder="Filter work areas…"
             />
           )}
           {activeTab === 'contract-types' && (
@@ -282,7 +286,7 @@ export default function SettingsPage() {
             <LookupIntervalPanel
               resource="review-types"
               title="Review types"
-              description="Staff review types (supervision, appraisal, probation). Default interval drives overdue review alerts."
+              description="Staff review types (supervision, appraisal, probation). Set when each is due (repeating, milestones after the start date, or only when it happens), who it applies to and its form in Settings → General Settings → Supervision → Review types."
               intervalLabel="Interval (days)"
               intervalField="defaultIntervalDays"
               intervalMax={3650}
@@ -299,6 +303,7 @@ export default function SettingsPage() {
           {activeTab === 'time-slots' && <MedicationTimeSlotsSettingsPanel />}
           {activeTab === 'care-types' && <ServiceUserCareTypesSettingsPanel />}
           {activeTab === 'funding-types' && <ServiceUserFundingTypesSettingsPanel />}
+          {activeTab === 'funders' && <FundersSettingsPanel />}
           {activeTab === 'ethnicities' && <ServiceUserCodeNameLookupSettingsPanel variant="ethnicities" />}
           {activeTab === 'languages' && <ServiceUserCodeNameLookupSettingsPanel variant="languages" />}
           {activeTab === 'genders' && <ServiceUserCodeNameLookupSettingsPanel variant="genders" />}

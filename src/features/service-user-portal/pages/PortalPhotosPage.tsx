@@ -83,7 +83,7 @@ export default function PortalPhotosPage() {
 
       {photos.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-muted/30 p-10 text-center">
-          <ImagePlus className="mx-auto h-10 w-10 text-muted-foreground/60" aria-hidden />
+          <ImagePlus className="mx-auto h-10 w-10 text-muted-foreground" aria-hidden />
           <p className="mt-3 text-sm text-muted-foreground">No photos on your record yet.</p>
           <Button
             type="button"
