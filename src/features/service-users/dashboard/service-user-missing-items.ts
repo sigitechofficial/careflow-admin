@@ -126,3 +126,39 @@ export function serviceUserMissingItems(input: {
 
   return items
 }
+
+/**
+ * Profile completion checks. A check is incomplete when any of its missing-item ids is present
+ * (e.g. "Contacts" covers both "no contacts" and "no emergency contact"). The visit plan status is
+ * not a profile field, so it is not counted.
+ */
+const PROFILE_COMPLETION_CHECKS: readonly (readonly string[])[] = [
+  ['dob'],
+  ['nhs'],
+  ['gender'],
+  ['phone'],
+  ['photo'],
+  ['care-type'],
+  ['service-start'],
+  ['funding', 'funding-review'],
+  ['risk-level'],
+  ['allergies'],
+  ['medication'],
+  ['key-worker'],
+  ['contacts', 'emergency-contact'],
+  ['address'],
+  ['access-method', 'key-safe'],
+  ['access-instructions'],
+]
+
+/** How much of the profile is filled in, from the output of `serviceUserMissingItems`. */
+export function serviceUserProfileCompletion(missingItems: Pick<MissingItem, 'id'>[]): {
+  completed: number
+  total: number
+  percent: number
+} {
+  const missing = new Set(missingItems.map((item) => item.id))
+  const total = PROFILE_COMPLETION_CHECKS.length
+  const completed = PROFILE_COMPLETION_CHECKS.filter((ids) => !ids.some((id) => missing.has(id))).length
+  return { completed, total, percent: Math.round((completed / total) * 100) }
+}

@@ -54,8 +54,10 @@ import { EditFlashMessageDialog } from '@/features/service-users/components/Edit
 import { Button } from '@/shared/ui/button'
 import { ServiceUserAllergiesManageDialog } from '@/features/service-users/components/ServiceUserAllergiesManageDialog'
 import { ServiceUserSafetySummary } from '@/features/alerts/components/ServiceUserSafetySummary'
+import { Progress } from '@/shared/ui/misc'
 import {
   serviceUserMissingItems,
+  serviceUserProfileCompletion,
   type MissingItemGroup,
 } from '@/features/service-users/dashboard/service-user-missing-items'
 type AttentionSeverity = 'red' | 'amber' | 'blue'
@@ -566,6 +568,7 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
         : [],
     [detail, allergyRows.length, activeMeds.length, visitPlan?.status, primaryFunding],
   )
+  const profileCompletion = serviceUserProfileCompletion(missingItems)
   const missingGroups = MISSING_GROUP_ORDER.map((group) => ({
     group,
     items: missingItems.filter((item) => item.group === group),
@@ -627,16 +630,33 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
           ) : null
         }
         actions={
-          <Button type="button" size="sm" variant="outline" asChild>
-            <Link
-              to="/service-users/$serviceUserId/profile"
-              params={{ serviceUserId }}
-              search={{ tab: 'personal' }}
+          <>
+            <div
+              className="w-48"
+              title={`${profileCompletion.completed} of ${profileCompletion.total} profile checks complete`}
+              data-testid="service-user-profile-completion"
             >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit profile
-            </Link>
-          </Button>
+              <p className="mb-1 text-xs text-muted-foreground">
+                Profile <span className="font-semibold text-foreground">{profileCompletion.percent}%</span> complete
+              </p>
+              <Progress
+                value={profileCompletion.percent}
+                size="sm"
+                variant={profileCompletion.percent === 100 ? 'success' : profileCompletion.percent >= 60 ? 'default' : 'warning'}
+                aria-label="Profile completion"
+              />
+            </div>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link
+                to="/service-users/$serviceUserId/profile"
+                params={{ serviceUserId }}
+                search={{ tab: 'personal' }}
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit profile
+              </Link>
+            </Button>
+          </>
         }
       />
       <ServiceUserModuleTabs serviceUserId={serviceUserId} />
