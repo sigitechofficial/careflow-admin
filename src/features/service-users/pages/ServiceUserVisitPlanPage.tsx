@@ -100,7 +100,7 @@ const PAGE_TABS: {
   {
     id: 'devTools',
     label: 'Reset rota',
-    hint: 'Dev tool to clear all visit plans and scheduling data',
+    hint: "Dev tool to clear visit plans and scheduling data — this service user's or all service users'",
     icon: Trash2,
   },
 ]

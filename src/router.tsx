@@ -198,6 +198,8 @@ import PayrollEmployeeDetailPage from '@/features/payroll/pages/PayrollEmployeeD
 import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesPage'
 import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
 import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
+import ScriptsPage from '@/features/scripts/pages/ScriptsPage'
+import VisitCreationPage from '@/features/scripts/pages/VisitCreationPage'
 import MySurveysPage, { MySurveyAnswerPage } from '@/features/surveys/my-surveys/MySurveysPage'
 import CarerReportsPage from '@/features/employees/pages/CarerReportsPage'
 import TimebankPage from '@/features/timebank/pages/TimebankPage'
@@ -421,6 +423,8 @@ const pageTitles: Record<string, string> = {
   '/office-salaries': 'Office salaries',
   '/checklist': 'Checklist',
   '/my-tasks': 'My tasks',
+  '/scripts': 'Scripts',
+  '/scripts/visit-creation': 'Visit Creation',
   '/my-surveys': 'My surveys',
   '/reports/carers': 'Carer reports',
   '/reports/timebank': 'Timebank',
@@ -2544,6 +2548,19 @@ const myTasksRoute = createRoute({
   component: MyTasksPage,
 })
 
+// Every signed-in user for now: automation scripts (run as the user, the API checks each step).
+const scriptsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scripts',
+  component: ScriptsPage,
+})
+
+const visitCreationRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scripts/visit-creation',
+  component: VisitCreationPage,
+})
+
 // Any office user who is also a member of staff: surveys sent to them (answered here or in the carer app).
 const mySurveysRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -3103,6 +3120,8 @@ const routeTree = rootRoute.addChildren([
     officeSalariesRoute,
     setupChecklistRoute,
     myTasksRoute,
+    scriptsRoute,
+    visitCreationRoute,
     mySurveysRoute,
     mySurveyAnswerRoute,
     carerReportsRoute,

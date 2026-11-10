@@ -436,6 +436,43 @@ export async function clearAllVisitPlansAndRota(dryRun: boolean): Promise<ClearV
   return res.data
 }
 
+export type ClearServiceUserVisitsCounts = {
+  scheduledJob: number
+  scheduledVisit: number
+  jobAllocation: number
+  visitAction: number
+  callOffVisit: number
+  scheduledJobCancellation: number
+  serviceUserVisitPlan: number
+  visitPlanSlot: number
+  visitPlanSlotException: number
+  visitPlanAmendment: number
+  visitPlanStatusEvent: number
+  pendingHoursApproval: number
+}
+
+export type ClearServiceUserVisitsResult = {
+  dryRun: boolean
+  serviceUserId: string
+  serviceUserName: string
+  counts: ClearServiceUserVisitsCounts
+  deleted: ClearServiceUserVisitsCounts | null
+}
+
+/** Clears one service user's visit plans and rota only — other service users are not touched. */
+export async function clearServiceUserVisitPlansAndRota(
+  serviceUserId: string,
+  dryRun: boolean,
+): Promise<ClearServiceUserVisitsResult> {
+  const qs = dryRun ? '?dryRun=true' : ''
+  const res = await apiJson<ApiEnvelope<ClearServiceUserVisitsResult>>(
+    `/service-users/${serviceUserId}/visit-plans/dev/clear-visit-plans-and-rota${qs}`,
+    { method: 'POST' },
+  )
+  if (!res.data) throw new Error('Invalid clear service user visits response from API')
+  return res.data
+}
+
 export async function activateServiceUserVisitPlan(
   serviceUserId: string,
   planId: string,
