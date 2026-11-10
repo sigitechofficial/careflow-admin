@@ -3,7 +3,9 @@ import { Link } from '@tanstack/react-router'
 import { ArrowLeft, Pill, User } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
-import type { ServiceUserAllergyRow, ServiceUserDetail } from '@/features/service-users/types'
+import type { ServiceUserDetail } from '@/features/service-users/types'
+import { useAuthStore } from '@/features/auth/store'
+import { useServiceUserMedicalConditions } from '@/features/alerts/hooks/useMedicalClinical'
 import {
   formatServiceUserDob,
   serviceUserDisplayName,
@@ -45,14 +47,17 @@ export function ServiceUserModuleHeader({
   shellLayout = 'default',
 }: ServiceUserModuleHeaderProps) {
   const profileQuery = useServiceUser(serviceUserId, detailProp === undefined)
-  const { documents, allergies } = useServiceUserCarePlanExtras(serviceUserId)
+  const { documents } = useServiceUserCarePlanExtras(serviceUserId)
+  const canConditions = useAuthStore((s) => s.can('service_users.medical_conditions.read'))
+  const conditions = useServiceUserMedicalConditions(serviceUserId, canConditions)
 
   const detail = detailProp === undefined ? (profileQuery.data ?? null) : (detailProp ?? null)
   const photoSrc = resolveMediaUrl(detail?.profilePhoto?.fileUrl ?? detail?.profilePhotoUrl)
   const legal = documents.data?.legal
   const dnacpr = legal?.dnacprInPlace === true
-  const diabetesAllergy = (allergies.data ?? []).some((a: ServiceUserAllergyRow) =>
-    /diabet/i.test(a.allergyName),
+  // Diabetes is a medical condition, not an allergy.
+  const diabetes = (conditions.data ?? []).some(
+    (c) => c.status === 'ACTIVE' && c.isActive && /diabet/i.test(`${c.condition?.code ?? ''} ${c.condition?.name ?? ''}`),
   )
 
   return (
@@ -94,7 +99,7 @@ export function ServiceUserModuleHeader({
                   DNACPR
                 </span>
               )}
-              {diabetesAllergy && (
+              {diabetes && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2.5 py-0.5 text-xs font-semibold text-white">
                   <Pill className="h-3 w-3" />
                   Diabetes
@@ -111,15 +116,6 @@ export function ServiceUserModuleHeader({
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
           <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-teal-800 dark:text-teal-300">
-            <Link to="/service-users/calendar" className="hover:underline">
-              Service User Tasks
-            </Link>
-            <Link to="/service-users/$serviceUserId/view" params={{ serviceUserId }} className="hover:underline">
-              About
-            </Link>
-            <Link to="/service-users/calendar" className="hover:underline">
-              Calendar
-            </Link>
             <Link
               to="/service-users/all"
               className="inline-flex items-center gap-1 font-normal text-muted-foreground hover:text-foreground"

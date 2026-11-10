@@ -57,6 +57,7 @@ import {
   // Briefcase, // TODO(later): restore with HR sidebar tab
 
   Inbox,
+  Mail,
   Calculator,
   HeartHandshake,
   DoorOpen,
@@ -570,6 +571,14 @@ const navItems: NavItem[] = [
         href: '/crm',
         permission: 'crm.read',
         navTestId: 'nav-crm-enquiries',
+      },
+      {
+        section: 'CRM',
+        label: 'Referral inbox',
+        icon: <Mail className="h-4 w-4" />,
+        href: '/crm/referral-inbox',
+        permission: 'crm.read',
+        navTestId: 'nav-crm-referral-inbox',
       },
     ],
   },

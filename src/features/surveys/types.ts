@@ -688,6 +688,8 @@ export type PublicSurveyForm = {
   languages?: SurveyLanguageOption[]
   /** Each language's texts, keyed as the API's survey-translation.util.ts (anything missing shows in English). */
   translations?: Record<string, Record<string, string>>
+  /** The version this person's own link opens in (their communication needs: easy read or their language); null = English. */
+  suggestedLanguage?: string | null
 }
 
 export type SurveyAnswerInput = {

@@ -1,11 +1,7 @@
 import * as React from 'react'
-import { Loader2, Pencil, Trash2 } from 'lucide-react'
+import { Loader2, Pencil, Shield, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
-import {
-  contactConsentFromReferences,
-  mergeServiceUserContactConsentRefs,
-} from '@/features/service-users/utils/contact-consent'
 import type {
   CreateServiceUserContactPayload,
   ServiceUserDetail,
@@ -15,7 +11,6 @@ import type {
 import {
   useCreateServiceUserContact,
   useDeleteServiceUserContact,
-  useUpdateServiceUser,
   useUpdateServiceUserContact,
 } from '@/features/service-users/hooks/useServiceUserMutations'
 import { useAuthStore } from '@/features/auth/store'
@@ -136,7 +131,7 @@ function formToPayload(f: ContactFormState): CreateServiceUserContactPayload {
     notes: f.notes.trim() || undefined,
     isPrimary: f.isPrimary,
     isEmergencyContact: f.isEmergencyContact,
-    canReceiveUpdates: f.canReceiveUpdates,
+    // canReceiveUpdates is not sent: it follows Profile → Privacy.
   }
 }
 
@@ -145,37 +140,25 @@ export function ServiceUserContactsTab({
   detail,
   lookups,
   onSaved,
+  openPrivacy,
 }: {
   serviceUserId: string
   detail: ServiceUserDetail
   lookups: ServiceUserLookupsBundle
   onSaved: (d: ServiceUserDetail) => void
+  /** Who may be told what is recorded on the Privacy tab. */
+  openPrivacy?: () => void
 }) {
   const canContactsRead = useAuthStore((s) => s.can('service_users.contacts.read'))
   const canContactsCreate = useAuthStore((s) => s.can('service_users.contacts.create'))
   const canContactsUpdate = useAuthStore((s) => s.can('service_users.contacts.update'))
   const canContactsDelete = useAuthStore((s) => s.can('service_users.contacts.delete'))
-  const canUserUpdate = useAuthStore((s) => s.can('service_users.update'))
 
-  const updateMutation = useUpdateServiceUser(serviceUserId)
   const createContactMutation = useCreateServiceUserContact(serviceUserId)
   const updateContactMutation = useUpdateServiceUserContact(serviceUserId)
   const deleteContactMutation = useDeleteServiceUserContact(serviceUserId)
 
   const { gp, professional, personal } = React.useMemo(() => splitContacts(detail.contacts), [detail.contacts])
-
-  const initialConsent = React.useMemo(() => contactConsentFromReferences(detail.references), [detail.references])
-  const [consentFamily, setConsentFamily] = React.useState(initialConsent.consentFamily)
-  const [shareCarePlan, setShareCarePlan] = React.useState(initialConsent.shareCarePlan)
-  const [consentError, setConsentError] = React.useState<string | null>(null)
-  const [consentOk, setConsentOk] = React.useState(false)
-  const consentSaving = updateMutation.isPending
-
-  React.useEffect(() => {
-    const next = contactConsentFromReferences(detail.references)
-    setConsentFamily(next.consentFamily)
-    setShareCarePlan(next.shareCarePlan)
-  }, [detail.references])
 
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [dialogKind, setDialogKind] = React.useState<ContactSectionKind>('personal')
@@ -188,23 +171,6 @@ export function ServiceUserContactsTab({
 
   const formSaving = createContactMutation.isPending || updateContactMutation.isPending
   const deleteSaving = deleteContactMutation.isPending
-
-  async function saveConsentFlags() {
-    if (!canUserUpdate) return
-    setConsentError(null)
-    setConsentOk(false)
-    try {
-      const references = mergeServiceUserContactConsentRefs(detail.references, consentFamily, shareCarePlan)
-      await updateMutation.mutateAsync({ body: { references } })
-      onSaved(detail)
-      setConsentOk(true)
-      toastSuccess('Preferences saved', 'Consent and sharing options were updated.')
-      window.setTimeout(() => setConsentOk(false), 3000)
-    } catch (e) {
-      setConsentError(e instanceof ApiError ? e.message : 'Failed to save preferences')
-      toastApiError(e, 'Could not save preferences')
-    }
-  }
 
   function openAdd(kind: ContactSectionKind) {
     setDialogKind(kind)
@@ -274,40 +240,20 @@ export function ServiceUserContactsTab({
 
   return (
     <div className="space-y-8">
-      <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
-        <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">Contacts Details</h2>
-        <div className="space-y-4">
-          <ToggleRow
-            label="Consent has been obtained to share care details with family members"
-            on={consentFamily}
-            onChange={setConsentFamily}
-            disabled={!canUserUpdate}
-          />
-          <ToggleRow
-            label="Share the care plan with authorised contacts"
-            on={shareCarePlan}
-            onChange={setShareCarePlan}
-            disabled={!canUserUpdate}
-          />
-          {consentError && <p className="text-sm text-destructive">{consentError}</p>}
-          {consentOk && <p className="text-sm text-emerald-700 dark:text-emerald-400">Preferences saved.</p>}
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" size="sm" onClick={() => void saveConsentFlags()} disabled={!canUserUpdate || consentSaving}>
-              {consentSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                'Save consent & sharing'
-              )}
-            </Button>
-            {!canUserUpdate && (
-              <span className="text-xs text-muted-foreground">Saving these options requires service_users.update.</span>
-            )}
-          </div>
-        </div>
-      </section>
+      <div
+        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm"
+        data-testid="contacts-privacy-link"
+      >
+        <p className="flex items-center gap-2 text-muted-foreground">
+          <Shield className="h-4 w-4 shrink-0" aria-hidden />
+          Who may be told about their care, what they may be told, and until when, is recorded in Privacy.
+        </p>
+        {openPrivacy ? (
+          <Button type="button" size="sm" variant="outline" onClick={openPrivacy}>
+            Open Privacy
+          </Button>
+        ) : null}
+      </div>
 
       <ContactTableSection
         title="Personal Contacts"
@@ -415,13 +361,10 @@ export function ServiceUserContactsTab({
                 />
                 Emergency contact
               </label>
-              <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                <Checkbox
-                  checked={form.canReceiveUpdates}
-                  onCheckedChange={(v) => setForm((p) => ({ ...p, canReceiveUpdates: v === true }))}
-                />
-                Portal / can receive updates
-              </label>
+              <p className="text-xs text-muted-foreground sm:col-span-2" data-testid="contact-updates-from-privacy">
+                Can receive updates: <span className="font-medium text-foreground">{form.canReceiveUpdates ? 'Yes' : 'No'}</span>.
+                This follows what is recorded in Privacy (who we may share information with), so it is changed there.
+              </p>
             </div>
           </DialogBody>
           <DialogFooter>
@@ -471,44 +414,6 @@ export function ServiceUserContactsTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  )
-}
-
-function ToggleRow({
-  label,
-  on,
-  onChange,
-  disabled,
-}: {
-  label: string
-  on: boolean
-  onChange: (v: boolean) => void
-  disabled?: boolean
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background px-4 py-3">
-      <span className="text-sm text-foreground">{label}</span>
-        <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        disabled={disabled}
-        onClick={() => onChange(!on)}
-        className={
-          'relative h-7 w-12 shrink-0 rounded-full transition-colors ' +
-          (on ? 'bg-sky-500' : 'bg-muted-foreground/30') +
-          (disabled ? ' cursor-not-allowed opacity-50' : '')
-        }
-      >
-        <span
-          className={
-            'absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ' + (on ? 'left-5' : 'left-0.5')
-          }
-        />
-        <span className="sr-only">{on ? 'Yes' : 'No'}</span>
-      </button>
-      <span className="text-xs font-medium text-muted-foreground">{on ? 'YES' : 'NO'}</span>
     </div>
   )
 }

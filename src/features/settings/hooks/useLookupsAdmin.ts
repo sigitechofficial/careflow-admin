@@ -293,7 +293,7 @@ export function useServiceUserFundingTypes(enabled = true) {
 export function useCreateServiceUserFundingType() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { name: string; code: string }) => createServiceUserFundingType(body),
+    mutationFn: (body: { name: string; code: string; billingFundingTypeId?: string | null }) => createServiceUserFundingType(body),
     onSuccess: () => invalidateServiceUserLookupCaches(qc),
   })
 }
@@ -301,7 +301,7 @@ export function useCreateServiceUserFundingType() {
 export function useUpdateServiceUserFundingType() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { name?: string; code?: string } }) =>
+    mutationFn: ({ id, body }: { id: string; body: { name?: string; code?: string; billingFundingTypeId?: string | null } }) =>
       updateServiceUserFundingType(id, body),
     onSuccess: () => invalidateServiceUserLookupCaches(qc),
   })

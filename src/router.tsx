@@ -143,6 +143,7 @@ import SurveyActionsPage from '@/features/surveys/actions/SurveyActionsPage'
 import SurveyBenchmarksPage from '@/features/surveys/insight/SurveyBenchmarksPage'
 import SurveysToCollectPage from '@/features/surveys/reminders/SurveysToCollectPage'
 import { SurveyDuePromptHost } from '@/features/surveys/reminders/SurveyDuePrompt'
+import { PrivacyReviewPromptHost } from '@/features/service-users/privacy/PrivacyReviewPrompt'
 import { PublicUpdatePage, SurveyPackPage, SurveyUpdateLetterPage } from '@/features/surveys/actions/SurveyPrintPages'
 import PathwayCasesListPage from '@/features/specialist-pathways/pages/PathwayCasesListPage'
 import PathwayCaseDetailPage from '@/features/specialist-pathways/pages/PathwayCaseDetailPage'
@@ -151,6 +152,7 @@ import SafeguardingCaseDetailPage from '@/features/safeguarding/pages/Safeguardi
 import EnquiryBoardPage from '@/features/crm/pages/EnquiryBoardPage'
 import EnquiryDetailPage from '@/features/crm/pages/EnquiryDetailPage'
 import EnquiryNewPage from '@/features/crm/pages/EnquiryNewPage'
+import ReferralInboxPage from '@/features/crm/pages/ReferralInboxPage'
 import EnquiryEditPage from '@/features/crm/pages/EnquiryEditPage'
 import QuotationEditorPage from '@/features/crm/pages/QuotationEditorPage'
 import QuoteServiceUserPage from '@/features/crm/pages/QuoteServiceUserPage'
@@ -435,6 +437,7 @@ const pageTitles: Record<string, string> = {
   '/crm': 'Enquiries & Referrals',
   '/crm/$enquiryId': 'Enquiry',
   '/crm/new': 'New enquiry or referral',
+  '/crm/referral-inbox': 'Referral inbox',
   '/crm/$enquiryId/edit': 'Edit enquiry',
   '/crm/$enquiryId/quotes/new': 'New quotation',
   '/crm/$enquiryId/quotes/$quotationId/$versionId': 'Quotation',
@@ -481,6 +484,7 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'time-slots',
   'care-types',
   'funding-types',
+  'funders',
   'record-types',
   'allergies',
   'tasks-planner',
@@ -647,6 +651,7 @@ function AppRootShell() {
         <SentHoursRequestsDialog />
         <UrgentOfficeAlertHost />
         <SurveyDuePromptHost />
+        <PrivacyReviewPromptHost />
         <DevUiTraceChip />
         <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
           <Outlet />
@@ -2729,6 +2734,16 @@ const crmBoardRoute = createRoute({
   component: EnquiryBoardPage,
 })
 
+const crmReferralInboxRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/crm/referral-inbox',
+  beforeLoad: requirePermission('crm.read'),
+  // ?gmail=connected|cancelled|… after Google sign-in.
+  validateSearch: (raw: Record<string, unknown>): { gmail?: string } =>
+    typeof raw.gmail === 'string' ? { gmail: raw.gmail } : {},
+  component: ReferralInboxPage,
+})
+
 const crmEnquiryRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/crm/$enquiryId',
@@ -3117,6 +3132,7 @@ const routeTree = rootRoute.addChildren([
     safeguardingCaseRoute,
     crmBoardRoute,
     crmNewEnquiryRoute,
+    crmReferralInboxRoute,
     crmEnquiryRoute,
     crmEditEnquiryRoute,
     crmNewQuotationRoute,

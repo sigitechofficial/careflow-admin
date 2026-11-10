@@ -114,6 +114,7 @@ export type InvoiceRunServiceUserFunderShare = {
   funderCode: string | null
   invoiced: string
   invoicedValue: number
+  billTo?: InvoiceBillTo | null
   paid?: string
   paidValue?: number
   outstanding?: string
@@ -121,8 +122,20 @@ export type InvoiceRunServiceUserFunderShare = {
   paymentStatus?: 'UNPAID' | 'PART_PAID' | 'PAID'
 }
 
+/** Who an invoice is addressed to: the funder's billing details, or the funding line's own. */
+export type InvoiceBillTo = {
+  name: string
+  attention: string | null
+  email: string | null
+  addressLines: string[]
+  purchaseOrderNumber: string | null
+  fundingReference: string | null
+}
+
 /** One invoice document per service user on the run. */
 export type InvoiceRunServiceUserSummary = {
+  /** Set when one funder pays this invoice. */
+  billTo?: InvoiceBillTo | null
   serviceUserId: string
   serviceUserName: string
   serviceUserNumber: string | null

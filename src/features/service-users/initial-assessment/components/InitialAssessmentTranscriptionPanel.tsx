@@ -284,7 +284,7 @@ export function InitialAssessmentTranscriptionPanel({ serviceUserId, submissionI
                 {start.isPending
                   ? 'Uploading the recording…'
                   : job?.status === 'QUEUED'
-                    ? `Waiting for another transcription to finish (position ${job.position})…`
+                    ? `Waiting to start${job.position > 1 ? ` (position ${job.position} in the queue)` : ''}…`
                     : job?.duration
                       ? `Converting speech to text… ${clock(job.done)} of ${clock(job.duration)} (${percent}%)`
                       : 'Preparing Whisper…'}
