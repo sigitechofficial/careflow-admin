@@ -7,8 +7,33 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { formatSurveyDate } from '@/features/surveys/survey-datetime'
+import { scrollIntoPane } from '@/shared/lib/scroll-into-pane'
 
 /** API: careflow-api src/surveys/survey-reminders.service.ts (getOptOuts / setOptOuts). */
+/** The section's anchor, so other pages can open it (see showSurveyContactPreferences). */
+export const SURVEY_CONTACT_PREFERENCES_ID = 'survey-contact-preferences'
+
+/**
+ * After switching to the tab that holds it: scroll the contact preferences into view and highlight them briefly.
+ * The tab renders after navigation, so it looks for a few seconds.
+ */
+export function showSurveyContactPreferences() {
+  const started = Date.now()
+  const attempt = () => {
+    const el = document.getElementById(SURVEY_CONTACT_PREFERENCES_ID)
+    if (!el) {
+      if (Date.now() - started < 5000) window.setTimeout(attempt, 150)
+      return
+    }
+    scrollIntoPane(el)
+    // The form above it may still be loading and push it down: look again once the page settles.
+    for (const ms of [600, 1200, 2000]) window.setTimeout(() => scrollIntoPane(el, 16, 40), ms)
+    el.classList.add('ring-2', 'ring-primary')
+    window.setTimeout(() => el.classList.remove('ring-2', 'ring-primary'), 2500)
+  }
+  window.setTimeout(attempt, 50)
+}
+
 export type SurveyOptOutSubject = 'EMPLOYEE' | 'SERVICE_USER' | 'CANDIDATE'
 export type SurveyOptOutChannel = 'ALL' | 'EMAIL' | 'TEXT' | 'APP' | 'PORTAL' | 'PHONE'
 type Preferences = {
@@ -49,9 +74,12 @@ export const surveyContactPreferencesKey = (subjectKind: SurveyOptOutSubject, su
 export function SurveyContactPreferencesSection({
   subjectKind,
   subjectId,
+  generalPreference,
 }: {
   subjectKind: SurveyOptOutSubject
   subjectId: string
+  /** How they prefer to be contacted in general (Personal Details), shown so survey choices agree with it. */
+  generalPreference?: string | null
 }) {
   const canRead = useAuthStore(s => s.can('surveys.read') || s.can('surveys.manage'))
   const canManage = useAuthStore(s => s.can('surveys.manage'))
@@ -100,7 +128,7 @@ export function SurveyContactPreferencesSection({
       (reason.trim() || null) !== (data.reason ?? null))
 
   return (
-    <section className="rounded-xl border border-border bg-card p-4 shadow-sm" data-testid="survey-contact-preferences">
+    <section id={SURVEY_CONTACT_PREFERENCES_ID} className="scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm" data-testid="survey-contact-preferences">
       <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
         <MessageSquareOff className="h-4 w-4 text-muted-foreground" aria-hidden />
         Survey contact preferences
@@ -112,6 +140,13 @@ export function SurveyContactPreferencesSection({
           ? 'Use this when they have asked not to be sent surveys, or not in some ways. Survey invitations, reminders and phone calls follow it.'
           : 'Use this when they (or the person who speaks for them) have asked not to be sent surveys, or not in some ways. Survey invitations, reminders and phone calls follow it.'}
       </p>
+      {generalPreference?.trim() ? (
+        <p className="mt-1 text-xs text-muted-foreground" data-testid="survey-general-preference">
+          How they prefer to be contacted in general (Personal Details):{' '}
+          <span className="font-medium text-foreground">{generalPreference.trim()}</span>. If they don’t want surveys a certain
+          way, stop it here.
+        </p>
+      ) : null}
 
       {isLoading ? (
         <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">

@@ -109,6 +109,11 @@ export function SurveysToCollectList({
                         {p.calls.length ? ` · ${p.calls.length} ${p.calls.length === 1 ? 'call' : 'calls'}` : ''}
                         {p.due ? ' · due a call' : ''}
                       </p>
+                      {p.needs ? (
+                        <p className="mt-0.5 text-xs font-medium text-amber-800 dark:text-amber-300" data-testid="to-collect-needs">
+                          Needs: {p.needs}
+                        </p>
+                      ) : null}
                       {p.phones.length ? (
                         <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs">
                           {p.phones.map(ph => (

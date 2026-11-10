@@ -36,8 +36,8 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import {
-  MEDICAL_ALERT_CATEGORIES,
   MEDICAL_ALERT_CATEGORY_LABELS,
+  medicalAlertCategoryOptions,
   MEDICAL_ALERT_SEVERITIES,
   MEDICAL_ALERT_SEVERITY_LABELS,
   type MedicalAlertCategory,
@@ -235,7 +235,7 @@ export function MedicalAlertsSection({ serviceUserId }: { serviceUserId: string 
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {MEDICAL_ALERT_CATEGORIES.map((c) => (
+                      {medicalAlertCategoryOptions((editing?.category as MedicalAlertCategory | undefined) ?? '').map((c) => (
                         <SelectItem key={c} value={c}>
                           {MEDICAL_ALERT_CATEGORY_LABELS[c]}
                         </SelectItem>

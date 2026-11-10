@@ -22,7 +22,7 @@ import {
 } from '@/shared/ui/select'
 import {
   REASONABLE_ADJUSTMENT_TYPE_LABELS,
-  REASONABLE_ADJUSTMENT_TYPES,
+  reasonableAdjustmentTypeOptions,
   type MedicalHistoryEventRow,
   type ReasonableAdjustmentType,
 } from '@/features/alerts/api/medical-clinical.types'
@@ -41,6 +41,7 @@ export function ReasonableAdjustmentsClinical({ serviceUserId }: { serviceUserId
   const mutations = useReasonableAdjustmentMutations(serviceUserId)
   const [open, setOpen] = React.useState(false)
   const [type, setType] = React.useState<ReasonableAdjustmentType>('OTHER')
+  const [originalType, setOriginalType] = React.useState<ReasonableAdjustmentType | ''>('')
   const [description, setDescription] = React.useState('')
   const [notes, setNotes] = React.useState('')
   const [editId, setEditId] = React.useState<string | null>(null)
@@ -88,6 +89,7 @@ export function ReasonableAdjustmentsClinical({ serviceUserId }: { serviceUserId
             onClick={() => {
               setEditId(null)
               setType('OTHER')
+              setOriginalType('')
               setDescription('')
               setNotes('')
               setOpen(true)
@@ -132,6 +134,7 @@ export function ReasonableAdjustmentsClinical({ serviceUserId }: { serviceUserId
                   onClick={() => {
                     setEditId(row.id)
                     setType((row.type as ReasonableAdjustmentType) || 'OTHER')
+                    setOriginalType((row.type as ReasonableAdjustmentType) || '')
                     setDescription(row.description)
                     setNotes(row.notes ?? '')
                     setOpen(true)
@@ -182,13 +185,17 @@ export function ReasonableAdjustmentsClinical({ serviceUserId }: { serviceUserId
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {REASONABLE_ADJUSTMENT_TYPES.map((t) => (
+                    {reasonableAdjustmentTypeOptions(originalType).map((t) => (
                       <SelectItem key={t} value={t}>
                         {REASONABLE_ADJUSTMENT_TYPE_LABELS[t]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Communication and sensory needs (interpreter, large print, hearing, sight) are recorded in Profile → Privacy →
+                  Communication needs.
+                </p>
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium" htmlFor="imp-desc">

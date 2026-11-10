@@ -99,13 +99,38 @@ function LiveInvoiceDocument({
         </div>
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-foreground">Bill to</p>
-          <div className="mt-3 space-y-1 text-sm">
-            <p className="font-semibold text-foreground">{group.serviceUserName}</p>
-            {group.serviceUserNumber ? (
-              <p className="text-muted-foreground">Ref {group.serviceUserNumber}</p>
-            ) : null}
-            <p className="text-muted-foreground">Funded by: {group.funderLabel}</p>
-          </div>
+          {group.billTo ? (
+            <div className="mt-3 space-y-1 text-sm" data-testid="invoice-bill-to">
+              <p className="font-semibold text-foreground">{group.billTo.name}</p>
+              {group.billTo.attention ? (
+                <p className="text-muted-foreground">FAO {group.billTo.attention}</p>
+              ) : null}
+              {group.billTo.addressLines.map(l => (
+                <p key={l} className="text-muted-foreground">
+                  {l}
+                </p>
+              ))}
+              {group.billTo.purchaseOrderNumber ? (
+                <p className="text-muted-foreground">PO {group.billTo.purchaseOrderNumber}</p>
+              ) : null}
+              {group.billTo.fundingReference ? (
+                <p className="text-muted-foreground">Your ref {group.billTo.fundingReference}</p>
+              ) : null}
+              <p className="pt-2 text-xs font-bold uppercase tracking-wider text-foreground">Care for</p>
+              <p className="text-foreground">{group.serviceUserName}</p>
+              {group.serviceUserNumber ? (
+                <p className="text-muted-foreground">Ref {group.serviceUserNumber}</p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mt-3 space-y-1 text-sm">
+              <p className="font-semibold text-foreground">{group.serviceUserName}</p>
+              {group.serviceUserNumber ? (
+                <p className="text-muted-foreground">Ref {group.serviceUserNumber}</p>
+              ) : null}
+              <p className="text-muted-foreground">Funded by: {group.funderLabel}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -147,7 +172,11 @@ function LiveInvoiceDocument({
               <div className="space-y-1 text-xs text-muted-foreground">
                 {group.funders.map(f => (
                   <div key={f.funderId ?? f.funderName} className="flex justify-between gap-4">
-                    <span>{f.funderName}</span>
+                    <span>
+                      {f.funderName}
+                      {f.billTo?.purchaseOrderNumber ? ` · PO ${f.billTo.purchaseOrderNumber}` : ''}
+                      {f.billTo?.fundingReference ? ` · ref ${f.billTo.fundingReference}` : ''}
+                    </span>
                     <span className="tabular-nums">{f.invoiced}</span>
                   </div>
                 ))}

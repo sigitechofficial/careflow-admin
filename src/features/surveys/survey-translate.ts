@@ -74,6 +74,8 @@ export function startingLanguage(form: PublicSurveyForm): string | null {
   }
   if (saved === 'en') return null
   if (saved && offered.some(l => l.code === saved)) return saved
+  // What their record says they need (easy read, or the language they need an interpreter for).
+  if (form.suggestedLanguage && offered.some(l => l.code === form.suggestedLanguage)) return form.suggestedLanguage
   const browser = typeof navigator !== 'undefined' ? navigator.languages ?? [navigator.language] : []
   for (const b of browser) {
     const exact = offered.find(l => l.code.toLowerCase() === b.toLowerCase())

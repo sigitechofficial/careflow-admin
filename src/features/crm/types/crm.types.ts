@@ -138,6 +138,8 @@ export type Enquiry = {
   recordedById: string | null
   recordedByName: string | null
   stageChangedAt: string
+  /** Files that came with the referral email(s), kept in storage (0 when none). */
+  attachmentCount?: number
   createdAt: string
   updatedAt: string
   events: EnquiryEvent[]

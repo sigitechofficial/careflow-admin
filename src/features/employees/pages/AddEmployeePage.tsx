@@ -55,7 +55,7 @@ import { EmployeeEditSuspensionsPanel } from '@/features/employees/components/Em
 import { EmployeeEditIncidentsPanel } from '@/features/employees/components/EmployeeEditIncidentsPanel'
 import { EmployeeEditAllocationsPanel } from '@/features/employees/components/EmployeeEditAllocationsPanel'
 import { EmployeeAppAccessSection } from '@/features/employees/components/EmployeeAppAccessSection'
-import { PersonSurveysSection } from '@/features/surveys/reminders/PersonSurveysSection'
+import { PersonSurveysSection, SurveyContactSettingsLink } from '@/features/surveys/reminders/PersonSurveysSection'
 import { SurveyContactPreferencesSection } from '@/features/surveys/reminders/SurveyContactPreferencesSection'
 import { EmployeeEditReviewsPanel } from '@/features/employees/components/EmployeeEditReviewsPanel'
 import { SupervisionCarerCard } from '@/features/supervision/components/SupervisionCarerCard'
@@ -2303,7 +2303,15 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
             {isEditMode && editTab === 'overview' && editEmployeeId ? (
               <div className="space-y-6">
-                <PersonSurveysSection employeeId={editEmployeeId} />
+                <PersonSurveysSection
+                  employeeId={editEmployeeId}
+                  summary
+                  allSurveysLink={
+                    <button type="button" className="font-medium text-primary underline-offset-2 hover:underline" onClick={() => setEditTab('surveys')}>
+                      Open surveys
+                    </button>
+                  }
+                />
                 <EmployeeEditOverviewPanel
                   employee={employeeQuery.data}
                   loading={employeeBootstrapLoading}
@@ -2336,6 +2344,13 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
               <div className="space-y-8">
                 <EmployeeEditReviewsPanel employeeId={editEmployeeId} />
                 <SupervisionCarerCard employeeId={editEmployeeId} employeeLabel={editDisplayName || 'this carer'} />
+              </div>
+            ) : null}
+
+            {isEditMode && editTab === 'surveys' && editEmployeeId ? (
+              <div className="space-y-4">
+                <SurveyContactSettingsLink forStaff openPersonalDetails={() => setEditTab('personal')} />
+                <PersonSurveysSection employeeId={editEmployeeId} />
               </div>
             ) : null}
 
