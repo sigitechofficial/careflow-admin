@@ -121,6 +121,7 @@ import SecurityAdminPage from '@/features/admin/pages/SecurityAdminPage'
 import AzurePricingPage from '@/features/azure-pricing/pages/AzurePricingPage'
 import { isAzurePricingTabId, type AzurePricingTabId } from '@/features/azure-pricing/types'
 import SystemJobsPage from '@/features/system-jobs/pages/SystemJobsPage'
+import MessageDeliveryPage from '@/features/message-delivery/MessageDeliveryPage'
 import { validateSystemJobsSearch } from '@/features/system-jobs/types'
 import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
@@ -383,6 +384,7 @@ const pageTitles: Record<string, string> = {
   '/admin/audit': 'Audit log',
   '/azure-pricing': 'Azure Pricing',
   '/system-jobs': 'System jobs',
+  '/message-delivery': 'Message delivery',
   '/in-progress': 'Page in progress',
   '/showcase': 'UI showcase',
   '/settings': 'Settings',
@@ -2074,6 +2076,13 @@ const systemJobsRoute = createRoute({
   component: SystemJobsPage,
 })
 
+const messageDeliveryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/message-delivery',
+  beforeLoad: requireAnyPermission('message_delivery.read', 'message_delivery.manage'),
+  component: MessageDeliveryPage,
+})
+
 const adminAuditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/admin/audit',
@@ -3086,6 +3095,7 @@ const routeTree = rootRoute.addChildren([
     adminAuditRoute,
     azurePricingRoute,
     systemJobsRoute,
+    messageDeliveryRoute,
     adminServiceUserPortalRoute,
     inProgressRoute,
     showcaseRoute,

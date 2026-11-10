@@ -1063,6 +1063,14 @@ const navItems: NavItem[] = [
       },
       {
         section: 'Platform',
+        label: 'Message delivery',
+        icon: <Mail className="h-4 w-4" />,
+        href: '/message-delivery',
+        anyPermission: ['message_delivery.read', 'message_delivery.manage'],
+        navTestId: 'nav-admin-message-delivery',
+      },
+      {
+        section: 'Platform',
         label: 'Azure Pricing',
         icon: <Cloud className="h-4 w-4" />,
         href: '/azure-pricing',

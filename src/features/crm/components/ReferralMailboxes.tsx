@@ -233,7 +233,7 @@ function EditMailbox({ m, onDone }: { m: ReferralMailbox; onDone: () => void }) 
         {!webhook ? (
           <Field
             label={m.provider === 'GMAIL' ? 'Gmail label to read' : 'Folder to read'}
-            hint={m.provider === 'GMAIL' ? 'Only emails with this label are read.' : 'Use INBOX for the Inbox, or a folder a mail rule moves referrals into.'}
+            hint={m.provider === 'GMAIL' ? 'Only emails with this label are read. Use INBOX to read every email that arrives (from the day before the mailbox was added), or a label a Gmail filter adds to referrals.' : 'Use INBOX for the Inbox, or a folder a mail rule moves referrals into.'}
           >
             <Input value={labelName} onChange={e => setLabelName(e.target.value)} />
           </Field>

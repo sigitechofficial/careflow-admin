@@ -548,7 +548,8 @@ function TestReferralDialog({
           <DialogTitle>Add a test referral</DialogTitle>
           <DialogDescription>
             Made-up emails (fictional people) placed in the mailbox as if they had arrived. Each one costs about 10–15p of Claude
-            time to read and answer.
+            time to read and answer. Their senders use made-up .test addresses, so every reply goes to the mailbox itself, also
+            on the live system. Each one becomes a real enquiry (its email subject starts with [TEST]): dismiss it when you’ve finished.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -678,6 +679,10 @@ export default function ReferralInboxPage() {
   const selectedRow = all.find(r => r.id === selectedId)
   const selectedMailbox = (selectedRow?.mailboxId ? byId.get(selectedRow.mailboxId) : null) ?? mb
   const testMode = Boolean(st?.testMode)
+  // Test referrals: everyone who manages CRM while testing; only a Super Admin on the live system (their made-up
+  // senders use .test addresses, so replies to them go to the mailbox itself).
+  const isSuperAdmin = useAuthStore(s => s.user?.role === 'super_admin' || Boolean(s.user?.backendRoles?.includes('Super Admin')))
+  const canAddTest = testMode || isSuperAdmin
   const copyTo = settingsQ.data?.copyRepliesTo ?? []
 
   return (
@@ -689,7 +694,7 @@ export default function ReferralInboxPage() {
       actions={
         canManage && mb
           ? [
-              ...(testMode
+              ...(canAddTest
                 ? [
                     {
                       label: 'Add test referral',
@@ -852,7 +857,7 @@ export default function ReferralInboxPage() {
         </div>
       </div>
       {mb ? <ReferralSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} /> : null}
-      {mb && testMode ? <TestReferralDialog open={testOpen} onOpenChange={setTestOpen} mailboxes={mailboxes} /> : null}
+      {mb && canAddTest ? <TestReferralDialog open={testOpen} onOpenChange={setTestOpen} mailboxes={mailboxes} /> : null}
       <ReferralMailboxesDialog open={mailboxesOpen} onOpenChange={setMailboxesOpen} status={st} />
     </CrmSectionLayout>
   )
