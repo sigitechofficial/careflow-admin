@@ -59,6 +59,7 @@ import {
 
   Inbox,
   Mail,
+  BellRing,
   Calculator,
   HeartHandshake,
   DoorOpen,
@@ -1068,6 +1069,14 @@ const navItems: NavItem[] = [
         href: '/message-delivery',
         anyPermission: ['message_delivery.read', 'message_delivery.manage'],
         navTestId: 'nav-admin-message-delivery',
+      },
+      {
+        section: 'Platform',
+        label: 'Test office alerts',
+        icon: <BellRing className="h-4 w-4" />,
+        href: '/test-office-alerts',
+        permission: 'message_delivery.manage',
+        navTestId: 'nav-admin-test-office-alerts',
       },
       {
         section: 'Platform',

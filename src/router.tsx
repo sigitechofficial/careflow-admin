@@ -122,6 +122,7 @@ import AzurePricingPage from '@/features/azure-pricing/pages/AzurePricingPage'
 import { isAzurePricingTabId, type AzurePricingTabId } from '@/features/azure-pricing/types'
 import SystemJobsPage from '@/features/system-jobs/pages/SystemJobsPage'
 import MessageDeliveryPage from '@/features/message-delivery/MessageDeliveryPage'
+import TestOfficeAlertsPage from '@/features/message-delivery/TestOfficeAlertsPage'
 import { validateSystemJobsSearch } from '@/features/system-jobs/types'
 import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
@@ -385,6 +386,7 @@ const pageTitles: Record<string, string> = {
   '/azure-pricing': 'Azure Pricing',
   '/system-jobs': 'System jobs',
   '/message-delivery': 'Message delivery',
+  '/test-office-alerts': 'Test office alerts',
   '/in-progress': 'Page in progress',
   '/showcase': 'UI showcase',
   '/settings': 'Settings',
@@ -2083,6 +2085,14 @@ const messageDeliveryRoute = createRoute({
   component: MessageDeliveryPage,
 })
 
+// Super Admin only (message_delivery.manage is granted to Super Admin alone; the API checks the role).
+const testOfficeAlertsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/test-office-alerts',
+  beforeLoad: requirePermission('message_delivery.manage'),
+  component: TestOfficeAlertsPage,
+})
+
 const adminAuditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/admin/audit',
@@ -3096,6 +3106,7 @@ const routeTree = rootRoute.addChildren([
     azurePricingRoute,
     systemJobsRoute,
     messageDeliveryRoute,
+    testOfficeAlertsRoute,
     adminServiceUserPortalRoute,
     inProgressRoute,
     showcaseRoute,
