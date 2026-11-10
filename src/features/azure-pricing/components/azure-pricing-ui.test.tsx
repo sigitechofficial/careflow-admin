@@ -161,4 +161,21 @@ describe('OverviewTab', () => {
     await userEvent.click(screen.getByRole('button', { name: /View alerts/ }))
     expect(onNavigateTab).toHaveBeenCalledWith('alerts')
   })
+
+  it('shows Whisper transcription spend', () => {
+    overviewState.data = overview({
+      whisper: { jobName: 'job-careflow-whisper', monthToDate: 0.75, lastMonthTotal: 0.4, shareOfMonth: 3.2 },
+    })
+    render(<OverviewTab onNavigateTab={vi.fn()} />)
+    expect(screen.getByTestId('azure-whisper-spend')).toHaveTextContent('job-careflow-whisper')
+    expect(screen.getByTestId('azure-whisper-mtd')).toHaveTextContent('£0.75')
+    expect(screen.getByTestId('azure-whisper-last-month')).toHaveTextContent('£0.40')
+    expect(screen.getByTestId('azure-whisper-share')).toHaveTextContent('3.2%')
+  })
+
+  it('has no Whisper card when the API does not report it', () => {
+    overviewState.data = overview()
+    render(<OverviewTab onNavigateTab={vi.fn()} />)
+    expect(screen.queryByTestId('azure-whisper-spend')).not.toBeInTheDocument()
+  })
 })

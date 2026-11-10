@@ -74,6 +74,16 @@ export interface CostOverview extends CostFreshness {
   byService: CostShareRow[]
   topResources: CostShareRow[]
   openAnomalies: number
+  /** Spend of the Whisper speech-to-text Container Apps Job (absent on older APIs). */
+  whisper?: WhisperSpend
+}
+
+export interface WhisperSpend {
+  jobName: string
+  monthToDate: number
+  lastMonthTotal: number
+  /** Share of this month's total spend, in percent. */
+  shareOfMonth: number
 }
 
 export const BREAKDOWN_GROUP_BYS = ['service', 'resource', 'resourceGroup', 'meter'] as const
