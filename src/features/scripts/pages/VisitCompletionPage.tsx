@@ -20,10 +20,12 @@ import {
 } from '@/shared/ui/dialog'
 import { operationalTodayIso, getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 import { useScriptCarerOptions } from '@/features/scripts/hooks'
+import { MultiSelect } from '@/shared/ui/multi-select'
 import {
   SCENARIO_LABELS,
-  fetchCarerVisits,
+  fetchCarersVisits,
   runCompleteVisits,
+  type CarerCompletionResult,
   type CarerVisit,
   type CompletionScenario,
   type VisitCompletionResult,
@@ -38,14 +40,17 @@ const money = (n: number | null, currency: string) =>
 type RunState =
   | { kind: 'idle' }
   | { kind: 'running'; dryRun: boolean }
-  | { kind: 'done'; dryRun: boolean; results: VisitCompletionResult[] }
+  | { kind: 'done'; dryRun: boolean; carers: CarerCompletionResult[] }
   | { kind: 'error'; message: string }
 
-/** Scripts → Visit Completion: a carer's visits on a day, completed as the office records them. */
+/** A ticked visit of one carer (a double-up can be listed under two carers). */
+const pickKey = (employeeId: string, jobId: string) => `${employeeId}:${jobId}`
+
+/** Scripts → Visit Completion: carers' visits on a day, completed as the office records them. */
 export default function VisitCompletionPage() {
   const queryClient = useQueryClient()
   const carers = useScriptCarerOptions()
-  const [carerId, setCarerId] = React.useState('')
+  const [carerIds, setCarerIds] = React.useState<string[]>([])
   const [date, setDate] = React.useState(() => operationalTodayIso())
   const [scenario, setScenario] = React.useState<CompletionScenario>('AS_PLANNED')
   const [selected, setSelected] = React.useState<string[]>([])
@@ -54,42 +59,50 @@ export default function VisitCompletionPage() {
   const [log, setLog] = React.useState<string[]>([])
   const running = state.kind === 'running'
 
+  const visitsKey = ['scripts', 'carers-visits', [...carerIds].sort().join(','), date]
   const visitsQuery = useQuery({
-    queryKey: ['scripts', 'carer-visits', carerId, date],
-    queryFn: () => fetchCarerVisits(carerId, date),
-    enabled: Boolean(carerId && /^\d{4}-\d{2}-\d{2}$/.test(date)),
+    queryKey: visitsKey,
+    queryFn: () => fetchCarersVisits(carerIds, date),
+    enabled: carerIds.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(date),
   })
-  const visits = React.useMemo(() => visitsQuery.data ?? [], [visitsQuery.data])
+  const groups = React.useMemo(() => visitsQuery.data ?? [], [visitsQuery.data])
 
   // Every visit that can be completed is ticked when the list loads.
   React.useEffect(() => {
-    setSelected(visits.filter((v) => !v.blockedReason).map((v) => v.jobId))
-  }, [visits])
+    setSelected(groups.flatMap((g) => g.visits.filter((v) => !v.blockedReason).map((v) => pickKey(g.employeeId, v.jobId))))
+  }, [groups])
 
-  const chosen = visits.filter((v) => selected.includes(v.jobId) && !v.blockedReason)
-  const notEnded = chosen.filter((v) => !v.ended).length
-  const carerName = (carers.data?.find((o) => o.value === carerId)?.label ?? '').split(' — ')[0]
+  const carerName = (id: string) => (carers.data?.find((o) => o.value === id)?.label ?? id).split(' — ')[0]!
+  const chosenGroups = groups
+    .map((g) => ({
+      employeeId: g.employeeId,
+      name: carerName(g.employeeId),
+      visits: g.visits.filter((v) => selected.includes(pickKey(g.employeeId, v.jobId)) && !v.blockedReason),
+    }))
+    .filter((g) => g.visits.length)
+  const chosenJobs = new Map(chosenGroups.flatMap((g) => g.visits.map((v) => [v.jobId, v] as const)))
+  const notEnded = [...chosenJobs.values()].filter((v) => !v.ended).length
 
   const start = async (dryRun: boolean) => {
-    if (!chosen.length || running) return
+    if (!chosenJobs.size || running) return
     setLog([])
     setState({ kind: 'running', dryRun })
     try {
       const results = await runCompleteVisits(
-        { employeeId: carerId, date, visits: chosen, scenario },
+        { date, scenario, carers: chosenGroups },
         { dryRun, log: (line) => setLog((prev) => [...prev, line]) },
       )
-      setState({ kind: 'done', dryRun, results })
-      if (!dryRun) {
-        await queryClient.invalidateQueries({ queryKey: ['scripts', 'carer-visits', carerId, date] })
-      }
+      setState({ kind: 'done', dryRun, carers: results })
+      if (!dryRun) await queryClient.invalidateQueries({ queryKey: visitsKey })
     } catch (e) {
       setState({ kind: 'error', message: e instanceof Error ? e.message : String(e) })
     }
   }
 
-  const toggle = (v: CarerVisit) =>
-    setSelected((prev) => (prev.includes(v.jobId) ? prev.filter((id) => id !== v.jobId) : [...prev, v.jobId]))
+  const toggle = (employeeId: string, v: CarerVisit) => {
+    const key = pickKey(employeeId, v.jobId)
+    setSelected((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+  }
 
   return (
     <div className="space-y-4">
@@ -104,26 +117,22 @@ export default function VisitCompletionPage() {
         <CardHeader>
           <CardTitle className="text-base">Which visits</CardTitle>
           <CardDescription>
-            Pick a carer and a day. Their visits are listed in time order; complete two or more in a row to see the travel time and
-            mileage between them.
+            Pick one or more carers and a day. Each carer&rsquo;s visits are listed in time order; complete two or more in a row to see
+            the travel time and mileage between them.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-1.5">
-              <Label>Carer</Label>
-              <Select value={carerId} onValueChange={setCarerId} disabled={running}>
-                <SelectTrigger aria-label="Carer">
-                  <SelectValue placeholder={carers.isLoading ? 'Loading carers…' : 'Choose a carer'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(carers.data ?? []).map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Carers</Label>
+              <MultiSelect
+                options={carers.data ?? []}
+                value={carerIds}
+                onChange={setCarerIds}
+                placeholder={carers.isLoading ? 'Loading carers…' : 'Choose carers'}
+                searchPlaceholder="Search carers…"
+                disabled={running || carers.isLoading}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Day</Label>
@@ -146,16 +155,14 @@ export default function VisitCompletionPage() {
             </div>
           </div>
 
-          {!carerId ? null : visitsQuery.isLoading ? (
+          {!carerIds.length ? null : visitsQuery.isLoading ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading {carerName}&rsquo;s visits…
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading their visits…
             </p>
           ) : visitsQuery.isError ? (
             <p className="text-sm text-destructive" role="alert">
               {visitsQuery.error instanceof Error ? visitsQuery.error.message : 'Could not load the visits.'}
             </p>
-          ) : !visits.length ? (
-            <p className="text-sm text-muted-foreground">{carerName} has no visits on this day.</p>
           ) : (
             <div className="overflow-x-auto rounded-md border border-border">
               <table className="w-full text-sm">
@@ -167,38 +174,48 @@ export default function VisitCompletionPage() {
                     <th className="px-3 py-2 font-medium">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
-                  {visits.map((v) => (
-                    <tr key={v.jobId} className={v.blockedReason ? 'text-muted-foreground' : undefined}>
-                      <td className="px-3 py-2">
-                        <input
-                          type="checkbox"
-                          aria-label={`Complete ${v.jobName}`}
-                          checked={selected.includes(v.jobId) && !v.blockedReason}
-                          disabled={running || Boolean(v.blockedReason)}
-                          onChange={() => toggle(v)}
-                        />
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {hm(v.plannedStart)}–{hm(v.plannedEnd)}
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className="font-medium text-foreground">{v.serviceUserName}</span>{' '}
-                        <span className="text-muted-foreground">· {v.jobName}</span>
-                        {v.requiredCarers > 1 ? <span className="text-muted-foreground"> · double-up</span> : null}
-                      </td>
-                      <td className="px-3 py-2">
-                        {v.blockedReason ? (
-                          <span>{v.blockedReason}</span>
-                        ) : v.ended ? (
-                          <Badge variant="secondary">Ready</Badge>
-                        ) : (
-                          <Badge variant="warning">Not ended yet</Badge>
-                        )}
+                {groups.map((g) => (
+                  <tbody key={g.employeeId} className="divide-y divide-border border-t border-border">
+                    <tr className="bg-muted/20">
+                      <td colSpan={4} className="px-3 py-2 font-medium text-foreground">
+                        {carerName(g.employeeId)}{' '}
+                        <span className="font-normal text-muted-foreground">
+                          · {g.visits.length ? `${g.visits.length} visit${g.visits.length === 1 ? '' : 's'}` : 'no visits on this day'}
+                        </span>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
+                    {g.visits.map((v) => (
+                      <tr key={v.jobId} className={v.blockedReason ? 'text-muted-foreground' : undefined}>
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            aria-label={`Complete ${v.jobName} for ${carerName(g.employeeId)}`}
+                            checked={selected.includes(pickKey(g.employeeId, v.jobId)) && !v.blockedReason}
+                            disabled={running || Boolean(v.blockedReason)}
+                            onChange={() => toggle(g.employeeId, v)}
+                          />
+                        </td>
+                        <td className="px-3 py-2 tabular-nums">
+                          {hm(v.plannedStart)}–{hm(v.plannedEnd)}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="font-medium text-foreground">{v.serviceUserName}</span>{' '}
+                          <span className="text-muted-foreground">· {v.jobName}</span>
+                          {v.requiredCarers > 1 ? <span className="text-muted-foreground"> · double-up</span> : null}
+                        </td>
+                        <td className="px-3 py-2">
+                          {v.blockedReason ? (
+                            <span>{v.blockedReason}</span>
+                          ) : v.ended ? (
+                            <Badge variant="secondary">Ready</Badge>
+                          ) : (
+                            <Badge variant="warning">Not ended yet</Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
               </table>
             </div>
           )}
@@ -215,7 +232,7 @@ export default function VisitCompletionPage() {
             <Button
               type="button"
               variant="outline"
-              disabled={running || !chosen.length}
+              disabled={running || !chosenJobs.size}
               leftIcon={<FlaskConical className="h-4 w-4" />}
               onClick={() => void start(true)}
             >
@@ -223,11 +240,11 @@ export default function VisitCompletionPage() {
             </Button>
             <Button
               type="button"
-              disabled={running || !chosen.length}
+              disabled={running || !chosenJobs.size}
               leftIcon={running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
               onClick={() => setConfirmOpen(true)}
             >
-              {running ? 'Running…' : `Complete ${chosen.length || ''} visit${chosen.length === 1 ? '' : 's'}`}
+              {running ? 'Running…' : `Complete ${chosenJobs.size || ''} visit${chosenJobs.size === 1 ? '' : 's'}`}
             </Button>
           </div>
         </CardContent>
@@ -247,7 +264,7 @@ export default function VisitCompletionPage() {
                 <XCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> The run did not complete: {state.message}
               </p>
             ) : null}
-            {state.kind === 'done' ? <CompletionResults results={state.results} dryRun={state.dryRun} /> : null}
+            {state.kind === 'done' ? <CompletionResults carers={state.carers} dryRun={state.dryRun} /> : null}
           </CardContent>
         </Card>
       ) : null}
@@ -256,21 +273,29 @@ export default function VisitCompletionPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Complete {chosen.length} visit{chosen.length === 1 ? '' : 's'} for {carerName}?
+              Complete {chosenJobs.size} visit{chosenJobs.size === 1 ? '' : 's'} for {chosenGroups.length} carer
+              {chosenGroups.length === 1 ? '' : 's'}?
             </AlertDialogTitle>
             <AlertDialogDescription>
               Saved for real, under your name, as Record visit does: tasks ticked, actual times {SCENARIO_LABELS[scenario].toLowerCase()},
-              then CareFlow prices each visit (pay, charge, travel, mileage).
+              then CareFlow prices each visit (pay, charge, travel, mileage). A double-up shared by two chosen carers is completed once.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <ul className="list-disc space-y-0.5 pl-5 text-sm">
-            {chosen.map((v) => (
-              <li key={v.jobId}>
-                {hm(v.plannedStart)}–{hm(v.plannedEnd)} · {v.serviceUserName}
-                {!v.ended ? ' (not ended yet)' : ''}
-              </li>
+          <div className="max-h-[45vh] space-y-2 overflow-auto text-sm">
+            {chosenGroups.map((g) => (
+              <div key={g.employeeId}>
+                <p className="font-medium text-foreground">{g.name}</p>
+                <ul className="list-disc space-y-0.5 pl-5">
+                  {g.visits.map((v) => (
+                    <li key={v.jobId}>
+                      {hm(v.plannedStart)}–{hm(v.plannedEnd)} · {v.serviceUserName}
+                      {!v.ended ? ' (not ended yet)' : ''}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
@@ -288,17 +313,33 @@ export default function VisitCompletionPage() {
   )
 }
 
-function CompletionResults({ results, dryRun }: { results: VisitCompletionResult[]; dryRun: boolean }) {
+function CompletionResults({ carers, dryRun }: { carers: CarerCompletionResult[]; dryRun: boolean }) {
+  // A double-up shared by two chosen carers shows under each; count each visit once in the headline.
+  const visits = new Map(carers.flatMap((c) => c.results.map((r) => [r.jobId, r] as const)))
+  const completed = [...visits.values()].filter((r) => r.completed).length
+  return (
+    <div className="space-y-4" data-testid="visit-completion-results">
+      <p className="text-sm font-medium text-foreground">
+        {dryRun
+          ? 'Check finished — nothing was saved. Pay, charge, travel and mileage are worked out by CareFlow when the visits are completed.'
+          : `${completed} of ${visits.size} visit(s) completed for ${carers.length} carer(s).`}
+      </p>
+      {carers.map((c) => (
+        <CarerResults key={c.employeeId} name={c.name} results={c.results} dryRun={dryRun} />
+      ))}
+    </div>
+  )
+}
+
+function CarerResults({ name, results, dryRun }: { name: string; results: VisitCompletionResult[]; dryRun: boolean }) {
   const priced = results.filter((r) => r.pay)
   const currency = priced[0]?.pay?.currency ?? 'GBP'
   const sum = (pick: (r: VisitCompletionResult) => number | null | undefined) =>
     priced.reduce((n, r) => n + (pick(r) ?? 0), 0)
   return (
-    <div className="space-y-3" data-testid="visit-completion-results">
-      <p className="text-sm font-medium text-foreground">
-        {dryRun
-          ? 'Check finished — nothing was saved. Pay, charge, travel and mileage are worked out by CareFlow when the visits are completed.'
-          : `${results.filter((r) => r.completed).length} of ${results.length} visit(s) completed.`}
+    <div className="space-y-3 rounded-lg border border-border p-3">
+      <p className="text-sm font-semibold text-foreground">
+        {name} <span className="font-normal text-muted-foreground">· {results.length} visit{results.length === 1 ? '' : 's'}</span>
       </p>
       {priced.length ? (
         <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">

@@ -74,8 +74,21 @@ function personName(p: DayJob['serviceUser']): string {
   return (p.preferredName?.trim() || `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim()) || 'Service user'
 }
 
+/** Each chosen carer's visits on the day (one request for the day), in time order. */
+export async function fetchCarersVisits(
+  employeeIds: string[],
+  date: string,
+): Promise<Array<{ employeeId: string; visits: CarerVisit[] }>> {
+  const jobs = await fetchDayJobs(date)
+  return employeeIds.map((employeeId) => ({ employeeId, visits: carerVisitsFrom(jobs, employeeId) }))
+}
+
 /** The carer's visits on the day, in time order, with whether each can be completed. */
 export async function fetchCarerVisits(employeeId: string, date: string): Promise<CarerVisit[]> {
+  return carerVisitsFrom(await fetchDayJobs(date), employeeId)
+}
+
+async function fetchDayJobs(date: string): Promise<DayJob[]> {
   const jobs: DayJob[] = []
   for (let page = 1; page <= 20; page += 1) {
     const res = await api<{ jobs: DayJob[] }>('GET', `/scheduled-jobs-housekeeping/day-jobs?date=${date}&limit=200&page=${page}`)
@@ -84,6 +97,10 @@ export async function fetchCarerVisits(employeeId: string, date: string): Promis
     const totalPages = Number((res.meta as { totalPages?: number } | undefined)?.totalPages ?? 1)
     if (rows.length < 200 || page >= totalPages) break
   }
+  return jobs
+}
+
+function carerVisitsFrom(jobs: DayJob[], employeeId: string): CarerVisit[] {
   const now = Date.now()
   return jobs
     .filter((j) => (j.allocations ?? []).some((a) => a.employeeId === employeeId && ACTIVE_ALLOCATION.has(a.status)))
@@ -123,8 +140,6 @@ export const SCENARIO_LABELS: Record<CompletionScenario, string> = {
 }
 const SCENARIO_MINUTES = 15
 
-/** date: the day (yyyy-mm-dd, organisation time zone) the visits are on. */
-export type CompleteVisitsInput = { employeeId: string; date: string; visits: CarerVisit[]; scenario: CompletionScenario }
 
 export type VisitCompletionResult = {
   jobId: string
@@ -201,133 +216,171 @@ export function tasksAsDone(tasks: VisitJobTaskRow[]) {
   return { rows, done, left }
 }
 
-/**
- * Completes the visits in time order (each visit's travel is worked out from the one before it),
- * then reads back pay, charge, travel and mileage. Visits already done, or short of carers, are skipped.
- */
-export async function runCompleteVisits(input: CompleteVisitsInput, { dryRun, log }: CompleteVisitsRunOptions) {
-  const results: VisitCompletionResult[] = []
-  const visits = [...input.visits].sort((a, b) => a.plannedStart.localeCompare(b.plannedStart))
-  log(`${dryRun ? 'CHECK — nothing saved. ' : ''}${visits.length} visit(s), ${SCENARIO_LABELS[input.scenario].toLowerCase()}`)
+/** One chosen carer and the visits chosen for them. */
+export type CarerSelection = { employeeId: string; name: string; visits: CarerVisit[] }
 
-  for (const v of visits) {
-    const label = `${hm(v.plannedStart)} ${v.jobName}`
-    const planned = `${hm(v.plannedStart)}–${hm(v.plannedEnd)}`
-    log(`━━ ${label}`)
-    if (v.blockedReason) {
-      log(`  skipped: ${v.blockedReason}`)
-      results.push({ jobId: v.jobId, label, planned, actual: '—', outcome: `Skipped: ${v.blockedReason}`, completed: false, tasksDone: [], tasksLeft: [] })
+/** The day (yyyy-mm-dd, organisation time zone), the scenario, and the chosen carers with their visits. */
+export type CompleteVisitsInput = { date: string; scenario: CompletionScenario; carers: CarerSelection[] }
+
+/** One carer's results: their visits, each with the pay record CareFlow made for this carer. */
+export type CarerCompletionResult = { employeeId: string; name: string; results: VisitCompletionResult[] }
+
+/**
+ * Completes every chosen visit once, in time order across all carers (a double-up shared by two
+ * chosen carers is completed once — Record visit times every carer on it), so each carer's travel
+ * is worked out from their previous visit. Then reads back each carer's pay, charge, travel and
+ * mileage. Visits already done, or short of carers, are skipped.
+ */
+export async function runCompleteVisits(
+  input: CompleteVisitsInput,
+  { dryRun, log }: CompleteVisitsRunOptions,
+): Promise<CarerCompletionResult[]> {
+  const byJob = new Map<string, CarerVisit>()
+  for (const c of input.carers) for (const v of c.visits) byJob.set(v.jobId, v)
+  const visits = [...byJob.values()].sort((a, b) => a.plannedStart.localeCompare(b.plannedStart))
+  log(
+    `${dryRun ? 'CHECK — nothing saved. ' : ''}${input.carers.length} carer(s), ${visits.length} visit(s), ${SCENARIO_LABELS[input.scenario].toLowerCase()}`,
+  )
+
+  // 1–2) Each visit once: tasks, then Record visit.
+  const done = new Map<string, VisitCompletionResult>()
+  for (const v of visits) done.set(v.jobId, await completeVisit(v, input.scenario, dryRun, log))
+
+  // 3) Each carer's own pay record for each of their visits.
+  const out: CarerCompletionResult[] = []
+  for (const c of input.carers) {
+    const results = c.visits
+      .slice()
+      .sort((a, b) => a.plannedStart.localeCompare(b.plannedStart))
+      .map((v) => ({ ...done.get(v.jobId)! }))
+    if (!dryRun && results.some((r) => r.completed)) {
+      log(`Reading ${c.name}'s pay, charge, travel and mileage…`)
+      await readPay(c.employeeId, input.date, results, log)
+    }
+    out.push({ employeeId: c.employeeId, name: c.name, results })
+  }
+  return out
+}
+
+async function completeVisit(
+  v: CarerVisit,
+  scenario: CompletionScenario,
+  dryRun: boolean,
+  log: (line: string) => void,
+): Promise<VisitCompletionResult> {
+  const label = `${hm(v.plannedStart)} ${v.jobName}`
+  const planned = `${hm(v.plannedStart)}–${hm(v.plannedEnd)}`
+  log(`━━ ${label}`)
+  if (v.blockedReason) {
+    log(`  skipped: ${v.blockedReason}`)
+    return { jobId: v.jobId, label, planned, actual: '—', outcome: `Skipped: ${v.blockedReason}`, completed: false, tasksDone: [], tasksLeft: [] }
+  }
+  const times = actualTimes(v, scenario)
+  const actual = `${hm(times.start)}–${hm(times.end)}`
+  try {
+    // Tasks — as Record visit does: load, tick, save the whole list.
+    const taskData = (await api<VisitJobTasksResponse>('GET', `/scheduled-jobs-housekeeping/jobs/${v.jobId}/visit-tasks`)).data
+    const tasks = taskData?.tasks ?? []
+    const { rows, done, left } = tasksAsDone(tasks)
+    if (!dryRun && taskData?.medicationRoundCode && tasks.length) {
+      await api('PATCH', `/scheduled-jobs-housekeeping/jobs/${v.jobId}/visit-tasks`, { tasks: rows.map(mapVisitJobTaskForSave) })
+      log(`  tasks saved: ${done.length} done${left.length ? `, ${left.length} left for you` : ''}`)
+    }
+
+    // Complete — actual times (each carer's on a double-up), and the reasons the dialog asks for.
+    const multiCarer = v.requiredCarers > 1 || v.allocations.length > 1
+    const body: Record<string, unknown> = {
+      status: 'COMPLETED',
+      notes: `Reason (Completed): Recorded from Scripts → Visit Completion — ${SCENARIO_LABELS[scenario].toLowerCase()}`,
+      actualStartDateTime: times.start,
+      actualEndDateTime: times.end,
+      careNotDelivered: false,
+      ...(multiCarer
+        ? { carerActuals: v.allocations.map((a) => ({ allocationId: a.id, actualStartDateTime: times.start, actualEndDateTime: times.end })) }
+        : {}),
+      ...(scenario === 'LATE_START'
+        ? { timingExceptionReasonCode: 'TRAFFIC_OR_ROAD_CLOSURE', timingExceptionNotes: 'Started late (traffic)' }
+        : {}),
+      ...(scenario === 'OVERRUN'
+        ? {
+            overrunReason: 'Client needed more time',
+            timingExceptionReasonCode: 'CLIENT_REQUEST_OR_NEED',
+            timingExceptionNotes: 'Client needed more time',
+          }
+        : {}),
+    }
+    if (!dryRun) {
+      await api('PATCH', `/scheduled-jobs-housekeeping/jobs/${v.jobId}/complete`, body)
+      log(`  completed ${actual}`)
+    } else {
+      log(`  would complete ${actual}; tasks: ${done.length} done${left.length ? `, ${left.length} left` : ''}`)
+    }
+    return {
+      jobId: v.jobId,
+      label,
+      planned,
+      actual,
+      outcome: dryRun ? 'Would be completed' : 'Completed',
+      completed: !dryRun,
+      tasksDone: done,
+      tasksLeft: left,
+    }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    log(`  ✖ ${message}`)
+    return { jobId: v.jobId, label, planned, actual, outcome: `Not completed: ${message}`, completed: false, tasksDone: [], tasksLeft: [] }
+  }
+}
+
+/** Pay, charge, travel and mileage — as the app priced each completed visit for this carer. */
+async function readPay(employeeId: string, date: string, results: VisitCompletionResult[], log: (line: string) => void) {
+  const list =
+    (
+      await api<Array<{ id: string; scheduledJobId: string; employeeId: string | null }>>(
+        'GET',
+        `/billing/visit-reconciliations?employeeId=${employeeId}&dateFrom=${date}&dateTo=${date}&limit=100`,
+      )
+    ).data ?? []
+  for (const r of results.filter((x) => x.completed)) {
+    const recon = list.find((x) => x.scheduledJobId === r.jobId && x.employeeId === employeeId)
+    if (!recon) {
+      r.outcome += ' — pay record not found yet (see Billing → Visit reconciliations)'
       continue
     }
-    const times = actualTimes(v, input.scenario)
-    const actual = `${hm(times.start)}–${hm(times.end)}`
-    try {
-      // 1) Tasks — as Record visit does: load, tick, save the whole list.
-      const taskData = (await api<VisitJobTasksResponse>('GET', `/scheduled-jobs-housekeeping/jobs/${v.jobId}/visit-tasks`)).data
-      const tasks = taskData?.tasks ?? []
-      const { rows, done, left } = tasksAsDone(tasks)
-      if (!dryRun && taskData?.medicationRoundCode && tasks.length) {
-        await api('PATCH', `/scheduled-jobs-housekeeping/jobs/${v.jobId}/visit-tasks`, { tasks: rows.map(mapVisitJobTaskForSave) })
-        log(`  tasks saved: ${done.length} done${left.length ? `, ${left.length} left for you` : ''}`)
-      }
-
-      // 2) Complete — actual times (each carer's on a double-up), and the reasons the dialog asks for.
-      const multiCarer = v.requiredCarers > 1 || v.allocations.length > 1
-      const body: Record<string, unknown> = {
-        status: 'COMPLETED',
-        notes: `Reason (Completed): Recorded from Scripts → Visit Completion — ${SCENARIO_LABELS[input.scenario].toLowerCase()}`,
-        actualStartDateTime: times.start,
-        actualEndDateTime: times.end,
-        careNotDelivered: false,
-        ...(multiCarer
-          ? { carerActuals: v.allocations.map((a) => ({ allocationId: a.id, actualStartDateTime: times.start, actualEndDateTime: times.end })) }
-          : {}),
-        ...(input.scenario === 'LATE_START'
-          ? { timingExceptionReasonCode: 'TRAFFIC_OR_ROAD_CLOSURE', timingExceptionNotes: 'Started late (traffic)' }
-          : {}),
-        ...(input.scenario === 'OVERRUN'
-          ? {
-              overrunReason: 'Client needed more time',
-              timingExceptionReasonCode: 'CLIENT_REQUEST_OR_NEED',
-              timingExceptionNotes: 'Client needed more time',
-            }
-          : {}),
-      }
-      if (!dryRun) {
-        await api('PATCH', `/scheduled-jobs-housekeeping/jobs/${v.jobId}/complete`, body)
-        log(`  completed ${actual}`)
-      } else {
-        log(`  would complete ${actual}; tasks: ${done.length} done${left.length ? `, ${left.length} left` : ''}`)
-      }
-      results.push({
-        jobId: v.jobId,
-        label,
-        planned,
-        actual,
-        outcome: dryRun ? 'Would be completed' : 'Completed',
-        completed: !dryRun,
-        tasksDone: done,
-        tasksLeft: left,
-      })
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e)
-      log(`  ✖ ${message}`)
-      results.push({ jobId: v.jobId, label, planned, actual, outcome: `Not completed: ${message}`, completed: false, tasksDone: [], tasksLeft: [] })
+    type Detail = {
+      status: string
+      approvedPayable: string
+      approvedBillable: string
+      payableAmount: unknown
+      billableAmount: unknown
+      currency: string
+      travelMiles: number | null
+      travelMinutes: number | null
+      exceptions?: Array<{ code?: string; message?: string } | string> | null
+      travelPay?: {
+        mileage: { amount: number; explanation: string } | null
+        travel: { amount: number; explanation: string } | null
+      } | null
+      previousVisit?: { serviceUserName: string; startDateTime: string } | null
     }
-  }
-
-  // 3) Pay, charge, travel and mileage — as the app priced each completed visit.
-  if (!dryRun && results.some((r) => r.completed)) {
-    log('Reading pay, charge, travel and mileage…')
-    const list =
-      (
-        await api<Array<{ id: string; scheduledJobId: string; employeeId: string | null }>>(
-          'GET',
-          `/billing/visit-reconciliations?employeeId=${input.employeeId}&dateFrom=${input.date}&dateTo=${input.date}&limit=100`,
-        )
-      ).data ?? []
-    for (const r of results.filter((x) => x.completed)) {
-      const recon = list.find((x) => x.scheduledJobId === r.jobId && x.employeeId === input.employeeId)
-      if (!recon) {
-        r.outcome += ' — pay record not found yet (see Billing → Visit reconciliations)'
-        continue
-      }
-      type Detail = {
-        status: string
-        approvedPayable: string
-        approvedBillable: string
-        payableAmount: unknown
-        billableAmount: unknown
-        currency: string
-        travelMiles: number | null
-        travelMinutes: number | null
-        exceptions?: Array<{ code?: string; message?: string } | string> | null
-        travelPay?: {
-          mileage: { amount: number; explanation: string } | null
-          travel: { amount: number; explanation: string } | null
-        } | null
-        previousVisit?: { serviceUserName: string; startDateTime: string } | null
-      }
-      const d = (await api<Detail>('GET', `/billing/visit-reconciliations/${recon.id}`)).data
-      if (!d) continue
-      r.pay = {
-        status: d.status,
-        payable: d.approvedPayable,
-        billable: d.approvedBillable,
-        payAmount: amount(d.payableAmount),
-        chargeAmount: amount(d.billableAmount),
-        currency: d.currency || 'GBP',
-        travelMinutes: d.travelMinutes,
-        travelMiles: d.travelMiles,
-        mileageAmount: d.travelPay?.mileage?.amount ?? null,
-        mileageExplanation: d.travelPay?.mileage?.explanation ?? null,
-        travelAmount: d.travelPay?.travel?.amount ?? null,
-        travelExplanation: d.travelPay?.travel?.explanation ?? null,
-        fromPreviousVisit: d.previousVisit ? `${d.previousVisit.serviceUserName} at ${hm(d.previousVisit.startDateTime)}` : null,
-        exceptions: (d.exceptions ?? []).map((x) => (typeof x === 'string' ? x : x.message || x.code || '')).filter(Boolean),
-      }
-      log(`  ${r.label}: pay ${r.pay.payAmount ?? '—'} · charge ${r.pay.chargeAmount ?? '—'} · travel ${r.pay.travelMinutes ?? 0} min, ${r.pay.travelMiles ?? 0} mi`)
+    const d = (await api<Detail>('GET', `/billing/visit-reconciliations/${recon.id}`)).data
+    if (!d) continue
+    r.pay = {
+      status: d.status,
+      payable: d.approvedPayable,
+      billable: d.approvedBillable,
+      payAmount: amount(d.payableAmount),
+      chargeAmount: amount(d.billableAmount),
+      currency: d.currency || 'GBP',
+      travelMinutes: d.travelMinutes,
+      travelMiles: d.travelMiles,
+      mileageAmount: d.travelPay?.mileage?.amount ?? null,
+      mileageExplanation: d.travelPay?.mileage?.explanation ?? null,
+      travelAmount: d.travelPay?.travel?.amount ?? null,
+      travelExplanation: d.travelPay?.travel?.explanation ?? null,
+      fromPreviousVisit: d.previousVisit ? `${d.previousVisit.serviceUserName} at ${hm(d.previousVisit.startDateTime)}` : null,
+      exceptions: (d.exceptions ?? []).map((x) => (typeof x === 'string' ? x : x.message || x.code || '')).filter(Boolean),
     }
+    log(`  ${r.label}: pay ${r.pay.payAmount ?? '—'} · charge ${r.pay.chargeAmount ?? '—'} · travel ${r.pay.travelMinutes ?? 0} min, ${r.pay.travelMiles ?? 0} mi`)
   }
-  return results
 }
