@@ -44,6 +44,8 @@ export type ReferralExtraction = {
   questionsAsked: string[]
   missingInformation: string[]
   attachmentsRead: Array<{ fileName: string; whatItIs: string }>
+  /** Attachments left out of the read (too large or too long for the AI), with the reason. */
+  attachmentsNotRead?: Array<{ fileName: string; reason: string }>
 }
 
 export type ReferralDetails = {
@@ -79,6 +81,8 @@ export type ReferralEmail = {
   extractionModel: string | null
   extractionCostUsd: number | null
   error: string | null
+  /** When the next automatic try of a failed read is due (null = none). */
+  nextReadAt?: string | null
   enquiryId: string | null
   enquiryReference?: string | null
   bodyText?: string

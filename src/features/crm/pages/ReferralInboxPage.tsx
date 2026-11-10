@@ -359,8 +359,15 @@ function EmailDetail({
         </div>
         {m.status === 'FOLLOW_UP' ? (
           <p className="rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm">
-            The referrer replied in the thread of an earlier referral. It was added to the enquiry’s history and not answered
-            automatically — read it, update the enquiry, then mark it as handled.
+            The referrer replied in the thread of an earlier referral. It was added to the enquiry’s history, and Claude read
+            the referral again with it: what changed is noted on the enquiry, and its checks and decision were worked out again.
+            It is not answered automatically — check the enquiry, then mark it as handled.
+          </p>
+        ) : null}
+        {m.status === 'FOLLOW_UP' && m.error ? (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            Claude could not read the referral again with this reply: {m.error}.
+            {m.nextReadAt ? ` It will try again at ${fmt(m.nextReadAt)}.` : ''}
           </p>
         ) : null}
         {staffKind && e?.emailKind && m.status !== 'FOLLOW_UP' ? (
@@ -379,8 +386,23 @@ function EmailDetail({
         ) : null}
         {m.status === 'FAILED' ? (
           <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            Claude could not read this email: {m.error}. Use “Ask Claude to read it again”.
+            Claude could not read this email: {m.error}.{' '}
+            {m.nextReadAt
+              ? `It will try again automatically at ${fmt(m.nextReadAt)}, or use “Ask Claude to read it again”.`
+              : 'Use “Ask Claude to read it again”.'}
           </p>
+        ) : null}
+        {e?.attachmentsNotRead?.length ? (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm" data-testid="referral-not-read">
+            <p className="font-medium">Not read by Claude — open these yourself:</p>
+            <ul className="mt-1 list-disc pl-5">
+              {e.attachmentsNotRead.map(n => (
+                <li key={n.fileName}>
+                  {n.fileName} <span className="text-muted-foreground">({n.reason})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
         {canCreate ? (
           <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border p-3">
