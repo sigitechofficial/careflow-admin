@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Copy, Mail, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
@@ -19,6 +19,7 @@ import {
   turnMailboxOff,
   turnMailboxOn,
   updateMailbox,
+  fetchMailboxFolders,
   webhookUrl,
   type ImapSettings,
   type MailboxProvider,
@@ -185,6 +186,16 @@ function EditMailbox({ m, onDone }: { m: ReferralMailbox; onDone: () => void }) 
   const qc = useQueryClient()
   const [displayName, setDisplayName] = React.useState(m.displayName ?? '')
   const [labelName, setLabelName] = React.useState(m.labelName)
+  const webhookBox = m.provider === 'INBOUND_WEBHOOK'
+  // The mailbox's own labels or folders, to choose from instead of typing a name.
+  const folders = useQuery({
+    queryKey: ['referral-inbox', 'mailbox-folders', m.id],
+    queryFn: () => fetchMailboxFolders(m.id),
+    enabled: !webhookBox && m.isActive !== undefined,
+    staleTime: 60_000,
+    retry: false,
+  })
+  const [typeOwn, setTypeOwn] = React.useState(false)
   const [branch, setBranch] = React.useState<string | null>(m.defaultLocationId)
   // Only the settings themselves go back to the server (not "hasPassword", which the server adds).
   const [imap, setImap] = React.useState<ImapSettings>(() => {
@@ -235,7 +246,34 @@ function EditMailbox({ m, onDone }: { m: ReferralMailbox; onDone: () => void }) 
             label={m.provider === 'GMAIL' ? 'Gmail label to read' : 'Folder to read'}
             hint={m.provider === 'GMAIL' ? 'Only emails with this label are read. Use INBOX to read every email that arrives (from the day before the mailbox was added), or a label a Gmail filter adds to referrals.' : 'Use INBOX for the Inbox, or a folder a mail rule moves referrals into.'}
           >
-            <Input value={labelName} onChange={e => setLabelName(e.target.value)} />
+            {folders.data?.folders.length && !typeOwn ? (
+              <div className="space-y-1">
+                <select
+                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                  value={labelName}
+                  onChange={e => (e.target.value === '__own' ? setTypeOwn(true) : setLabelName(e.target.value))}
+                  aria-label={m.provider === 'GMAIL' ? 'Gmail label to read' : 'Folder to read'}
+                  data-testid="mailbox-folder-select"
+                >
+                  {folders.data.folders.some(f => f.name.toLowerCase() === labelName.toLowerCase()) ? null : (
+                    <option value={labelName}>{labelName} (not found in the mailbox)</option>
+                  )}
+                  {folders.data.folders.map(f => (
+                    <option key={f.name} value={f.name}>
+                      {f.name}
+                      {f.hint ? ` — ${f.hint}` : ''}
+                    </option>
+                  ))}
+                  <option value="__own">Type another name…</option>
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Input value={labelName} onChange={e => setLabelName(e.target.value)} />
+                {folders.isLoading ? <p className="text-xs text-muted-foreground">Loading the mailbox’s labels…</p> : null}
+                {folders.isError ? <p className="text-xs text-muted-foreground">Couldn’t list the mailbox’s labels; type the name.</p> : null}
+              </div>
+            )}
           </Field>
         ) : null}
         <Field label="Branch for emails with no postcode" className="sm:col-span-2">

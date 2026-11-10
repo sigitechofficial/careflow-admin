@@ -72,12 +72,14 @@ function shortWhen(iso: string) {
     : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-type Folder = 'attention' | 'handled' | 'dismissed' | 'all'
+type Folder = 'attention' | 'other' | 'handled' | 'dismissed' | 'all'
 
 /** Needs a person: not handled yet, a reply waiting (e.g. a decline), a referrer's reply, or a failure. */
 function folderOf(r: ReferralEmail): Exclude<Folder, 'all'> {
   if (r.status === 'DISMISSED') return 'dismissed'
-  if (['RECEIVED', 'READ', 'FAILED', 'NOT_A_REFERRAL', 'FOLLOW_UP'].includes(r.status)) return 'attention'
+  // Not about care (filtered out before reading, or judged so by Claude): out of the way, still one click away.
+  if (r.status === 'NOT_A_REFERRAL') return 'other'
+  if (['RECEIVED', 'READ', 'FAILED', 'FOLLOW_UP'].includes(r.status)) return 'attention'
   if ((r.replyText || r.replyHtml) && !r.replySentAt) return 'attention'
   return 'handled'
 }
@@ -91,6 +93,7 @@ function stateOf(r: ReferralEmail): { label: string; tone: 'muted' | 'warning' |
   if (r.status === 'FAILED') return { label: 'Could not read', tone: 'destructive' }
   if (r.status === 'DISMISSED') return { label: 'Dismissed', tone: 'muted' }
   if (r.status === 'FOLLOW_UP') return { label: 'Reply from referrer', tone: 'info' }
+  if (r.status === 'NOT_A_REFERRAL' && r.screening?.decision === 'SKIP') return { label: 'Filtered out', tone: 'muted' }
   if (r.status === 'NOT_A_REFERRAL') return { label: 'Not a referral?', tone: 'warning' }
   if (r.replySentAt) return { label: 'Replied', tone: 'success' }
   if (r.replyText || r.replyHtml) return { label: r.decision === 'NO' ? 'Decline waiting' : 'Reply waiting', tone: 'warning' }
@@ -357,6 +360,19 @@ function EmailDetail({
             </Link>
           ) : null}
         </div>
+        {m.screening?.decision === 'SKIP' && m.status === 'NOT_A_REFERRAL' ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm" data-testid="referral-filtered-out">
+            <span className="min-w-0 flex-1">
+              <span className="font-medium">Filtered out before Claude read it</span> ({m.screening.by === 'AI' ? 'quick check' : 'rule'}):{' '}
+              {m.screening.reason}. Nothing was done with it.
+            </span>
+            {canManage ? (
+              <Button size="sm" variant="outline" disabled={readAgain.isPending} onClick={() => readAgain.mutate()}>
+                {readAgain.isPending ? 'Reading…' : 'Read with Claude anyway'}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         {m.status === 'FOLLOW_UP' ? (
           <p className="rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm">
             The referrer replied in the thread of an earlier referral. It was added to the enquiry’s history, and Claude read
@@ -631,7 +647,7 @@ export default function ReferralInboxPage() {
   })
   const all = listQ.data ?? []
   const counts = React.useMemo(() => {
-    const c = { attention: 0, handled: 0, dismissed: 0, all: all.length }
+    const c = { attention: 0, other: 0, handled: 0, dismissed: 0, all: all.length }
     for (const r of all) c[folderOf(r)] += 1
     return c
   }, [all])
@@ -758,10 +774,11 @@ export default function ReferralInboxPage() {
         <div className="grid gap-4 lg:grid-cols-[minmax(300px,380px)_1fr]">
           <div className="flex min-h-[520px] flex-col overflow-hidden rounded-lg border border-border bg-card">
             <div className="border-b border-border p-2">
-              <div className="grid grid-cols-4 gap-1 rounded-md bg-muted p-1 text-xs" role="tablist" aria-label="Folders">
+              <div className="grid grid-cols-5 gap-1 rounded-md bg-muted p-1 text-xs" role="tablist" aria-label="Folders">
                 {(
                   [
                     ['attention', 'To do'],
+                    ['other', 'Not referrals'],
                     ['handled', 'Done'],
                     ['dismissed', 'Dismissed'],
                     ['all', 'All'],
