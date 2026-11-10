@@ -20,6 +20,8 @@ import type {
 } from '@/features/crm/types/quotation.types'
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm'
+/** Small heading over each field of an extra row, so filled values still say what they are. */
+const fieldLabelClass = 'text-xs font-medium text-muted-foreground'
 /** Select value for a funder kept by name only (no funder id). */
 const LEGACY_FUNDER = '__legacy__'
 const labelClass = 'text-sm font-medium text-foreground'
@@ -417,78 +419,95 @@ export function FundingAndExtras({
               const discount = e.kind === 'DISCOUNT'
               const total = pricing?.extras[i]?.total
               return (
-                <li key={i} className="grid items-center gap-2 p-3 sm:grid-cols-12" data-testid={`quote-extra-${i}`}>
-                  <Input
-                    className="sm:col-span-4"
-                    aria-label="Extra name"
-                    placeholder="e.g. Night sitting"
-                    value={e.description}
-                    onChange={ev => setE(i, { description: ev.target.value })}
-                  />
+                <li key={i} className="grid items-end gap-2 p-3 sm:grid-cols-12" data-testid={`quote-extra-${i}`}>
+                  <label className="flex flex-col gap-1 sm:col-span-4">
+                    <span className={fieldLabelClass}>Name</span>
+                    <Input
+                      aria-label="Extra name"
+                      placeholder="e.g. Night sitting"
+                      value={e.description}
+                      onChange={ev => setE(i, { description: ev.target.value })}
+                    />
+                  </label>
                   {mileage ? (
-                    <div className="flex items-center gap-2 sm:col-span-3">
-                      <Input
-                        type="number"
-                        min={0}
-                        aria-label="Miles"
-                        placeholder="Miles"
-                        value={e.quantity ?? ''}
-                        onChange={ev => setE(i, { quantity: ev.target.value === '' ? null : Number(ev.target.value) })}
-                      />
-                      <span className="text-xs text-muted-foreground">×</span>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        aria-label="£ per mile"
-                        placeholder="£/mile"
-                        value={e.amount ?? ''}
-                        onChange={ev => setE(i, { amount: ev.target.value === '' ? null : Number(ev.target.value) })}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 sm:col-span-3">
-                      <div className="relative flex-1">
-                        {!(discount && e.isPercentage) && (
-                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">£</span>
-                        )}
+                    <div className="flex items-end gap-2 sm:col-span-3">
+                      <label className="flex flex-1 flex-col gap-1">
+                        <span className={fieldLabelClass}>Miles</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          aria-label="Miles"
+                          placeholder="Miles"
+                          value={e.quantity ?? ''}
+                          onChange={ev => setE(i, { quantity: ev.target.value === '' ? null : Number(ev.target.value) })}
+                        />
+                      </label>
+                      <span className="pb-2.5 text-xs text-muted-foreground">×</span>
+                      <label className="flex flex-1 flex-col gap-1">
+                        <span className={fieldLabelClass}>£ per mile</span>
                         <Input
                           type="number"
                           min={0}
                           step="0.01"
-                          aria-label={discount && e.isPercentage ? 'Discount %' : 'Amount £'}
-                          placeholder="0.00"
-                          className={discount && e.isPercentage ? '' : 'pl-7'}
+                          aria-label="£ per mile"
+                          placeholder="£/mile"
                           value={e.amount ?? ''}
                           onChange={ev => setE(i, { amount: ev.target.value === '' ? null : Number(ev.target.value) })}
                         />
-                      </div>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="flex items-end gap-2 sm:col-span-3">
+                      <label className="flex flex-1 flex-col gap-1">
+                        <span className={fieldLabelClass}>{discount && e.isPercentage ? 'Discount %' : discount ? 'Discount £' : 'Amount £'}</span>
+                        <div className="relative">
+                          {!(discount && e.isPercentage) && (
+                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">£</span>
+                          )}
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            aria-label={discount && e.isPercentage ? 'Discount %' : 'Amount £'}
+                            placeholder="0.00"
+                            className={discount && e.isPercentage ? '' : 'pl-7'}
+                            value={e.amount ?? ''}
+                            onChange={ev => setE(i, { amount: ev.target.value === '' ? null : Number(ev.target.value) })}
+                          />
+                        </div>
+                      </label>
                       {discount && (
-                        <select
-                          className="h-10 w-16 rounded-md border border-input bg-background px-2 text-sm"
-                          aria-label="Discount in"
-                          value={e.isPercentage ? '%' : '£'}
-                          onChange={ev => setE(i, { isPercentage: ev.target.value === '%' })}
-                        >
-                          <option value="£">£</option>
-                          <option value="%">%</option>
-                        </select>
+                        <label className="flex flex-col gap-1">
+                          <span className={fieldLabelClass}>In</span>
+                          <select
+                            className="h-10 w-16 rounded-md border border-input bg-background px-2 text-sm"
+                            aria-label="Discount in"
+                            value={e.isPercentage ? '%' : '£'}
+                            onChange={ev => setE(i, { isPercentage: ev.target.value === '%' })}
+                          >
+                            <option value="£">£</option>
+                            <option value="%">%</option>
+                          </select>
+                        </label>
                       )}
                     </div>
                   )}
-                  <select
-                    className={`${selectClass} sm:col-span-3`}
-                    aria-label="How often"
-                    value={e.frequency}
-                    onChange={ev => setE(i, { frequency: ev.target.value as QuoteChargeFrequency })}
-                  >
-                    {(Object.keys(CHARGE_FREQUENCY_LABELS) as QuoteChargeFrequency[]).map(f => (
-                      <option key={f} value={f}>
-                        {CHARGE_FREQUENCY_LABELS[f]}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="flex items-center justify-end gap-1 sm:col-span-2">
+                  <label className="flex flex-col gap-1 sm:col-span-3">
+                    <span className={fieldLabelClass}>How often</span>
+                    <select
+                      className={selectClass}
+                      aria-label="How often"
+                      value={e.frequency}
+                      onChange={ev => setE(i, { frequency: ev.target.value as QuoteChargeFrequency })}
+                    >
+                      {(Object.keys(CHARGE_FREQUENCY_LABELS) as QuoteChargeFrequency[]).map(f => (
+                        <option key={f} value={f}>
+                          {CHARGE_FREQUENCY_LABELS[f]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="flex h-10 items-center justify-end gap-1 sm:col-span-2">
                     <span className={`text-sm tabular-nums ${discount ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground'}`}>
                       {discount ? (e.amount ? (e.isPercentage ? `− ${e.amount}%` : `− ${money(e.amount)}`) : '') : total != null ? money(total) : ''}
                     </span>
