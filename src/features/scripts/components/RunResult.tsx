@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { AlertTriangle, CalendarClock, CheckCircle2, Clock, Loader2, XCircle } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Label } from '@/shared/ui/form-field'
@@ -168,6 +169,27 @@ function RunSummary({ results, dryRun, outcome }: { results: Summary[]; dryRun: 
                 />
               ) : null}
             </div>
+          ) : null}
+          {r.weeklyHoursDefaulted ? (
+            <p className="flex items-start gap-1.5 text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>
+                No weekly contracted hours were set — the plan and the service user&rsquo;s weekly hours are set to{' '}
+                {r.weeklyHoursDefaulted}h.{' '}
+                {r.serviceUserId ? (
+                  <Link
+                    to="/service-users/$serviceUserId"
+                    params={{ serviceUserId: r.serviceUserId }}
+                    search={{ tab: 'dom' }}
+                    className="font-medium underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-300"
+                  >
+                    Change them in the DOM Care tab
+                  </Link>
+                ) : (
+                  'Change them in the DOM Care tab.'
+                )}
+              </span>
+            </p>
           ) : null}
           {r.warnings.length ? (
             <ul className="space-y-0.5">

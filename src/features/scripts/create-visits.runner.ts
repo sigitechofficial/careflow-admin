@@ -92,6 +92,10 @@ export type Summary = {
   heldForApproval?: number
   /** Plan saved; the rota waits for the choice after the run (a new plan is still a draft). */
   rotaPending?: boolean
+  /** The service user's id, for links to their record. */
+  serviceUserId?: string
+  /** They had no weekly hours, so the plan and their weekly hours were set to the default. */
+  weeklyHoursDefaulted?: string
   failed?: string
 }
 
@@ -905,7 +909,15 @@ export async function runCreateVisits(
     const row = await findServiceUser(su.serviceUser)
     const label = `${row.serviceUserNumber ?? row.id} ${row.firstName} ${row.lastName}`
     labelOf.set(su, label)
-    const summary: Summary = { serviceUser: label, plan: '', slots: [], tasks: [], medicines: [], warnings: [] }
+    const summary: Summary = {
+      serviceUser: label,
+      serviceUserId: row.id,
+      plan: '',
+      slots: [],
+      tasks: [],
+      medicines: [],
+      warnings: [],
+    }
     log(`━━ ${label}`)
 
     // 1) The plan the visit plan tab edits: active first, then draft, then suspended.
@@ -1040,9 +1052,8 @@ export async function runCreateVisits(
         // No hours anywhere: the plan uses the default, and the app copies a new plan's hours to the
         // service user (DOM Care tab), as when a plan is created on the screen.
         weeklyContractedHours = DEFAULT_WEEKLY_CONTRACTED_HOURS
-        summary.warnings.push(
-          `No weekly contracted hours were set — the plan and the service user's weekly hours are set to ${DEFAULT_WEEKLY_CONTRACTED_HOURS}h (change them in the DOM Care tab)`,
-        )
+        // Shown on the result with a link to their DOM Care tab, where the hours are changed.
+        summary.weeklyHoursDefaulted = DEFAULT_WEEKLY_CONTRACTED_HOURS
       }
       if (fromInput && domHours && Number(fromInput) !== Number(domHours)) {
         summary.warnings.push(

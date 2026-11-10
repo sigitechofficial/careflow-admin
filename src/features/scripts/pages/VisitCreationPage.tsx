@@ -26,6 +26,7 @@ import {
   useVisitCreationRun,
 } from '@/features/scripts/hooks'
 import { RunResult } from '@/features/scripts/components/RunResult'
+import { cn } from '@/shared/lib/utils'
 import {
   VisitExtrasEditor,
   medicineTimeInVisit,
@@ -360,6 +361,20 @@ function CustomSection({
   const [serviceUserIds, setServiceUserIds] = React.useState<string[]>([])
   const [carerIds, setCarerIds] = React.useState<string[]>([])
   const [rows, setRows] = React.useState<VisitRow[]>(() => [newRow()])
+  /** The row Add visit just put at the top: scrolled to and briefly highlighted, so it is easy to spot. */
+  const [justAdded, setJustAdded] = React.useState<number | null>(null)
+  const justAddedRef = React.useRef<HTMLDivElement | null>(null)
+  React.useEffect(() => {
+    if (justAdded == null) return
+    justAddedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    const t = window.setTimeout(() => setJustAdded(null), 2500)
+    return () => window.clearTimeout(t)
+  }, [justAdded])
+  const addVisit = () => {
+    const row = newRow()
+    setRows((prev) => [row, ...prev])
+    setJustAdded(row.id)
+  }
   const [mapping, setMapping] = React.useState<Mapping>({})
   const [showErrors, setShowErrors] = React.useState(false)
 
@@ -620,14 +635,21 @@ function CustomSection({
               variant="outline"
               disabled={running}
               leftIcon={<Plus className="h-4 w-4" />}
-              onClick={() => setRows((prev) => [...prev, newRow()])}
+              onClick={addVisit}
             >
               Add visit
             </Button>
           </div>
           <div className="space-y-2">
             {rows.map((r, i) => (
-              <div key={r.id} className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-12 md:items-end">
+              <div
+                key={r.id}
+                ref={r.id === justAdded ? justAddedRef : undefined}
+                className={cn(
+                  'grid gap-2 rounded-md border p-3 transition-colors duration-700 md:grid-cols-12 md:items-end',
+                  r.id === justAdded ? 'border-primary bg-primary/5 ring-2 ring-primary/40' : 'border-border',
+                )}
+              >
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <span className="text-xs font-medium text-muted-foreground">Round</span>
                   <Select value={r.round} onValueChange={(v) => setRow(r.id, { round: v })} disabled={running}>
