@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { serviceUserMissingItems } from '@/features/service-users/dashboard/service-user-missing-items'
+import {
+  serviceUserMissingItems,
+  serviceUserProfileCompletion,
+} from '@/features/service-users/dashboard/service-user-missing-items'
 import type { ServiceUserDetail } from '@/features/service-users/types'
 
 const ref = { id: 'x', name: 'X', code: 'X' }
@@ -116,5 +119,41 @@ describe('serviceUserMissingItems', () => {
   it('does not repeat what "Needs attention" already shows (no visit plan / suspended plan)', () => {
     expect(serviceUserMissingItems({ ...base, detail: complete(), visitPlanStatus: null })).toEqual([])
     expect(serviceUserMissingItems({ ...base, detail: complete(), visitPlanStatus: 'SUSPENDED' })).toEqual([])
+  })
+})
+
+describe('serviceUserProfileCompletion', () => {
+  it('is 100% when nothing is missing', () => {
+    expect(serviceUserProfileCompletion([])).toEqual({ completed: 16, total: 16, percent: 100 })
+  })
+
+  it('is 0% when every profile check is missing', () => {
+    const d = {
+      ...complete(),
+      dateOfBirth: null,
+      nhsNumber: null,
+      gender: null,
+      phone: null,
+      profilePhotoUrl: null,
+      careType: null,
+      serviceStartDate: null,
+      riskLevel: null,
+      keyWorker: null,
+      contacts: [],
+      address: { addressLine1: null, postcode: null, accessMethod: null, keySafeNumber: null, keySafeLocation: null, accessInstructions: null },
+    } as unknown as ServiceUserDetail
+    const items = serviceUserMissingItems({
+      detail: d,
+      allergyCount: 0,
+      activeMedicationCount: 0,
+      visitPlanStatus: 'DRAFT',
+      primaryFunding: { fundingTypeName: 'Direct payment', reviewDate: null },
+    })
+    expect(serviceUserProfileCompletion(items)).toEqual({ completed: 0, total: 16, percent: 0 })
+  })
+
+  it('counts a check once even when it has more than one missing item, and ignores the visit plan', () => {
+    const items = [{ id: 'dob' }, { id: 'nhs' }, { id: 'contacts' }, { id: 'emergency-contact' }, { id: 'visit-plan-not-active' }]
+    expect(serviceUserProfileCompletion(items)).toEqual({ completed: 13, total: 16, percent: 81 })
   })
 })
