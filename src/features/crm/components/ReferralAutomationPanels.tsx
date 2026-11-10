@@ -402,6 +402,8 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
   const q = useQuery({ queryKey: ['referral-inbox', 'settings'], queryFn: fetchReferralSettings, enabled: open })
   const [draft, setDraft] = React.useState<ReferralAutomationSettings | null>(null)
   const [copies, setCopies] = React.useState('')
+  const [trusted, setTrusted] = React.useState('')
+  const [blocked, setBlocked] = React.useState('')
   React.useEffect(() => {
     if (q.data && open) {
       // Every covered branch gets a rates row (empty until filled in), plus the all-branches row first.
@@ -412,6 +414,8 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
       )
       setDraft({ ...q.data, standardRates: [{ ...all, branchName: 'All branches (default)' }, ...perBranch] })
       setCopies(q.data.copyRepliesTo.join(', '))
+      setTrusted((q.data.screening?.trustedSenders ?? []).join('\n'))
+      setBlocked((q.data.screening?.blockedSenders ?? []).join('\n'))
     }
   }, [q.data, open])
   const save = useMutation({
@@ -429,6 +433,11 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
         unplacedLocationId: s.unplacedLocationId ?? null,
         // Empty written rules are dropped.
         rules: { ...s.rules, custom: s.rules.custom.filter(c => c.text.trim()) },
+        screening: {
+          mode: s.screening?.mode ?? 'RULES_AND_AI',
+          trustedSenders: trusted.split(/[\n,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean),
+          blockedSenders: blocked.split(/[\n,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean),
+        },
         copyRepliesTo: copies
           .split(/[,;\s]+/)
           .map(x => x.trim())
@@ -468,14 +477,76 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
           {!draft ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : (
-            <Tabs defaultValue="automation" className="space-y-4">
+            <Tabs defaultValue="screening" className="space-y-4">
               <TabsList>
+                <TabsTrigger value="screening">Screening</TabsTrigger>
                 <TabsTrigger value="automation">Automation</TabsTrigger>
                 <TabsTrigger value="rules">Rules</TabsTrigger>
                 <TabsTrigger value="rates">Prices and quotes</TabsTrigger>
                 <TabsTrigger value="areas">Areas and sign-off</TabsTrigger>
                 <TabsTrigger value="copies">Copies</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="screening" className="space-y-4" data-testid="referral-screening-settings">
+                <p className="text-sm text-muted-foreground">
+                  Which new emails Claude reads in full. Free rules come first; emails they can’t place get a quick check by Claude’s
+                  smallest model (sender, subject and first lines: well under a penny). Filtered-out emails are kept under “Not
+                  referrals” with the reason, and can be read anyway.
+                </p>
+                <div className="space-y-2" role="radiogroup" aria-label="Screening">
+                  {(
+                    [
+                      ['RULES_AND_AI', 'Rules, then a quick check for unclear emails (recommended)', 'Cheapest without missing referrals.'],
+                      ['RULES', 'Rules only', 'Free. Emails the rules can’t place are read in full.'],
+                      ['OFF', 'Off: read every email in full', 'Every email costs a full read (a few pence each), adverts included.'],
+                    ] as const
+                  ).map(([mode, label, hint]) => (
+                    <label key={mode} className="flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm">
+                      <input
+                        type="radio"
+                        className="mt-1"
+                        name="screening-mode"
+                        checked={(draft.screening?.mode ?? 'RULES_AND_AI') === mode}
+                        disabled={disabled}
+                        onChange={() => set({ screening: { ...(draft.screening ?? { trustedSenders: [], blockedSenders: [] }), mode } })}
+                      />
+                      <span>
+                        <span className="font-medium">{label}</span>
+                        <span className="block text-xs text-muted-foreground">{hint}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block text-sm">
+                    <span className="font-medium">Always read (trusted senders)</span>
+                    <span className="block text-xs text-muted-foreground">One per line: an address, @domain, or a domain ending like .nhs.uk or .gov.uk.</span>
+                    <textarea
+                      className="mt-1 min-h-[110px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm"
+                      value={trusted}
+                      disabled={disabled}
+                      onChange={e => setTrusted(e.target.value)}
+                      aria-label="Trusted senders"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="font-medium">Never read (blocked senders)</span>
+                    <span className="block text-xs text-muted-foreground">Suppliers, mailing lists or anyone else whose emails are never referrals.</span>
+                    <textarea
+                      className="mt-1 min-h-[110px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm"
+                      value={blocked}
+                      disabled={disabled}
+                      onChange={e => setBlocked(e.target.value)}
+                      aria-label="Blocked senders"
+                      placeholder={'@quickbooks.com\nnews@supplier.co.uk'}
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Always read as well: replies in the thread of a referral we have, and anyone who has written to us about care before.
+                  Never read: no-reply and notification senders, and newsletters, alerts, receipts and offers (unless they mention care).
+                </p>
+              </TabsContent>
 
               <TabsContent value="automation" className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-2">

@@ -82,6 +82,8 @@ export type ReferralEmail = {
   error: string | null
   /** When the next automatic try of a failed read is due (null = none). */
   nextReadAt?: string | null
+  /** Screening before the full read: brought in or filtered out, why, and by a rule or the quick AI check. */
+  screening?: { decision: 'BRING' | 'SKIP'; reason: string; by: 'RULE' | 'AI'; costUsd?: number } | null
   enquiryId: string | null
   enquiryReference?: string | null
   bodyText?: string
@@ -128,9 +130,17 @@ export type ReferralAutomationSettings = {
   standardRates: ReferralStandardRate[]
   coverage: ReferralBranchCoverage[]
   rules: ReferralRules
+  screening: ReferralScreening
   /** Served by the API so the screen and the checks use the same list. */
   ruleCatalog: RuleDef[]
   emailKinds: Array<{ key: EmailKind; label: string; hint: string; defaultAction: KindAction; newCare: boolean }>
+}
+
+/** Which new emails are worth a full read by Claude (the rest are filtered out, unread). */
+export type ReferralScreening = {
+  mode: 'OFF' | 'RULES' | 'RULES_AND_AI'
+  trustedSenders: string[]
+  blockedSenders: string[]
 }
 
 export type EmailKind =
@@ -298,6 +308,9 @@ export const sendReferralReply = (id: string, body: { subject?: string; text?: s
   apiJson<{ message: string }>(`/referral-mailbox/emails/${id}/reply`, { method: 'POST', body: JSON.stringify(body) })
 export const recheckReferral = (id: string) => data<ReferralEmail>(`/referral-mailbox/emails/${id}/recheck`, { method: 'POST' })
 export const fetchReferralEmail = (id: string) => data<ReferralEmail>(`/referral-mailbox/emails/${id}`)
+export const fetchMailboxFolders = (id: string) =>
+  data<{ folders: Array<{ name: string; hint?: string }>; current: string }>(`/referral-mailbox/mailboxes/${id}/folders`)
+
 export const readReferralAgain = (id: string) => data<ReferralEmail>(`/referral-mailbox/emails/${id}/read`, { method: 'POST' })
 export const dismissReferral = (id: string) => apiJson(`/referral-mailbox/emails/${id}/dismiss`, { method: 'POST' })
 export const createEnquiryFromReferral = (id: string, locationId: string) =>
