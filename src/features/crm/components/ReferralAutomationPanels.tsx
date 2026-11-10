@@ -20,6 +20,7 @@ import {
   type ReferralStandardRate,
 } from '@/features/crm/api/referral-inbox.api'
 import { ReferralRulesTab } from './ReferralRulesTab'
+import { ReferralSelect } from './ReferralSelect'
 
 export const DECISION: Record<string, { label: string; variant: 'success' | 'info' | 'warning' | 'destructive'; dot: string }> = {
   YES: { label: 'Yes, subject to assessment', variant: 'success', dot: 'bg-emerald-500' },
@@ -519,18 +520,20 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
                   </div>
                 ) : null}
                 <div className="grid gap-3 md:grid-cols-3">
-                  <label className="text-sm">
+                  <div className="text-sm">
                     <span className="font-medium">Carer availability</span>
-                    <select
-                      className="mt-1 block h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    <ReferralSelect
+                      triggerClassName="mt-1 h-9 w-full"
+                      ariaLabel="Carer availability"
                       value={draft.availabilityMode}
                       disabled={disabled}
-                      onChange={e => set({ availabilityMode: e.target.value as ReferralAutomationSettings['availabilityMode'] })}
-                    >
-                      <option value="ANY_CARER_EACH_DAY">Different carers on different days is fine</option>
-                      <option value="SAME_CARER">Same carer on every day</option>
-                    </select>
-                  </label>
+                      onChange={v => set({ availabilityMode: v as ReferralAutomationSettings['availabilityMode'] })}
+                      options={[
+                        { value: 'ANY_CARER_EACH_DAY', label: 'Different carers on different days is fine' },
+                        { value: 'SAME_CARER', label: 'Same carer on every day' },
+                      ]}
+                    />
+                  </div>
                   <label className="text-sm">
                     <span className="font-medium">Travel time either side (minutes)</span>
                     <Input
@@ -664,22 +667,20 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
                 <p className="text-xs text-muted-foreground">
                   Council names as postcodes.io gives them, e.g. “Hammersmith and Fulham”. Separate with commas.
                 </p>
-                <label className="block text-sm">
+                <div className="text-sm">
                   <span className="font-medium">Branch for emails with no postcode</span>
-                  <select
-                    className="mt-1 block h-9 w-full max-w-sm rounded-md border border-input bg-background px-2 text-sm"
+                  <ReferralSelect
+                    triggerClassName="mt-1 h-9 w-full max-w-sm"
+                    ariaLabel="Branch for emails with no postcode"
                     value={draft.unplacedLocationId ?? ''}
                     disabled={disabled}
-                    onChange={e => set({ unplacedLocationId: e.target.value || null })}
-                  >
-                    <option value="">First branch in the list{draft.coverage[0] ? ` (${draft.coverage[0].branchName})` : ''}</option>
-                    {draft.coverage.map(c => (
-                      <option key={c.locationId} value={c.locationId}>
-                        {c.branchName}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    onChange={v => set({ unplacedLocationId: v || null })}
+                    options={[
+                      { value: '', label: `First branch in the list${draft.coverage[0] ? ` (${draft.coverage[0].branchName})` : ''}` },
+                      ...draft.coverage.map(c => ({ value: c.locationId, label: c.branchName })),
+                    ]}
+                  />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   When an email gives no usable postcode (often “what do you charge?”), its enquiry is recorded here until the address is
                   known. Emails from outside your areas never become enquiries.

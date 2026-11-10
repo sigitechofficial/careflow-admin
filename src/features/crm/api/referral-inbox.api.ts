@@ -1,5 +1,4 @@
-import { apiJson, getApiBaseUrl, type ApiEnvelope } from '@/shared/api/api-client'
-import { useAuthStore } from '@/features/auth/store'
+import { apiBlob, apiJson, getApiBaseUrl, type ApiEnvelope } from '@/shared/api/api-client'
 
 export type ReferralEmailStatus = 'RECEIVED' | 'READ' | 'FAILED' | 'NOT_A_REFERRAL' | 'ENQUIRY_CREATED' | 'DISMISSED' | 'FOLLOW_UP'
 
@@ -308,14 +307,8 @@ export const createEnquiryFromReferral = (id: string, locationId: string) =>
   })
 
 /** An attachment from private storage (signed-in fetch), as a blob for the on-page viewer or a download. */
-export async function fetchReferralAttachment(id: string, index: number): Promise<Blob> {
-  const headers = new Headers()
-  const token = useAuthStore.getState().accessToken
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-  const res = await fetch(`${getApiBaseUrl()}/referral-mailbox/emails/${id}/attachments/${index}`, { headers })
-  if (!res.ok) throw new Error(`Could not open the attachment (${res.status})`)
-  return res.blob()
-}
+export const fetchReferralAttachment = (id: string, index: number): Promise<Blob> =>
+  apiBlob(`/referral-mailbox/emails/${id}/attachments/${index}`)
 
 /** The text of a Word attachment (browsers can't show .docx). */
 export const fetchReferralAttachmentText = (id: string, index: number) =>

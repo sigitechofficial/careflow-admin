@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { ReferralSelect } from './ReferralSelect'
 import type {
   CustomRule,
   KindAction,
@@ -29,8 +30,6 @@ const KIND_LABEL: Record<KindAction, string> = {
   STAFF: 'Staff handle it',
   IGNORE: 'Ignore',
 }
-
-const selectCls = 'h-8 rounded-md border border-input bg-background px-2 text-sm'
 
 type Props = {
   settings: ReferralAutomationSettings
@@ -83,18 +82,16 @@ export function ReferralRulesTab({ settings, rules, onChange, disabled }: Props)
         </ul>
       </div>
 
-      <label className="flex flex-wrap items-center gap-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-medium">Rules for</span>
-        <select className={selectCls} value={branch} onChange={e => setBranch(e.target.value)} aria-label="Rules for branch">
-          <option value="">All branches</option>
-          {settings.coverage.map(c => (
-            <option key={c.locationId} value={c.locationId}>
-              {c.branchName} only
-            </option>
-          ))}
-        </select>
+        <ReferralSelect
+          ariaLabel="Rules for branch"
+          value={branch}
+          onChange={setBranch}
+          options={[{ value: '', label: 'All branches' }, ...settings.coverage.map(c => ({ value: c.locationId, label: `${c.branchName} only` }))]}
+        />
         {branch ? <span className="text-xs text-muted-foreground">Rules set here apply to {branchName} instead of the all-branches rule.</span> : null}
-      </label>
+      </div>
 
       {!branch ? (
         <section className="space-y-2">
@@ -110,19 +107,13 @@ export function ReferralRulesTab({ settings, rules, onChange, disabled }: Props)
                   <p className="text-sm font-medium">{k.label}</p>
                   <p className="text-xs text-muted-foreground">{k.hint}</p>
                 </div>
-                <select
-                  className={selectCls}
-                  aria-label={`Action for ${k.label}`}
+                <ReferralSelect
+                  ariaLabel={`Action for ${k.label}`}
                   disabled={disabled}
                   value={rules.kinds[k.key] ?? k.defaultAction}
-                  onChange={e => onChange({ ...rules, kinds: { ...rules.kinds, [k.key]: e.target.value as KindAction } })}
-                >
-                  {(['AUTO', 'STAFF', 'IGNORE'] as KindAction[]).map(a => (
-                    <option key={a} value={a}>
-                      {KIND_LABEL[a]}
-                    </option>
-                  ))}
-                </select>
+                  onChange={v => onChange({ ...rules, kinds: { ...rules.kinds, [k.key]: v as KindAction } })}
+                  options={(['AUTO', 'STAFF', 'IGNORE'] as KindAction[]).map(a => ({ value: a, label: KIND_LABEL[a] }))}
+                />
               </div>
             ))}
           </div>
@@ -164,24 +155,17 @@ export function ReferralRulesTab({ settings, rules, onChange, disabled }: Props)
                     </div>
                     {def.hint ? <p className="text-xs text-muted-foreground">{def.hint}</p> : null}
                   </div>
-                  <select
-                    className={`${selectCls} ${OUTCOME_STYLE[current.outcome]}`}
-                    aria-label={`Outcome for ${def.label}`}
+                  <ReferralSelect
+                    className={OUTCOME_STYLE[current.outcome]}
+                    ariaLabel={`Outcome for ${def.label}`}
                     disabled={disabled}
                     value={inherited ? 'INHERIT' : current.outcome}
-                    onChange={e =>
-                      e.target.value === 'INHERIT'
-                        ? upsert(def, branch, null)
-                        : upsert(def, branch || null, { outcome: e.target.value as RuleOutcome })
-                    }
-                  >
-                    {branch ? <option value="INHERIT">Same as all branches ({OUTCOME_LABEL[all.outcome]})</option> : null}
-                    {(['OFF', 'NOTE', 'MANAGER', 'DECLINE'] as RuleOutcome[]).map(o => (
-                      <option key={o} value={o}>
-                        {OUTCOME_LABEL[o]}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={v => (v === 'INHERIT' ? upsert(def, branch, null) : upsert(def, branch || null, { outcome: v as RuleOutcome }))}
+                    options={[
+                      ...(branch ? [{ value: 'INHERIT', label: `Same as all branches (${OUTCOME_LABEL[all.outcome]})` }] : []),
+                      ...(['OFF', 'NOTE', 'MANAGER', 'DECLINE'] as RuleOutcome[]).map(o => ({ value: o, label: OUTCOME_LABEL[o] })),
+                    ]}
+                  />
                 </div>
               )
             })}
@@ -212,30 +196,24 @@ export function ReferralRulesTab({ settings, rules, onChange, disabled }: Props)
                     onChange={e => setCustom(i, { text: e.target.value })}
                   />
                   <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      className={`${selectCls} ${OUTCOME_STYLE[c.outcome]}`}
-                      aria-label={`Outcome for rule ${i + 1}`}
+                    <ReferralSelect
+                      className={OUTCOME_STYLE[c.outcome]}
+                      ariaLabel={`Outcome for rule ${i + 1}`}
                       disabled={disabled}
                       value={c.outcome}
-                      onChange={e => setCustom(i, { outcome: e.target.value as CustomRule['outcome'] })}
-                    >
-                      <option value="NOTE">Note only</option>
-                      <option value="MANAGER">Manager decides</option>
-                    </select>
-                    <select
-                      className={selectCls}
-                      aria-label={`Branch for rule ${i + 1}`}
+                      onChange={v => setCustom(i, { outcome: v as CustomRule['outcome'] })}
+                      options={[
+                        { value: 'NOTE', label: OUTCOME_LABEL.NOTE },
+                        { value: 'MANAGER', label: OUTCOME_LABEL.MANAGER },
+                      ]}
+                    />
+                    <ReferralSelect
+                      ariaLabel={`Branch for rule ${i + 1}`}
                       disabled={disabled}
                       value={c.locationId ?? ''}
-                      onChange={e => setCustom(i, { locationId: e.target.value || null })}
-                    >
-                      <option value="">All branches</option>
-                      {settings.coverage.map(b => (
-                        <option key={b.locationId} value={b.locationId}>
-                          {b.branchName}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={v => setCustom(i, { locationId: v || null })}
+                      options={[{ value: '', label: 'All branches' }, ...settings.coverage.map(b => ({ value: b.locationId, label: b.branchName }))]}
+                    />
                     <label className="flex items-center gap-1 text-xs">
                       <input type="checkbox" checked={c.isActive} disabled={disabled} onChange={e => setCustom(i, { isActive: e.target.checked })} />
                       On
