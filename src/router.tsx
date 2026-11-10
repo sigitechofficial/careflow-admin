@@ -121,6 +121,8 @@ import SecurityAdminPage from '@/features/admin/pages/SecurityAdminPage'
 import AzurePricingPage from '@/features/azure-pricing/pages/AzurePricingPage'
 import { isAzurePricingTabId, type AzurePricingTabId } from '@/features/azure-pricing/types'
 import SystemJobsPage from '@/features/system-jobs/pages/SystemJobsPage'
+import MessageDeliveryPage from '@/features/message-delivery/MessageDeliveryPage'
+import TestOfficeAlertsPage from '@/features/message-delivery/TestOfficeAlertsPage'
 import { validateSystemJobsSearch } from '@/features/system-jobs/types'
 import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
@@ -198,6 +200,9 @@ import PayrollEmployeeDetailPage from '@/features/payroll/pages/PayrollEmployeeD
 import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesPage'
 import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
 import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
+import ScriptsPage from '@/features/scripts/pages/ScriptsPage'
+import VisitCreationPage from '@/features/scripts/pages/VisitCreationPage'
+import VisitCompletionPage from '@/features/scripts/pages/VisitCompletionPage'
 import MySurveysPage, { MySurveyAnswerPage } from '@/features/surveys/my-surveys/MySurveysPage'
 import CarerReportsPage from '@/features/employees/pages/CarerReportsPage'
 import TimebankPage from '@/features/timebank/pages/TimebankPage'
@@ -380,6 +385,8 @@ const pageTitles: Record<string, string> = {
   '/admin/audit': 'Audit log',
   '/azure-pricing': 'Azure Pricing',
   '/system-jobs': 'System jobs',
+  '/message-delivery': 'Message delivery',
+  '/test-office-alerts': 'Test office alerts',
   '/in-progress': 'Page in progress',
   '/showcase': 'UI showcase',
   '/settings': 'Settings',
@@ -421,6 +428,9 @@ const pageTitles: Record<string, string> = {
   '/office-salaries': 'Office salaries',
   '/checklist': 'Checklist',
   '/my-tasks': 'My tasks',
+  '/scripts': 'Scripts',
+  '/scripts/visit-creation': 'Visit Creation',
+  '/scripts/visit-completion': 'Visit Completion',
   '/my-surveys': 'My surveys',
   '/reports/carers': 'Carer reports',
   '/reports/timebank': 'Timebank',
@@ -2068,6 +2078,21 @@ const systemJobsRoute = createRoute({
   component: SystemJobsPage,
 })
 
+const messageDeliveryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/message-delivery',
+  beforeLoad: requireAnyPermission('message_delivery.read', 'message_delivery.manage'),
+  component: MessageDeliveryPage,
+})
+
+// Super Admin only (message_delivery.manage is granted to Super Admin alone; the API checks the role).
+const testOfficeAlertsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/test-office-alerts',
+  beforeLoad: requirePermission('message_delivery.manage'),
+  component: TestOfficeAlertsPage,
+})
+
 const adminAuditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/admin/audit',
@@ -2542,6 +2567,25 @@ const myTasksRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/my-tasks',
   component: MyTasksPage,
+})
+
+// Every signed-in user for now: automation scripts (run as the user, the API checks each step).
+const scriptsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scripts',
+  component: ScriptsPage,
+})
+
+const visitCreationRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scripts/visit-creation',
+  component: VisitCreationPage,
+})
+
+const visitCompletionRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scripts/visit-completion',
+  component: VisitCompletionPage,
 })
 
 // Any office user who is also a member of staff: surveys sent to them (answered here or in the carer app).
@@ -3061,6 +3105,8 @@ const routeTree = rootRoute.addChildren([
     adminAuditRoute,
     azurePricingRoute,
     systemJobsRoute,
+    messageDeliveryRoute,
+    testOfficeAlertsRoute,
     adminServiceUserPortalRoute,
     inProgressRoute,
     showcaseRoute,
@@ -3103,6 +3149,9 @@ const routeTree = rootRoute.addChildren([
     officeSalariesRoute,
     setupChecklistRoute,
     myTasksRoute,
+    scriptsRoute,
+    visitCreationRoute,
+    visitCompletionRoute,
     mySurveysRoute,
     mySurveyAnswerRoute,
     carerReportsRoute,

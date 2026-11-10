@@ -135,3 +135,35 @@ export async function apiJson<T>(
   }
   throw new ApiError('Request failed', 0)
 }
+
+/** A file from the CareAdmin API (Bearer from auth store), with the same token refresh and 401 retry as apiJson. */
+export async function apiBlob(path: string, init: RequestInit = {}, requestOptions?: ApiJsonOptions): Promise<Blob> {
+  const base = getApiBaseUrl()
+  if (!base) {
+    throw new ApiError('API base URL is not configured (set VITE_API_BASE_URL).', 0)
+  }
+  const url = `${base}${path.startsWith('/') ? path : `/${path}`}`
+  if (tokenExpiresSoon() && useAuthStore.getState().refreshToken) {
+    await refreshAccessTokenOnce()
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const headers = buildRequestHeaders(init, useAuthStore.getState().accessToken)
+    const res = await fetchWithResilience(url, { ...init, headers }, requestOptions)
+    if (res.status === 401 && attempt === 0 && useAuthStore.getState().refreshToken) {
+      if (await refreshAccessTokenOnce()) continue
+    }
+    if (!res.ok) {
+      const text = await res.text()
+      let body: unknown = text
+      try {
+        body = text ? JSON.parse(text) : null
+      } catch {
+        /* not JSON */
+      }
+      const fallback = res.statusText || 'Request failed'
+      throw new ApiError(formatApiErrorMessage(body, fallback) || fallback, res.status, body)
+    }
+    return res.blob()
+  }
+  throw new ApiError('Request failed', 0)
+}

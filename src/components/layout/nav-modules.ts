@@ -15,6 +15,7 @@ import {
   Pill,
   PoundSterling,
   Radio,
+  ScrollText,
   Settings,
   Settings2,
   ShieldAlert,
@@ -230,6 +231,13 @@ export const NAV_MODULES: Record<string, NavModuleMeta> = {
     description: 'Billing, carer pay and UK payroll',
     Icon: PoundSterling,
     tone: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+  },
+  Scripts: {
+    slug: 'scripts',
+    railLabel: 'Scripts',
+    description: 'Automation scripts that do several steps at once',
+    Icon: ScrollText,
+    tone: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
   },
   Messages: {
     slug: 'messages',

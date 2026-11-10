@@ -7,6 +7,7 @@ import {
   Calendar,
   Settings,
   Settings2,
+  ScrollText,
   UserCheck,
   // UserPlus, // TODO(later): restore with HR sidebar tab
 
@@ -58,6 +59,7 @@ import {
 
   Inbox,
   Mail,
+  BellRing,
   Calculator,
   HeartHandshake,
   DoorOpen,
@@ -1062,6 +1064,22 @@ const navItems: NavItem[] = [
       },
       {
         section: 'Platform',
+        label: 'Message delivery',
+        icon: <Mail className="h-4 w-4" />,
+        href: '/message-delivery',
+        anyPermission: ['message_delivery.read', 'message_delivery.manage'],
+        navTestId: 'nav-admin-message-delivery',
+      },
+      {
+        section: 'Platform',
+        label: 'Test office alerts',
+        icon: <BellRing className="h-4 w-4" />,
+        href: '/test-office-alerts',
+        permission: 'message_delivery.manage',
+        navTestId: 'nav-admin-test-office-alerts',
+      },
+      {
+        section: 'Platform',
         label: 'Azure Pricing',
         icon: <Cloud className="h-4 w-4" />,
         href: '/azure-pricing',
@@ -1070,6 +1088,8 @@ const navItems: NavItem[] = [
       },
     ],
   },
+  // Automation scripts — every signed-in user for now (no permission: the API checks each step).
+  { label: 'Scripts', icon: <ScrollText className="h-5 w-5" />, href: '/scripts' },
 ]
 
 export function navChildAllowed(

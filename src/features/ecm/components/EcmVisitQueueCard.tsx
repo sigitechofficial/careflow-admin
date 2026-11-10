@@ -751,6 +751,11 @@ function VisitBadges({ rows }: { rows: EcmExceptionRow[] }) {
           ) : null}
         </>
       ) : null}
+      {rows.some(r => r.title?.startsWith('[TEST]')) ? (
+        <Badge variant="info" size="sm" data-testid="ecm-test-alert-badge" title="Raised from Administration › Test office alerts">
+          Test alert
+        </Badge>
+      ) : null}
       {overdue ? <EcmStatusBadge code="OVERDUE" kind="generic" /> : null}
       {otherKinds.map(kind => (
         <EcmStatusBadge
