@@ -1,4 +1,4 @@
-import type { DeliveryRules, MessageChannel, MessageDeliverySettings } from './message-delivery.api'
+import type { DeliveryRules, MessageChannel, MessageDeliverySettings, MessageKind } from './message-delivery.api'
 
 export const CHANNELS: Array<{ channel: MessageChannel; label: string; enabledKey: keyof DeliveryRules; audienceKey: keyof DeliveryRules | null }> = [
   { channel: 'EMAIL', label: 'Email', enabledKey: 'emailEnabled', audienceKey: 'emailAudience' },
@@ -81,5 +81,50 @@ export function deliverySummary(r: DeliveryRules): { tone: 'success' | 'warning'
   return { tone: 'warning', text: parts.join(' ') }
 }
 
-export const OUTCOME_LABEL = { SENT: 'Sent', HELD: 'Held back', REDIRECTED: 'Sent to held inbox', FAILED: 'Failed' } as const
+export const OUTCOME_LABEL = { SENT: 'Sent', HELD: 'Held back', REDIRECTED: 'Sent to held inbox', SKIPPED: 'Not delivered', FAILED: 'Failed' } as const
 export const CHANNEL_LABEL: Record<MessageChannel, string> = { EMAIL: 'Email', TEXT: 'Text', WHATSAPP: 'WhatsApp', PUSH: 'Push' }
+
+const AUDIENCE_TEXT = { EVERYONE: 'everyone', ALLOWED_ONLY: 'only the allowed list' } as const
+
+/**
+ * The unsaved changes in plain English ("Quotes emails: switched off"), shown in the save bar and in the
+ * confirmation before saving on the live system.
+ */
+export function describeChanges(before: DeliveryRules, after: DeliveryRules, kinds: MessageKind[]): string[] {
+  const out: string[] = []
+  for (const c of CHANNELS) {
+    if (before[c.enabledKey] !== after[c.enabledKey]) out.push(`${c.label}: ${after[c.enabledKey] ? 'switched back on' : 'switched OFF for everyone'}`)
+    if (c.audienceKey && before[c.audienceKey] !== after[c.audienceKey]) {
+      out.push(`${c.label}: sent to ${AUDIENCE_TEXT[after[c.audienceKey] as keyof typeof AUDIENCE_TEXT]}`)
+    }
+  }
+  const added = after.allowedEmails.filter(x => !before.allowedEmails.includes(x)).length + after.allowedPhones.filter(x => !before.allowedPhones.includes(x)).length
+  const removed = before.allowedEmails.filter(x => !after.allowedEmails.includes(x)).length + before.allowedPhones.filter(x => !after.allowedPhones.includes(x)).length
+  if (added || removed) out.push(`Allowed list: ${[added ? `${added} added` : '', removed ? `${removed} removed` : ''].filter(Boolean).join(', ')}`)
+  if ((before.heldEmailsTo ?? '') !== (after.heldEmailsTo ?? '')) out.push(after.heldEmailsTo ? `Held emails go to ${after.heldEmailsTo}` : 'Held emails are dropped (no held-emails inbox)')
+  const label = (id: string) => {
+    const k = kinds.find(x => x.id === id)
+    return k ? `${k.label} (${CHANNEL_LABEL[k.channel]})` : id
+  }
+  const off = after.disabledKinds.filter(x => !before.disabledKinds.includes(x))
+  const on = before.disabledKinds.filter(x => !after.disabledKinds.includes(x))
+  // A handful are named; a whole group switched at once reads as one line.
+  if (off.length > 4) out.push(`${off.length} message types switched off`)
+  else for (const id of off) out.push(`${label(id)}: switched off`)
+  if (on.length > 4) out.push(`${on.length} message types switched back on`)
+  else for (const id of on) out.push(`${label(id)}: switched back on`)
+  return out
+}
+
+export type KindFilter = { q: string; channel: MessageChannel | ''; status: 'all' | 'LIVE' | 'TO_BUILD' | 'OFF' }
+
+/** The message types matching the search box and filters. */
+export function filterKinds(kinds: MessageKind[], disabled: string[], f: KindFilter): MessageKind[] {
+  const q = f.q.trim().toLowerCase()
+  return kinds.filter(
+    k =>
+      (!f.channel || k.channel === f.channel) &&
+      (f.status === 'all' || (f.status === 'OFF' ? disabled.includes(k.id) : k.status === f.status)) &&
+      (!q || `${k.label} ${k.why} ${k.when}`.toLowerCase().includes(q)),
+  )
+}

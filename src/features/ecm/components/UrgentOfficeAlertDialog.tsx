@@ -384,7 +384,14 @@ export function UrgentOfficeAlertDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle className="pr-8">{dialogHeadline(visit)}</DialogTitle>
+          <DialogTitle className="pr-8">
+            {dialogHeadline(visit)}
+            {visit?.alerts.some(a => a.title.startsWith('[TEST]')) ? (
+              <span className="ml-2 rounded bg-sky-100 px-1.5 py-0.5 align-middle text-xs font-medium text-sky-800 dark:bg-sky-900 dark:text-sky-100">
+                Test alert — no real emergency
+              </span>
+            ) : null}
+          </DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-1">
               {hasSos ? (

@@ -3,14 +3,34 @@ import { buildQueryString, unwrapEnvelope } from '@/shared/api/envelope'
 
 export type MessageChannel = 'EMAIL' | 'TEXT' | 'WHATSAPP' | 'PUSH'
 export type MessageAudience = 'EVERYONE' | 'ALLOWED_ONLY'
-export type DeliveryOutcome = 'SENT' | 'HELD' | 'REDIRECTED' | 'FAILED'
+/** SKIPPED: nothing to deliver to (no phone signed in to the carer app, push not set up on the server). */
+export type DeliveryOutcome = 'SENT' | 'HELD' | 'REDIRECTED' | 'SKIPPED' | 'FAILED'
+
+export type MessageAudienceKey =
+  | 'FUNDERS'
+  | 'REGULATORS'
+  | 'REFERRERS'
+  | 'PROFESSIONALS'
+  | 'PEOPLE'
+  | 'CARERS'
+  | 'MANAGERS'
+  | 'APPLICANTS'
+  | 'PLATFORM'
+  | 'ANY'
 
 export type MessageKind = {
   id: string
   key: string
   channel: MessageChannel
   label: string
-  description: string
+  audience: MessageAudienceKey[]
+  /** What it is for. */
+  why: string
+  /** What makes CareFlow send it. */
+  when: string
+  /** LIVE: sent today. TO_BUILD: needed but not built yet (its switch applies once it is). */
+  status: 'LIVE' | 'TO_BUILD'
+  ifOff?: string
   essential?: boolean
   enabled: boolean
 }
@@ -32,6 +52,7 @@ export type DeliveryRules = {
 
 export type MessageDeliverySettings = DeliveryRules & {
   kinds: MessageKind[]
+  audiences: Array<{ key: MessageAudienceKey; label: string; hint: string }>
   environment: {
     production: boolean
     email: { mode: string; redirectTo: string[]; bccCount: number }
@@ -40,7 +61,7 @@ export type MessageDeliverySettings = DeliveryRules & {
     push: { ready: boolean }
   }
   updatedAt: string | null
-  last24h: Array<{ channel: MessageChannel; outcome: DeliveryOutcome; count: number }>
+  last24h: Array<{ channel: MessageChannel; kind: string; outcome: DeliveryOutcome; count: number }>
   logDays: number
 }
 

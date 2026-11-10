@@ -38,6 +38,12 @@ export function sosAckFcmToast(fcm: FcmSendReport | undefined): SosAckFcmToast {
         title: 'SOS acknowledged',
         description: 'Carer has no registered device token, so the push was not sent.',
       }
+    case 'HELD':
+      return {
+        variant: 'success',
+        title: 'SOS acknowledged',
+        description: fcm.error?.trim() || 'The carer was not notified (held back by Message delivery settings).',
+      }
     case 'NO_EMPLOYEE':
       return {
         variant: 'warning',
