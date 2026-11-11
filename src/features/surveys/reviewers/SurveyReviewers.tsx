@@ -384,7 +384,8 @@ export function AddReviewerDialog({
                     <MultiSelect
                       options={(staff.data ?? []).map(u => ({
                         value: u.id,
-                        label: `${u.name} · ${[...new Set(u.roles)].join(', ') || 'Staff'}${u.branches.length ? ` (${u.branches.join(', ')})` : ''}`,
+                        // Name, then role (left out when it only repeats the name, e.g. the built-in "Super Admin" account).
+                        label: [u.name, [...new Set(u.roles)].filter(r => r !== u.name).join(', ')].filter(Boolean).join(' · ') + (u.branches.length ? ` (${u.branches.join(', ')})` : ''),
                       }))}
                       value={staffIds}
                       onChange={setStaffIds}
