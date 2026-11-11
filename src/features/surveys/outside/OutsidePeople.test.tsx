@@ -184,7 +184,12 @@ describe('Outside people', () => {
     apiJson.mockImplementation(async (raw: unknown) => {
       const url = String(raw ?? '')
       if (url.startsWith('/survey-outside-people/families')) {
-        return { data: [{ sourceId: 'c1', serviceUserId: 'su1', name: 'Mo Lane', relationship: 'Son', email: 'mo@example.com', mobile: null, consent: true, reachable: true, aboutName: 'Ada Lane' }] }
+        const all = [
+          { sourceId: 'c1', serviceUserId: 'su1', name: 'Mo Lane', relationship: 'Son', email: 'mo@example.com', mobile: null, consent: true, reachable: true, aboutName: 'Ada Lane' },
+          { sourceId: 'c-layla', serviceUserId: 'su3', name: 'Layla Al-Rashid', relationship: 'Sister', email: 'layla@example.com', mobile: null, consent: true, reachable: true, aboutName: 'Fatima Al-Rashid' },
+        ]
+        const ids = new URL(url, 'http://x').searchParams.get('serviceUserIds')?.split(',') ?? []
+        return { data: all.filter(f => ids.includes(f.serviceUserId)) }
       }
       if (url.startsWith('/survey-outside-people/contacts')) {
         return { data: [{ ...contact, id: 'x-layla', kind: 'FAMILY', name: 'Layla Al-Rashid', organisation: null, sourceType: 'SERVICE_USER_CONTACT', sourceId: 'c-layla', serviceUserId: 'su3' }] }
@@ -198,12 +203,17 @@ describe('Outside people', () => {
     fireEvent.click(await screen.findByLabelText(/Mo Lane/))
     expect(await screen.findByText(/This survey is about Ada Lane’s care/)).toBeInTheDocument()
     fireEvent.click(await screen.findByLabelText(/Layla Al-Rashid/))
+    // The person she is family of gets their own card, so the survey is no longer about one person.
+    const card = await screen.findByTestId('send-outside-family-su3')
+    await waitFor(() => expect(card).toHaveTextContent('Fatima Al-Rashid'))
     expect(screen.queryByText(/This survey is about Ada Lane’s care/)).not.toBeInTheDocument()
-    expect(screen.getByText(/Layla Al-Rashid is family of someone else we support/)).toBeInTheDocument()
+    expect(screen.getByText(/Several people are chosen/)).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
     await waitFor(() => expect(apiJson.mock.calls.some(c => c[0] === '/surveys/s1/send-outside')).toBe(true))
     const body = JSON.parse(apiJson.mock.calls.find(c => c[0] === '/surveys/s1/send-outside')![1].body)
-    expect(body).toMatchObject({ familyContactIds: ['c1'], contactIds: ['x-layla'] })
+    // Layla's tick moved onto her family card: chosen once.
+    expect([...body.familyContactIds].sort()).toEqual(['c-layla', 'c1'])
+    expect(body.contactIds).toEqual([])
     expect(body.aboutServiceUserId).toBeUndefined()
   })
 

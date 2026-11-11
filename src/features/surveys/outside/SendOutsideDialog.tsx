@@ -63,8 +63,22 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
     }
   }, [open])
   const addPerson = (p: FeedbackPersonRef | null) => {
-    if (p && !people.some(x => x.id === p.id)) setPeople(v => [...v, p])
+    if (p) setPeople(v => (v.some(x => x.id === p.id) ? v : [...v, p]))
   }
+  // A person added from People has no name yet: take it from their family list once it loads.
+  React.useEffect(() => {
+    if (!families?.length) return
+    setPeople(v => {
+      let changed = false
+      const next = v.map(p => {
+        const name = p.name ? null : families.find(f => f.serviceUserId === p.id)?.aboutName
+        if (!name) return p
+        changed = true
+        return { ...p, name }
+      })
+      return changed ? next : v
+    })
+  }, [families])
   // Removing a person also unticks their family.
   const removePerson = (id: string) => {
     setPeople(v => v.filter(x => x.id !== id))
@@ -177,7 +191,7 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
               return (
                 <div key={p.id} className="space-y-1 rounded-md border border-border px-3 py-2" data-testid={`send-outside-family-${p.id}`}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">{p.name}</span>
+                    <span className="text-sm font-medium">{p.name || 'Loading…'}</span>
                     <div className="flex items-center gap-1">
                       {contactable.length > 1 ? (
                         <Button
@@ -291,7 +305,14 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
                       className="h-4 w-4 rounded border-input"
                       checked={fam ? familyIds.includes(fam.sourceId) : contactIds.includes(c.id)}
                       disabled={c.optedOut.includes('ALL') || (fam ? !canContact(fam) : false)}
-                      onChange={e => (fam ? toggle(setFamilyIds, fam.sourceId, e.target.checked) : toggle(setContactIds, c.id, e.target.checked))}
+                      onChange={e => {
+                        if (fam) return toggle(setFamilyIds, fam.sourceId, e.target.checked)
+                        toggle(setContactIds, c.id, e.target.checked)
+                        // Family of someone we support: show that person's card too (the tick then moves onto it).
+                        if (e.target.checked && c.sourceType === 'SERVICE_USER_CONTACT' && c.serviceUserId) {
+                          addPerson({ id: c.serviceUserId, name: '' })
+                        }
+                      }}
                     />
                     <span>
                       {c.name}
