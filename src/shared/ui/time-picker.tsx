@@ -4,8 +4,8 @@ import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { cn } from "@/shared/lib/utils"
 
 const pad = (n: number) => String(n).padStart(2, "0")
-/** Minutes offered in the list; any minute can still be typed. */
-const MINUTE_STEPS = Array.from({ length: 12 }, (_, i) => pad(i * 5))
+/** Every minute, 00–59. */
+const MINUTE_STEPS = Array.from({ length: 60 }, (_, i) => pad(i))
 
 /** One scrolling column of the clock list; the chosen value is scrolled into view when it opens. */
 function TimeColumn({ label, options, selected, onPick }: { label: string; options: string[]; selected: string; onPick: (v: string) => void }) {
@@ -16,7 +16,16 @@ function TimeColumn({ label, options, selected, onPick }: { label: string; optio
   return (
     <div className="flex flex-col">
       <span className="px-2 pb-1 text-center text-xs font-medium text-muted-foreground">{label}</span>
-      <div ref={listRef} role="listbox" aria-label={label} className="h-48 w-14 overflow-y-auto overscroll-contain pr-1">
+      {/* Inside a dialog its scroll lock swallows wheel and touch scrolling outside the dialog (this list is
+          portalled), so the list keeps those events to itself. */}
+      <div
+        ref={listRef}
+        role="listbox"
+        aria-label={label}
+        className="h-48 w-14 overflow-y-auto overscroll-contain pr-1"
+        onWheel={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+      >
         {options.map((o) => {
           const isSelected = selected !== "" && Number(o) === Number(selected)
           return (
