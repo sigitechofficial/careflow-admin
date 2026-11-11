@@ -89,7 +89,7 @@ describe('Outside people', () => {
     })
     wrap(<SendOutsideDialog surveyId="s1" open onOpenChange={vi.fn()} />)
     fireEvent.click(screen.getByText('pick person'))
-    expect(await screen.findByText(/has not agreed to be contacted/)).toBeInTheDocument()
+    expect(await screen.findByText(/has not agreed to surveys/)).toBeInTheDocument()
     const boxes = screen.getAllByRole('checkbox')
     expect(boxes[1]).toBeDisabled()
     fireEvent.click(boxes[0])

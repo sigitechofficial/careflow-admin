@@ -28,7 +28,7 @@ import {
 /**
  * Send a named public survey to outside people, each with their own link (email, and text when the survey's
  * reminders use texts): people and lists from Outside people, and families of one or more people we support
- * from their People involved (only those who agreed to be contacted). With one person chosen, the survey can
+ * from their People involved (only those who agreed to surveys: "Surveys" ticked on their sharing in Privacy). With one person chosen, the survey can
  * be linked to them, so it is found from their record. Shows who cannot be sent it and why before sending.
  */
 export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: string; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -167,12 +167,27 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
                           {f.name}
                           <span className="text-xs text-muted-foreground">
                             {f.relationship ? ` · ${f.relationship}` : ''}
-                            {!f.consent ? ' · has not agreed to be contacted' : !f.reachable ? ' · no email or mobile' : ''}
+                            {!f.consent ? ' · has not agreed to surveys' : !f.reachable ? ' · no email or mobile' : ''}
                           </span>
                         </span>
                       </label>
                     ))
                   )}
+                  {theirs.some(f => !f.consent) ? (
+                    <p className="pt-1 text-xs text-muted-foreground">
+                      To send them surveys,{' '}
+                      <Link
+                        to="/service-users/$serviceUserId/profile"
+                        params={{ serviceUserId: p.id }}
+                        search={{ tab: 'privacy' }}
+                        className="font-medium text-primary underline underline-offset-2"
+                        onClick={() => onOpenChange(false)}
+                      >
+                        tick “Surveys about our care” in {p.name}’s Privacy
+                      </Link>
+                      .
+                    </p>
+                  ) : null}
                 </div>
               )
             })}
@@ -235,7 +250,7 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
               {check.already ? <p className="text-muted-foreground">{check.already} already have it.</p> : null}
               {check.optedOut ? <p className="text-muted-foreground">{check.optedOut} asked not to be contacted about surveys.</p> : null}
               {check.noDetails ? <p className="text-muted-foreground">{check.noDetails} have no email or mobile.</p> : null}
-              {check.noConsent ? <p className="text-muted-foreground">{check.noConsent} family {check.noConsent === 1 ? 'member has' : 'members have'} not agreed to be contacted.</p> : null}
+              {check.noConsent ? <p className="text-muted-foreground">{check.noConsent} family {check.noConsent === 1 ? 'member has' : 'members have'} not agreed to surveys.</p> : null}
               {check.died ? <p className="text-muted-foreground">{check.died} family {check.died === 1 ? 'member' : 'members'} will not be sent it because the person we supported has died.</p> : null}
               {check.afterDeath ? (
                 <>

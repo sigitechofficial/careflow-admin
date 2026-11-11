@@ -158,6 +158,19 @@ describe('Privacy on a service user’s profile', () => {
     })
   })
 
+  it('a family member can be ticked for surveys, on its own and apart from "Everything"', async () => {
+    wrap(privacy())
+    await screen.findByTestId('privacy-sharing')
+    await userEvent.click(within(screen.getByTestId('privacy-sharing')).getByRole('button', { name: 'Add' }))
+    await userEvent.selectOptions(screen.getByLabelText('Which family member or friend'), 'c1')
+    await userEvent.click(screen.getByLabelText('Everything about their care'))
+    await userEvent.click(screen.getByLabelText(/Surveys about our care/))
+    await userEvent.click(screen.getByLabelText('Email'))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const post = apiJson.mock.calls.find(([url, init]) => String(url).endsWith('/privacy/sharing') && (init as { method: string }).method === 'POST')!
+    expect(JSON.parse((post[1] as { body: string }).body)).toMatchObject({ contactId: 'c1', categories: ['ALL', 'SURVEYS'] })
+  })
+
   it('without permission to change, it only shows', async () => {
     perms.clear()
     wrap(privacy({ sharing: [line()] as never }))
