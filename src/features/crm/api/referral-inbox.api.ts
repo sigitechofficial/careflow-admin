@@ -311,6 +311,12 @@ export const fetchReferralEmail = (id: string) => data<ReferralEmail>(`/referral
 export const fetchMailboxFolders = (id: string) =>
   data<{ folders: Array<{ name: string; hint?: string }>; current: string }>(`/referral-mailbox/mailboxes/${id}/folders`)
 
+export const createMailboxFolder = (id: string, name: string) =>
+  data<{ folders: Array<{ name: string; hint?: string }>; current: string }>(`/referral-mailbox/mailboxes/${id}/folders`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+
 export const readReferralAgain = (id: string) => data<ReferralEmail>(`/referral-mailbox/emails/${id}/read`, { method: 'POST' })
 export const dismissReferral = (id: string) => apiJson(`/referral-mailbox/emails/${id}/dismiss`, { method: 'POST' })
 export const createEnquiryFromReferral = (id: string, locationId: string) =>
