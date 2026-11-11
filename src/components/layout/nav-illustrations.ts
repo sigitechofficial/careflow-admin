@@ -33,6 +33,7 @@ export const PAGE_ILLUSTRATION: Record<string, string> = {
   Calendar: 'tear-off-calendar',
   'Portal access': 'globe-showing-europe-africa',
   'Referrals & enquiries': 'inbox-tray',
+  Enquiries: 'inbox-tray',
   'Private quotations': 'receipt',
   'Family & funder access': 'people-hugging',
   'Initial Assessment': 'clipboard',

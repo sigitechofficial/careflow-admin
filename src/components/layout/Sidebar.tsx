@@ -243,8 +243,10 @@ const navItems: NavItem[] = [
         permission: 'service_users.portal.read',
         navTestId: 'nav-service-user-portal-admin',
       },
-      planned("People", "Referrals & enquiries", <Inbox className="h-4 w-4" />, "Every referral and enquiry across all service users, from triage to admission. Today referrals are recorded on each service user's profile (Referrals tab)."),
-      planned("People", "Private quotations", <Calculator className="h-4 w-4" />, "All private care quotations in one list. Today quotations are created from a referral on each service user's profile."),
+      // Enquiries and referrals are built (CRM); shortcuts here so they are found from Service Users too.
+      { section: 'People', label: 'Enquiries', icon: <Inbox className="h-4 w-4" />, href: '/crm', permission: 'crm.read', navTestId: 'nav-service-users-enquiries' },
+      { section: 'People', label: 'Referral inbox', icon: <Mail className="h-4 w-4" />, href: '/crm/referral-inbox', permission: 'crm.read', navTestId: 'nav-service-users-referral-inbox' },
+      planned("People", "Private quotations", <Calculator className="h-4 w-4" />, "All private care quotations in one list. Today each quotation is made and kept on its enquiry (CRM › Enquiry)."),
       planned("People", "Family & funder access", <HeartHandshake className="h-4 w-4" />, "Let next of kin and funders sign in to see the parts of the care record they are allowed to see."),
       {
         section: 'Assessment & care plans',
