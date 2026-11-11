@@ -88,9 +88,11 @@ export type TimebankOverCare = {
   cancelledMinutes: number
   cancelledVisits: number
   notTakenBackMinutes: number
+  /** Over care review (Workforce › Over care reviews). */
+  reviewStatus?: 'PENDING' | 'ACTION_TAKEN' | 'NO_ACTION_NEEDED'
 }
 
-/** Settings → Dom Rules "Reduce next week's visits after over care" and the first day it applies. */
+/** Over care check: always on since 10 Nov 2026 (`from` = first week checked). */
 export type TimebankOverCareSetting = { on: boolean; from: string | null }
 
 export type TimebankList = {
@@ -322,12 +324,11 @@ export async function fetchTimebankDetail(serviceUserId: string, weekStart?: str
 
 export type OverCareStatus =
   | 'DONE'
-  | 'WILL_CANCEL'
+  | 'PENDING_REVIEW'
+  | 'NO_ACTION'
+  | 'WILL_REVIEW'
   | 'NOTHING'
-  | 'OFF'
   | 'NOT_ELIGIBLE'
-  | 'NOT_ADJUSTED'
-  | 'NO_PLAN'
 
 export type OverCareVisit = {
   scheduledJobId: string
@@ -340,12 +341,16 @@ export type OverCareVisit = {
   carers: string[]
 }
 
-/** "See visits": a week's over care and the next week's visits it took back (or would). */
+/** "See visits": a week's over care, its review and the visits cancelled for it. */
 export type OverCareForWeek = {
   overWeekStart: string
-  adjustWeekStart: string
+  /** First week over care was taken back in (action taken), else null. */
+  adjustWeekStart: string | null
   setting: TimebankOverCareSetting
   status: OverCareStatus
+  /** The Over care reviews request for this week, once raised. */
+  reviewId: string | null
+  decisionNote: string | null
   weeklyMinutes: number
   careGivenMinutes: number
   excludedMinutes: number

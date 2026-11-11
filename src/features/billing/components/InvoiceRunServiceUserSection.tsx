@@ -32,8 +32,23 @@ function formatDueDate(value: string | null, formatDate: (isoDate: string) => st
 function InvoicePaymentStatusBadge({
   status,
 }: {
-  status: 'UNPAID' | 'PART_PAID' | 'PAID'
+  status: 'UNPAID' | 'PART_PAID' | 'PAID' | 'NEEDS_REVIEW' | 'NOTHING_TO_BILL'
 }) {
+  // Nothing billed because every line has an exception (e.g. no funding contract): not "Paid".
+  if (status === 'NEEDS_REVIEW') {
+    return (
+      <span className="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+        Needs review
+      </span>
+    )
+  }
+  if (status === 'NOTHING_TO_BILL') {
+    return (
+      <span className="inline-flex items-center whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+        Nothing to bill
+      </span>
+    )
+  }
   if (status === 'PAID') {
     return (
       <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
@@ -100,7 +115,17 @@ export function InvoiceRunServiceUserSection({
   const paymentStatus: 'UNPAID' | 'PART_PAID' | 'PAID' =
     group.paymentStatus ??
     (paidValue <= 0 ? 'UNPAID' : outstandingValue <= 0.001 ? 'PAID' : 'PART_PAID')
-  const isPaid = paymentStatus === 'PAID' || outstandingValue <= 0.001
+  // Paid only when money was paid: a £0 invoice (all lines exceptions, or nothing due) is not.
+  const isPaid =
+    paymentStatus === 'PAID' || (outstandingValue <= 0.001 && paidValue > 0.001)
+  const nothingBilled = (group.subtotalValue ?? 0) <= 0.001 && paidValue <= 0.001
+  const statusShown = nothingBilled
+    ? exceptionCount > 0
+      ? 'NEEDS_REVIEW'
+      : 'NOTHING_TO_BILL'
+    : isPaid
+      ? 'PAID'
+      : paymentStatus
 
   const funderSummaryLabel = multiFunder
     ? `${funders.length} funders`
@@ -177,7 +202,7 @@ export function InvoiceRunServiceUserSection({
           {outstanding}
         </td>
         <td className="whitespace-nowrap px-3 py-2.5">
-          <InvoicePaymentStatusBadge status={isPaid ? 'PAID' : paymentStatus} />
+          <InvoicePaymentStatusBadge status={statusShown} />
         </td>
         <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-muted-foreground">
           {formatTimestamp(createdAt ?? null)}
@@ -249,7 +274,9 @@ export function InvoiceRunServiceUserSection({
       {multiFunder && expanded
         ? funders.map((f) => {
             const share = funderShareTotals(f)
-            const sharePaid = share.paymentStatus === 'PAID' || share.outstandingValue <= 0.001
+            const sharePaid =
+              share.paymentStatus === 'PAID' ||
+              (share.outstandingValue <= 0.001 && (share.paidValue ?? 0) > 0.001)
             return (
               <tr
                 key={`${group.serviceUserId}-${f.funderId ?? 'direct'}`}
