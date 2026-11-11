@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
+import { X } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -26,9 +27,9 @@ import {
 
 /**
  * Send a named public survey to outside people, each with their own link (email, and text when the survey's
- * reminders use texts): people and lists from Outside people, and families of one person we support from
- * their People involved (only those who agreed to be contacted). The survey can be linked to that person, so
- * it is found from their record. Shows who cannot be sent it and why before sending.
+ * reminders use texts): people and lists from Outside people, and families of one or more people we support
+ * from their People involved (only those who agreed to be contacted). With one person chosen, the survey can
+ * be linked to them, so it is found from their record. Shows who cannot be sent it and why before sending.
  */
 export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: string; open: boolean; onOpenChange: (o: boolean) => void }) {
   const [search, setSearch] = React.useState('')
@@ -36,9 +37,12 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
   const { data: lists } = useOutsideLists()
   const [contactIds, setContactIds] = React.useState<string[]>([])
   const [listIds, setListIds] = React.useState<string[]>([])
-  const [person, setPerson] = React.useState<FeedbackPersonRef | null>(null)
-  const { data: families } = useFamiliesOf(person ? [person.id] : [])
+  // Several people we support; their families are listed under each of them.
+  const [people, setPeople] = React.useState<FeedbackPersonRef[]>([])
+  const { data: families } = useFamiliesOf(people.map(p => p.id))
   const [familyIds, setFamilyIds] = React.useState<string[]>([])
+  // A survey can be linked to one person's record, so "about" is offered only when one person is chosen.
+  const person = people.length === 1 ? people[0]! : null
   const [about, setAbout] = React.useState(true)
   const [anyway, setAnyway] = React.useState(false)
   const [reason, setReason] = React.useState('')
@@ -48,7 +52,7 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
     if (open) {
       setContactIds([])
       setListIds([])
-      setPerson(null)
+      setPeople([])
       setFamilyIds([])
       setAnyway(false)
       setReason('')
@@ -56,7 +60,16 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
       setDeathReason('')
     }
   }, [open])
-  React.useEffect(() => setFamilyIds([]), [person])
+  const addPerson = (p: FeedbackPersonRef | null) => {
+    if (p && !people.some(x => x.id === p.id)) setPeople(v => [...v, p])
+  }
+  // Removing a person also unticks their family.
+  const removePerson = (id: string) => {
+    setPeople(v => v.filter(x => x.id !== id))
+    const theirs = new Set((families ?? []).filter(f => f.serviceUserId === id).map(f => f.sourceId))
+    setFamilyIds(v => v.filter(x => !theirs.has(x)))
+  }
+  const canContact = (f: { consent: boolean; reachable: boolean }) => f.consent && f.reachable
 
   const input: SendOutsideInput = {
     contactIds,
@@ -95,39 +108,83 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
         </DialogHeader>
         <DialogBody className="space-y-4">
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Families of someone we support</legend>
-            <ServiceUserPicker value={person} onChange={setPerson} placeholder="Choose the person we support…" testId="send-outside-person" />
-            {person && families ? (
-              families.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No People involved recorded for {person.name}.</p>
-              ) : (
-                <div className="space-y-1">
-                  {families.map(f => (
-                    <label key={f.sourceId} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-input"
-                        disabled={!f.consent || !f.reachable}
-                        checked={familyIds.includes(f.sourceId)}
-                        onChange={e => toggle(setFamilyIds, f.sourceId, e.target.checked)}
-                      />
-                      <span>
-                        {f.name}
-                        <span className="text-xs text-muted-foreground">
-                          {f.relationship ? ` · ${f.relationship}` : ''}
-                          {!f.consent ? ' · has not agreed to be contacted' : !f.reachable ? ' · no email or mobile' : ''}
+            <legend className="text-sm font-medium">Families of people we support</legend>
+            <ServiceUserPicker
+              value={null}
+              onChange={addPerson}
+              placeholder={people.length ? 'Add another person we support…' : 'Choose the people we support…'}
+              testId="send-outside-person"
+            />
+            {people.map(p => {
+              const theirs = (families ?? []).filter(f => f.serviceUserId === p.id)
+              const contactable = theirs.filter(canContact).map(f => f.sourceId)
+              const allTicked = contactable.length > 0 && contactable.every(id => familyIds.includes(id))
+              return (
+                <div key={p.id} className="space-y-1 rounded-md border border-border px-3 py-2" data-testid={`send-outside-family-${p.id}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{p.name}</span>
+                    <div className="flex items-center gap-1">
+                      {contactable.length > 1 ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() =>
+                            setFamilyIds(v => (allTicked ? v.filter(id => !contactable.includes(id)) : [...new Set([...v, ...contactable])]))
+                          }
+                        >
+                          {allTicked ? 'Untick all' : 'Tick all who can be contacted'}
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        aria-label={`Remove ${p.name}`}
+                        onClick={() => removePerson(p.id)}
+                      >
+                        <X className="h-4 w-4" aria-hidden />
+                      </Button>
+                    </div>
+                  </div>
+                  {!families ? (
+                    <p className="text-xs text-muted-foreground">Loading…</p>
+                  ) : theirs.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No People involved recorded for {p.name}.</p>
+                  ) : (
+                    theirs.map(f => (
+                      <label key={f.sourceId} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-input"
+                          disabled={!canContact(f)}
+                          checked={familyIds.includes(f.sourceId)}
+                          onChange={e => toggle(setFamilyIds, f.sourceId, e.target.checked)}
+                        />
+                        <span>
+                          {f.name}
+                          <span className="text-xs text-muted-foreground">
+                            {f.relationship ? ` · ${f.relationship}` : ''}
+                            {!f.consent ? ' · has not agreed to be contacted' : !f.reachable ? ' · no email or mobile' : ''}
+                          </span>
                         </span>
-                      </span>
-                    </label>
-                  ))}
-                  {familyIds.length ? (
-                    <label className="flex items-center gap-2 pt-1 text-sm">
-                      <input type="checkbox" className="h-4 w-4 rounded border-input" checked={about} onChange={e => setAbout(e.target.checked)} />
-                      This survey is about {person.name}’s care (found from their record)
-                    </label>
-                  ) : null}
+                      </label>
+                    ))
+                  )}
                 </div>
               )
+            })}
+            {person && familyIds.length ? (
+              <label className="flex items-center gap-2 pt-1 text-sm">
+                <input type="checkbox" className="h-4 w-4 rounded border-input" checked={about} onChange={e => setAbout(e.target.checked)} />
+                This survey is about {person.name}’s care (found from their record)
+              </label>
+            ) : people.length > 1 && familyIds.length ? (
+              <p className="text-xs text-muted-foreground">
+                Several people are chosen, so the survey is not linked to one person’s record. Each family member still gets their own link.
+              </p>
             ) : null}
           </fieldset>
 
