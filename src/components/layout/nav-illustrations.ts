@@ -158,6 +158,7 @@ export const PAGE_ILLUSTRATION: Record<string, string> = {
   'Location Management': 'round-pushpin',
   'Roles & permissions': 'key',
   'Temporary Inspector Login': 'identification-card',
+  'Inspector access': 'identification-card',
   'General Settings': 'gear',
   'Lookup data': 'card-index',
   'Tasks planner': 'spiral-notepad',

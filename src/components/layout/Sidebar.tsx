@@ -690,6 +690,8 @@ const navItems: NavItem[] = [
         ],
         navTestId: 'nav-compliance-dashboard',
       },
+      // Temporary logins for CQC inspectors, commissioners and auditors (same page as Workforce › Staff).
+      { section: 'Compliance', label: 'Inspector access', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/temp-inspector', permission: 'employees.read', navTestId: 'nav-quality-inspector-access' },
       { section: 'Incidents', label: 'Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/incidents/dashboard', permission: 'incidents.read' },
       { section: 'Incidents', label: 'All Incidents', icon: <Eye className="h-4 w-4" />, href: '/incidents/view', permission: 'incidents.read' },
       { section: 'Incidents', label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
@@ -1060,6 +1062,8 @@ const navItems: NavItem[] = [
         navTestId: 'nav-admin-audit',
       },
       { section: 'Security & audit', label: 'Security', icon: <ShieldCheck className="h-4 w-4" />, href: '/admin/security', permission: 'security.admin' },
+      // Temporary logins for CQC inspectors, commissioners and auditors (same page as Workforce › Staff).
+      { section: 'Security & audit', label: 'Inspector access', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/temp-inspector', permission: 'employees.read', navTestId: 'nav-admin-inspector-access' },
       planned("Integrations", "GP Connect", <Stethoscope className="h-4 w-4" />, "Bring NHS GP records, medications and allergies into the care record."),
       planned("Integrations", "Pharmacy integration", <Pill className="h-4 w-4" />, "Receive medication changes from the pharmacy and send orders."),
       planned("Integrations", "Telecare", <Radio className="h-4 w-4" />, "Use alerts from home sensors and alarms in care planning."),
