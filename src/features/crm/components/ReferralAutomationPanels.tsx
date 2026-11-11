@@ -491,7 +491,7 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
                 <p className="text-sm text-muted-foreground">
                   Which new emails Claude reads in full. Free rules come first; emails they can’t place get a quick check by Claude’s
                   smallest model (sender, subject and first lines: well under a penny). Filtered-out emails are kept under “Not
-                  referrals” with the reason, and can be read anyway.
+                  care” with the reason, and can be read anyway.
                 </p>
                 <div className="space-y-2" role="radiogroup" aria-label="Screening">
                   {(

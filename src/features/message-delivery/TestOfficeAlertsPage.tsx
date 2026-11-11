@@ -98,11 +98,11 @@ export default function TestOfficeAlertsPage() {
             <CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden />
             {visit ? (
               <span>
-                Alerts go on <strong>{visit.name}</strong> for {visit.serviceUser}, {formatOpsDateTimeNumeric(visit.start)}
+                Alerts go on {new Date(visit.start).getTime() > Date.now() ? 'the next visit, ' : ''}<strong>{visit.name}</strong> for {visit.serviceUser}, {formatOpsDateTimeNumeric(visit.start)}
                 {visit.inProgress ? <Badge variant="info" size="sm" className="ml-2">In progress</Badge> : null}
               </span>
             ) : (
-              <span className="text-destructive">There is no recent visit to raise test alerts on. Add a visit to the rota first.</span>
+              <span className="text-destructive">There are no visits on the rota yet, so there is nothing to raise test alerts on. Add a visit first.</span>
             )}
             {cat.data?.openTestExceptions ? (
               <span className="ml-auto text-muted-foreground">{cat.data.openTestExceptions} test alert{cat.data.openTestExceptions === 1 ? '' : 's'} in the exceptions queue</span>

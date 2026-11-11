@@ -553,9 +553,11 @@ export default function MessageDeliveryPage() {
         description="Who CareFlow may email, text, WhatsApp or notify, and which messages are on. Use it to test safely and to pause sending during maintenance."
         icon={<Mail className="h-4 w-4 text-muted-foreground" aria-hidden />}
       />
+      {s.environment.production ? (
+        <Banner variant="warning" title="Live system" message="Messages from here reach real service users, families, funders and staff." />
+      ) : null}
       <Banner
         variant={summary.tone === 'success' ? 'success' : summary.tone === 'warning' ? 'warning' : 'destructive'}
-        title={s.environment.production ? 'Live system: messages reach real people' : undefined}
         message={dirty ? `${summary.text} (not saved yet)` : summary.text}
       />
       {!canManage ? <Banner variant="info" message="You can look but not change these settings." /> : null}
