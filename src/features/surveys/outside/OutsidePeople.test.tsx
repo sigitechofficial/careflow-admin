@@ -145,6 +145,18 @@ describe('Outside people', () => {
     expect(screen.queryByTestId('send-outside-family-su2')).not.toBeInTheDocument()
   })
 
+  it('send to people: says who has no email or mobile, and adding one opens their details', async () => {
+    apiJson.mockImplementation(async (raw: unknown) => {
+      const url = String(raw ?? '')
+      if (url.startsWith('/survey-outside-people/contacts')) return { data: [{ ...contact, id: 'x-henry', kind: 'FAMILY', name: 'Henry', organisation: null, email: null, mobile: null }] }
+      return { data: [] }
+    })
+    wrap(<SendOutsideDialog surveyId="s1" open onOpenChange={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Henry has no email or mobile: add one' }))
+    expect(await screen.findByText('Change outside person')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Henry')).toBeInTheDocument()
+  })
+
   it('a person’s record lists surveys about them', async () => {
     apiJson.mockResolvedValue({ data: [{ id: 's9', title: 'GP views on Ada’s care', status: 'ACTIVE', targetKind: 'PUBLIC', createdAt: '2026-11-01T10:00:00Z', closesAt: null, sentTo: 2 }] })
     wrap(<SurveysAboutPersonSection serviceUserId="su1" />)

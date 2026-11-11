@@ -116,7 +116,11 @@ export function useFamiliesOf(serviceUserIds: string[]) {
 
 function useInvalidate() {
   const qc = useQueryClient()
-  return () => void qc.invalidateQueries({ queryKey: key })
+  return () => {
+    void qc.invalidateQueries({ queryKey: key })
+    // Who can be sent a survey may change (e.g. an email added from Send to people).
+    void qc.invalidateQueries({ queryKey: ['surveys', 'send-outside-check'] })
+  }
 }
 
 export function useSaveOutsideContact() {

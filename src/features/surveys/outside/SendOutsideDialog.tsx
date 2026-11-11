@@ -22,8 +22,10 @@ import {
   useOutsideLists,
   useSendOutside,
   useSendOutsideCheck,
+  type OutsideContact,
   type SendOutsideInput,
 } from './survey-outside'
+import { ContactDialog } from './OutsidePeoplePage'
 
 /**
  * Send a named public survey to outside people, each with their own link (email, and text when the survey's
@@ -70,6 +72,25 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
     setFamilyIds(v => v.filter(x => !theirs.has(x)))
   }
   const canContact = (f: { consent: boolean; reachable: boolean }) => f.consent && f.reachable
+  // An outside person opened to add their missing email or mobile.
+  const [editingContact, setEditingContact] = React.useState<OutsideContact | null>(null)
+  const linkClass = 'font-medium text-primary underline underline-offset-2'
+  /** "no email or mobile": a family member's details are kept on Contacts and Family of the person we support. */
+  const familyNoDetails = (serviceUserId: string, name: string) => (
+    <>
+      {' · '}
+      <Link
+        to="/service-users/$serviceUserId/profile"
+        params={{ serviceUserId }}
+        search={{ tab: 'contacts' }}
+        className={linkClass}
+        onClick={() => onOpenChange(false)}
+        aria-label={`${name} has no email or mobile: add one in Contacts and Family`}
+      >
+        no email or mobile – add in Contacts and Family
+      </Link>
+    </>
+  )
 
   // A family member listed under "Families of…" is also an outside person in People: the two tick boxes are one choice.
   const familyById = React.useMemo(() => new Map((families ?? []).map(f => [f.sourceId, f])), [families])
@@ -179,7 +200,8 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
                           {f.name}
                           <span className="text-xs text-muted-foreground">
                             {f.relationship ? ` · ${f.relationship}` : ''}
-                            {!f.consent ? ' · has not agreed to surveys' : !f.reachable ? ' · no email or mobile' : ''}
+                            {!f.consent ? ' · has not agreed to surveys' : null}
+                            {!f.reachable ? familyNoDetails(f.serviceUserId, f.name) : null}
                           </span>
                         </span>
                       </label>
@@ -249,6 +271,30 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
                         {OUTSIDE_KIND_LABEL[c.kind]}
                         {c.organisation ? `, ${c.organisation}` : ''}
                         {c.optedOut.includes('ALL') ? ' · does not want surveys' : fam ? ` · family of ${fam.aboutName ?? 'someone above'}` : ''}
+                        {fam ? (
+                          !fam.reachable ? familyNoDetails(fam.serviceUserId, c.name) : null
+                        ) : !c.email && !c.mobile ? (
+                          c.sourceType === 'SERVICE_USER_CONTACT' && c.serviceUserId ? (
+                            familyNoDetails(c.serviceUserId, c.name)
+                          ) : c.canChange ? (
+                            <>
+                              {' · '}
+                              <button
+                                type="button"
+                                className={linkClass}
+                                onClick={e => {
+                                  e.preventDefault()
+                                  setEditingContact(c)
+                                }}
+                                aria-label={`${c.name} has no email or mobile: add one`}
+                              >
+                                no email or mobile – add
+                              </button>
+                            </>
+                          ) : (
+                            ' · no email or mobile (change it where they are recorded)'
+                          )
+                        ) : null}
                       </span>
                     </span>
                   </label>
@@ -322,6 +368,7 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
           </Button>
         </DialogFooter>
       </DialogContent>
+      {editingContact ? <ContactDialog contact={editingContact} onClose={() => setEditingContact(null)} /> : null}
     </Dialog>
   )
 }
