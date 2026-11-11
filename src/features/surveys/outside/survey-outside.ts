@@ -20,6 +20,8 @@ export type OutsideContact = {
   mobile: string | null
   phone: string | null
   sourceType: 'TYPED' | 'SERVICE_USER_CONTACT' | 'FUNDER' | 'PATHWAY_PROFESSIONAL'
+  /** A family member's People involved record (sourceType SERVICE_USER_CONTACT); matches FamilyContact.sourceId. */
+  sourceId?: string | null
   serviceUserId: string | null
   locationIds: string[]
   listIds: string[]

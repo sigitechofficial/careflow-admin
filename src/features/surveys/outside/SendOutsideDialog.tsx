@@ -71,6 +71,18 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
   }
   const canContact = (f: { consent: boolean; reachable: boolean }) => f.consent && f.reachable
 
+  // A family member listed under "Families of…" is also an outside person in People: the two tick boxes are one choice.
+  const familyById = React.useMemo(() => new Map((families ?? []).map(f => [f.sourceId, f])), [families])
+  const familyOf = (c: { sourceType: string; sourceId?: string | null }) =>
+    c.sourceType === 'SERVICE_USER_CONTACT' && c.sourceId ? familyById.get(c.sourceId) : undefined
+  // Someone ticked in People whose family is then listed above: keep one tick, on the family member.
+  React.useEffect(() => {
+    const moved = (contacts ?? []).filter(c => contactIds.includes(c.id) && familyOf(c) && canContact(familyOf(c)!))
+    if (!moved.length) return
+    setFamilyIds(v => [...new Set([...v, ...moved.map(c => c.sourceId!)])])
+    setContactIds(v => v.filter(id => !moved.some(m => m.id === id)))
+  }, [familyById, contacts])
+
   const input: SendOutsideInput = {
     contactIds,
     listIds,
@@ -219,26 +231,29 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
             <legend className="text-sm font-medium">People</legend>
             <Input placeholder="Search outside people" value={search} onChange={e => setSearch(e.target.value)} aria-label="Search outside people" />
             <div className="max-h-48 space-y-1 overflow-y-auto">
-              {(contacts ?? []).map(c => (
-                <label key={c.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-input"
-                    checked={contactIds.includes(c.id)}
-                    disabled={c.optedOut.includes('ALL')}
-                    onChange={e => toggle(setContactIds, c.id, e.target.checked)}
-                  />
-                  <span>
-                    {c.name}
-                    <span className="text-xs text-muted-foreground">
-                      {' · '}
-                      {OUTSIDE_KIND_LABEL[c.kind]}
-                      {c.organisation ? `, ${c.organisation}` : ''}
-                      {c.optedOut.includes('ALL') ? ' · does not want surveys' : ''}
+              {(contacts ?? []).map(c => {
+                const fam = familyOf(c)
+                return (
+                  <label key={c.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input"
+                      checked={fam ? familyIds.includes(fam.sourceId) : contactIds.includes(c.id)}
+                      disabled={c.optedOut.includes('ALL') || (fam ? !canContact(fam) : false)}
+                      onChange={e => (fam ? toggle(setFamilyIds, fam.sourceId, e.target.checked) : toggle(setContactIds, c.id, e.target.checked))}
+                    />
+                    <span>
+                      {c.name}
+                      <span className="text-xs text-muted-foreground">
+                        {' · '}
+                        {OUTSIDE_KIND_LABEL[c.kind]}
+                        {c.organisation ? `, ${c.organisation}` : ''}
+                        {c.optedOut.includes('ALL') ? ' · does not want surveys' : fam ? ` · family of ${fam.aboutName ?? 'someone above'}` : ''}
+                      </span>
                     </span>
-                  </span>
-                </label>
-              ))}
+                  </label>
+                )
+              })}
             </div>
           </fieldset>
 

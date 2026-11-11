@@ -114,6 +114,10 @@ describe('Outside people', () => {
       }
       if (url.endsWith('/send-outside/check')) return { data: { total: 3, sendNow: 3, heldBack: 0, held: [], already: 0, optedOut: 0, noDetails: 0, noConsent: 0 } }
       if (url.endsWith('/send-outside')) return { message: 'Sent to 3 people', data: { sent: 3 } }
+      // Ann Hart is also an outside person (made from her People involved record c3).
+      if (url.startsWith('/survey-outside-people/contacts')) {
+        return { data: [{ ...contact, id: 'x-ann', kind: 'FAMILY', name: 'Ann Hart', organisation: null, sourceType: 'SERVICE_USER_CONTACT', sourceId: 'c3', serviceUserId: 'su2' }] }
+      }
       return { data: [] }
     })
     wrap(<SendOutsideDialog surveyId="s1" open onOpenChange={vi.fn()} />)
@@ -129,9 +133,16 @@ describe('Outside people', () => {
     expect([...body.familyContactIds].sort()).toEqual(['c1', 'c3', 'c4'])
     expect(body.aboutServiceUserId).toBeUndefined()
 
+    // The same family member in People is ticked too, and is one choice with the tick above.
+    const ann = screen.getAllByRole('checkbox').filter(b => b.closest('label')?.textContent?.startsWith('Ann Hart'))
+    expect(ann).toHaveLength(2)
+    expect(ann.every(b => (b as HTMLInputElement).checked)).toBe(true)
+    fireEvent.click(ann[1]!)
+    expect(ann.every(b => !(b as HTMLInputElement).checked)).toBe(true)
+
     // Removing a person also unticks their family.
     fireEvent.click(screen.getByRole('button', { name: 'Remove Tom Hart' }))
-    expect(screen.queryByText('Ann Hart')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('send-outside-family-su2')).not.toBeInTheDocument()
   })
 
   it('a person’s record lists surveys about them', async () => {
