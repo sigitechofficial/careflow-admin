@@ -79,6 +79,7 @@ function ReviewerFlow({ mode, userId, onDone }: { mode: 'add' | 'grant'; userId?
     return (
       <AddReviewerDialog
         surveyId={surveyId}
+        allSurveyIds={chosen}
         onClose={onDone}
         onAdded={id => {
           setReviewerId(id)
@@ -114,7 +115,7 @@ function ReviewerFlow({ mode, userId, onDone }: { mode: 'add' | 'grant'; userId?
           <DialogTitle>{mode === 'add' ? 'Add a reviewer' : 'Give access to surveys'}</DialogTitle>
           <DialogDescription>
             {mode === 'add'
-              ? 'Which surveys will they review? Next you enter their name and email (they are emailed a link to set a password), then the people and dates for each survey.'
+              ? 'Which surveys? Next you choose who records the answers: an independent reviewer added before, a new one, or staff who run surveys.'
               : 'Which surveys? Next you choose the people and dates for each one.'}
           </DialogDescription>
         </DialogHeader>
