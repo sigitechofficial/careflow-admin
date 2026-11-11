@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Combobox } from '@/shared/ui/combobox'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardList, Loader2, ShieldCheck, UserCheck, UserPlus } from 'lucide-react'
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
@@ -146,6 +147,27 @@ export function SurveyReviewersPanel({ surveyId, canEdit }: { surveyId: string; 
 /** "Add a reviewer": the account (name, email); they choose their own password from the emailed link. */
 export function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: string; onClose: () => void; onAdded: (userId?: string) => void }) {
   const qc = useQueryClient()
+  const existing = useQuery({
+    queryKey: reviewersKey(surveyId),
+    queryFn: async () => (await apiJson<ApiEnvelope<ReviewersData>>(`/surveys/${surveyId}/reviewers`, { method: 'GET' })).data,
+  })
+  const previous = existing.data?.accounts ?? []
+  const [way, setWay] = React.useState<'previous' | 'new' | 'staff' | null>(null)
+  // Open on the reviewers added before when there are any; otherwise on a new one.
+  const shownWay = way ?? (existing.isLoading || previous.length ? 'previous' : 'new')
+  const [previousSearch, setPreviousSearch] = React.useState('')
+  const [previousId, setPreviousId] = React.useState('')
+  const staff = useQuery({
+    queryKey: ['surveys', 'reviewers', surveyId, 'survey-staff'],
+    queryFn: async () =>
+      (
+        await apiJson<ApiEnvelope<{ staff: Array<{ id: string; name: string; email: string; roles: string[]; branches: string[] }> }>>(
+          `/surveys/${surveyId}/reviewers/survey-staff`,
+          { method: 'GET' },
+        )
+      ).data?.staff ?? [],
+    enabled: shownWay === 'staff',
+  })
   const [firstName, setFirstName] = React.useState('')
   const [lastName, setLastName] = React.useState('')
   const [email, setEmail] = React.useState('')
@@ -155,6 +177,30 @@ export function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: st
   const [checkedFor, setCheckedFor] = React.useState('')
   const [weighed, setWeighed] = React.useState(false)
   const [declaration, setDeclaration] = React.useState('')
+  // Choose someone already in CareFlow (outside contacts, family contacts, former staff) to fill in the details.
+  const [knownSearch, setKnownSearch] = React.useState('')
+  const [knownId, setKnownId] = React.useState('')
+  const known = useQuery({
+    queryKey: ['surveys', 'reviewers', surveyId, 'known-people', knownSearch],
+    queryFn: async () =>
+      (
+        await apiJson<
+          ApiEnvelope<{
+            people: Array<{ id: string; firstName: string; lastName: string; email: string; source: string; typeLabel: string; detail: string }>
+          }>
+        >(`/surveys/${surveyId}/reviewers/known-people?search=${encodeURIComponent(knownSearch)}`, { method: 'GET' })
+      ).data?.people ?? [],
+    enabled: knownSearch.trim().length >= 2,
+    staleTime: 30_000,
+  })
+  const pickKnown = (id: string) => {
+    setKnownId(id)
+    const p = known.data?.find(x => x.id === id)
+    if (!p) return
+    setFirstName(p.firstName)
+    setLastName(p.lastName)
+    setEmail(p.email)
+  }
   const who = `${firstName.trim()}|${lastName.trim()}|${email.trim().toLowerCase()}`
   const add = useMutation({
     mutationFn: async () => {
@@ -201,13 +247,117 @@ export function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: st
       <DialogContent className="max-w-lg" data-testid="add-reviewer-dialog">
         <DialogHeader>
           <DialogTitle>Add a reviewer</DialogTitle>
-          <DialogDescription>
-            Makes a CareFlow account for the reviewer with the Independent reviewer role only: no other access and no branch.
-            Use their own email, not a staff email. They are emailed a link to choose their own password; nobody else sets or
-            sees it. Then give them access to this survey.
-          </DialogDescription>
+          <DialogDescription>Choose who will record answers on this survey.</DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
+          <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1 text-xs" role="tablist" aria-label="Who">
+            {(
+              [
+                ['previous', `Reviewers added before${previous.length ? ` (${previous.length})` : ''}`],
+                ['new', 'New independent reviewer'],
+                ['staff', 'Staff who run surveys'],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={shownWay === k}
+                className={`rounded px-2 py-1.5 font-medium ${shownWay === k ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => setWay(k)}
+                data-testid={`reviewer-way-${k}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {shownWay === 'previous' ? (
+            <div className="space-y-2" data-testid="reviewer-previous">
+              <p className="text-xs text-muted-foreground">Independent reviewers already in CareFlow. No new account is made: next you give them access to this survey.</p>
+              {previous.length > 6 ? (
+                <Input placeholder="Search reviewers" value={previousSearch} onChange={e => setPreviousSearch(e.target.value)} aria-label="Search reviewers" />
+              ) : null}
+              <div className="max-h-64 space-y-1 overflow-y-auto">
+                {existing.isLoading ? <p className="py-3 text-sm text-muted-foreground">Loading…</p> : null}
+                {existing.isError ? (
+                  <p className="py-3 text-sm text-destructive" role="alert">Couldn’t load reviewers: {(existing.error as Error).message}</p>
+                ) : null}
+                {previous
+                  .filter(a => !previousSearch.trim() || `${a.name} ${a.email}`.toLowerCase().includes(previousSearch.trim().toLowerCase()))
+                  .map(a => (
+                    <label
+                      key={a.id}
+                      className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm ${previousId === a.id ? 'border-primary/50 bg-primary/5' : ''} ${a.active ? '' : 'opacity-60'}`}
+                    >
+                      <input type="radio" className="mt-1" name="previous-reviewer" disabled={!a.active} checked={previousId === a.id} onChange={() => setPreviousId(a.id)} />
+                      <span>
+                        <span className="font-medium">{a.name}</span> <span className="text-xs text-muted-foreground">· Independent reviewer</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {a.email}
+                          {a.active ? '' : ' · account switched off (switch it on in Settings › Users)'}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                {existing.isSuccess && !previous.length ? <p className="py-3 text-sm text-muted-foreground">No reviewers yet. Add a new independent reviewer.</p> : null}
+              </div>
+            </div>
+          ) : null}
+
+          {shownWay === 'staff' ? (
+            <div className="space-y-2" data-testid="reviewer-staff">
+              <p className="rounded-md bg-sky-500/10 px-2.5 py-1.5 text-xs text-sky-800 dark:text-sky-300">
+                These staff have the “Record survey responses” responsibility. They collect answers by phone, on paper or in person from{' '}
+                <strong>Surveys › To collect</strong>, and their answers count as the office’s. Staff can’t be independent reviewers: an
+                independent review needs someone from outside. To add someone here, give their role that responsibility (Settings › Roles).
+              </p>
+              <div className="max-h-64 space-y-1 overflow-y-auto">
+                {staff.isLoading ? <p className="py-3 text-sm text-muted-foreground">Loading…</p> : null}
+                {staff.isError ? (
+                  <p className="py-3 text-sm text-destructive" role="alert">Couldn’t load staff: {(staff.error as Error).message}</p>
+                ) : null}
+                {(staff.data ?? []).map(u => (
+                  <div key={u.id} className="rounded-md border px-3 py-2 text-sm">
+                    <span className="font-medium">{u.name}</span> <span className="text-xs text-muted-foreground">· {u.roles.join(', ') || 'Staff'}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {u.email}
+                      {u.branches.length ? ` · ${u.branches.join(', ')}` : ''}
+                    </span>
+                  </div>
+                ))}
+                {staff.data && !staff.data.length ? <p className="py-3 text-sm text-muted-foreground">No staff have that responsibility yet.</p> : null}
+              </div>
+            </div>
+          ) : null}
+
+          {shownWay === 'new' ? (
+          <>
+          <p className="text-xs text-muted-foreground">
+            Makes a CareFlow account with the Independent reviewer role only: no other access and no branch. Use their own email,
+            not a staff email. They are emailed a link to choose their own password; nobody else sets or sees it. Then give them
+            access to this survey.
+          </p>
+          <div className="space-y-1" data-testid="reviewer-known-people">
+            <span className="block text-sm font-medium">Choose someone already in CareFlow (optional)</span>
+            <Combobox
+              options={(known.data ?? []).filter(p => p.source !== 'REVIEWER').map(p => ({
+                value: p.id,
+                // What they are, with the name, so a reviewer, a social worker and a relative are never confused.
+                label: `${`${p.firstName} ${p.lastName}`.trim()} · ${p.typeLabel}`,
+                description: `${p.detail}${p.email ? ` · ${p.email}` : ' · no email on file'}`,
+              }))}
+              value={knownId}
+              onChange={pickKnown}
+              onSearchChange={setKnownSearch}
+              loading={known.isFetching}
+              placeholder="Search outside contacts, family contacts and former staff"
+              searchPlaceholder="Type at least 2 letters"
+              emptyText={knownSearch.trim().length < 2 ? 'Type at least 2 letters' : 'Nobody found'}
+              aria-label="Choose someone already in CareFlow"
+            />
+            <p className="text-xs text-muted-foreground">Or type their details below. Current staff can’t be reviewers.</p>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <label htmlFor="reviewer-first-name" className="block text-sm font-medium">
@@ -255,15 +405,24 @@ export function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: st
               />
             </div>
           ) : null}
+          </>
+          ) : null}
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => add.mutate()} disabled={!ready || add.isPending}>
-            {add.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden /> : null}
-            {checkedFor === who ? 'Make the account' : 'Check and make the account'}
-          </Button>
+          {shownWay === 'previous' ? (
+            <Button type="button" disabled={!previousId} onClick={() => onAdded(previousId)} data-testid="use-existing-reviewer">
+              Give them access
+            </Button>
+          ) : null}
+          {shownWay === 'new' ? (
+            <Button type="button" onClick={() => add.mutate()} disabled={!ready || add.isPending}>
+              {add.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden /> : null}
+              {checkedFor === who ? 'Make the account' : 'Check and make the account'}
+            </Button>
+          ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>

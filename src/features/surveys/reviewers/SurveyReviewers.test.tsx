@@ -65,6 +65,62 @@ describe('Independent reviewers', () => {
     expect(await screen.findByTestId('grant-reviewer-dialog')).toBeInTheDocument()
   })
 
+  it('"Add a reviewer" opens on reviewers added before: one is chosen as they are, with no new account', async () => {
+    apiJson.mockImplementation(async (rawUrl: unknown, init: { method?: string } = {}) => {
+      const url = String(rawUrl)
+      if (url === '/surveys/s1/reviewers' && init.method === 'GET') {
+        return {
+          data: {
+            anonymousOnly: true,
+            grants: [],
+            accounts: [
+              { id: 'rev-1', name: 'Rita Review', email: 'rita@review.example', active: true },
+              { id: 'rev-2', name: 'Old Reviewer', email: 'old@review.example', active: false },
+            ],
+          },
+        }
+      }
+      if (url === '/surveys/s1/reviewers/survey-staff') {
+        return { data: { staff: [{ id: 'u-1', name: 'Sam Office', email: 'sam@care.example', roles: ['Care coordinator'], branches: ['North'] }] } }
+      }
+      return { data: {} }
+    })
+    wrap(<SurveyReviewersPanel surveyId="s1" canEdit />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a reviewer' }))
+    const previous = await screen.findByTestId('reviewer-previous')
+    expect(screen.getByRole('tab', { name: /Reviewers added before \(2\)/ })).toHaveAttribute('aria-selected', 'true')
+    expect(previous).toHaveTextContent('Rita Review · Independent reviewer')
+    expect(previous).toHaveTextContent('account switched off')
+    const radios = screen.getAllByRole('radio')
+    expect(radios[1]).toBeDisabled()
+    const use = screen.getByTestId('use-existing-reviewer')
+    expect(use).toBeDisabled()
+    await userEvent.click(radios[0])
+    await userEvent.click(use)
+    // No new account: straight to giving access.
+    expect(apiJson.mock.calls.some(([url]) => url === '/surveys/s1/reviewers/accounts')).toBe(false)
+    expect(await screen.findByTestId('grant-reviewer-dialog')).toBeInTheDocument()
+  })
+
+  it('"Staff who run surveys" lists staff with the responsibility and offers no way to give them reviewer access', async () => {
+    apiJson.mockImplementation(async (rawUrl: unknown, init: { method?: string } = {}) => {
+      const url = String(rawUrl)
+      if (url === '/surveys/s1/reviewers' && init.method === 'GET') return { data: { anonymousOnly: true, grants: [], accounts: [] } }
+      if (url === '/surveys/s1/reviewers/survey-staff') {
+        return { data: { staff: [{ id: 'u-1', name: 'Sam Office', email: 'sam@care.example', roles: ['Care coordinator'], branches: ['North'] }] } }
+      }
+      return { data: {} }
+    })
+    wrap(<SurveyReviewersPanel surveyId="s1" canEdit />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a reviewer' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Staff who run surveys' }))
+    const staff = await screen.findByTestId('reviewer-staff')
+    expect(await screen.findByText('Sam Office')).toBeInTheDocument()
+    expect(staff).toHaveTextContent('Care coordinator')
+    expect(staff).toHaveTextContent('Staff can’t be independent reviewers')
+    expect(screen.queryByRole('button', { name: /make the account|give them access/i })).toBeNull()
+  })
+
   it('someone already connected to us: the links are shown and a declaration is needed before the account is made', async () => {
     apiJson.mockImplementation(async (rawUrl: unknown, init: { method?: string } = {}) => {
       const url = String(rawUrl)
