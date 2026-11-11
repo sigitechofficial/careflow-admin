@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Info, Loader2 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { Button } from '@/shared/ui/button'
 import {
   Dialog,
@@ -12,12 +13,12 @@ import {
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { useOverCareForWeek } from '@/features/timebank/hooks/useTimebank'
 import type { OverCareForWeek, TimebankOverCare, TimebankOverCareSetting } from '@/features/timebank/types'
-import { formatMinutes, shiftWeek } from '@/features/timebank/timebank-format'
+import { formatMinutes } from '@/features/timebank/timebank-format'
 
 /**
- * Info tag where over care shows (docs/SU_OVER_CARE_ADJUST_PLAN.md): the week's over care and what
- * the next week did (or will do) about it, with "See visits". On a week whose hours were lowered
- * for the week before, it says so instead.
+ * Info tag where over care shows (docs/SU_OVER_CARE_ADJUST_PLAN.md): the week's over care and its
+ * review (Workforce › Over care reviews: pending, action taken or no action needed), with "See
+ * visits". On a week whose hours were lowered for an earlier week's over care, it says so instead.
  */
 export function OverCareTag({
   serviceUserId,
@@ -38,19 +39,21 @@ export function OverCareTag({
 }) {
   const { formatDate } = useOrganisationDisplayFormat()
   const [openWeek, setOpenWeek] = React.useState<string | null>(null)
-  const nextWeek = shiftWeek(weekStart, 1)
 
   let text: string | null = null
   if (adjustment) {
-    text =
-      `Over care given — ${formatMinutes(adjustment.takenBackMinutes)} taken back in the week of ${formatDate(adjustment.adjustWeekStart)}` +
-      ` (${adjustment.cancelledVisits} visit${adjustment.cancelledVisits === 1 ? '' : 's'} cancelled)` +
-      (adjustment.notTakenBackMinutes > 0 ? `; ${formatMinutes(adjustment.notTakenBackMinutes)} not taken back` : '')
+    if (adjustment.reviewStatus === 'PENDING') text = 'Over care given — waiting for a manager to review it'
+    else if (adjustment.reviewStatus === 'NO_ACTION_NEEDED') text = 'Over care given — reviewed, no action needed'
+    else
+      text =
+        `Over care given — ${formatMinutes(adjustment.takenBackMinutes)} taken back` +
+        (adjustment.adjustWeekStart ? ` from the week of ${formatDate(adjustment.adjustWeekStart)}` : '') +
+        ` (${adjustment.cancelledVisits} visit${adjustment.cancelledVisits === 1 ? '' : 's'} cancelled)` +
+        (adjustment.notTakenBackMinutes > 0 ? `; ${formatMinutes(adjustment.notTakenBackMinutes)} not taken back` : '')
   } else if (overMinutes > 0 && setting) {
-    if (!setting.on) text = 'Over care given — not taken back (setting off)'
-    else if (setting.from && weekStart < setting.from) text = null
-    else if (nextWeek < currentWeekStart) text = 'Over care given — not taken back'
-    else text = `Over care given — visits in the week of ${formatDate(nextWeek)} may be cancelled to take it back`
+    if (setting.from && weekStart < setting.from) text = null
+    else if (weekStart >= currentWeekStart) text = 'Over care so far — a manager review is raised once the week ends'
+    else text = 'Over care given — a manager review will be raised by the weekly check'
   }
 
   return (
@@ -88,17 +91,15 @@ export function OverCareTag({
 }
 
 const STATUS_TEXT: Record<OverCareForWeek['status'], string> = {
-  DONE: 'Taken back: these visits were cancelled (no charge). Each visit has the reason.',
-  WILL_CANCEL:
-    'These visits will be cancelled (no charge) when the nightly run takes the over care back. Visits on the day it runs are kept.',
-  NOTHING: 'No over care to take back, once timebank-paid and manager-approved hours are left out.',
-  OFF: 'Settings → Dom Rules "Reduce next week\'s visits after over care" is off: nothing is cancelled.',
-  NOT_ELIGIBLE: 'This week is before over care started being taken back: nothing is cancelled.',
-  NOT_ADJUSTED: 'The next week has passed without taking it back: nothing is cancelled.',
-  NO_PLAN: 'The service user has no active visit plan: no visits can be cancelled.',
+  DONE: 'Action taken: these visits were cancelled (no charge). Each visit has the reason.',
+  PENDING_REVIEW: 'Waiting for a manager to review it. Nothing has been cancelled.',
+  NO_ACTION: 'Reviewed: no action needed. Nothing was cancelled.',
+  WILL_REVIEW: 'A manager review is raised by the weekly check once the week has finished. Nothing is cancelled by itself.',
+  NOTHING: 'No over care, once hours paid from the timebank are left out.',
+  NOT_ELIGIBLE: 'This week is before over care started being checked.',
 }
 
-/** "See visits": the week's over care and the next week's visits it took back, or would. */
+/** "See visits": the week's over care, its review and the visits cancelled for it. */
 export function OverCareDialog({
   serviceUserId,
   weekStart,
@@ -116,9 +117,9 @@ export function OverCareDialog({
     <Dialog open={weekStart != null} onOpenChange={next => (!next ? onClose() : undefined)}>
       <DialogContent className="max-w-2xl" data-testid="over-care-dialog">
         <DialogHeader className="px-6 py-5 pr-12">
-          <DialogTitle>Over care taken back</DialogTitle>
+          <DialogTitle>Over care</DialogTitle>
           <DialogDescription className="pt-1">
-            {weekStart ? `Week of ${formatDate(weekStart)} and the week after.` : null}
+            {weekStart ? `Week of ${formatDate(weekStart)}.` : null}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4 px-6 py-5 text-sm">
@@ -138,7 +139,7 @@ export function OverCareDialog({
                   <dd className="font-medium tabular-nums">{formatMinutes(d.careGivenMinutes)}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Left out (timebank / approved)</dt>
+                  <dt className="text-muted-foreground">Paid from timebank</dt>
                   <dd className="font-medium tabular-nums">{formatMinutes(d.excludedMinutes)}</dd>
                 </div>
                 <div>
@@ -148,14 +149,28 @@ export function OverCareDialog({
               </dl>
               <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
                 {STATUS_TEXT[d.status]}
-                {d.status === 'DONE' || d.status === 'WILL_CANCEL' ? (
+                {d.status === 'DONE' ? (
                   <>
                     {' '}
-                    Week of {formatDate(d.adjustWeekStart)}: {formatMinutes(d.takenBackMinutes)} taken back
+                    {formatMinutes(d.takenBackMinutes)} taken back
                     {d.cancelledMinutes > 0 ? ` (${formatMinutes(d.cancelledMinutes)} of visits)` : ''}
-                    {d.notTakenBackMinutes > 0 ? `, ${formatMinutes(d.notTakenBackMinutes)} not taken back (not enough visits left)` : ''}.
-                    {d.projected ? ' This week has not finished, so the numbers can change.' : ''}
+                    {d.notTakenBackMinutes > 0 ? `, ${formatMinutes(d.notTakenBackMinutes)} not taken back` : ''}.
                   </>
+                ) : null}
+                {d.projected ? ' This week has not finished, so the numbers can change.' : ''}
+                {d.decisionNote ? (
+                  <span className="mt-1 block text-muted-foreground">
+                    {d.status === 'NO_ACTION' ? 'Reason' : 'Note'}: {d.decisionNote}
+                  </span>
+                ) : null}
+                {d.reviewId ? (
+                  <Link
+                    to="/over-care-reviews"
+                    search={{ tab: d.status === 'PENDING_REVIEW' ? 'pending' : d.status === 'DONE' ? 'action-taken' : 'no-action-needed' }}
+                    className="mt-1 block font-medium text-primary underline"
+                  >
+                    Open in Over care reviews
+                  </Link>
                 ) : null}
               </p>
               {d.visits.length ? (
@@ -175,8 +190,6 @@ export function OverCareDialog({
                     </li>
                   ))}
                 </ul>
-              ) : d.status === 'DONE' || d.status === 'WILL_CANCEL' ? (
-                <p className="text-xs text-muted-foreground">No visits need cancelling: the next week is already within the lower hours.</p>
               ) : null}
               <div className="flex justify-end">
                 <Button type="button" variant="outline" size="sm" onClick={onClose}>
