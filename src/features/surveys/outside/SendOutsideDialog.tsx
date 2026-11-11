@@ -75,8 +75,10 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
   // An outside person opened to add their missing email or mobile.
   const [editingContact, setEditingContact] = React.useState<OutsideContact | null>(null)
   const linkClass = 'font-medium text-primary underline underline-offset-2'
-  /** "no email or mobile": a family member's details are kept on Contacts and Family of the person we support. */
-  const familyNoDetails = (serviceUserId: string, name: string) => (
+  /** What is missing: with a mobile but a survey sent by email only, it is the email. */
+  const missing = (emailOnly: boolean) => (emailOnly ? 'no email (this survey is sent by email only)' : 'no email or mobile')
+  /** A family member's details are kept on Contacts and Family of the person we support. */
+  const familyNoDetails = (serviceUserId: string, name: string, emailOnly = false) => (
     <>
       {' · '}
       <Link
@@ -85,9 +87,9 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
         search={{ tab: 'contacts' }}
         className={linkClass}
         onClick={() => onOpenChange(false)}
-        aria-label={`${name} has no email or mobile: add one in Contacts and Family`}
+        aria-label={`${name} has ${missing(emailOnly)}: add it in Contacts and Family`}
       >
-        no email or mobile – add in Contacts and Family
+        {missing(emailOnly)} – add in Contacts and Family
       </Link>
     </>
   )
@@ -104,14 +106,34 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
     setContactIds(v => v.filter(id => !moved.some(m => m.id === id)))
   }, [familyById, contacts])
 
+  // Outside people seen so far (the list changes with the search), to know whose family a chosen one is.
+  const seen = React.useRef(new Map<string, OutsideContact>())
+  for (const c of contacts ?? []) seen.current.set(c.id, c)
+  // Family of someone else, chosen in People or through a list: the survey is then not about one person.
+  const familyOfOthers = person
+    ? [...seen.current.values()].filter(
+        c =>
+          c.sourceType === 'SERVICE_USER_CONTACT' &&
+          c.serviceUserId &&
+          c.serviceUserId !== person.id &&
+          (contactIds.includes(c.id) || c.listIds.some(id => listIds.includes(id))),
+      )
+    : []
+  const aboutOffered = Boolean(person && familyIds.length && familyOfOthers.length === 0)
+
   const input: SendOutsideInput = {
     contactIds,
     listIds,
     familyContactIds: familyIds,
-    ...(person && familyIds.length && about ? { aboutServiceUserId: person.id } : {}),
+    ...(person && aboutOffered && about ? { aboutServiceUserId: person.id } : {}),
   }
   const chosen = contactIds.length + listIds.length + familyIds.length
   const { data: check } = useSendOutsideCheck(surveyId, input, open && chosen > 0)
+  // Chosen people this survey cannot reach (from the check), by outside person and by family record.
+  const unreachable = check?.noDetailsPeople ?? []
+  const unreachableById = new Map(unreachable.map(u => [u.id, u]))
+  const unreachableFamily = new Map(unreachable.filter(u => u.sourceType === 'SERVICE_USER_CONTACT' && u.sourceId).map(u => [u.sourceId!, u]))
+  const emailOnly = (u?: { hasMobile: boolean }) => Boolean(u?.hasMobile && !check?.textOn)
   const send = useSendOutside(surveyId)
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, id: string, on: boolean) => setter(v => (on ? [...v, id] : v.filter(x => x !== id)))
 
@@ -201,7 +223,9 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
                           <span className="text-xs text-muted-foreground">
                             {f.relationship ? ` · ${f.relationship}` : ''}
                             {!f.consent ? ' · has not agreed to surveys' : null}
-                            {!f.reachable ? familyNoDetails(f.serviceUserId, f.name) : null}
+                            {!f.reachable || unreachableFamily.has(f.sourceId)
+                              ? familyNoDetails(f.serviceUserId, f.name, emailOnly(unreachableFamily.get(f.sourceId)))
+                              : null}
                           </span>
                         </span>
                       </label>
@@ -225,11 +249,16 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
                 </div>
               )
             })}
-            {person && familyIds.length ? (
+            {person && aboutOffered ? (
               <label className="flex items-center gap-2 pt-1 text-sm">
                 <input type="checkbox" className="h-4 w-4 rounded border-input" checked={about} onChange={e => setAbout(e.target.checked)} />
                 This survey is about {person.name}’s care (found from their record)
               </label>
+            ) : person && familyIds.length && familyOfOthers.length ? (
+              <p className="text-xs text-muted-foreground">
+                {familyOfOthers.map(c => c.name).join(', ')} {familyOfOthers.length === 1 ? 'is' : 'are'} family of someone else we support, so the
+                survey is not linked to {person.name}’s record. Each family member still gets their own link.
+              </p>
             ) : people.length > 1 && familyIds.length ? (
               <p className="text-xs text-muted-foreground">
                 Several people are chosen, so the survey is not linked to one person’s record. Each family member still gets their own link.
@@ -271,12 +300,14 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
                         {OUTSIDE_KIND_LABEL[c.kind]}
                         {c.organisation ? `, ${c.organisation}` : ''}
                         {c.optedOut.includes('ALL') ? ' · does not want surveys' : fam ? ` · family of ${fam.aboutName ?? 'someone above'}` : ''}
-                        {fam ? (
-                          !fam.reachable ? familyNoDetails(fam.serviceUserId, c.name) : null
-                        ) : !c.email && !c.mobile ? (
-                          c.sourceType === 'SERVICE_USER_CONTACT' && c.serviceUserId ? (
-                            familyNoDetails(c.serviceUserId, c.name)
-                          ) : c.canChange ? (
+                        {(() => {
+                          const u = unreachableById.get(c.id) ?? (fam ? unreachableFamily.get(fam.sourceId) : undefined)
+                          const only = emailOnly(u)
+                          if (fam) return !fam.reachable || u ? familyNoDetails(fam.serviceUserId, c.name, only) : null
+                          if (!u && (c.email || c.mobile)) return null
+                          if (c.sourceType === 'SERVICE_USER_CONTACT' && c.serviceUserId) return familyNoDetails(c.serviceUserId, c.name, only)
+                          if (!c.canChange) return ` · ${missing(only)} (change it where they are recorded)`
+                          return (
                             <>
                               {' · '}
                               <button
@@ -286,15 +317,13 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
                                   e.preventDefault()
                                   setEditingContact(c)
                                 }}
-                                aria-label={`${c.name} has no email or mobile: add one`}
+                                aria-label={`${c.name} has ${missing(only)}: add it`}
                               >
-                                no email or mobile – add
+                                {missing(only)} – add
                               </button>
                             </>
-                          ) : (
-                            ' · no email or mobile (change it where they are recorded)'
                           )
-                        ) : null}
+                        })()}
                       </span>
                     </span>
                   </label>
@@ -310,7 +339,13 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
               </p>
               {check.already ? <p className="text-muted-foreground">{check.already} already have it.</p> : null}
               {check.optedOut ? <p className="text-muted-foreground">{check.optedOut} asked not to be contacted about surveys.</p> : null}
-              {check.noDetails ? <p className="text-muted-foreground">{check.noDetails} have no email or mobile.</p> : null}
+              {check.noDetails ? (
+                <p className="text-muted-foreground">
+                  {check.noDetails} {check.noDetails === 1 ? 'has' : 'have'} no {check.textOn ? 'email or mobile' : 'email'}
+                  {unreachable.length ? `: ${unreachable.map(u => u.name).join(', ')}` : ''}.
+                  {!check.textOn && unreachable.some(u => u.hasMobile) ? ' This survey is sent by email only, so a mobile alone is not enough.' : ''}
+                </p>
+              ) : null}
               {check.noConsent ? <p className="text-muted-foreground">{check.noConsent} family {check.noConsent === 1 ? 'member has' : 'members have'} not agreed to surveys.</p> : null}
               {check.died ? <p className="text-muted-foreground">{check.died} family {check.died === 1 ? 'member' : 'members'} will not be sent it because the person we supported has died.</p> : null}
               {check.afterDeath ? (

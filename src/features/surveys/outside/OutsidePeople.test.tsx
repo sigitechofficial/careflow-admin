@@ -152,9 +152,59 @@ describe('Outside people', () => {
       return { data: [] }
     })
     wrap(<SendOutsideDialog surveyId="s1" open onOpenChange={vi.fn()} />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Henry has no email or mobile: add one' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Henry has no email or mobile: add it' }))
     expect(await screen.findByText('Change outside person')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Henry')).toBeInTheDocument()
+  })
+
+  it('send to people: a family member with only a mobile, on an email-only survey, is named with the email missing', async () => {
+    apiJson.mockImplementation(async (raw: unknown) => {
+      const url = String(raw ?? '')
+      if (url.startsWith('/survey-outside-people/families')) {
+        return { data: [{ sourceId: 'c9', serviceUserId: 'su1', name: 'Funke Adeyemi', relationship: 'Daughter', email: null, mobile: '+447700900014', consent: true, reachable: true, aboutName: 'Ada Lane' }] }
+      }
+      if (url.endsWith('/send-outside/check')) {
+        return {
+          data: {
+            total: 1, sendNow: 0, heldBack: 0, held: [], already: 0, optedOut: 0, noDetails: 1, noConsent: 0, textOn: false,
+            noDetailsPeople: [{ id: 'x9', name: 'Funke Adeyemi', sourceType: 'SERVICE_USER_CONTACT', sourceId: 'c9', serviceUserId: 'su1', hasMobile: true }],
+          },
+        }
+      }
+      return { data: [] }
+    })
+    wrap(<SendOutsideDialog surveyId="s1" open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('pick person'))
+    fireEvent.click(await screen.findByLabelText(/Funke Adeyemi/))
+    expect(await screen.findByText('no email (this survey is sent by email only) – add in Contacts and Family')).toBeInTheDocument()
+    expect(screen.getByText(/1 has no email: Funke Adeyemi\. This survey is sent by email only/)).toBeInTheDocument()
+  })
+
+  it('send to people: family of someone else chosen in People, so the survey is not about the one person', async () => {
+    apiJson.mockImplementation(async (raw: unknown) => {
+      const url = String(raw ?? '')
+      if (url.startsWith('/survey-outside-people/families')) {
+        return { data: [{ sourceId: 'c1', serviceUserId: 'su1', name: 'Mo Lane', relationship: 'Son', email: 'mo@example.com', mobile: null, consent: true, reachable: true, aboutName: 'Ada Lane' }] }
+      }
+      if (url.startsWith('/survey-outside-people/contacts')) {
+        return { data: [{ ...contact, id: 'x-layla', kind: 'FAMILY', name: 'Layla Al-Rashid', organisation: null, sourceType: 'SERVICE_USER_CONTACT', sourceId: 'c-layla', serviceUserId: 'su3' }] }
+      }
+      if (url.endsWith('/send-outside/check')) return { data: { total: 2, sendNow: 2, heldBack: 0, held: [], already: 0, optedOut: 0, noDetails: 0, noConsent: 0 } }
+      if (url.endsWith('/send-outside')) return { message: 'Sent to 2 people', data: { sent: 2 } }
+      return { data: [] }
+    })
+    wrap(<SendOutsideDialog surveyId="s1" open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('pick person'))
+    fireEvent.click(await screen.findByLabelText(/Mo Lane/))
+    expect(await screen.findByText(/This survey is about Ada Lane’s care/)).toBeInTheDocument()
+    fireEvent.click(await screen.findByLabelText(/Layla Al-Rashid/))
+    expect(screen.queryByText(/This survey is about Ada Lane’s care/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Layla Al-Rashid is family of someone else we support/)).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(apiJson.mock.calls.some(c => c[0] === '/surveys/s1/send-outside')).toBe(true))
+    const body = JSON.parse(apiJson.mock.calls.find(c => c[0] === '/surveys/s1/send-outside')![1].body)
+    expect(body).toMatchObject({ familyContactIds: ['c1'], contactIds: ['x-layla'] })
+    expect(body.aboutServiceUserId).toBeUndefined()
   })
 
   it('a person’s record lists surveys about them', async () => {
