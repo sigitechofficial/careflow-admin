@@ -149,13 +149,38 @@ export function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: st
   const [firstName, setFirstName] = React.useState('')
   const [lastName, setLastName] = React.useState('')
   const [email, setEmail] = React.useState('')
+  // Already connected to us (former staff, a person we support or their family, an outside contact):
+  // shown first, and the manager declares why they are still independent enough.
+  const [links, setLinks] = React.useState<Array<{ kind: string; label: string; match: 'EMAIL' | 'NAME' }> | null>(null)
+  const [checkedFor, setCheckedFor] = React.useState('')
+  const [weighed, setWeighed] = React.useState(false)
+  const [declaration, setDeclaration] = React.useState('')
+  const who = `${firstName.trim()}|${lastName.trim()}|${email.trim().toLowerCase()}`
   const add = useMutation({
-    mutationFn: async () =>
-      apiJson<ApiEnvelope<{ id: string; inviteSent: boolean }>>(`/surveys/${surveyId}/reviewers/accounts`, {
+    mutationFn: async () => {
+      if (checkedFor !== who) {
+        const res = await apiJson<ApiEnvelope<{ links: Array<{ kind: string; label: string; match: 'EMAIL' | 'NAME' }> }>>(
+          `/surveys/${surveyId}/reviewers/accounts/check`,
+          { method: 'POST', body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim() }) },
+        )
+        const found = res.data?.links ?? []
+        setLinks(found)
+        setCheckedFor(who)
+        setWeighed(false)
+        if (found.length) return null
+      }
+      return apiJson<ApiEnvelope<{ id: string; inviteSent: boolean }>>(`/surveys/${surveyId}/reviewers/accounts`, {
         method: 'POST',
-        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim() }),
-      }),
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          ...(links?.length ? { declaration: declaration.trim() } : {}),
+        }),
+      })
+    },
     onSuccess: async res => {
+      if (!res) return // connected to us: the links are shown, waiting for the declaration
       toastSuccess(
         'Reviewer account made',
         res.data?.inviteSent
@@ -167,7 +192,10 @@ export function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: st
     },
     onError: e => toastApiError(e, 'Could not make the account'),
   })
-  const ready = Boolean(firstName.trim() && lastName.trim() && /^\S+@\S+\.\S+$/.test(email.trim()))
+  const needsDeclaration = checkedFor === who && Boolean(links?.length)
+  const ready =
+    Boolean(firstName.trim() && lastName.trim() && /^\S+@\S+\.\S+$/.test(email.trim())) &&
+    (!needsDeclaration || (weighed && declaration.trim().length >= 10))
   return (
     <Dialog open onOpenChange={o => (!o ? onClose() : undefined)}>
       <DialogContent className="max-w-lg" data-testid="add-reviewer-dialog">
@@ -200,6 +228,33 @@ export function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: st
             </label>
             <Input id="reviewer-email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="off" />
           </div>
+          {needsDeclaration ? (
+            <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm" data-testid="reviewer-links">
+              <p className="font-medium">This person is already connected to us:</p>
+              <ul className="list-disc space-y-0.5 pl-5">
+                {links!.map(l => (
+                  <li key={l.label}>
+                    {l.label} <span className="text-xs text-muted-foreground">(same {l.match === 'EMAIL' ? 'email' : 'name'})</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground">
+                A same-name match may be someone else. If it is them, they can still review if you judge them independent enough:
+                say why. The people they are connected to are kept out of their sample. This is saved in the audit log.
+              </p>
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-1" checked={weighed} onChange={e => setWeighed(e.target.checked)} />
+                <span>I have checked this and they are independent enough for this review.</span>
+              </label>
+              <textarea
+                className="min-h-[70px] w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                placeholder="Why (e.g. left us 3 years ago and never worked with the people in the sample; or: a different person with the same name)"
+                value={declaration}
+                onChange={e => setDeclaration(e.target.value)}
+                aria-label="Why they are independent enough"
+              />
+            </div>
+          ) : null}
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
@@ -207,7 +262,7 @@ export function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: st
           </Button>
           <Button type="button" onClick={() => add.mutate()} disabled={!ready || add.isPending}>
             {add.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden /> : null}
-            Make the account
+            {checkedFor === who ? 'Make the account' : 'Check and make the account'}
           </Button>
         </DialogFooter>
       </DialogContent>

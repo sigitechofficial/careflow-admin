@@ -53,7 +53,7 @@ describe('Independent reviewers', () => {
     expect(dialog).toHaveTextContent('They are emailed a link to choose their own password; nobody else sets or sees it.')
     // No password box anywhere.
     expect(dialog.querySelector('input[type="password"]')).toBeNull()
-    const make = screen.getByRole('button', { name: 'Make the account' })
+    const make = screen.getByRole('button', { name: /make the account/i })
     expect(make).toBeDisabled()
     await userEvent.type(screen.getByLabelText('First name'), 'Rita')
     await userEvent.type(screen.getByLabelText('Last name'), 'Review')
@@ -63,6 +63,32 @@ describe('Independent reviewers', () => {
     expect(JSON.parse(post[1].body)).toEqual({ firstName: 'Rita', lastName: 'Review', email: 'rita@review.example' })
     expect(toast.toastSuccess).toHaveBeenCalledWith('Reviewer account made', 'They have been emailed a link to choose their own password.')
     expect(await screen.findByTestId('grant-reviewer-dialog')).toBeInTheDocument()
+  })
+
+  it('someone already connected to us: the links are shown and a declaration is needed before the account is made', async () => {
+    apiJson.mockImplementation(async (rawUrl: unknown, init: { method?: string } = {}) => {
+      const url = String(rawUrl)
+      if (url === '/surveys/s1/reviewers' && init.method === 'GET') return { data: { anonymousOnly: true, grants: [], accounts: [] } }
+      if (url === '/surveys/s1/reviewers/accounts/check')
+        return { data: { links: [{ kind: 'FORMER_STAFF', label: 'Former member of staff: Rita Review', match: 'NAME' }] } }
+      if (url === '/surveys/s1/reviewers/accounts') return { data: { id: 'rev-new', inviteSent: true } }
+      return { data: {} }
+    })
+    wrap(<SurveyReviewersPanel surveyId="s1" canEdit />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a reviewer' }))
+    await userEvent.type(screen.getByLabelText('First name'), 'Rita')
+    await userEvent.type(screen.getByLabelText('Last name'), 'Review')
+    await userEvent.type(screen.getByLabelText('Email'), 'rita@review.example')
+    await userEvent.click(screen.getByRole('button', { name: /make the account/i }))
+    expect(await screen.findByTestId('reviewer-links')).toHaveTextContent('Former member of staff: Rita Review')
+    expect(apiJson.mock.calls.some(([url]) => url === '/surveys/s1/reviewers/accounts')).toBe(false)
+    const make = screen.getByRole('button', { name: 'Make the account' })
+    expect(make).toBeDisabled()
+    await userEvent.click(screen.getByRole('checkbox'))
+    await userEvent.type(screen.getByLabelText('Why they are independent enough'), 'Left in 2022, never in this branch')
+    await userEvent.click(make)
+    const post = apiJson.mock.calls.find(([url]) => url === '/surveys/s1/reviewers/accounts')!
+    expect(JSON.parse(post[1].body)).toMatchObject({ declaration: 'Left in 2022, never in this branch' })
   })
 
   it('a repeating survey: access is given on the period being run, not here', async () => {

@@ -28,6 +28,9 @@ type Reviewer = {
   createdAt: string
   liveAccess: number
   answersRecorded: number
+  /** Connected to us when added, and what the manager declared. */
+  declaredLinks?: string[]
+  declaration?: string | null
   access: Array<{
     grantId: string
     survey: { id: string; title: string }
@@ -224,6 +227,12 @@ export default function ReviewersOverviewPage() {
                   <div className="text-xs text-muted-foreground">
                     {r.email} · added {day(r.createdAt)}
                   </div>
+                  {r.declaredLinks?.length ? (
+                    <div className="mt-1 text-xs text-amber-800 dark:text-amber-300" data-testid="reviewer-declared-links">
+                      Declared link: {r.declaredLinks.join('; ')}
+                      {r.declaration ? <span className="text-muted-foreground"> — “{r.declaration}”</span> : null}
+                    </div>
+                  ) : null}
                 </div>
                 {!r.accountActive ? <Badge variant="destructive" size="sm">Account switched off</Badge> : null}
                 {r.accountActive ? (
