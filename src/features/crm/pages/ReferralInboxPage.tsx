@@ -708,9 +708,11 @@ export default function ReferralInboxPage() {
       testId="referral-inbox-page"
       breadcrumbTail={[{ label: 'Referral inbox' }]}
       actions={
-        canManage && mb
+        // Settings stay reachable with every mailbox off (that is when screening is set up); checking and test
+        // referrals need a switched-on mailbox.
+        canManage
           ? [
-              ...(canAddTest
+              ...(canAddTest && mb
                 ? [
                     {
                       label: 'Add test referral',
@@ -726,13 +728,17 @@ export default function ReferralInboxPage() {
                 icon: <Settings2 className="h-3.5 w-3.5" aria-hidden />,
                 onClick: () => setSettingsOpen(true),
               },
-              {
-                label: check.isPending ? 'Checking…' : 'Check now',
-                icon: <RefreshCw className={`h-3.5 w-3.5 ${check.isPending ? 'animate-spin' : ''}`} aria-hidden />,
-                onClick: () => {
-                  if (!check.isPending) check.mutate()
-                },
-              },
+              ...(mb
+                ? [
+                    {
+                      label: check.isPending ? 'Checking…' : 'Check now',
+                      icon: <RefreshCw className={`h-3.5 w-3.5 ${check.isPending ? 'animate-spin' : ''}`} aria-hidden />,
+                      onClick: () => {
+                        if (!check.isPending) check.mutate()
+                      },
+                    },
+                  ]
+                : []),
             ]
           : undefined
       }
@@ -778,7 +784,7 @@ export default function ReferralInboxPage() {
                 {(
                   [
                     ['attention', 'To do'],
-                    ['other', 'Not referrals'],
+                    ['other', 'Not care'],
                     ['handled', 'Done'],
                     ['dismissed', 'Dismissed'],
                     ['all', 'All'],
@@ -790,7 +796,7 @@ export default function ReferralInboxPage() {
                     role="tab"
                     aria-selected={folder === k}
                     className={cn(
-                      'rounded px-2 py-1.5 font-medium transition-colors',
+                      'whitespace-nowrap rounded px-1.5 py-1.5 font-medium transition-colors',
                       folder === k ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                     )}
                     onClick={() => setFolder(k)}
@@ -873,7 +879,7 @@ export default function ReferralInboxPage() {
           </div>
         </div>
       </div>
-      {mb ? <ReferralSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} /> : null}
+      {canManage ? <ReferralSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} /> : null}
       {mb && canAddTest ? <TestReferralDialog open={testOpen} onOpenChange={setTestOpen} mailboxes={mailboxes} /> : null}
       <ReferralMailboxesDialog open={mailboxesOpen} onOpenChange={setMailboxesOpen} status={st} />
     </CrmSectionLayout>

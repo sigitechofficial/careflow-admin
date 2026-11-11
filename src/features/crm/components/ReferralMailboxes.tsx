@@ -20,6 +20,7 @@ import {
   turnMailboxOn,
   updateMailbox,
   fetchMailboxFolders,
+  createMailboxFolder,
   webhookUrl,
   type ImapSettings,
   type MailboxProvider,
@@ -196,6 +197,17 @@ function EditMailbox({ m, onDone }: { m: ReferralMailbox; onDone: () => void }) 
     retry: false,
   })
   const [typeOwn, setTypeOwn] = React.useState(false)
+  const [newLabel, setNewLabel] = React.useState<string | null>(null)
+  const createLabel = useMutation({
+    mutationFn: (name: string) => createMailboxFolder(m.id, name),
+    onSuccess: (r, name) => {
+      qc.setQueryData(['referral-inbox', 'mailbox-folders', m.id], r)
+      setLabelName(r.folders.find(f => f.name.toLowerCase() === name.trim().toLowerCase())?.name ?? name.trim())
+      setNewLabel(null)
+      toastSuccess(m.provider === 'GMAIL' ? 'Label made in Gmail' : 'Folder made', 'It is chosen below: save to start reading it.')
+    },
+    onError: e => toastApiError(e, 'Could not make the label'),
+  })
   const [branch, setBranch] = React.useState<string | null>(m.defaultLocationId)
   // Only the settings themselves go back to the server (not "hasPassword", which the server adds).
   const [imap, setImap] = React.useState<ImapSettings>(() => {
@@ -251,7 +263,9 @@ function EditMailbox({ m, onDone }: { m: ReferralMailbox; onDone: () => void }) 
                 <select
                   className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
                   value={labelName}
-                  onChange={e => (e.target.value === '__own' ? setTypeOwn(true) : setLabelName(e.target.value))}
+                  onChange={e =>
+                    e.target.value === '__own' ? setTypeOwn(true) : e.target.value === '__new' ? setNewLabel('') : setLabelName(e.target.value)
+                  }
                   aria-label={m.provider === 'GMAIL' ? 'Gmail label to read' : 'Folder to read'}
                   data-testid="mailbox-folder-select"
                 >
@@ -264,8 +278,35 @@ function EditMailbox({ m, onDone }: { m: ReferralMailbox; onDone: () => void }) 
                       {f.hint ? ` — ${f.hint}` : ''}
                     </option>
                   ))}
+                  <option value="__new">+ Make a new {m.provider === 'GMAIL' ? 'label' : 'folder'}…</option>
                   <option value="__own">Type another name…</option>
                 </select>
+                {newLabel !== null ? (
+                  <div className="flex gap-2">
+                    <Input
+                      autoFocus
+                      value={newLabel}
+                      placeholder="e.g. Referrals"
+                      onChange={e => setNewLabel(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && newLabel.trim()) {
+                          e.preventDefault()
+                          createLabel.mutate(newLabel)
+                        }
+                      }}
+                      aria-label="New label name"
+                    />
+                    <Button type="button" size="sm" disabled={!newLabel.trim() || createLabel.isPending} onClick={() => createLabel.mutate(newLabel)}>
+                      {createLabel.isPending ? 'Making…' : 'Make'}
+                    </Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setNewLabel(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : null}
+                {m.provider === 'GMAIL' && labelName.toUpperCase() !== 'INBOX' ? (
+                  <p className="text-xs text-muted-foreground">Only emails with this label are read: add a Gmail filter that puts it on referral emails.</p>
+                ) : null}
               </div>
             ) : (
               <div className="space-y-1">
@@ -755,7 +796,14 @@ export function ReferralMailboxesBar({ status, onManage, canManage }: { status: 
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm" data-testid="referral-mailbox-status">
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
         <Mail className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-        {boxes.length === 1 && first ? (
+        {boxes.length === 0 ? (
+          <span>
+            <span className="font-medium">
+              {status.mailboxes.length === 1 ? (status.mailboxes[0]?.emailAddress ?? 'Mailbox') : `${status.mailboxes.length} mailboxes`} turned off
+            </span>
+            <span className="text-muted-foreground"> · nothing is read and no Claude credits are used. Turn it on in Mailboxes.</span>
+          </span>
+        ) : boxes.length === 1 && first ? (
           <span className="truncate">
             <span className="font-medium">{first.emailAddress}</span>
             <span className="text-muted-foreground">
@@ -770,7 +818,7 @@ export function ReferralMailboxesBar({ status, onManage, canManage }: { status: 
             <span className="text-muted-foreground"> · {boxes.map(b => mailboxName(b)).join(', ')} · last checked {when(lastChecked)}</span>
           </span>
         )}
-        {offCount ? <span className="text-muted-foreground">· {offCount} turned off</span> : null}
+        {offCount && boxes.length ? <span className="text-muted-foreground">· {offCount} turned off</span> : null}
         {failing.length ? (
           <span className="text-destructive">
             · {failing.length === 1 && boxes.length === 1 ? `last check failed: ${failing[0]?.lastError}` : `${failing.length} need attention`}
