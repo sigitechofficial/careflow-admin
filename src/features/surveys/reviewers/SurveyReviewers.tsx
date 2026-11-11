@@ -36,7 +36,7 @@ type Grant = {
   status: 'ACTIVE' | 'NOT_STARTED' | 'ENDED' | 'REVOKED'
 }
 type ReviewerAccount = { id: string; name: string; email: string; active: boolean }
-type ReviewersData = {
+export type ReviewersData = {
   anonymousOnly: boolean
   /** A repeating survey: access is given on the period being run, not here. */
   repeatingParent?: boolean
@@ -144,7 +144,7 @@ export function SurveyReviewersPanel({ surveyId, canEdit }: { surveyId: string; 
 }
 
 /** "Add a reviewer": the account (name, email); they choose their own password from the emailed link. */
-function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: string; onClose: () => void; onAdded: () => void }) {
+export function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: string; onClose: () => void; onAdded: (userId?: string) => void }) {
   const qc = useQueryClient()
   const [firstName, setFirstName] = React.useState('')
   const [lastName, setLastName] = React.useState('')
@@ -163,7 +163,7 @@ function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: string; o
           : 'The email could not be sent: they can use "Forgot password" on the sign-in page.',
       )
       await qc.invalidateQueries({ queryKey: reviewersKey(surveyId) })
-      onAdded()
+      onAdded(res.data?.id)
     },
     onError: e => toastApiError(e, 'Could not make the account'),
   })
@@ -215,20 +215,25 @@ function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: string; o
   )
 }
 
-function GrantReviewerDialog({
+export function GrantReviewerDialog({
   surveyId,
   data,
   onClose,
   onAddAccount,
+  initialUserId,
 }: {
   surveyId: string
   data: ReviewersData
   onClose: () => void
   onAddAccount: () => void
+  /** Preselect this reviewer (from the all-reviewers page). */
+  initialUserId?: string
 }) {
   const qc = useQueryClient()
   const accounts = data.accounts.filter(a => a.active)
-  const [userId, setUserId] = React.useState(accounts[0]?.id ?? '')
+  const [userId, setUserId] = React.useState(
+    initialUserId && accounts.some(a => a.id === initialUserId) ? initialUserId : (accounts[0]?.id ?? ''),
+  )
   const [from, setFrom] = React.useState(dateInput(new Date()))
   const [to, setTo] = React.useState(dateInput(new Date(Date.now() + 30 * 86400000)))
   const [search, setSearch] = React.useState('')

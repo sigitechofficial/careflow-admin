@@ -746,6 +746,7 @@ const navItems: NavItem[] = [
         permission: 'surveys.read',
         navTestId: 'nav-surveys-all',
       },
+      { section: 'Feedback', label: 'Independent reviewers', icon: <UserCheck className="h-4 w-4" />, href: '/surveys/reviewers', permission: 'surveys.manage', navTestId: 'nav-surveys-reviewers' },
       planned("Governance", "Audits", <ClipboardList className="h-4 w-4" />, "An audit library, custom audits and due dates for each location."),
       planned("Governance", "Mock CQC inspection", <Scale className="h-4 w-4" />, "Work through the five key questions and quality statements and get a mock rating for each service."),
       planned("Governance", "Action plans & evidence", <ListChecks className="h-4 w-4" />, "One action plan for audits, incidents and complaints, with linked evidence."),

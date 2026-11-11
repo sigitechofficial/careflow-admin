@@ -139,6 +139,7 @@ import SurveyPaperCopyPage from '@/features/surveys/sharing/SurveyPaperCopyPage'
 import SurveyPosterPage from '@/features/surveys/sharing/SurveyPosterPage'
 import ReadyMadeSurveysPage from '@/features/surveys/pages/ReadyMadeSurveysPage'
 import OutsidePeoplePage from '@/features/surveys/outside/OutsidePeoplePage'
+import ReviewersOverviewPage from '@/features/surveys/reviewers/ReviewersOverviewPage'
 import SurveyFollowUpsPage from '@/features/surveys/pages/SurveyFollowUpsPage'
 import SurveyInsightPage, { Survey360Page, SurveyPoolPage } from '@/features/surveys/insight/SurveyInsightPages'
 import SurveyActionsPage from '@/features/surveys/actions/SurveyActionsPage'
@@ -327,6 +328,7 @@ const pageTitles: Record<string, string> = {
   '/surveys': 'Surveys',
   '/surveys/ready-made': 'Ready-made surveys',
   '/surveys/outside-people': 'Outside people',
+  '/surveys/reviewers': 'Independent reviewers',
   '/surveys/follow-ups': 'Survey follow-ups',
   '/surveys/insight': 'Survey insight',
   '/surveys/insight/pool': 'All copies together',
@@ -1849,6 +1851,14 @@ const surveysRoute = createRoute({
   component: SurveysPage,
 })
 
+// Independent reviewers across all surveys, and the answers each recorded (surveys.manage).
+const surveyReviewersRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/reviewers',
+  beforeLoad: requirePermission('surveys.manage'),
+  component: ReviewersOverviewPage,
+})
+
 // Families, professionals and commissioners that public surveys are sent to (surveys.manage).
 const surveyOutsidePeopleRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -3090,6 +3100,7 @@ const routeTree = rootRoute.addChildren([
     surveysRoute,
     surveyReadyMadeRoute,
     surveyOutsidePeopleRoute,
+    surveyReviewersRoute,
     surveyFollowUpsRoute,
     surveyInsightRoute,
     surveyPoolRoute,
