@@ -482,6 +482,14 @@ const navItems: NavItem[] = [
       },
       {
         section: 'Time & absence',
+        label: 'Over care reviews',
+        icon: <Scale className="h-4 w-4" />,
+        href: '/over-care-reviews',
+        anyPermission: ['hours_approvals.read', 'hours_approvals.manage'],
+        navTestId: 'nav-over-care-reviews',
+      },
+      {
+        section: 'Time & absence',
         label: 'Hours & visits history',
         icon: <History className="h-4 w-4" />,
         href: '/hours-history',

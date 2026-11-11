@@ -89,6 +89,11 @@ function datesInRange(from: string, to: string): string[] {
   return out
 }
 
+/** Why the timebank did not pay for an extra visit over the weekly hours (weekdays at the standard rate only). */
+function timebankBlockedNote(reason: string | undefined): string {
+  return reason ? `. Timebank not used: ${reason} (timebank hours are only for weekdays at the standard rate)` : ''
+}
+
 export function VisitPlanAddExtraVisitsDialog({
   open,
   onOpenChange,
@@ -783,13 +788,13 @@ export function VisitPlanAddExtraVisitsDialog({
                         {d.ok && d.overWeeklyHours
                           ? `${isEditing ? 'Can be saved' : 'Will be added'} — over the weekly contracted hours: ${
                               d.message ?? ''
-                            }`
+                            }${timebankBlockedNote(d.timebankBlockedReason)}`
                           : d.ok && d.needsApproval
                           ? `Needs manager approval — that week would have ${formatVisitPlanWeeklyHours(
                               d.weekMinutes ?? 0,
                             )} of ${formatVisitPlanWeeklyHours(limitMinutes ?? 0)}${
                               isEditing ? '. The visit keeps its current time until a manager approves' : ''
-                            }`
+                            }${timebankBlockedNote(d.timebankBlockedReason)}`
                           : d.ok && d.fromTimebankMinutes
                           ? `${isEditing ? 'Can be saved' : 'Will be added'} — ${formatVisitPlanWeeklyHours(
                               d.fromTimebankMinutes,

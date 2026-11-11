@@ -160,6 +160,7 @@ import QuotationEditorPage from '@/features/crm/pages/QuotationEditorPage'
 import QuoteServiceUserPage from '@/features/crm/pages/QuoteServiceUserPage'
 import HoursApprovalsPage from '@/features/hours-approvals/pages/HoursApprovalsPage'
 import HoursHistoryPage from '@/features/hours-approvals/pages/HoursHistoryPage'
+import OverCareReviewsPage from '@/features/over-care-reviews/pages/OverCareReviewsPage'
 import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
 import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
 import SupervisionSessionPage from '@/features/supervision/pages/SupervisionSessionPage'
@@ -646,7 +647,7 @@ function AppRootShell() {
   const employeeManagementWide =
     /^\/employee(?:\/(?:staff-list|hours|compliance|review-status|skills|non-core-activity|reports|add)|\/[^/]+\/edit)?$/.test(
       pathname,
-    ) || pathname === '/hours-approvals' || pathname === '/hours-history'
+    ) || pathname === '/hours-approvals' || pathname === '/hours-history' || pathname === '/over-care-reviews'
   const serviceUserHoursWide = pathname === '/service-users/hours'
   const contentLayout =
     fullBleed ? 'full' : employeeManagementWide || serviceUserHoursWide ? 'wide' : 'default'
@@ -1972,6 +1973,17 @@ const hoursApprovalsRoute = createRoute({
   component: HoursApprovalsPage,
 })
 
+const overCareReviewsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/over-care-reviews',
+  validateSearch: (raw: Record<string, unknown>): { tab?: string } =>
+    typeof raw.tab === 'string' && /^(pending|action-taken|no-action-needed)$/.test(raw.tab)
+      ? { tab: raw.tab }
+      : {},
+  beforeLoad: requireAnyPermission('hours_approvals.read', 'hours_approvals.manage'),
+  component: OverCareReviewsPage,
+})
+
 const hoursHistoryRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/hours-history',
@@ -3091,6 +3103,7 @@ const routeTree = rootRoute.addChildren([
     surveyPreviewRoute,
     hoursApprovalsRoute,
     hoursHistoryRoute,
+    overCareReviewsRoute,
     incidentsDashboardRoute,
     incidentsListRoute,
     incidentsRaiseRoute,

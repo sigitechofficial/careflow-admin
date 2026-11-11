@@ -233,6 +233,8 @@ export type ExtraVisitDateCheck = {
   overWeeklyHours?: boolean
   /** Hours over the weekly hours the service user's timebank pays for (made as fitting). */
   fromTimebankMinutes?: number
+  /** Over the weekly hours and the timebank not used: weekend, bank holiday / special day or a different rate. */
+  timebankBlockedReason?: string
   /** Carers over their contracted weekly hours with this visit, and what saving does. */
   carerOverHours?: Array<{
     employeeId: string
