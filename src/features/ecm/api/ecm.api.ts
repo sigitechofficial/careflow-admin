@@ -261,6 +261,8 @@ export type FcmSendReason =
   | 'SEND_FAILED'
   | 'NOT_FIRST_ACK'
   | 'NOT_SOS'
+  /** Held back: a test alert, or Administration › Message delivery switched carer push off. */
+  | 'HELD'
 
 export type FcmSendReport = {
   ready: boolean

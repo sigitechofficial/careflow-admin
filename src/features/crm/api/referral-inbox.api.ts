@@ -1,5 +1,4 @@
-import { apiJson, getApiBaseUrl, type ApiEnvelope } from '@/shared/api/api-client'
-import { useAuthStore } from '@/features/auth/store'
+import { apiBlob, apiJson, getApiBaseUrl, type ApiEnvelope } from '@/shared/api/api-client'
 
 export type ReferralEmailStatus = 'RECEIVED' | 'READ' | 'FAILED' | 'NOT_A_REFERRAL' | 'ENQUIRY_CREATED' | 'DISMISSED' | 'FOLLOW_UP'
 
@@ -83,6 +82,8 @@ export type ReferralEmail = {
   error: string | null
   /** When the next automatic try of a failed read is due (null = none). */
   nextReadAt?: string | null
+  /** Screening before the full read: brought in or filtered out, why, and by a rule or the quick AI check. */
+  screening?: { decision: 'BRING' | 'SKIP'; reason: string; by: 'RULE' | 'AI'; costUsd?: number } | null
   enquiryId: string | null
   enquiryReference?: string | null
   bodyText?: string
@@ -129,9 +130,17 @@ export type ReferralAutomationSettings = {
   standardRates: ReferralStandardRate[]
   coverage: ReferralBranchCoverage[]
   rules: ReferralRules
+  screening: ReferralScreening
   /** Served by the API so the screen and the checks use the same list. */
   ruleCatalog: RuleDef[]
   emailKinds: Array<{ key: EmailKind; label: string; hint: string; defaultAction: KindAction; newCare: boolean }>
+}
+
+/** Which new emails are worth a full read by Claude (the rest are filtered out, unread). */
+export type ReferralScreening = {
+  mode: 'OFF' | 'RULES' | 'RULES_AND_AI'
+  trustedSenders: string[]
+  blockedSenders: string[]
 }
 
 export type EmailKind =
@@ -304,6 +313,15 @@ export const sendReferralReply = (id: string, body: { subject?: string; text?: s
   apiJson<{ message: string }>(`/referral-mailbox/emails/${id}/reply`, { method: 'POST', body: JSON.stringify(body) })
 export const recheckReferral = (id: string) => data<ReferralEmail>(`/referral-mailbox/emails/${id}/recheck`, { method: 'POST' })
 export const fetchReferralEmail = (id: string) => data<ReferralEmail>(`/referral-mailbox/emails/${id}`)
+export const fetchMailboxFolders = (id: string) =>
+  data<{ folders: Array<{ name: string; hint?: string }>; current: string }>(`/referral-mailbox/mailboxes/${id}/folders`)
+
+export const createMailboxFolder = (id: string, name: string) =>
+  data<{ folders: Array<{ name: string; hint?: string }>; current: string }>(`/referral-mailbox/mailboxes/${id}/folders`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+
 export const readReferralAgain = (id: string) => data<ReferralEmail>(`/referral-mailbox/emails/${id}/read`, { method: 'POST' })
 export const dismissReferral = (id: string) => apiJson(`/referral-mailbox/emails/${id}/dismiss`, { method: 'POST' })
 export const createEnquiryFromReferral = (id: string, locationId: string) =>
@@ -313,14 +331,8 @@ export const createEnquiryFromReferral = (id: string, locationId: string) =>
   })
 
 /** An attachment from private storage (signed-in fetch), as a blob for the on-page viewer or a download. */
-export async function fetchReferralAttachment(id: string, index: number): Promise<Blob> {
-  const headers = new Headers()
-  const token = useAuthStore.getState().accessToken
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-  const res = await fetch(`${getApiBaseUrl()}/referral-mailbox/emails/${id}/attachments/${index}`, { headers })
-  if (!res.ok) throw new Error(`Could not open the attachment (${res.status})`)
-  return res.blob()
-}
+export const fetchReferralAttachment = (id: string, index: number): Promise<Blob> =>
+  apiBlob(`/referral-mailbox/emails/${id}/attachments/${index}`)
 
 /** The text of a Word attachment (browsers can't show .docx). */
 export const fetchReferralAttachmentText = (id: string, index: number) =>

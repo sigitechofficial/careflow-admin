@@ -20,6 +20,7 @@ import {
   type ReferralStandardRate,
 } from '@/features/crm/api/referral-inbox.api'
 import { ReferralRulesTab } from './ReferralRulesTab'
+import { ReferralSelect } from './ReferralSelect'
 
 export const DECISION: Record<string, { label: string; variant: 'success' | 'info' | 'warning' | 'destructive'; dot: string }> = {
   YES: { label: 'Yes, subject to assessment', variant: 'success', dot: 'bg-emerald-500' },
@@ -401,6 +402,8 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
   const q = useQuery({ queryKey: ['referral-inbox', 'settings'], queryFn: fetchReferralSettings, enabled: open })
   const [draft, setDraft] = React.useState<ReferralAutomationSettings | null>(null)
   const [copies, setCopies] = React.useState('')
+  const [trusted, setTrusted] = React.useState('')
+  const [blocked, setBlocked] = React.useState('')
   React.useEffect(() => {
     if (q.data && open) {
       // Every covered branch gets a rates row (empty until filled in), plus the all-branches row first.
@@ -411,6 +414,8 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
       )
       setDraft({ ...q.data, standardRates: [{ ...all, branchName: 'All branches (default)' }, ...perBranch] })
       setCopies(q.data.copyRepliesTo.join(', '))
+      setTrusted((q.data.screening?.trustedSenders ?? []).join('\n'))
+      setBlocked((q.data.screening?.blockedSenders ?? []).join('\n'))
     }
   }, [q.data, open])
   const save = useMutation({
@@ -428,6 +433,11 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
         unplacedLocationId: s.unplacedLocationId ?? null,
         // Empty written rules are dropped.
         rules: { ...s.rules, custom: s.rules.custom.filter(c => c.text.trim()) },
+        screening: {
+          mode: s.screening?.mode ?? 'RULES_AND_AI',
+          trustedSenders: trusted.split(/[\n,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean),
+          blockedSenders: blocked.split(/[\n,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean),
+        },
         copyRepliesTo: copies
           .split(/[,;\s]+/)
           .map(x => x.trim())
@@ -467,14 +477,76 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
           {!draft ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : (
-            <Tabs defaultValue="automation" className="space-y-4">
+            <Tabs defaultValue="screening" className="space-y-4">
               <TabsList>
+                <TabsTrigger value="screening">Screening</TabsTrigger>
                 <TabsTrigger value="automation">Automation</TabsTrigger>
                 <TabsTrigger value="rules">Rules</TabsTrigger>
                 <TabsTrigger value="rates">Prices and quotes</TabsTrigger>
                 <TabsTrigger value="areas">Areas and sign-off</TabsTrigger>
                 <TabsTrigger value="copies">Copies</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="screening" className="space-y-4" data-testid="referral-screening-settings">
+                <p className="text-sm text-muted-foreground">
+                  Which new emails Claude reads in full. Free rules come first; emails they can’t place get a quick check by Claude’s
+                  smallest model (sender, subject and first lines: well under a penny). Filtered-out emails are kept under “Not
+                  care” with the reason, and can be read anyway.
+                </p>
+                <div className="space-y-2" role="radiogroup" aria-label="Screening">
+                  {(
+                    [
+                      ['RULES_AND_AI', 'Rules, then a quick check for unclear emails (recommended)', 'Cheapest without missing referrals.'],
+                      ['RULES', 'Rules only', 'Free. Emails the rules can’t place are read in full.'],
+                      ['OFF', 'Off: read every email in full', 'Every email costs a full read (a few pence each), adverts included.'],
+                    ] as const
+                  ).map(([mode, label, hint]) => (
+                    <label key={mode} className="flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm">
+                      <input
+                        type="radio"
+                        className="mt-1"
+                        name="screening-mode"
+                        checked={(draft.screening?.mode ?? 'RULES_AND_AI') === mode}
+                        disabled={disabled}
+                        onChange={() => set({ screening: { ...(draft.screening ?? { trustedSenders: [], blockedSenders: [] }), mode } })}
+                      />
+                      <span>
+                        <span className="font-medium">{label}</span>
+                        <span className="block text-xs text-muted-foreground">{hint}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block text-sm">
+                    <span className="font-medium">Always read (trusted senders)</span>
+                    <span className="block text-xs text-muted-foreground">One per line: an address, @domain, or a domain ending like .nhs.uk or .gov.uk.</span>
+                    <textarea
+                      className="mt-1 min-h-[110px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm"
+                      value={trusted}
+                      disabled={disabled}
+                      onChange={e => setTrusted(e.target.value)}
+                      aria-label="Trusted senders"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="font-medium">Never read (blocked senders)</span>
+                    <span className="block text-xs text-muted-foreground">Suppliers, mailing lists or anyone else whose emails are never referrals.</span>
+                    <textarea
+                      className="mt-1 min-h-[110px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm"
+                      value={blocked}
+                      disabled={disabled}
+                      onChange={e => setBlocked(e.target.value)}
+                      aria-label="Blocked senders"
+                      placeholder={'@quickbooks.com\nnews@supplier.co.uk'}
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Always read as well: replies in the thread of a referral we have, and anyone who has written to us about care before.
+                  Never read: no-reply and notification senders, and newsletters, alerts, receipts and offers (unless they mention care).
+                </p>
+              </TabsContent>
 
               <TabsContent value="automation" className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-2">
@@ -519,18 +591,20 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
                   </div>
                 ) : null}
                 <div className="grid gap-3 md:grid-cols-3">
-                  <label className="text-sm">
+                  <div className="text-sm">
                     <span className="font-medium">Carer availability</span>
-                    <select
-                      className="mt-1 block h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    <ReferralSelect
+                      triggerClassName="mt-1 h-9 w-full"
+                      ariaLabel="Carer availability"
                       value={draft.availabilityMode}
                       disabled={disabled}
-                      onChange={e => set({ availabilityMode: e.target.value as ReferralAutomationSettings['availabilityMode'] })}
-                    >
-                      <option value="ANY_CARER_EACH_DAY">Different carers on different days is fine</option>
-                      <option value="SAME_CARER">Same carer on every day</option>
-                    </select>
-                  </label>
+                      onChange={v => set({ availabilityMode: v as ReferralAutomationSettings['availabilityMode'] })}
+                      options={[
+                        { value: 'ANY_CARER_EACH_DAY', label: 'Different carers on different days is fine' },
+                        { value: 'SAME_CARER', label: 'Same carer on every day' },
+                      ]}
+                    />
+                  </div>
                   <label className="text-sm">
                     <span className="font-medium">Travel time either side (minutes)</span>
                     <Input
@@ -664,22 +738,20 @@ export function ReferralSettingsDialog({ open, onOpenChange }: { open: boolean; 
                 <p className="text-xs text-muted-foreground">
                   Council names as postcodes.io gives them, e.g. “Hammersmith and Fulham”. Separate with commas.
                 </p>
-                <label className="block text-sm">
+                <div className="text-sm">
                   <span className="font-medium">Branch for emails with no postcode</span>
-                  <select
-                    className="mt-1 block h-9 w-full max-w-sm rounded-md border border-input bg-background px-2 text-sm"
+                  <ReferralSelect
+                    triggerClassName="mt-1 h-9 w-full max-w-sm"
+                    ariaLabel="Branch for emails with no postcode"
                     value={draft.unplacedLocationId ?? ''}
                     disabled={disabled}
-                    onChange={e => set({ unplacedLocationId: e.target.value || null })}
-                  >
-                    <option value="">First branch in the list{draft.coverage[0] ? ` (${draft.coverage[0].branchName})` : ''}</option>
-                    {draft.coverage.map(c => (
-                      <option key={c.locationId} value={c.locationId}>
-                        {c.branchName}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    onChange={v => set({ unplacedLocationId: v || null })}
+                    options={[
+                      { value: '', label: `First branch in the list${draft.coverage[0] ? ` (${draft.coverage[0].branchName})` : ''}` },
+                      ...draft.coverage.map(c => ({ value: c.locationId, label: c.branchName })),
+                    ]}
+                  />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   When an email gives no usable postcode (often “what do you charge?”), its enquiry is recorded here until the address is
                   known. Emails from outside your areas never become enquiries.

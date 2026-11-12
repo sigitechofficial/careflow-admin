@@ -21,6 +21,7 @@ export const MODULE_ILLUSTRATION: Record<string, string> = {
   Messages: 'speech-balloon',
   Reports: 'bar-chart',
   Administration: 'gear',
+  Scripts: 'scroll',
 }
 
 /** Pages inside modules (page panel, hover menu, landing page tiles). */
@@ -32,6 +33,7 @@ export const PAGE_ILLUSTRATION: Record<string, string> = {
   Calendar: 'tear-off-calendar',
   'Portal access': 'globe-showing-europe-africa',
   'Referrals & enquiries': 'inbox-tray',
+  Enquiries: 'inbox-tray',
   'Private quotations': 'receipt',
   'Family & funder access': 'people-hugging',
   'Initial Assessment': 'clipboard',

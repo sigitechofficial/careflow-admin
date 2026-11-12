@@ -291,6 +291,8 @@ export type Permission =
   | 'platform_costs.manage'
   | 'system_jobs.read'
   | 'system_jobs.manage'
+  | 'message_delivery.read'
+  | 'message_delivery.manage'
   | 'sso.configure'
   | 'temporary_inspector.session'
   | 'service_user.portal.session'

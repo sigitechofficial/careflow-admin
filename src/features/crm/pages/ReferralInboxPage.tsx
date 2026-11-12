@@ -72,12 +72,14 @@ function shortWhen(iso: string) {
     : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-type Folder = 'attention' | 'handled' | 'dismissed' | 'all'
+type Folder = 'attention' | 'other' | 'handled' | 'dismissed' | 'all'
 
 /** Needs a person: not handled yet, a reply waiting (e.g. a decline), a referrer's reply, or a failure. */
 function folderOf(r: ReferralEmail): Exclude<Folder, 'all'> {
   if (r.status === 'DISMISSED') return 'dismissed'
-  if (['RECEIVED', 'READ', 'FAILED', 'NOT_A_REFERRAL', 'FOLLOW_UP'].includes(r.status)) return 'attention'
+  // Not about care (filtered out before reading, or judged so by Claude): out of the way, still one click away.
+  if (r.status === 'NOT_A_REFERRAL') return 'other'
+  if (['RECEIVED', 'READ', 'FAILED', 'FOLLOW_UP'].includes(r.status)) return 'attention'
   if ((r.replyText || r.replyHtml) && !r.replySentAt) return 'attention'
   return 'handled'
 }
@@ -91,6 +93,7 @@ function stateOf(r: ReferralEmail): { label: string; tone: 'muted' | 'warning' |
   if (r.status === 'FAILED') return { label: 'Could not read', tone: 'destructive' }
   if (r.status === 'DISMISSED') return { label: 'Dismissed', tone: 'muted' }
   if (r.status === 'FOLLOW_UP') return { label: 'Reply from referrer', tone: 'info' }
+  if (r.status === 'NOT_A_REFERRAL' && r.screening?.decision === 'SKIP') return { label: 'Filtered out', tone: 'muted' }
   if (r.status === 'NOT_A_REFERRAL') return { label: 'Not a referral?', tone: 'warning' }
   if (r.replySentAt) return { label: 'Replied', tone: 'success' }
   if (r.replyText || r.replyHtml) return { label: r.decision === 'NO' ? 'Decline waiting' : 'Reply waiting', tone: 'warning' }
@@ -357,6 +360,19 @@ function EmailDetail({
             </Link>
           ) : null}
         </div>
+        {m.screening?.decision === 'SKIP' && m.status === 'NOT_A_REFERRAL' ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm" data-testid="referral-filtered-out">
+            <span className="min-w-0 flex-1">
+              <span className="font-medium">Filtered out before Claude read it</span> ({m.screening.by === 'AI' ? 'quick check' : 'rule'}):{' '}
+              {m.screening.reason}. Nothing was done with it.
+            </span>
+            {canManage ? (
+              <Button size="sm" variant="outline" disabled={readAgain.isPending} onClick={() => readAgain.mutate()}>
+                {readAgain.isPending ? 'Reading…' : 'Read with Claude anyway'}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         {m.status === 'FOLLOW_UP' ? (
           <p className="rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm">
             The referrer replied in the thread of an earlier referral. It was added to the enquiry’s history, and Claude read
@@ -548,7 +564,8 @@ function TestReferralDialog({
           <DialogTitle>Add a test referral</DialogTitle>
           <DialogDescription>
             Made-up emails (fictional people) placed in the mailbox as if they had arrived. Each one costs about 10–15p of Claude
-            time to read and answer.
+            time to read and answer. Their senders use made-up .test addresses, so every reply goes to the mailbox itself, also
+            on the live system. Each one becomes a real enquiry (its email subject starts with [TEST]): dismiss it when you’ve finished.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -630,7 +647,7 @@ export default function ReferralInboxPage() {
   })
   const all = listQ.data ?? []
   const counts = React.useMemo(() => {
-    const c = { attention: 0, handled: 0, dismissed: 0, all: all.length }
+    const c = { attention: 0, other: 0, handled: 0, dismissed: 0, all: all.length }
     for (const r of all) c[folderOf(r)] += 1
     return c
   }, [all])
@@ -678,6 +695,10 @@ export default function ReferralInboxPage() {
   const selectedRow = all.find(r => r.id === selectedId)
   const selectedMailbox = (selectedRow?.mailboxId ? byId.get(selectedRow.mailboxId) : null) ?? mb
   const testMode = Boolean(st?.testMode)
+  // Test referrals: everyone who manages CRM while testing; only a Super Admin on the live system (their made-up
+  // senders use .test addresses, so replies to them go to the mailbox itself).
+  const isSuperAdmin = useAuthStore(s => s.user?.role === 'super_admin' || Boolean(s.user?.backendRoles?.includes('Super Admin')))
+  const canAddTest = testMode || isSuperAdmin
   const copyTo = settingsQ.data?.copyRepliesTo ?? []
 
   return (
@@ -687,9 +708,11 @@ export default function ReferralInboxPage() {
       testId="referral-inbox-page"
       breadcrumbTail={[{ label: 'Referral inbox' }]}
       actions={
-        canManage && mb
+        // Settings stay reachable with every mailbox off (that is when screening is set up); checking and test
+        // referrals need a switched-on mailbox.
+        canManage
           ? [
-              ...(testMode
+              ...(canAddTest && mb
                 ? [
                     {
                       label: 'Add test referral',
@@ -705,13 +728,17 @@ export default function ReferralInboxPage() {
                 icon: <Settings2 className="h-3.5 w-3.5" aria-hidden />,
                 onClick: () => setSettingsOpen(true),
               },
-              {
-                label: check.isPending ? 'Checking…' : 'Check now',
-                icon: <RefreshCw className={`h-3.5 w-3.5 ${check.isPending ? 'animate-spin' : ''}`} aria-hidden />,
-                onClick: () => {
-                  if (!check.isPending) check.mutate()
-                },
-              },
+              ...(mb
+                ? [
+                    {
+                      label: check.isPending ? 'Checking…' : 'Check now',
+                      icon: <RefreshCw className={`h-3.5 w-3.5 ${check.isPending ? 'animate-spin' : ''}`} aria-hidden />,
+                      onClick: () => {
+                        if (!check.isPending) check.mutate()
+                      },
+                    },
+                  ]
+                : []),
             ]
           : undefined
       }
@@ -753,10 +780,11 @@ export default function ReferralInboxPage() {
         <div className="grid gap-4 lg:grid-cols-[minmax(300px,380px)_1fr]">
           <div className="flex min-h-[520px] flex-col overflow-hidden rounded-lg border border-border bg-card">
             <div className="border-b border-border p-2">
-              <div className="grid grid-cols-4 gap-1 rounded-md bg-muted p-1 text-xs" role="tablist" aria-label="Folders">
+              <div className="grid grid-cols-5 gap-1 rounded-md bg-muted p-1 text-xs" role="tablist" aria-label="Folders">
                 {(
                   [
                     ['attention', 'To do'],
+                    ['other', 'Not care'],
                     ['handled', 'Done'],
                     ['dismissed', 'Dismissed'],
                     ['all', 'All'],
@@ -768,7 +796,7 @@ export default function ReferralInboxPage() {
                     role="tab"
                     aria-selected={folder === k}
                     className={cn(
-                      'rounded px-2 py-1.5 font-medium transition-colors',
+                      'whitespace-nowrap rounded px-1.5 py-1.5 font-medium transition-colors',
                       folder === k ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                     )}
                     onClick={() => setFolder(k)}
@@ -851,8 +879,8 @@ export default function ReferralInboxPage() {
           </div>
         </div>
       </div>
-      {mb ? <ReferralSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} /> : null}
-      {mb && testMode ? <TestReferralDialog open={testOpen} onOpenChange={setTestOpen} mailboxes={mailboxes} /> : null}
+      {canManage ? <ReferralSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} /> : null}
+      {mb && canAddTest ? <TestReferralDialog open={testOpen} onOpenChange={setTestOpen} mailboxes={mailboxes} /> : null}
       <ReferralMailboxesDialog open={mailboxesOpen} onOpenChange={setMailboxesOpen} status={st} />
     </CrmSectionLayout>
   )

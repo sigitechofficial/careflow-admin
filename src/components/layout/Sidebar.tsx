@@ -7,6 +7,7 @@ import {
   Calendar,
   Settings,
   Settings2,
+  ScrollText,
   UserCheck,
   UserPlus,
 
@@ -58,6 +59,7 @@ import {
 
   Inbox,
   Mail,
+  BellRing,
   Calculator,
   HeartHandshake,
   DoorOpen,
@@ -241,8 +243,10 @@ const navItems: NavItem[] = [
         permission: 'service_users.portal.read',
         navTestId: 'nav-service-user-portal-admin',
       },
-      planned("People", "Referrals & enquiries", <Inbox className="h-4 w-4" />, "Every referral and enquiry across all service users, from triage to admission. Today referrals are recorded on each service user's profile (Referrals tab)."),
-      planned("People", "Private quotations", <Calculator className="h-4 w-4" />, "All private care quotations in one list. Today quotations are created from a referral on each service user's profile."),
+      // Enquiries and referrals are built (CRM); shortcuts here so they are found from Service Users too.
+      { section: 'People', label: 'Enquiries', icon: <Inbox className="h-4 w-4" />, href: '/crm', permission: 'crm.read', navTestId: 'nav-service-users-enquiries' },
+      { section: 'People', label: 'Referral inbox', icon: <Mail className="h-4 w-4" />, href: '/crm/referral-inbox', permission: 'crm.read', navTestId: 'nav-service-users-referral-inbox' },
+      planned("People", "Private quotations", <Calculator className="h-4 w-4" />, "All private care quotations in one list. Today each quotation is made and kept on its enquiry (CRM › Enquiry)."),
       planned("People", "Family & funder access", <HeartHandshake className="h-4 w-4" />, "Let next of kin and funders sign in to see the parts of the care record they are allowed to see."),
       {
         section: 'Assessment & care plans',
@@ -1061,6 +1065,22 @@ const navItems: NavItem[] = [
       },
       {
         section: 'Platform',
+        label: 'Message delivery',
+        icon: <Mail className="h-4 w-4" />,
+        href: '/message-delivery',
+        anyPermission: ['message_delivery.read', 'message_delivery.manage'],
+        navTestId: 'nav-admin-message-delivery',
+      },
+      {
+        section: 'Platform',
+        label: 'Test office alerts',
+        icon: <BellRing className="h-4 w-4" />,
+        href: '/test-office-alerts',
+        permission: 'message_delivery.manage',
+        navTestId: 'nav-admin-test-office-alerts',
+      },
+      {
+        section: 'Platform',
         label: 'Azure Pricing',
         icon: <Cloud className="h-4 w-4" />,
         href: '/azure-pricing',
@@ -1069,6 +1089,8 @@ const navItems: NavItem[] = [
       },
     ],
   },
+  // Automation scripts — every signed-in user for now (no permission: the API checks each step).
+  { label: 'Scripts', icon: <ScrollText className="h-5 w-5" />, href: '/scripts' },
 ]
 
 export function navChildAllowed(
