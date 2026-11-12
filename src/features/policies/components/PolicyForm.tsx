@@ -59,6 +59,8 @@ export type PolicyFormValues = {
   tagIds: string[]
   applicability: PolicyApplicabilityInput[]
   audiences: PolicyAudienceInput[]
+  /** "All employees" is unticked: at least one role, job title, work area or location must be chosen. Not saved. */
+  audienceSpecific?: boolean
   links: PolicyLinkInput[]
 }
 
@@ -462,12 +464,13 @@ export function PolicyForm({
       <div id="policy-form-audience" className="scroll-mt-14">
         <PolicyAudienceEditor
           value={values.audiences}
-          onChange={audiences => patch({ audiences })}
+          onChange={(audiences, specific) => patch({ audiences, audienceSpecific: specific || undefined })}
           disabled={readOnly}
           roles={lookups.roles}
           jobTitles={lookups.jobTitles}
           workAreas={lookups.workAreas}
           locations={lookups.locations}
+          error={errors?.audiences}
         />
       </div>
 
@@ -538,6 +541,10 @@ function validatePersistableFields(
     mode,
   })
   if (applicabilityError) errors.applicability = applicabilityError
+  // Saving an empty audience would quietly make the policy apply to everyone again.
+  if (values.audienceSpecific && !values.audiences.some(row => row.targetType !== 'ALL_EMPLOYEES')) {
+    errors.audiences = 'Choose at least one role, job title, work area or location, or tick All employees.'
+  }
   return errors
 }
 

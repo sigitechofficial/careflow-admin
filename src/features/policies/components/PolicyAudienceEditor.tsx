@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import type { PolicyAudienceInput } from '@/features/policies/types/policy.types'
 import { summariseAudience } from '@/features/policies/policy-format'
@@ -6,12 +7,15 @@ type Lookup = { id: string; name: string }
 
 type Props = {
   value: PolicyAudienceInput[]
-  onChange: (value: PolicyAudienceInput[]) => void
+  /** specific: "All employees" is unticked, so saving must ask for at least one group. */
+  onChange: (value: PolicyAudienceInput[], specific: boolean) => void
   disabled?: boolean
   roles: Lookup[]
   jobTitles: Lookup[]
   workAreas: Lookup[]
   locations: Lookup[]
+  /** Shown under the groups, e.g. when "All employees" is unticked but no group is chosen. */
+  error?: string
 }
 
 function selectedIds(value: PolicyAudienceInput[], key: keyof PolicyAudienceInput): string[] {
@@ -26,8 +30,13 @@ export function PolicyAudienceEditor({
   jobTitles,
   workAreas,
   locations,
+  error,
 }: Props) {
-  const allEmployees = value.length === 0 || value.some(row => row.targetType === 'ALL_EMPLOYEES')
+  // An empty audience means everyone, so unticking "All employees" before any group is chosen would
+  // tick it straight back. Remember the choice here so the group lists stay open until one is picked.
+  const [choosing, setChoosing] = React.useState(false)
+  const everyoneInValue = value.length === 0 || value.some(row => row.targetType === 'ALL_EMPLOYEES')
+  const allEmployees = everyoneInValue && !choosing
   const roleIds = selectedIds(value, 'roleId')
   const jobTitleIds = selectedIds(value, 'jobTitleId')
   const workAreaIds = selectedIds(value, 'workAreaId')
@@ -41,8 +50,9 @@ export function PolicyAudienceEditor({
     locationIds?: string[]
   }) => {
     const useAll = next.allEmployees ?? allEmployees
+    setChoosing(!useAll)
     if (useAll) {
-      onChange([])
+      onChange([], false)
       return
     }
     const rows: PolicyAudienceInput[] = []
@@ -50,7 +60,7 @@ export function PolicyAudienceEditor({
     for (const id of next.jobTitleIds ?? jobTitleIds) rows.push({ targetType: 'JOB_TITLE', jobTitleId: id })
     for (const id of next.workAreaIds ?? workAreaIds) rows.push({ targetType: 'WORK_AREA', workAreaId: id })
     for (const id of next.locationIds ?? locationIds) rows.push({ targetType: 'LOCATION', locationId: id })
-    onChange(rows)
+    onChange(rows, true)
   }
 
   const toggle = (list: string[], id: string, key: 'roleIds' | 'jobTitleIds' | 'workAreaIds' | 'locationIds') => {
@@ -126,8 +136,13 @@ export function PolicyAudienceEditor({
       ) : null}
 
       <p className="text-sm text-muted-foreground" data-testid="policy-audience-summary">
-        {summary}
+        {!allEmployees && everyoneInValue ? 'No group chosen yet: choose who this policy is for.' : summary}
       </p>
+      {error ? (
+        <p className="text-sm text-destructive" role="alert" data-testid="policy-audience-error">
+          {error}
+        </p>
+      ) : null}
     </fieldset>
   )
 }

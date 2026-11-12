@@ -10,7 +10,7 @@ import { PolicyWorkflowActions } from '@/features/policies/components/PolicyWork
 import { PolicyVersionCreateDialog } from '@/features/policies/components/PolicyVersionCreateDialog'
 import { PolicyStatusBadge } from '@/features/policies/components/PolicyStatusBadge'
 import { PolicyLinksEditor } from '@/features/policies/components/PolicyLinksEditor'
-import { PolicyForm, emptyPolicyForm } from '@/features/policies/components/PolicyForm'
+import { PolicyForm, emptyPolicyForm, validatePolicyDraft } from '@/features/policies/components/PolicyForm'
 import { PolicyDocumentUploader } from '@/features/policies/components/PolicyDocumentUploader'
 import { useAuthStore } from '@/features/auth/store'
 import type { PolicyDocument, PolicyStatus } from '@/features/policies/types/policy.types'
@@ -632,7 +632,7 @@ describe('PolicyAudienceEditor', () => {
     )
     expect(screen.getByTestId('policy-audience-summary')).toHaveTextContent('All employees')
     await user.click(screen.getByRole('checkbox'))
-    expect(onChange).toHaveBeenCalledWith([])
+    expect(onChange).toHaveBeenCalledWith([], true)
     rerender(
       <PolicyAudienceEditor
         value={[
@@ -650,6 +650,49 @@ describe('PolicyAudienceEditor', () => {
     expect(screen.getByTestId('policy-audience-summary')).toHaveTextContent(
       'Care Worker OR Senior Care Worker AND London',
     )
+  })
+})
+
+describe('PolicyAudienceEditor: unticking All employees', () => {
+  it('stays unticked and shows the groups to choose from before any is picked', async () => {
+    const user = userEvent.setup()
+    let value: Parameters<typeof PolicyAudienceEditor>[0]['value'] = []
+    const onChange = vi.fn((next: typeof value) => {
+      value = next
+    })
+    const props = {
+      onChange,
+      roles: [{ id: 'role-1', name: 'Care Worker' }],
+      jobTitles: [],
+      workAreas: [],
+      locations: [{ id: 'loc-1', name: 'London' }],
+    }
+    const { rerender } = render(<PolicyAudienceEditor value={value} {...props} />)
+    await user.click(screen.getByRole('checkbox', { name: 'All employees' }))
+    rerender(<PolicyAudienceEditor value={value} {...props} />)
+    expect(screen.getByRole('checkbox', { name: 'All employees' })).not.toBeChecked()
+    expect(screen.getByText('Roles')).toBeInTheDocument()
+    expect(screen.getByTestId('policy-audience-summary')).toHaveTextContent('No group chosen yet')
+
+    await user.click(screen.getByRole('checkbox', { name: 'Care Worker' }))
+    expect(onChange).toHaveBeenLastCalledWith([{ targetType: 'ROLE', roleId: 'role-1' }], true)
+
+    // Ticking it again goes back to everyone.
+    rerender(<PolicyAudienceEditor value={value} {...props} />)
+    await user.click(screen.getByRole('checkbox', { name: 'All employees' }))
+    expect(onChange).toHaveBeenLastCalledWith([], false)
+  })
+
+  it('does not save with All employees unticked and no group chosen', () => {
+    const values = { ...emptyPolicyForm('u1', true), title: 'T', reference: 'R', primaryCategoryId: 'c1' }
+    expect(validatePolicyDraft({ ...values, audienceSpecific: true, audiences: [] }).audiences).toBe(
+      'Choose at least one role, job title, work area or location, or tick All employees.',
+    )
+    expect(
+      validatePolicyDraft({ ...values, audienceSpecific: true, audiences: [{ targetType: 'ROLE', roleId: 'role-1' }] })
+        .audiences,
+    ).toBeUndefined()
+    expect(validatePolicyDraft({ ...values, audiences: [] }).audiences).toBeUndefined()
   })
 })
 
