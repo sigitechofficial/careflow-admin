@@ -3,6 +3,32 @@ import { cn } from '@/shared/lib/utils'
 
 export type PolicySectionLink = { id: string; label: string }
 
+/** The nearest parent that scrolls (the app's content area), or null for the page itself. */
+function scrollParent(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const { overflowY } = getComputedStyle(p)
+    if ((overflowY === 'auto' || overflowY === 'scroll') && p.scrollHeight > p.clientHeight) return p
+  }
+  return null
+}
+
+/**
+ * Scrolls only the content area so the part sits just under the tabs. scrollIntoView would also
+ * scroll the app's outer frame (sidebar and all) when the last part is short, leaving a gap below.
+ */
+function scrollToSection(id: string, nav: HTMLElement | null) {
+  const target = document.getElementById(id)
+  if (!target) return
+  const gap = (nav?.offsetHeight ?? 0) + 12
+  const box = scrollParent(target)
+  if (box) {
+    const top = target.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - gap
+    box.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+  } else {
+    window.scrollTo({ top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - gap), behavior: 'smooth' })
+  }
+}
+
 /**
  * Tabs under the policy title listing every part of the page (Summary, Content, Version history…).
  * Each tab jumps to its part; the page keeps every part on it, so links straight to one part
@@ -47,9 +73,9 @@ export function PolicySectionNav({ sections, testId = 'policy-section-nav' }: { 
             <button
               type="button"
               aria-current={active === s.id ? 'true' : undefined}
-              onClick={() => {
+              onClick={e => {
                 setActive(s.id)
-                document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                scrollToSection(s.id, e.currentTarget.closest('nav'))
               }}
               className={cn(
                 '-mb-px whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors',

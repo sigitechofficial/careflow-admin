@@ -851,7 +851,10 @@ describe('PolicyDetailPage publish', () => {
   it('lists every part of the page in tabs under the title, in page order, and a tab jumps to its part', async () => {
     const user = userEvent.setup()
     const scrolled = vi.fn()
-    Element.prototype.scrollIntoView = scrolled
+    // Only the content area (here the window) scrolls, never the app's outer frame.
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(scrolled)
+    const intoView = vi.fn()
+    Element.prototype.scrollIntoView = intoView
     render(<PolicyDetailPage />, { wrapper: wrapper() })
     const nav = screen.getByRole('navigation', { name: 'Sections of this policy' })
     const tabs = within(nav).getAllByRole('button').map(b => b.textContent)
@@ -862,7 +865,9 @@ describe('PolicyDetailPage publish', () => {
     expect(summary.compareDocumentPosition(content) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     await user.click(within(nav).getByRole('button', { name: 'Version history' }))
     expect(scrolled).toHaveBeenCalled()
+    expect(intoView).not.toHaveBeenCalled()
     expect(within(nav).getByRole('button', { name: 'Version history' })).toHaveAttribute('aria-current', 'true')
+    scrollTo.mockRestore()
   })
 
   it('shows Ready to publish and Publish policy for an approved policy', () => {
