@@ -227,6 +227,41 @@ function capturedGpsPoints(rows: EcmExceptionRow[]): CapturedGpsPoint[] {
   return points
 }
 
+/**
+ * What the carer said in the app about arriving early / late or finishing early.
+ * Read-only context for triage — the office still resolves the alert itself.
+ */
+function CarerReasonLines({ rows }: { rows: EcmExceptionRow[] }) {
+  const seen = new Set<string>()
+  const reasons = rows
+    .flatMap(r => r.carerReasons ?? [])
+    .filter(reason => {
+      const key = `${reason.kind}:${reason.employeeId ?? 'visit'}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return Boolean(reason.label || reason.notes)
+    })
+  if (reasons.length === 0) return null
+  return (
+    <div className="space-y-0.5" data-testid="ecm-queue-carer-reasons">
+      {reasons.map(reason => {
+        const heading =
+          reason.kind === 'arrival'
+            ? `Carer arrival reason${reason.name ? ` · ${reason.name}` : ''}`
+            : 'Carer clock-out reason'
+        return (
+          <p key={`${reason.kind}:${reason.employeeId ?? 'visit'}`} className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground/80">{heading}</span>
+            <span className="mx-1.5">·</span>
+            {reason.label ?? reason.notes}
+            {reason.label && reason.notes ? <> — {reason.notes}</> : null}
+          </p>
+        )
+      })}
+    </div>
+  )
+}
+
 function visitIdMatchLine(row: EcmExceptionRow) {
   const ref = row.visitRef?.trim()
   if (!ref) return null
@@ -943,7 +978,7 @@ export function VisitQueueCard({
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
               <h4 className="truncate text-base font-semibold tracking-tight text-foreground">
-                {row.serviceUserName}
+                {row.serviceUserFullName?.trim() || row.serviceUserName}
               </h4>
               <p className="mt-0.5 text-sm font-medium text-foreground">{visitType}</p>
             </div>
@@ -1009,6 +1044,7 @@ export function VisitQueueCard({
               </p>
             )
           })}
+          <CarerReasonLines rows={rows} />
         </div>
         <ChevronRight
           className={cn(

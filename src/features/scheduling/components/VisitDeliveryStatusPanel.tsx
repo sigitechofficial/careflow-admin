@@ -162,7 +162,8 @@ export function VisitDeliveryStatusPanel({
         <div className="mt-3 rounded-md border border-border/80 bg-background/60 px-3 py-2 text-xs">
           <p className="font-medium text-foreground">Exception reason</p>
           {reasonLabel ? <p className="mt-0.5 text-foreground">{reasonLabel}</p> : null}
-          {timingException?.notes ? (
+          {/* With no office reason list the app sends the note as the reason too — show it once. */}
+          {timingException?.notes && timingException.notes.trim() !== reasonLabel?.trim() ? (
             <p className="mt-0.5 text-muted-foreground">{timingException.notes}</p>
           ) : null}
           {timingException?.overrunReason &&

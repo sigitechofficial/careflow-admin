@@ -114,6 +114,21 @@ export type TimeSensitiveVisitFlag = {
   chips: TimeSensitiveChip[]
 }
 
+export type VisitCheckInSummary = {
+  method: string
+  methodLabel: string
+  reasonCode?: string | null
+  reasonLabel?: string | null
+  notes?: string | null
+  timingStatus?: 'early' | 'late' | null
+  timingKindLabel?: string | null
+  timingNotesLabel?: string | null
+  timingExceptionReasonCode?: string | null
+  timingExceptionReasonLabel?: string | null
+  timingExceptionNotes?: string | null
+  outsideGeofenceReason?: string | null
+}
+
 export type TimelineJob = {
   id: string
   jobName: string
@@ -158,21 +173,10 @@ export type TimelineJob = {
     notes?: string | null
     overrunReason?: string | null
   } | null
-  /** Carer-app clock-in method, manual reason, and notes. */
-  checkIn?: {
-    method: string
-    methodLabel: string
-    reasonCode?: string | null
-    reasonLabel?: string | null
-    notes?: string | null
-    timingStatus?: 'early' | 'late' | null
-    timingKindLabel?: string | null
-    timingNotesLabel?: string | null
-    timingExceptionReasonCode?: string | null
-    timingExceptionReasonLabel?: string | null
-    timingExceptionNotes?: string | null
-    outsideGeofenceReason?: string | null
-  } | null
+  /** Carer-app clock-in method, manual reason, and notes (latest carer to clock in). */
+  checkIn?: VisitCheckInSummary | null
+  /** Each carer's own clock-in summary on a shared visit, keyed by employeeId. */
+  checkInsByEmployee?: Record<string, VisitCheckInSummary | null>
   /** Carer attended (COMPLETED) but care was not delivered — SU unavailable / not home. */
   careNotDelivered?: {
     reasonCode?: string | null

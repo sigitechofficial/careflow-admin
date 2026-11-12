@@ -29,7 +29,7 @@ import {
   allocationStatusLabel,
   formatJobTimeRange,
   jobStatusLabel,
-  serviceUserLabel,
+  serviceUserFullLabel,
 } from '@/features/scheduling/utils/scheduling-format'
 import { ScheduleVisitRefResetRow } from '@/features/scheduling/components/ScheduleVisitResetDeliveryButton'
 import {
@@ -157,7 +157,7 @@ export default function CarerVisitHubPage() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="truncate text-xl font-semibold text-foreground">
-                {serviceUserLabel(su)}
+                {serviceUserFullLabel(su)}
               </h1>
               <Badge variant="secondary" className="shrink-0">
                 {jobStatusLabel(job.status)}
@@ -228,7 +228,7 @@ export default function CarerVisitHubPage() {
                   params={{ serviceUserId: job.serviceUserId }}
                   className="text-primary underline-offset-2 hover:underline"
                 >
-                  {serviceUserLabel(su)}
+                  {serviceUserFullLabel(su)}
                 </Link>
               </DetailRow>
 

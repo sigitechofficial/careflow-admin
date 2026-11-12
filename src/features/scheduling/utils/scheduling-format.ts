@@ -16,6 +16,26 @@ export function serviceUserLabel(su: ServiceUserBrief): string {
   return `${name}${num}`.trim() || su.id
 }
 
+/**
+ * Visit pages (workspace, visit hub): legal name with the preferred name in
+ * brackets, e.g. "Margaret Ellis (Peggy) (SU-123)". Same pattern as the service
+ * user record and matches the full name the carer app shows. Rota board and
+ * other compact labels keep `serviceUserLabel` (preferred name only).
+ */
+export function serviceUserFullLabel(su: ServiceUserBrief): string {
+  const legal = [su.firstName, su.lastName].filter(Boolean).join(' ').trim()
+  const preferred = su.preferredName?.trim()
+  // No brackets when the preferred name is just the first name ("Doreen").
+  const same = (a?: string | null) =>
+    Boolean(a && preferred && a.trim().toLowerCase() === preferred.toLowerCase())
+  const name =
+    legal && preferred && !same(legal) && !same(su.firstName)
+      ? `${legal} (${preferred})`
+      : legal || preferred || ''
+  const num = su.serviceUserNumber ? ` (${su.serviceUserNumber})` : ''
+  return `${name}${num}`.trim() || su.id
+}
+
 /** Shorter rota block label — name without service-user number. */
 export function serviceUserNameOnly(su: ServiceUserBrief): string {
   const name = su.preferredName?.trim() || [su.firstName, su.lastName].filter(Boolean).join(' ')
