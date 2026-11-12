@@ -482,6 +482,14 @@ const navItems: NavItem[] = [
       },
       {
         section: 'Time & absence',
+        label: 'Over care reviews',
+        icon: <Scale className="h-4 w-4" />,
+        href: '/over-care-reviews',
+        anyPermission: ['hours_approvals.read', 'hours_approvals.manage'],
+        navTestId: 'nav-over-care-reviews',
+      },
+      {
+        section: 'Time & absence',
         label: 'Hours & visits history',
         icon: <History className="h-4 w-4" />,
         href: '/hours-history',
@@ -682,6 +690,8 @@ const navItems: NavItem[] = [
         ],
         navTestId: 'nav-compliance-dashboard',
       },
+      // Temporary logins for CQC inspectors, commissioners and auditors (same page as Workforce › Staff).
+      { section: 'Compliance', label: 'Inspector access', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/temp-inspector', permission: 'employees.read', navTestId: 'nav-quality-inspector-access' },
       { section: 'Incidents', label: 'Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/incidents/dashboard', permission: 'incidents.read' },
       { section: 'Incidents', label: 'All Incidents', icon: <Eye className="h-4 w-4" />, href: '/incidents/view', permission: 'incidents.read' },
       { section: 'Incidents', label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
@@ -736,6 +746,7 @@ const navItems: NavItem[] = [
         permission: 'surveys.read',
         navTestId: 'nav-surveys-all',
       },
+      { section: 'Feedback', label: 'Independent reviewers', icon: <UserCheck className="h-4 w-4" />, href: '/surveys/reviewers', permission: 'surveys.manage', navTestId: 'nav-surveys-reviewers' },
       planned("Governance", "Audits", <ClipboardList className="h-4 w-4" />, "An audit library, custom audits and due dates for each location."),
       planned("Governance", "Mock CQC inspection", <Scale className="h-4 w-4" />, "Work through the five key questions and quality statements and get a mock rating for each service."),
       planned("Governance", "Action plans & evidence", <ListChecks className="h-4 w-4" />, "One action plan for audits, incidents and complaints, with linked evidence."),
@@ -1052,6 +1063,8 @@ const navItems: NavItem[] = [
         navTestId: 'nav-admin-audit',
       },
       { section: 'Security & audit', label: 'Security', icon: <ShieldCheck className="h-4 w-4" />, href: '/admin/security', permission: 'security.admin' },
+      // Temporary logins for CQC inspectors, commissioners and auditors (same page as Workforce › Staff).
+      { section: 'Security & audit', label: 'Inspector access', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/temp-inspector', permission: 'employees.read', navTestId: 'nav-admin-inspector-access' },
       planned("Integrations", "GP Connect", <Stethoscope className="h-4 w-4" />, "Bring NHS GP records, medications and allergies into the care record."),
       planned("Integrations", "Pharmacy integration", <Pill className="h-4 w-4" />, "Receive medication changes from the pharmacy and send orders."),
       planned("Integrations", "Telecare", <Radio className="h-4 w-4" />, "Use alerts from home sensors and alarms in care planning."),

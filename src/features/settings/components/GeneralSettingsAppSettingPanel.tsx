@@ -51,6 +51,44 @@ function AppToggleRow({
   )
 }
 
+const DEVICE_LIMIT_CHOICES = [0, 2, 3, 4, 5, 10] as const
+
+/** How many devices at once, when more than one is allowed (0 = no limit). */
+function DeviceLimitRow({
+  id,
+  value,
+  onChange,
+  disabled,
+  noun,
+}: {
+  id: string
+  value: number
+  onChange: (v: number) => void
+  disabled: boolean
+  noun: string
+}) {
+  const choices = DEVICE_LIMIT_CHOICES.includes(value as (typeof DEVICE_LIMIT_CHOICES)[number])
+    ? DEVICE_LIMIT_CHOICES
+    : [...DEVICE_LIMIT_CHOICES, value].sort((a, b) => a - b)
+  return (
+    <SettingsRow label={<label htmlFor={id}>How many at once?</label>}>
+      <select
+        id={id}
+        className="h-9 w-full max-w-xs rounded-md border border-input bg-background px-2 text-sm"
+        value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        disabled={disabled}
+      >
+        {choices.map(n => (
+          <option key={n} value={n}>
+            {n === 0 ? 'No limit' : `Up to ${n} ${noun}`}
+          </option>
+        ))}
+      </select>
+    </SettingsRow>
+  )
+}
+
 function AppConfigGroup({
   title,
   children,
@@ -187,22 +225,63 @@ export function GeneralSettingsAppSettingPanel() {
           </div>
         </GeneralSettingsCard>
 
+        <GeneralSettingsCard title="Office website sign-in">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Choose whether office staff can be signed in on more than one browser or device, and how
+            many at once. Signing in on one more than allowed signs out the one signed in longest
+            ago, and that browser is told why.
+          </p>
+          <div data-testid="office-device-login" className="space-y-4">
+            <SettingsRow label="Allow multiple device login?" hint={APP_SETTINGS_TOOLTIPS.officeMultipleDeviceLogin}>
+              <SettingsNoYesToggle
+                value={draft.officeMultipleDeviceLogin}
+                onChange={v => patch({ officeMultipleDeviceLogin: v })}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+            {draft.officeMultipleDeviceLogin ? (
+              <DeviceLimitRow
+                id="office-max-devices"
+                value={draft.officeMaxDevices}
+                onChange={v => patch({ officeMaxDevices: v })}
+                disabled={!canUpdate}
+                noun="browsers or devices"
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">One browser or device: signing in on another signs the first one out.</p>
+            )}
+          </div>
+        </GeneralSettingsCard>
+
         <GeneralSettingsCard title="Care app sign-in">
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Choose whether a carer can stay signed in on more than one phone. If this is off, the
-            first device stays signed in and a second login is blocked until they sign out, the
-            office signs out the session, or the session goes stale.
+            Choose whether a carer can be signed in on more than one phone, and how many at once.
+            Signing in on one more than allowed signs out the phone signed in longest ago, and that
+            phone is told why.
           </p>
-          <SettingsRow
-            label="Allow multiple device login?"
-            hint={APP_SETTINGS_TOOLTIPS.singleDeviceLoginCareApp}
-          >
-            <SettingsNoYesToggle
-              value={!draft.singleDeviceLoginCareApp}
-              onChange={v => patch({ singleDeviceLoginCareApp: !v })}
-              disabled={!canUpdate}
-            />
-          </SettingsRow>
+          <div data-testid="care-app-device-login" className="space-y-4">
+            <SettingsRow
+              label="Allow multiple device login?"
+              hint={APP_SETTINGS_TOOLTIPS.singleDeviceLoginCareApp}
+            >
+              <SettingsNoYesToggle
+                value={!draft.singleDeviceLoginCareApp}
+                onChange={v => patch({ singleDeviceLoginCareApp: !v })}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+            {!draft.singleDeviceLoginCareApp ? (
+              <DeviceLimitRow
+                id="care-app-max-devices"
+                value={draft.maxDevicesCareApp}
+                onChange={v => patch({ maxDevicesCareApp: v })}
+                disabled={!canUpdate}
+                noun="phones"
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">One phone: signing in on another phone signs the first one out.</p>
+            )}
+          </div>
         </GeneralSettingsCard>
       </div>
 

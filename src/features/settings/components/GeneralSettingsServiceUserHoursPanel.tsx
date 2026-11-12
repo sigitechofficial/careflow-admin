@@ -37,8 +37,6 @@ export function GeneralSettingsServiceUserHoursPanel() {
           visitsNeedApproval: draft.visitsNeedApproval,
           specialVisitsCount: draft.specialVisitsCount,
           useTimebank: draft.useTimebank,
-          adjustOverCareNextWeek: draft.adjustOverCareNextWeek,
-          chargeTimebankOnInvoice: draft.chargeTimebankOnInvoice,
         },
       })
       toastSuccess('Saved', 'Service user weekly hours rules updated.')
@@ -120,6 +118,7 @@ export function GeneralSettingsServiceUserHoursPanel() {
           hint={[
             'Yes: when a new visit takes a week over the weekly hours, the hours over come from the service user\'s timebank.',
             '• Only when the timebank has all of the hours over; otherwise the setting above decides.',
+            '• Only for visits Monday–Friday at the standard weekday rate: never at weekends, on bank holidays or special days (Finance › Billing management › Bank holidays), at a time the charge card prices differently, or for night visits.',
             '• The hours are taken when the visit is put on the rota and shown on the visit.',
             '• Cancelled visits, and visits not delivered in full, give their hours back (a cancellation charged to the service user does not).',
             '',
@@ -129,49 +128,6 @@ export function GeneralSettingsServiceUserHoursPanel() {
           <NoYesToggle
             value={draft.useTimebank}
             onChange={v => set('useTimebank', v)}
-            disabled={disabled}
-            labelOff="No"
-            labelOn="Yes"
-          />
-        </SettingsRow>
-
-        <SettingsRow
-          label="Reduce next week's visits after over care"
-          hint={[
-            'Yes: care given over the weekly hours in a finished week is taken back the next week.',
-            '• Each night, last week\'s over care lowers this week\'s hours by the same amount: the latest visits from tomorrow are cancelled (no charge), with the reason on each visit.',
-            '• Over care = visits delivered or done (not yet approved) above the weekly hours. Hours paid from the timebank and visits a manager approved over the hours are left out.',
-            '• Only plan and special visits are cancelled, and only with an active plan. What the week cannot take back is shown, not carried on.',
-            '• Managers are told, and Reports → Timebank shows the visits cancelled.',
-            '',
-            'No: over care is only shown.',
-          ].join('\n')}
-        >
-          <NoYesToggle
-            value={draft.adjustOverCareNextWeek}
-            onChange={v => set('adjustOverCareNextWeek', v)}
-            disabled={disabled}
-            labelOff="No"
-            labelOn="Yes"
-          />
-        </SettingsRow>
-
-        <SettingsRow
-          label="Charge timebank hours on the invoice"
-          hint={[
-            'Yes: the hours a finished week puts in the timebank are charged on that week\'s invoice.',
-            '• Hours with a visit (missed, cancelled with no charge, shorter…) at that visit\'s rate; weekly hours never booked on the rota at the weekday rate.',
-            '• Each week is charged once. If a charged week later has fewer timebank hours, the next invoice gives a credit.',
-            '• Care later paid from these hours is not charged again (shown as "Paid from timebank").',
-            '• Sleeping and waking nights never use the timebank (their rate is not hourly).',
-            '• Only weeks from the day this is first on are charged.',
-            '',
-            'No: timebank hours are not on the invoice. Hours already charged are still credited if a charged week later has fewer, and are free when care is paid from them.',
-          ].join('\n')}
-        >
-          <NoYesToggle
-            value={draft.chargeTimebankOnInvoice}
-            onChange={v => set('chargeTimebankOnInvoice', v)}
             disabled={disabled}
             labelOff="No"
             labelOn="Yes"

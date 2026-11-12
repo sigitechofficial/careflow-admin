@@ -51,7 +51,7 @@ export function SettingsRow({
   helperText?: string
 }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 rounded-md" data-setting-row>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-foreground">
           <span>{label}</span>

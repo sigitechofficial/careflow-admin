@@ -69,12 +69,12 @@ export type ServiceUserWeeklyHoursSettings = {
   specialVisitsCount: boolean
   /** Visits over the weekly hours use the service user's timebank when it covers all the hours over. */
   useTimebank: boolean
-  /** Over care in a finished week is taken back the next week (its latest visits cancelled). */
-  adjustOverCareNextWeek: boolean
+  /** Set by the server, always true: over care raises a review for a manager (Workforce › Over care reviews). */
+  adjustOverCareNextWeek?: boolean
   /** Set by the server: the first day over care is taken back (weeks from it on). */
   adjustOverCareFrom?: string | null
-  /** A finished week's timebank hours are charged on the weekly invoice; care later paid from them costs nothing. */
-  chargeTimebankOnInvoice: boolean
+  /** Set by the server, always true: a finished week's timebank hours are charged on the weekly invoice (no longer a setting). */
+  chargeTimebankOnInvoice?: boolean
   /** Set by the server: the first day timebank hours are charged (weeks from it on). */
   chargeTimebankFrom?: string | null
 }
@@ -112,6 +112,12 @@ export type OrganisationAppSettings = {
   bookHolidaysCareApp: boolean
   fingerprintLoginCareApp: boolean
   singleDeviceLoginCareApp: boolean
+  /** Care app: with more than one phone allowed, the most at once (0 = no limit). */
+  maxDevicesCareApp: number
+  /** Office website: one person signed in on more than one browser or device. */
+  officeMultipleDeviceLogin: boolean
+  /** Office website: with more than one allowed, the most at once (0 = no limit). */
+  officeMaxDevices: number
 }
 
 export type OrganisationCriticalInformationSettings = {
@@ -348,6 +354,9 @@ export type AppSettingsUpdatePayload = {
   appSettingBookHolidaysCareApp?: boolean
   appSettingFingerprintLoginCareApp?: boolean
   appSettingSingleDeviceLoginCareApp?: boolean
+  appSettingMaxDevicesCareApp?: number
+  officeMultipleDeviceLogin?: boolean
+  officeMaxDevices?: number
 }
 
 export type CriticalInformationSettingsUpdatePayload = {
