@@ -37,7 +37,11 @@ export type HrEmployeeListRow = {
   jobTitle: string | null
   employmentType: string | null
   employeeLifecycleStatus: EmployeeLifecycleStatus
+  /** What HR set on the HR profile. */
   deploymentStatus: HrDeploymentStatus
+  /** The worse of the HR status and mandatory compliance. */
+  readinessStatus: HrDeploymentStatus
+  compliance: { level: HrDeploymentStatus; issues: string[] }
 }
 
 export type HrEmergencyContactRow = {
@@ -153,6 +157,21 @@ export async function fetchHrEmployees(params: ListHrEmployeesParams = {}) {
   }
 }
 
+export type HrSummary = {
+  total: number
+  lifecycle: Record<EmployeeLifecycleStatus, number>
+  /** By readiness: the worse of the HR status and mandatory compliance. */
+  deployment: Record<HrDeploymentStatus, number>
+  /** People whose compliance makes them worse than the status HR set. */
+  complianceFlagged: number
+}
+
+/** Head counts for the HR dashboard (an employee with no HR profile counts as Active / Green). */
+export async function fetchHrSummary() {
+  const res = await apiJson<ApiEnvelope<HrSummary>>('/hr/employees/summary')
+  return res.data
+}
+
 export async function fetchHrProfile(employeeId: string) {
   const res = await apiJson<ApiEnvelope<HrProfile>>(`/hr/employees/${employeeId}/hr-profile`)
   return res.data
@@ -181,4 +200,28 @@ export async function fetchHrDocuments(employeeId: string) {
 
 export async function deleteHrDocument(documentId: string) {
   await apiJson(`/hr/documents/${documentId}`, { method: 'DELETE' })
+}
+
+export async function updateHrDocumentStatus(documentId: string, status: HrDocumentStatus) {
+  const res = await apiJson<ApiEnvelope<HrDocumentRow>>(`/hr/documents/${documentId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+  return res.data
+}
+
+/** HR documents that have expired or expire within 30 days, soonest first. */
+export type ExpiringHrDocument = {
+  id: string
+  name: string
+  documentType: HrDocumentType | null
+  status: HrDocumentStatus | null
+  expiryDate: string
+  employeeId: string
+  employeeName: string
+}
+
+export async function fetchExpiringHrDocuments() {
+  const res = await apiJson<ApiEnvelope<ExpiringHrDocument[]>>('/hr/documents/expiring')
+  return res.data
 }

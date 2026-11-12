@@ -25,6 +25,7 @@ import {
   type ReferralMailbox,
   type ReferralMailboxStatus,
   type RelaySettings,
+  type MailboxPurpose,
 } from '@/features/crm/api/referral-inbox.api'
 
 export const PROVIDER_LABEL: Record<MailboxProvider, string> = {
@@ -185,6 +186,7 @@ function EditMailbox({ m, onDone }: { m: ReferralMailbox; onDone: () => void }) 
   const qc = useQueryClient()
   const [displayName, setDisplayName] = React.useState(m.displayName ?? '')
   const [labelName, setLabelName] = React.useState(m.labelName)
+  const [purpose, setPurpose] = React.useState<MailboxPurpose>(m.purpose ?? 'REFERRALS')
   const [branch, setBranch] = React.useState<string | null>(m.defaultLocationId)
   // Only the settings themselves go back to the server (not "hasPassword", which the server adds).
   const [imap, setImap] = React.useState<ImapSettings>(() => {
@@ -208,6 +210,7 @@ function EditMailbox({ m, onDone }: { m: ReferralMailbox; onDone: () => void }) 
   const save = useMutation({
     mutationFn: () =>
       updateMailbox(m.id, {
+        purpose,
         displayName: displayName.trim() || null,
         ...(webhook ? {} : { labelName: labelName.trim() }),
         defaultLocationId: branch,
@@ -227,6 +230,22 @@ function EditMailbox({ m, onDone }: { m: ReferralMailbox; onDone: () => void }) 
   return (
     <div className="space-y-4" data-testid="mailbox-edit">
       <div className="grid gap-3 sm:grid-cols-2">
+        <fieldset className="space-y-1 sm:col-span-2">
+          <legend className="text-sm font-medium">Used for</legend>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="radio" name={`purpose-${m.id}`} checked={purpose === 'REFERRALS'} onChange={() => setPurpose('REFERRALS')} /> Care referrals
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" name={`purpose-${m.id}`} checked={purpose === 'RECRUITMENT'} onChange={() => setPurpose('RECRUITMENT')} /> Job applications (recruitment)
+            </label>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {purpose === 'RECRUITMENT'
+              ? 'Job applications: emails go to HR → Recruitment inbox, where a candidate is made from each one.'
+              : 'Care referrals: emails go to this inbox and become enquiries.'}
+          </p>
+        </fieldset>
         <Field label="Name" hint="What staff call it, e.g. “Hammersmith referrals”.">
           <Input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder={m.emailAddress} />
         </Field>
@@ -347,6 +366,11 @@ function MailboxCard({ m, onEdit, onAddress }: { m: ReferralMailbox; onEdit: () 
             <Badge variant="info" size="sm">
               {PROVIDER_LABEL[m.provider]}
             </Badge>
+            {m.purpose === 'RECRUITMENT' ? (
+              <Badge variant="outline" size="sm">
+                Recruitment
+              </Badge>
+            ) : null}
             {m.isActive ? null : (
               <Badge variant="warning" size="sm">
                 Off

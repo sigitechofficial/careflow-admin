@@ -23,6 +23,11 @@ function isPublicSurveyPath(path: string): boolean {
   )
 }
 
+/** Careers page and job applications (no login). */
+function isPublicCareersPath(path: string): boolean {
+  return path === '/careers' || path.startsWith('/careers/')
+}
+
 function isPortalPath(path: string) {
   return path === '/portal' || path.startsWith('/portal/')
 }
@@ -63,7 +68,12 @@ export async function rootAuthBeforeLoad({ location }: { location: { pathname: s
     return
   }
 
-  if (STAFF_PUBLIC_PATHS.has(path) || isPublicLegalPath(path) || isPublicSurveyPath(path)) {
+  if (
+    STAFF_PUBLIC_PATHS.has(path) ||
+    isPublicLegalPath(path) ||
+    isPublicSurveyPath(path) ||
+    isPublicCareersPath(path)
+  ) {
     if (path === '/auth/login' && isAuthenticated()) {
       throw redirect({ to: isServiceUser() ? '/portal' : '/' })
     }

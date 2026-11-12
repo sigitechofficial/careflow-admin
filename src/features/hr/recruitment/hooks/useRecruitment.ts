@@ -13,6 +13,7 @@ import {
   updateCandidateStage,
   updateVacancy,
   updateVacancyStatus,
+  type CandidateDetail,
   type CandidateStage,
   type CreateCandidatePayload,
   type CreateVacancyPayload,
@@ -94,6 +95,7 @@ export function useCandidates(
     search?: string
     vacancyId?: string
     stage?: CandidateStage
+    closed?: boolean
   } = {},
   enabled = true,
 ) {
@@ -136,10 +138,25 @@ export function useCreateCandidate() {
 export function useUpdateCandidateStage(candidateId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (input: { stage: CandidateStage; notes?: string }) =>
-      updateCandidateStage(candidateId, input.stage, input.notes),
+    mutationFn: (input: { stage: CandidateStage; notes?: string; notifyCandidate?: boolean }) =>
+      updateCandidateStage(candidateId, input.stage, input.notes, input.notifyCandidate),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: recruitmentKeys.candidate(candidateId) })
+      void qc.invalidateQueries({ queryKey: recruitmentKeys.all })
+    },
+  })
+}
+
+/** Runs one recruitment-flow action; the server answers with the refreshed candidate. */
+export function useCandidateFlowAction<TArgs>(
+  candidateId: string,
+  action: (args: TArgs) => Promise<CandidateDetail>,
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: action,
+    onSuccess: data => {
+      qc.setQueryData(recruitmentKeys.candidate(candidateId), data)
       void qc.invalidateQueries({ queryKey: recruitmentKeys.all })
     },
   })
@@ -148,7 +165,8 @@ export function useUpdateCandidateStage(candidateId: string) {
 export function useConvertCandidate(candidateId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => convertCandidate(candidateId),
+    mutationFn: (input: { startDate?: string; email?: string } = {}) =>
+      convertCandidate(candidateId, input.startDate, input.email),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: recruitmentKeys.candidate(candidateId) })
       void qc.invalidateQueries({ queryKey: recruitmentKeys.all })
@@ -168,13 +186,19 @@ export function useCandidateDocuments(candidateId: string | null, enabled = true
 export function useUploadCandidateDocument(candidateId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { file: File; documentType: CandidateDocumentType; reviewNotes?: string }) => {
+    mutationFn: async (input: {
+      file: File
+      documentType: CandidateDocumentType
+      reviewNotes?: string
+      checkId?: string
+    }) => {
       const base = getApiBaseUrl()
       if (!base) throw new ApiError('API base URL is not configured.', 0)
       const form = new FormData()
       form.append('file', input.file)
       form.append('documentType', input.documentType)
       if (input.reviewNotes?.trim()) form.append('reviewNotes', input.reviewNotes.trim())
+      if (input.checkId) form.append('checkId', input.checkId)
       const token = useAuthStore.getState().accessToken
       const headers = new Headers()
       if (token) headers.set('Authorization', `Bearer ${token}`)

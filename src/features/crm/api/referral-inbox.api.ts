@@ -201,6 +201,8 @@ export type ReferralMailbox = {
   displayName: string | null
   /** Gmail label, or the folder to read (Microsoft, IMAP). */
   labelName: string
+  /** Care referrals (this inbox) or job applications (HR → Recruitment inbox). */
+  purpose: MailboxPurpose
   defaultLocationId: string | null
   defaultLocationName: string | null
   /** false = turned off (not read; settings kept). */
@@ -232,7 +234,10 @@ export type ImapMailboxInput = ImapSettings & {
   defaultLocationId?: string | null
 }
 
+export type MailboxPurpose = 'REFERRALS' | 'RECRUITMENT'
+
 export type MailboxUpdateInput = {
+  purpose?: MailboxPurpose
   displayName?: string | null
   labelName?: string
   defaultLocationId?: string | null
