@@ -32,7 +32,7 @@ import { scheduleVisitBodyMapSearch } from '@/features/service-users/body-map/ut
 import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
 import { recordTypeLabel } from '@/features/service-users/body-map/catalog/record-types'
 import type { BodyMapRecordTypeCode } from '@/features/service-users/body-map/catalog/record-types'
-import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import type { TimelineJob, VisitCheckInSummary } from '@/features/scheduling/types/scheduling.types'
 import { isScheduleJobCancelled } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { VisitBodyMapCapture } from '@/features/scheduling/components/VisitBodyMapCapture'
 import { VisitJobTasksPanel } from '@/features/scheduling/components/VisitJobTasksPanel'
@@ -57,7 +57,7 @@ import {
 import {
   employeesLabel,
   formatJobTimeRange,
-  serviceUserLabel,
+  serviceUserFullLabel,
 } from '@/features/scheduling/utils/scheduling-format'
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import {
@@ -359,6 +359,21 @@ function allocationDisplayName(
   return name || 'Carer'
 }
 
+/** One carer's own early / late arrival reason on a shared visit. */
+function CarerArrivalReason({ checkIn }: { checkIn?: VisitCheckInSummary | null }) {
+  if (!checkIn) return null
+  const reason = checkIn.timingExceptionReasonLabel?.trim()
+  const notes = checkIn.timingExceptionNotes?.trim()
+  if (!reason && !notes) return null
+  return (
+    <p className="mt-0.5 text-xs text-muted-foreground" data-testid="visit-workspace-carer-arrival-reason">
+      {checkIn.timingKindLabel ?? 'Arrival reason'}:{' '}
+      <span className="text-foreground">{reason ?? notes}</span>
+      {reason && notes && notes !== reason ? <> — {notes}</> : null}
+    </p>
+  )
+}
+
 function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
   const allocations = job.allocations ?? []
   // Same lead the carer app shows: flagged lead, else the first-assigned carer.
@@ -402,7 +417,9 @@ function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
             : null
           const leftAt = presence?.leftAt ? formatOrganisationIsoTime(presence.leftAt) : null
           const marker = presence?.markedByName?.trim()
-          let presenceLabel = 'Not in yet'
+          // No lead "mark arrived" record: the clock times above already say where
+          // the carer is, so only say "Not in yet" when they have not clocked in.
+          let presenceLabel: string | null = clockedIn ? null : 'Not in yet'
           let presenceClass = 'text-amber-600 dark:text-amber-500'
           if (presence?.present) {
             presenceLabel = arrivedAt
@@ -476,9 +493,12 @@ function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
                     recorded on this shared visit, so no pay line was built from the visit times.
                   </p>
                 </div>
-              ) : (
+              ) : presenceLabel ? (
                 <p className={cn('mt-0.5 text-sm font-medium', presenceClass)}>{presenceLabel}</p>
-              )}
+              ) : null}
+              {allocations.length > 1 ? (
+                <CarerArrivalReason checkIn={job.checkInsByEmployee?.[allocation.employeeId]} />
+              ) : null}
             </li>
           )
         })}
@@ -563,6 +583,11 @@ export function ScheduleVisitWorkspaceContent({
     refetchOnMount: 'always',
   })
   const liveJob = freshJobQuery.data ? { ...job, ...freshJobQuery.data } : job
+  // Shared visit: each carer's arrival reason is shown on their own row, so the
+  // single job-level reason (latest carer only) would be misleading.
+  const perCarerArrivalShown =
+    (liveJob.allocations?.length ?? 0) > 1 &&
+    Object.keys(liveJob.checkInsByEmployee ?? {}).length > 0
 
   const careConsentQuery = useQuery({
     queryKey: schedulingKeys.careConsents(job.id),
@@ -675,7 +700,7 @@ export function ScheduleVisitWorkspaceContent({
             />
           ) : null}
           <section className={cn('rounded-lg border border-border px-4 py-3', cardSurface)}>
-            <p className="text-base font-semibold text-foreground">{serviceUserLabel(job.serviceUser)}</p>
+            <p className="text-base font-semibold text-foreground">{serviceUserFullLabel(job.serviceUser)}</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {visitSlot ? `${visitSlot} · ` : ''}
               {formatJobTimeRange(job)}
@@ -745,7 +770,7 @@ export function ScheduleVisitWorkspaceContent({
                       <dd className="inline whitespace-pre-wrap text-foreground">{liveJob.checkIn.notes}</dd>
                     </div>
                   ) : null}
-                  {liveJob.checkIn.timingExceptionReasonLabel ? (
+                  {liveJob.checkIn.timingExceptionReasonLabel && !perCarerArrivalShown ? (
                     <div>
                       <dt className="inline text-muted-foreground">
                         {liveJob.checkIn.timingKindLabel ?? 'Arrival reason'}:{' '}
@@ -755,7 +780,7 @@ export function ScheduleVisitWorkspaceContent({
                       </dd>
                     </div>
                   ) : null}
-                  {liveJob.checkIn.timingExceptionNotes ? (
+                  {liveJob.checkIn.timingExceptionNotes && !perCarerArrivalShown ? (
                     <div className="sm:col-span-2">
                       <dt className="inline text-muted-foreground">
                         {liveJob.checkIn.timingNotesLabel ?? 'More detail'}:{' '}

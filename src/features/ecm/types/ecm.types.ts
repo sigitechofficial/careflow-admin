@@ -418,6 +418,14 @@ export type CarerSosAlertDto = {
   closedByName?: string | null
 }
 
+export type EcmCarerReason = {
+  employeeId: string | null
+  name: string | null
+  kind: 'arrival' | 'clock_out'
+  label: string | null
+  notes: string | null
+}
+
 export type EcmExceptionRow = {
   id: string
   scheduledJobId: string
@@ -442,8 +450,15 @@ export type EcmExceptionRow = {
   plannedStartDateTime?: string
   plannedEndDateTime?: string | null
   carers?: Array<{ employeeId: string; name: string; isLeadCarer: boolean }>
+  /**
+   * Reason the carer gave in the app for an early / late arrival (one per carer)
+   * or an early finish (once per visit). Read-only — not the office resolution.
+   */
+  carerReasons?: EcmCarerReason[]
   serviceUserId?: string
   serviceUserName: string
+  /** Legal name with preferred name in brackets — queue card heading. */
+  serviceUserFullName?: string
   clockedInAt?: string | null
   /** True when any check-in or check-out on this visit used a mock GPS. */
   hasMockLocation?: boolean
