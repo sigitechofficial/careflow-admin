@@ -848,6 +848,23 @@ describe('PolicyDetailPage publish', () => {
     } as never)
   })
 
+  it('lists every part of the page in tabs under the title, in page order, and a tab jumps to its part', async () => {
+    const user = userEvent.setup()
+    const scrolled = vi.fn()
+    Element.prototype.scrollIntoView = scrolled
+    render(<PolicyDetailPage />, { wrapper: wrapper() })
+    const nav = screen.getByRole('navigation', { name: 'Sections of this policy' })
+    const tabs = within(nav).getAllByRole('button').map(b => b.textContent)
+    expect(tabs).toEqual(['Summary', 'Content', 'Applicability', 'Audience', 'CareFlow links', 'Version history'])
+    // Content follows the summary on the page, as on the tabs.
+    const summary = document.getElementById('policy-summary')!
+    const content = document.getElementById('policy-content')!
+    expect(summary.compareDocumentPosition(content) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await user.click(within(nav).getByRole('button', { name: 'Version history' }))
+    expect(scrolled).toHaveBeenCalled()
+    expect(within(nav).getByRole('button', { name: 'Version history' })).toHaveAttribute('aria-current', 'true')
+  })
+
   it('shows Ready to publish and Publish policy for an approved policy', () => {
     render(<PolicyDetailPage />, { wrapper: wrapper() })
     expect(screen.getByTestId('policy-ready-to-publish')).toHaveTextContent('Ready to publish')
@@ -1020,6 +1037,26 @@ describe('PolicyForm', () => {
     expect(screen.queryByText('Coming soon')).not.toBeInTheDocument()
     expect(screen.getByTestId('policy-rich-text-mock')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled()
+  })
+
+  it('puts the summary (title, owner, dates) and tags above the policy content, with tabs for every part', () => {
+    render(
+      <PolicyForm values={emptyPolicyForm('u1', true)} onChange={vi.fn()} onSubmit={() => {}} submitLabel="Save draft" />,
+      { wrapper: wrapper() },
+    )
+    const nav = screen.getByTestId('policy-form-section-nav')
+    expect(within(nav).getAllByRole('button').map(b => b.textContent)).toEqual([
+      'Summary',
+      'Tags',
+      'Content',
+      'Applicability',
+      'Audience',
+      'Staff acknowledgement',
+      'CareFlow links',
+    ])
+    const title = screen.getByLabelText(/Policy title/)
+    const content = screen.getByTestId('policy-content-source')
+    expect(title.compareDocumentPosition(content) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('opens the upload interface when Upload document is selected', async () => {
