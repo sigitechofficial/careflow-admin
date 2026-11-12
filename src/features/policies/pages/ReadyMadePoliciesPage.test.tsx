@@ -68,7 +68,7 @@ describe('Ready-made policies: adopting', () => {
     expect(state.navigate).toHaveBeenCalledWith({ to: '/policies/$policyId', params: { policyId: 'p9' } })
   })
 
-  it('stays on the list after adopting several at once', async () => {
+  it('opens the Policy Library after adopting several at once', async () => {
     const user = userEvent.setup()
     state.adoptResult = {
       created: [
@@ -76,6 +76,22 @@ describe('Ready-made policies: adopting', () => {
         { libraryId: 'lib2', policyId: 'p10', reference: 'LIB2', title: 'Consent Policy' },
       ],
       skipped: [],
+    }
+    render(<ReadyMadePoliciesPage />)
+    await user.click(screen.getByRole('checkbox', { name: 'Select Person-Centred Care Policy' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Consent Policy' }))
+    await user.click(screen.getByRole('button', { name: /Adopt as drafts/ }))
+    expect(state.navigate).toHaveBeenCalledWith({ to: '/policies' })
+  })
+
+  it('stays on the list when nothing was added (all already adopted)', async () => {
+    const user = userEvent.setup()
+    state.adoptResult = {
+      created: [],
+      skipped: [
+        { libraryId: 'lib1', reference: 'LIB1', title: 'Person-Centred Care Policy', reason: 'Already adopted' },
+        { libraryId: 'lib2', reference: 'LIB2', title: 'Consent Policy', reason: 'Already adopted' },
+      ],
     }
     render(<ReadyMadePoliciesPage />)
     await user.click(screen.getByRole('checkbox', { name: 'Select Person-Centred Care Policy' }))

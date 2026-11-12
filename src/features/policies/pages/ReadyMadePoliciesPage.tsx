@@ -104,6 +104,8 @@ export default function ReadyMadePoliciesPage() {
             ? `Not added: ${result.skipped.map(s => `${s.reference || s.title} (${s.reason})`).join('; ')}`
             : 'Check each one matches how you work, then send it for review.',
         )
+        // Several adopted: open the Policy Library, where the new drafts are listed with the rest.
+        if (made > 1) void navigate({ to: POLICY_PATHS.library })
       },
       onError: e => toastApiError(e, 'Could not adopt the policies'),
     })
