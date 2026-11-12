@@ -20,6 +20,8 @@ export type OutsideContact = {
   mobile: string | null
   phone: string | null
   sourceType: 'TYPED' | 'SERVICE_USER_CONTACT' | 'FUNDER' | 'PATHWAY_PROFESSIONAL'
+  /** A family member's People involved record (sourceType SERVICE_USER_CONTACT); matches FamilyContact.sourceId. */
+  sourceId?: string | null
   serviceUserId: string | null
   locationIds: string[]
   listIds: string[]
@@ -66,6 +68,10 @@ export type SendOutsideCheck = {
   already: number
   optedOut: number
   noDetails: number
+  /** Who cannot be reached by this survey; hasMobile: they have a mobile, but this survey is not sent by text. */
+  noDetailsPeople?: Array<{ id: string; name: string; sourceType: string; sourceId: string | null; serviceUserId: string | null; hasMobile: boolean }>
+  /** This survey is also sent by text (its reminders use texts and texts are switched on). */
+  textOn?: boolean
   noConsent: number
   /** Family members whose person we supported has died (only the bereaved-family survey goes to them). */
   died?: number
@@ -114,7 +120,11 @@ export function useFamiliesOf(serviceUserIds: string[]) {
 
 function useInvalidate() {
   const qc = useQueryClient()
-  return () => void qc.invalidateQueries({ queryKey: key })
+  return () => {
+    void qc.invalidateQueries({ queryKey: key })
+    // Who can be sent a survey may change (e.g. an email added from Send to people).
+    void qc.invalidateQueries({ queryKey: ['surveys', 'send-outside-check'] })
+  }
 }
 
 export function useSaveOutsideContact() {
