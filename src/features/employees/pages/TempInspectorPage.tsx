@@ -256,18 +256,20 @@ export default function TempInspectorPage() {
                 </FormRow>
 
                 <FormRow label="Password" required>
-                  <div className="relative flex">
+                  {/* One outline round the field and the show/hide button, so focus highlights the whole field. */}
+                  <div className="flex h-9 w-full overflow-hidden rounded-md border border-input bg-background shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring">
                     <input
                       type={showPwd ? 'text' : 'password'}
                       placeholder="Enter password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      className="flex h-9 w-full rounded-l-md border border-input border-r-0 bg-background px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="h-full w-full min-w-0 bg-transparent px-3 py-1 text-sm placeholder:text-muted-foreground focus:outline-none"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPwd(v => !v)}
-                      className="h-9 rounded-r-md border border-input border-l-0 bg-background px-3 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      aria-label={showPwd ? 'Hide password' : 'Show password'}
+                      className="shrink-0 px-3 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none"
                     >
                       {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -404,8 +406,9 @@ export default function TempInspectorPage() {
                             <button
                               type="button"
                               title="Remove"
+                              aria-label={`Remove ${row.firstName} ${row.lastName}`}
                               onClick={() => void handleDelete(row.id)}
-                              className="text-destructive/60 transition-colors hover:text-destructive"
+                              className="rounded-md p-1.5 text-destructive transition-colors hover:bg-destructive/10"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
