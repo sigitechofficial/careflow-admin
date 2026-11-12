@@ -666,7 +666,7 @@ export default function RecruitmentInboxPage() {
       </section>
 
       {canManageMailboxes ? (
-        <ReferralMailboxesDialog open={mailboxesOpen} onOpenChange={setMailboxesOpen} status={mailboxQuery.data} />
+        <ReferralMailboxesDialog open={mailboxesOpen} onOpenChange={setMailboxesOpen} status={mailboxQuery.data} purpose="RECRUITMENT" />
       ) : null}
     </div>
   )

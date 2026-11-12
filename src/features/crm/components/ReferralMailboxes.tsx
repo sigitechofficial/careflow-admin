@@ -525,12 +525,13 @@ function MailboxCard({ m, onEdit, onAddress }: { m: ReferralMailbox; onEdit: () 
 
 /* ─── adding a mailbox ─────────────────────────────────────────── */
 
-function AddImap({ onDone }: { onDone: () => void }) {
+function AddImap({ onDone, purpose }: { onDone: () => void; purpose: MailboxPurpose }) {
   const qc = useQueryClient()
   const [preset, setPreset] = React.useState('cpanel')
   const [emailAddress, setEmailAddress] = React.useState('')
   const [displayName, setDisplayName] = React.useState('')
-  const [folder, setFolder] = React.useState('INBOX')
+  // Job applications: a label for them, so CareFlow doesn't read the whole inbox.
+  const [folder, setFolder] = React.useState(purpose === 'RECRUITMENT' ? 'Jobs' : 'INBOX')
   const [imap, setImap] = React.useState<ImapSettings>(blankImap)
   const [password, setPassword] = React.useState('')
   const [branch, setBranch] = React.useState<string | null>(null)
@@ -552,6 +553,7 @@ function AddImap({ onDone }: { onDone: () => void }) {
         folder,
         password,
         defaultLocationId: branch,
+        purpose,
       }),
     onSuccess: async r => {
       toastSuccess('Mailbox connected', r.message)
@@ -621,14 +623,14 @@ function AddImap({ onDone }: { onDone: () => void }) {
   )
 }
 
-function AddWebhook({ onDone, onAddress }: { onDone: () => void; onAddress: (path: string) => void }) {
+function AddWebhook({ onDone, onAddress, purpose }: { onDone: () => void; onAddress: (path: string) => void; purpose: MailboxPurpose }) {
   const qc = useQueryClient()
   const [emailAddress, setEmailAddress] = React.useState('')
   const [displayName, setDisplayName] = React.useState('')
   const [apiKey, setApiKey] = React.useState('')
   const [branch, setBranch] = React.useState<string | null>(null)
   const add = useMutation({
-    mutationFn: () => addWebhookMailbox({ emailAddress, displayName: displayName || null, apiKey: apiKey || null, defaultLocationId: branch }),
+    mutationFn: () => addWebhookMailbox({ emailAddress, displayName: displayName || null, apiKey: apiKey || null, defaultLocationId: branch, purpose }),
     onSuccess: async r => {
       await qc.invalidateQueries({ queryKey: ['referral-inbox'] })
       onAddress(r.data.path)
@@ -704,10 +706,13 @@ export function ReferralMailboxesDialog({
   open,
   onOpenChange,
   status,
+  purpose = 'REFERRALS',
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   status: ReferralMailboxStatus | undefined
+  /** What a mailbox added here is for (the Recruitment inbox adds job-application mailboxes). */
+  purpose?: MailboxPurpose
 }) {
   const [view, setView] = React.useState<View>({ kind: 'list' })
   React.useEffect(() => {
@@ -715,7 +720,7 @@ export function ReferralMailboxesDialog({
   }, [open])
   const mailboxes = status?.mailboxes ?? []
   const signIn = useMutation({
-    mutationFn: (p: 'GMAIL' | 'MICROSOFT') => (p === 'GMAIL' ? startGmailConnect() : startMicrosoftConnect()),
+    mutationFn: (p: 'GMAIL' | 'MICROSOFT') => (p === 'GMAIL' ? startGmailConnect(purpose) : startMicrosoftConnect(purpose)),
     onSuccess: r => {
       window.location.href = r.url
     },
@@ -727,7 +732,7 @@ export function ReferralMailboxesDialog({
     : view.kind === 'imap' ? 'Add an IMAP / SMTP mailbox'
     : view.kind === 'webhook' ? 'Add a webhook mailbox'
     : view.kind === 'address' ? 'Webhook address'
-    : 'Referral mailboxes'
+    : purpose === 'RECRUITMENT' ? 'Mailboxes' : 'Referral mailboxes'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -735,7 +740,11 @@ export function ReferralMailboxesDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {view.kind === 'list' ? (
-            <DialogDescription>Every mailbox below is read the same way. Replies go back from the mailbox the email came into.</DialogDescription>
+            <DialogDescription>
+              {purpose === 'RECRUITMENT'
+                ? 'A mailbox added here is for job applications. Each mailbox shows what it is used for; change it with Edit.'
+                : 'Every mailbox below is read the same way. Replies go back from the mailbox the email came into.'}
+            </DialogDescription>
           ) : null}
         </DialogHeader>
         <DialogBody>
@@ -773,9 +782,9 @@ export function ReferralMailboxesDialog({
           ) : view.kind === 'edit' && editing ? (
             <EditMailbox m={editing} onDone={() => setView({ kind: 'list' })} />
           ) : view.kind === 'imap' ? (
-            <AddImap onDone={() => setView({ kind: 'list' })} />
+            <AddImap onDone={() => setView({ kind: 'list' })} purpose={purpose} />
           ) : view.kind === 'webhook' ? (
-            <AddWebhook onDone={() => setView({ kind: 'list' })} onAddress={path => setView({ kind: 'address', path })} />
+            <AddWebhook onDone={() => setView({ kind: 'list' })} onAddress={path => setView({ kind: 'address', path })} purpose={purpose} />
           ) : view.kind === 'address' ? (
             <WebhookAddress path={view.path} onDone={() => setView({ kind: 'list' })} />
           ) : null}

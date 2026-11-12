@@ -241,6 +241,7 @@ export type ImapMailboxInput = ImapSettings & {
   folder?: string | null
   password: string
   defaultLocationId?: string | null
+  purpose?: MailboxPurpose
 }
 
 export type MailboxPurpose = 'REFERRALS' | 'RECRUITMENT'
@@ -262,7 +263,8 @@ async function data<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const fetchReferralMailbox = () => data<ReferralMailboxStatus>('/referral-mailbox')
-export const startGmailConnect = () => data<{ url: string }>('/referral-mailbox/google/connect', { method: 'POST' })
+export const startGmailConnect = (purpose: MailboxPurpose = 'REFERRALS') =>
+  data<{ url: string }>('/referral-mailbox/google/connect', { method: 'POST', body: JSON.stringify({ purpose }) })
 export const disconnectReferralMailbox = () => apiJson('/referral-mailbox', { method: 'DELETE' })
 export const checkReferralMailbox = () =>
   data<{ saved: number; read: number; busy: boolean; errors?: string[] }>('/referral-mailbox/check', { method: 'POST' })
@@ -272,10 +274,17 @@ export const insertTestReferral = (scenario: number, mailboxId?: string) =>
     { method: 'POST' },
   )
 
-export const startMicrosoftConnect = () => data<{ url: string }>('/referral-mailbox/microsoft/connect', { method: 'POST' })
+export const startMicrosoftConnect = (purpose: MailboxPurpose = 'REFERRALS') =>
+  data<{ url: string }>('/referral-mailbox/microsoft/connect', { method: 'POST', body: JSON.stringify({ purpose }) })
 export const addImapMailbox = (body: ImapMailboxInput) =>
   apiJson<{ message: string; data: { id: string } }>('/referral-mailbox/mailboxes/imap', { method: 'POST', body: JSON.stringify(body) })
-export const addWebhookMailbox = (body: { displayName?: string | null; emailAddress: string; apiKey?: string | null; defaultLocationId?: string | null }) =>
+export const addWebhookMailbox = (body: {
+  displayName?: string | null
+  emailAddress: string
+  apiKey?: string | null
+  defaultLocationId?: string | null
+  purpose?: MailboxPurpose
+}) =>
   apiJson<{ message: string; data: { id: string; path: string } }>('/referral-mailbox/mailboxes/webhook', {
     method: 'POST',
     body: JSON.stringify(body),
