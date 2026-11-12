@@ -1688,18 +1688,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     ]
   },
   {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "General",
-    "path": "/settings/general",
-    "search": {
-      "tab": "general"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
     "label": "Employee settings sections",
     "pageTitle": "General Settings",
     "tabLabel": "Employee Settings",
@@ -1868,18 +1856,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     ]
   },
   {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "Employee Settings",
-    "path": "/settings/general",
-    "search": {
-      "tab": "employee"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
     "label": "Status label",
     "group": "Immigration statuses & weekly hour limits",
     "pageTitle": "General Settings",
@@ -1932,19 +1908,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     ]
   },
   {
-    "label": "Remove immigration status",
-    "group": "Immigration statuses & weekly hour limits",
-    "pageTitle": "General Settings",
-    "tabLabel": "Employee Settings",
-    "path": "/settings/general",
-    "search": {
-      "tab": "employee"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
     "label": "Enhanced Regular Action checks",
     "group": "Care Home Actions",
     "pageTitle": "General Settings",
@@ -1957,19 +1920,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
       "lookups.read"
     ],
     "hint": "If set to yes, the enhanced functionality for the regular action Alert times, activation periods etc. will be enabled."
-  },
-  {
-    "label": "Show regular actions in daily list",
-    "group": "Care Home Actions",
-    "pageTitle": "General Settings",
-    "tabLabel": "Service Management",
-    "path": "/settings/general",
-    "search": {
-      "tab": "service-management"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
   },
   {
     "label": "Allow Fast Action",
@@ -2053,31 +2003,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
       "lookups.read"
     ],
     "hint": "This will restrict the 2 RBAC roles from logging into the web system, so they can only log in on the APP"
-  },
-  {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "Service Management",
-    "path": "/settings/general",
-    "search": {
-      "tab": "service-management"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
-    "label": "Remove cancellation rule",
-    "group": "Job Cancellation",
-    "pageTitle": "General Settings",
-    "tabLabel": "Dom Care Settings",
-    "path": "/settings/general",
-    "search": {
-      "tab": "dom-care"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
   },
   {
     "label": "No charge for hospital admission",
@@ -2271,46 +2196,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     "hint": "Allow the mobile app to download all service user records for offline use."
   },
   {
-    "label": "Show weekly hours",
-    "group": "App Settings",
-    "pageTitle": "General Settings",
-    "tabLabel": "Dom Care Settings",
-    "path": "/settings/general",
-    "search": {
-      "tab": "dom-care"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
-    "label": "Show Service User name",
-    "group": "App Settings",
-    "pageTitle": "General Settings",
-    "tabLabel": "Dom Care Settings",
-    "path": "/settings/general",
-    "search": {
-      "tab": "dom-care"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
-    "label": "Show blocked carers in schedule",
-    "group": "App Settings",
-    "pageTitle": "General Settings",
-    "tabLabel": "Dom Care Settings",
-    "path": "/settings/general",
-    "search": {
-      "tab": "dom-care"
-    },
-    "permissions": [
-      "lookups.read"
-    ],
-    "hint": "When enabled, carers blocked by a service user still appear in schedule carer lists (marked as blocked and not assignable). When disabled, blocked carers are hidden from schedule pickers."
-  },
-  {
     "label": "Is late visit alerting required?",
     "group": "Late Visit Alert Settings",
     "pageTitle": "General Settings",
@@ -2350,42 +2235,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
       "lookups.read"
     ],
     "hint": "Send late visit alerts as in-app notifications to selected staff per zone."
-  },
-  {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "Dom Care Settings",
-    "path": "/settings/general",
-    "search": {
-      "tab": "dom-care"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
-    "label": "Add shift",
-    "pageTitle": "General Settings",
-    "tabLabel": "Dom Care Shifts & Allocation",
-    "path": "/settings/general",
-    "search": {
-      "tab": "dom-care-shifts"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
-    "label": "Remove shift",
-    "pageTitle": "General Settings",
-    "tabLabel": "Dom Care Shifts & Allocation",
-    "path": "/settings/general",
-    "search": {
-      "tab": "dom-care-shifts"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
   },
   {
     "label": "Visits over a carer's weekly hours need manager approval",
@@ -2485,18 +2334,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     "hint": "No: extra hours apply at once. Waiting requests that now fit are approved automatically."
   },
   {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "Dom Rules",
-    "path": "/settings/general",
-    "search": {
-      "tab": "dom-rules"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
     "label": "Changing weekly hours needs manager approval",
     "group": "Service user weekly hours",
     "pageTitle": "General Settings",
@@ -2578,18 +2415,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
   {
     "label": "New who-was-informed option",
     "group": "Who was informed",
-    "pageTitle": "General Settings",
-    "tabLabel": "Incident Management",
-    "path": "/settings/general",
-    "search": {
-      "tab": "incident-management"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
-    "label": "More information",
     "pageTitle": "General Settings",
     "tabLabel": "Incident Management",
     "path": "/settings/general",
@@ -2853,18 +2678,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
   {
     "label": "Applies to",
     "group": "Review types",
-    "pageTitle": "General Settings",
-    "tabLabel": "Supervision",
-    "path": "/settings/general",
-    "search": {
-      "tab": "supervision"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
-    "label": "More information",
     "pageTitle": "General Settings",
     "tabLabel": "Supervision",
     "path": "/settings/general",
@@ -3155,18 +2968,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     ]
   },
   {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "Reviews & reminders",
-    "path": "/settings/general",
-    "search": {
-      "tab": "reviews"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
     "label": "Integration to external emar system",
     "group": "Medication Management",
     "pageTitle": "General Settings",
@@ -3263,19 +3064,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     ]
   },
   {
-    "label": "Remove create new care plan option",
-    "group": "Form Builder",
-    "pageTitle": "General Settings",
-    "tabLabel": "Optional Settings",
-    "path": "/settings/general",
-    "search": {
-      "tab": "optional"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
     "label": "Allow inspector login",
     "group": "Inspector Login",
     "pageTitle": "General Settings",
@@ -3357,18 +3145,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     "hint": "When enabled, completed actions can be shared without pressing an additional share button each time."
   },
   {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "Optional Settings",
-    "path": "/settings/general",
-    "search": {
-      "tab": "optional"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
     "label": "Care assessment required",
     "group": "Care Assessment",
     "pageTitle": "General Settings",
@@ -3381,18 +3157,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
       "lookups.read"
     ],
     "hint": "When enabled, care assessments are required as part of the pre-assessment process for service users."
-  },
-  {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "Pre Assessment",
-    "path": "/settings/general",
-    "search": {
-      "tab": "pre-assessment"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
   },
   {
     "label": "Alert when actions are overdue",
@@ -3491,18 +3255,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     "hint": "Persisted organisation setting for fluid-alert preferences."
   },
   {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "Alerts",
-    "path": "/settings/general",
-    "search": {
-      "tab": "alerts"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
     "label": "Generate actions",
     "group": "Core Operation",
     "pageTitle": "General Settings",
@@ -3557,18 +3309,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
       "lookups.read"
     ],
     "hint": "Restricts Care App mobile access to IP addresses on your organisation whitelist."
-  },
-  {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "Critical Information",
-    "path": "/settings/general",
-    "search": {
-      "tab": "critical-information"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
   },
   {
     "label": "How many at once?",
@@ -3681,18 +3421,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     "hint": "Yes lets the same carer be signed in on more than one phone. No allows one phone: signing in on another phone signs the first one out."
   },
   {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "App Setting",
-    "path": "/settings/general",
-    "search": {
-      "tab": "app-setting"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
     "label": "Send to",
     "group": "Send a notification",
     "pageTitle": "General Settings",
@@ -3758,18 +3486,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     ]
   },
   {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "Carer Notifications",
-    "path": "/settings/general",
-    "search": {
-      "tab": "carer-notifications"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
-  },
-  {
     "label": "Days to access non-active service users",
     "group": "Privacy Setting",
     "pageTitle": "General Settings",
@@ -3795,18 +3511,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
       "lookups.read"
     ],
     "hint": "Send privacy officer notifications as internal system messages within Care Admin."
-  },
-  {
-    "label": "More information",
-    "pageTitle": "General Settings",
-    "tabLabel": "Privacy",
-    "path": "/settings/general",
-    "search": {
-      "tab": "privacy"
-    },
-    "permissions": [
-      "lookups.read"
-    ]
   },
   {
     "label": "Group Name",
@@ -4217,14 +3921,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     ]
   },
   {
-    "label": "Clear saved test password",
-    "pageTitle": "Employer PAYE",
-    "path": "/payroll/employer",
-    "permissions": [
-      "payroll.settings.read"
-    ]
-  },
-  {
     "label": "Live Gateway user ID",
     "pageTitle": "Employer PAYE",
     "path": "/payroll/employer",
@@ -4234,14 +3930,6 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
   },
   {
     "label": "Live Gateway password",
-    "pageTitle": "Employer PAYE",
-    "path": "/payroll/employer",
-    "permissions": [
-      "payroll.settings.read"
-    ]
-  },
-  {
-    "label": "Clear saved live password",
     "pageTitle": "Employer PAYE",
     "path": "/payroll/employer",
     "permissions": [

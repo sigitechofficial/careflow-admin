@@ -4,7 +4,7 @@
  * can't find something because they call it by another name. Lower case; phrases are allowed.
  */
 export const EVERYDAY_WORD_GROUPS: string[][] = [
-  ['ppe', 'equipment', 'gloves', 'aprons', 'masks', 'supplies', 'stock', 'kit'],
+  ['ppe', 'equipment', 'gloves', 'aprons', 'masks'],
   ['rota', 'roster', 'schedule', 'scheduling', 'shifts', 'shift', 'allocation', 'runs', 'calls planner'],
   ['dbs', 'compliance', 'checks', 'right to work', 'visa', 'immigration', 'expiry', 'expiring'],
   ['holiday', 'holidays', 'leave', 'annual leave', 'absence', 'absences', 'time off', 'sickness', 'sick'],
@@ -31,7 +31,7 @@ export const EVERYDAY_WORD_GROUPS: string[][] = [
   ['body map', 'body maps', 'wound', 'wounds', 'bruise', 'bruising', 'skin', 'pressure sore', 'pressure ulcer'],
   ['observations', 'observation', 'vitals', 'blood pressure', 'temperature', 'pulse', 'news2', 'weight'],
   ['alert', 'alerts', 'flag', 'flags', 'warning', 'warnings', 'critical information'],
-  ['branch', 'branches', 'location', 'locations', 'office', 'area', 'areas', 'zone', 'zones'],
+  ['branch', 'branches', 'location', 'locations', 'site', 'sites'],
   ['funder', 'funders', 'local authority', 'council', 'commissioner', 'icb', 'nhs', 'funding'],
   ['contact', 'contacts', 'next of kin', 'nok', 'family', 'relative', 'relatives'],
   ['task', 'tasks', 'to do', 'todo', 'actions', 'my actions'],

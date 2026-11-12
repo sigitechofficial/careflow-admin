@@ -66,9 +66,11 @@ describe('Find anything (top bar)', () => {
   it('records come from one server search; "Mary Jones medication" goes straight to her medication', async () => {
     wrap()
     await userEvent.type(screen.getByTestId('topbar-nav-search'), 'Mary Jones medication')
-    expect(await screen.findByText('Mary Jones › Medication')).toBeInTheDocument()
+    // The typed words are picked out in the name, so match on the whole text of the name.
+    const name = (t: string) => (_: string, el: Element | null) => el?.classList.contains('truncate') === true && el.textContent === t
+    expect(await screen.findByText(name('Mary Jones › Medication'))).toBeInTheDocument()
     expect(apiJson).toHaveBeenCalledWith('/search?q=Mary%20Jones', { method: 'GET' })
-    await userEvent.click(screen.getByText('Mary Jones › Medication'))
+    await userEvent.click(screen.getByText(name('Mary Jones › Medication')))
     expect(navigate).toHaveBeenCalledWith({ to: '/service-users/1/medication', search: undefined })
   })
 

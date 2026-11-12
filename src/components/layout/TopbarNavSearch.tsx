@@ -1,12 +1,13 @@
 import * as React from 'react'
-import { CornerDownLeft, History, Search, X } from 'lucide-react'
+import { CornerDownLeft, Search, X } from 'lucide-react'
+import { GroupHeading, KIND_LOOK, RESULT_ITEM_CLASS, ResultRow, recordLook, type ResultLook } from '@/components/layout/find-results-ui'
 import { useNavigate } from '@tanstack/react-router'
 import { useRecordSearch, type RecordSearchHit } from '@/components/layout/useRecordSearch'
 import { useAuthStore } from '@/features/auth/store'
-import { useFindEntries } from '@/features/search/find-entries'
+import { locate, useFindEntries } from '@/features/search/find-entries'
 import { clearRecent, openFindTarget, readRecent, type FindTarget } from '@/features/search/find-navigation'
 import { insideRecordHits } from '@/features/search/inside-records'
-import { rank, type ScoredEntry } from '@/features/search/search-engine'
+import { normalise, queryTerms, rank, type ScoredEntry } from '@/features/search/search-engine'
 import { cn } from '@/shared/lib/utils'
 import { Input } from '@/shared/ui/input'
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/shared/ui/command'
@@ -19,62 +20,95 @@ const KIND_GROUP: Record<ScoredEntry['kind'], string> = {
   tab: 'Tabs',
   setting: 'Settings',
 }
-const GROUP_ORDER = ['How to', 'Pages', 'Tabs', 'Settings']
-const PER_GROUP = { 'How to': 3, Pages: 8, Tabs: 6, Settings: 8 } as Record<string, number>
+const PER_GROUP = { 'How to': 3, Pages: 6, Tabs: 5, Settings: 6 } as Record<string, number>
+/** People are what most searches are for: right after pages and tabs. */
+const PEOPLE = new Set(['Service users', 'Staff'])
+const MENTIONS_SHOWN = 5
 
-/** The search results for one query: records (from the server), inside-record shortcuts, then the app itself. */
+type Group =
+  | { key: string; kind: 'app'; label: string; look: ResultLook; items: ScoredEntry[] }
+  | { key: string; kind: 'records'; label: string; look: ResultLook; items: RecordSearchHit[] }
+
+/** A record whose name has every typed word (at the start of a word); others only mention them inside. */
+function namedMatch(hit: RecordSearchHit, query: string): boolean {
+  const name = ` ${normalise(`${hit.label} ${hit.detail ?? ''}`)} `
+  const terms = queryTerms(query)
+  return terms.length > 0 && terms.every(alts => alts.some(a => name.includes(` ${a}`)))
+}
+
+/**
+ * The results for one query, best first: shortcuts, pages and tabs, people, settings, how-to and other records
+ * whose name matches; last, records that only mention the words somewhere inside.
+ */
 function useFindResults(query: string) {
   const prepared = useFindEntries()
   const records = useRecordSearch(query)
   const app = React.useMemo(() => (query.trim() ? rank(prepared, query, 80) : []), [prepared, query])
-  const appGroups = React.useMemo(() => {
-    const groups = new Map<string, ScoredEntry[]>()
+  const inside = React.useMemo(() => insideRecordHits(query, records.hits), [query, records.hits])
+  const { groups, mentions } = React.useMemo(() => {
+    const byKind = new Map<string, ScoredEntry[]>()
     for (const e of app) {
       const g = KIND_GROUP[e.kind]
-      const list = groups.get(g) ?? []
+      const list = byKind.get(g) ?? []
       if (list.length < (PER_GROUP[g] ?? 6)) list.push(e)
-      groups.set(g, list)
+      byKind.set(g, list)
     }
-    return GROUP_ORDER.filter(g => groups.get(g)?.length).map(g => ({ section: g, items: groups.get(g)! }))
-  }, [app])
-  const inside = React.useMemo(() => insideRecordHits(query, records.hits), [query, records.hits])
-  const recordGroups = React.useMemo(() => {
-    const map = new Map<string, RecordSearchHit[]>()
-    for (const h of records.hits) map.set(h.section, [...(map.get(h.section) ?? []), h])
-    return [...map].map(([section, items]) => ({ section, items }))
-  }, [records.hits])
-  return { appGroups, recordGroups, inside, records, empty: !app.length && !records.hits.length && !records.suggested.length }
-}
-
-function ResultRow({ title, context, answer }: { title: string; context?: string; answer?: string }) {
-  return (
-    <span className="flex min-w-0 flex-1 flex-col">
-      <span className="flex min-w-0 items-baseline gap-2">
-        <span className="min-w-0 flex-1 truncate">{title}</span>
-        {context ? <span className="shrink-0 truncate text-[10px] text-muted-foreground max-w-[50%]">{context}</span> : null}
-      </span>
-      {answer ? <span className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">{answer}</span> : null}
-    </span>
-  )
+    const named = records.hits.filter(h => namedMatch(h, query))
+    const mentioned = records.hits.filter(h => !namedMatch(h, query))
+    const bySection = new Map<string, RecordSearchHit[]>()
+    for (const h of named) bySection.set(h.section, [...(bySection.get(h.section) ?? []), h])
+    const appGroup = (label: string, look: ResultLook): Group[] =>
+      byKind.get(label)?.length ? [{ key: `app:${label}`, kind: 'app', label, look, items: byKind.get(label)! }] : []
+    const recordGroups = (keep: (section: string) => boolean): Group[] =>
+      [...bySection]
+        .filter(([section]) => keep(section))
+        .map(([section, items]) => ({ key: `rec:${section}`, kind: 'records' as const, label: section, look: recordLook(section), items }))
+    return {
+      groups: [
+        ...appGroup('Pages', KIND_LOOK.page),
+        ...appGroup('Tabs', KIND_LOOK.tab),
+        ...recordGroups(s => PEOPLE.has(s)),
+        ...appGroup('Settings', KIND_LOOK.setting),
+        ...appGroup('How to', KIND_LOOK.howto),
+        ...recordGroups(s => !PEOPLE.has(s)),
+      ],
+      mentions: mentioned.slice(0, MENTIONS_SHOWN),
+    }
+  }, [app, records.hits, query])
+  return { groups, mentions, inside, records, empty: !app.length && !records.hits.length && !records.suggested.length }
 }
 
 /** The results list (desktop drop-down and mobile dialog). Arrow keys move, Enter opens. */
 function FindResults({ query, onPick }: { query: string; onPick: (t: FindTarget) => void }) {
   const userId = useAuthStore(s => s.user?.id)
-  const { appGroups, recordGroups, inside, records, empty } = useFindResults(query)
+  const { groups, mentions, inside, records, empty } = useFindResults(query)
   const [recent, setRecent] = React.useState(() => readRecent(userId))
+  const recordTarget = (hit: RecordSearchHit): FindTarget => ({
+    id: hit.id,
+    title: hit.label,
+    context: hit.detail,
+    trail: locate(hit.href),
+    section: hit.section,
+    href: hit.href,
+    search: hit.search,
+  })
+  const recordItem = (hit: RecordSearchHit, look: ResultLook, q: string, showKind = false) => (
+    <CommandItem key={hit.id} value={hit.id} onSelect={() => onPick(recordTarget(hit))} className={RESULT_ITEM_CLASS}>
+      <ResultRow look={look} title={hit.label} query={q} trail={showKind ? [hit.section, ...locate(hit.href)] : locate(hit.href)} detail={hit.detail} />
+    </CommandItem>
+  )
 
   if (!query.trim()) {
     return (
-      <CommandList className="max-h-[70vh]">
+      <CommandList className="max-h-[70vh] p-1">
         {recent.length ? (
           <CommandGroup
             heading={
               <span className="flex items-center justify-between">
-                <span>Recent</span>
+                <GroupHeading look={KIND_LOOK.recent} label="Recent" count={recent.length} />
                 <button
                   type="button"
-                  className="text-[10px] font-normal text-muted-foreground hover:text-foreground"
+                  className="text-[10px] font-normal normal-case text-muted-foreground hover:text-foreground"
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => {
                     clearRecent(userId)
@@ -87,15 +121,14 @@ function FindResults({ query, onPick }: { query: string; onPick: (t: FindTarget)
             }
           >
             {recent.map(r => (
-              <CommandItem key={`recent:${r.id}`} value={`recent:${r.id}`} onSelect={() => onPick(r)} className="cursor-pointer">
-                <History className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                <ResultRow title={r.title} context={r.context} />
+              <CommandItem key={`recent:${r.id}`} value={`recent:${r.id}`} onSelect={() => onPick(r)} className={RESULT_ITEM_CLASS}>
+                <ResultRow look={r.section ? recordLook(r.section) : KIND_LOOK.recent} title={r.title} query="" trail={r.trail} detail={r.context} />
               </CommandItem>
             ))}
           </CommandGroup>
         ) : (
-          <p className="px-3 py-3 text-xs text-muted-foreground">
-            Search people, records, pages, tabs and settings, or ask “how do I…”. Try a name, “rota”, “PPE” or “multiple device”.
+          <p className="px-3 py-3 text-xs leading-5 text-muted-foreground">
+            Search people, records, documents, pages, tabs and settings, or ask “how do I…”. Try a name, “rota”, “PPE” or “multiple device”.
           </p>
         )}
       </CommandList>
@@ -103,61 +136,52 @@ function FindResults({ query, onPick }: { query: string; onPick: (t: FindTarget)
   }
 
   return (
-    <CommandList className="max-h-[70vh]">
+    <CommandList className="max-h-[70vh] p-1">
       <CommandEmpty>{records.pending ? 'Searching…' : 'Nothing found. Try another word, or fewer words.'}</CommandEmpty>
       {inside.length ? (
-        <CommandGroup heading="Go straight to">
+        <CommandGroup heading={<GroupHeading look={KIND_LOOK.inside} label="Go straight to" count={inside.length} />}>
           {inside.map(h => (
-            <CommandItem key={h.id} value={h.id} onSelect={() => onPick({ id: h.id, title: h.label, context: h.detail, href: h.href, search: h.search })} className="cursor-pointer">
-              <ResultRow title={h.label} context={h.detail} />
+            <CommandItem key={h.id} value={h.id} onSelect={() => onPick({ ...recordTarget(h), section: undefined })} className={RESULT_ITEM_CLASS}>
+              <ResultRow look={KIND_LOOK.inside} title={h.label} query={query} trail={locate(h.href)} detail={h.detail} />
             </CommandItem>
           ))}
         </CommandGroup>
       ) : null}
       {records.didYouMean && records.suggested.length ? (
-        <CommandGroup heading={`Did you mean “${records.didYouMean}”?`}>
-          {records.suggested.map(hit => (
-            <CommandItem
-              key={`suggested:${hit.id}`}
-              value={`suggested:${hit.id}`}
-              onSelect={() => onPick({ id: hit.id, title: hit.label, context: hit.detail ?? hit.section, href: hit.href, search: hit.search })}
-              className="cursor-pointer"
-            >
-              <ResultRow title={hit.label} context={hit.detail ?? hit.section} />
-            </CommandItem>
-          ))}
+        <CommandGroup heading={<GroupHeading look={KIND_LOOK.suggested} label={`Did you mean “${records.didYouMean}”?`} count={records.suggested.length} />}>
+          {records.suggested.map(hit => recordItem(hit, recordLook(hit.section), records.didYouMean ?? ''))}
         </CommandGroup>
       ) : null}
-      {recordGroups.map(group => (
-        <CommandGroup key={`records:${group.section}`} heading={group.section}>
-          {group.items.map(hit => (
-            <CommandItem
-              key={hit.id}
-              value={hit.id}
-              onSelect={() => onPick({ id: hit.id, title: hit.label, context: hit.detail ?? group.section, href: hit.href, search: hit.search })}
-              className="cursor-pointer"
-            >
-              <ResultRow title={hit.label} context={hit.detail} />
-            </CommandItem>
-          ))}
+      {groups.map(group => (
+        <CommandGroup key={group.key} heading={<GroupHeading look={group.look} label={group.label} count={group.items.length} />}>
+          {group.kind === 'app'
+            ? group.items.map(e => (
+                <CommandItem
+                  key={e.id}
+                  value={e.id}
+                  onSelect={() => onPick({ id: e.id, title: e.title, context: e.context, trail: e.trail, href: e.href, search: e.search, highlight: e.highlight })}
+                  className={RESULT_ITEM_CLASS}
+                  data-testid={`find-result-${e.kind}`}
+                >
+                  <ResultRow
+                    look={KIND_LOOK[e.kind]}
+                    title={e.title}
+                    query={query}
+                    // A page's trail ends with the page itself: show the way there. Answers and settings: where they are.
+                    trail={e.kind === 'setting' || e.kind === 'howto' ? e.trail : e.trail?.slice(0, -1)}
+                    answer={e.answer}
+                  />
+                </CommandItem>
+              ))
+            : group.items.map(hit => recordItem(hit, group.look, query))}
         </CommandGroup>
       ))}
+      {mentions.length ? (
+        <CommandGroup heading={<GroupHeading look={KIND_LOOK.mentions} label={`Also mentions “${query.trim()}”`} count={mentions.length} />}>
+          {mentions.map(hit => recordItem(hit, recordLook(hit.section), query, true))}
+        </CommandGroup>
+      ) : null}
       {records.pending && !records.hits.length && !empty ? <p className="px-3 py-2 text-[11px] text-muted-foreground">Searching records…</p> : null}
-      {appGroups.map(group => (
-        <CommandGroup key={group.section} heading={group.section}>
-          {group.items.map(e => (
-            <CommandItem
-              key={e.id}
-              value={e.id}
-              onSelect={() => onPick({ id: e.id, title: e.title, context: e.context, href: e.href, search: e.search, highlight: e.highlight })}
-              className="cursor-pointer"
-              data-testid={`find-result-${e.kind}`}
-            >
-              <ResultRow title={e.title} context={e.context} answer={e.answer} />
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      ))}
     </CommandList>
   )
 }
@@ -241,7 +265,7 @@ export function TopbarNavSearch({ className }: TopbarNavSearchProps) {
         />
         {open ? (
           <div
-            className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 min-w-[22rem] overflow-hidden rounded-xl border border-border bg-popover shadow-lg"
+            className="absolute left-0 top-[calc(100%+0.35rem)] z-50 w-[min(36rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-popover shadow-xl"
             data-testid="topbar-nav-search-results"
           >
             <FindResults query={query} onPick={pick} />

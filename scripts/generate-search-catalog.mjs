@@ -118,7 +118,7 @@ function stringTable(src) {
 }
 
 const clean = s => s.replace(/\s+/g, ' ').replace(/&apos;|&#39;/g, "'").replace(/&amp;/g, '&').trim()
-const GENERIC = /^(yes|no|on|off|save|cancel|reset|edit|delete|remove|add|name|email|phone|notes?|description|type|status|from|to|date|time|minutes|hours|days|value|amount|search|select\b.*)$/i
+const GENERIC = /^(yes|no|on|off|save|cancel|reset|edit|delete|remove|add|name|email|phone|notes?|description|type|status|from|to|date|time|minutes|hours|days|value|amount|search|select\b.*|more information|(add|remove|delete|edit|clear|close|open|move|show|hide)\s.{0,30})$/i
 
 /** Options on one screen, each with the card/group it sits in, in reading order. */
 function settingsIn(fileAbs, table) {

@@ -9,6 +9,10 @@ export type FindTarget = {
   id: string
   title: string
   context?: string
+  /** Where it is in the menu (shown with recent searches). */
+  trail?: string[]
+  /** Which kind it was (its icon among recent searches). */
+  section?: string
   href: string
   search?: Record<string, string>
   highlight?: string

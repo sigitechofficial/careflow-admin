@@ -6,10 +6,14 @@ export type FindEntry = {
   kind: 'page' | 'tab' | 'setting' | 'howto'
   /** The main words (the page, tab or setting name). */
   title: string
-  /** Where it is ("General Settings › App Setting"). */
+  /** Where it is ("General Settings › App Setting"), for matching. */
   context?: string
+  /** Where it is in the menu, step by step, for showing the way there. */
+  trail?: string[]
   /** Other words that should find it (help text, everyday words). */
   keywords?: string
+  /** Other names for it (curated page words): count as much as its name. */
+  aliases?: string
   href: string
   search?: Record<string, string>
   /** Text to scroll to and highlight on arrival (a setting's label). */
@@ -54,25 +58,39 @@ function close(a: string, b: string, max: number): boolean {
   return prev[b.length]! <= max
 }
 
+/** A word without its plural ending, so "branches" meets "branch" and "locations" meets "location". */
+export function stem(w: string): string {
+  if (w.length > 4 && w.endsWith('ies')) return `${w.slice(0, -3)}y`
+  if (w.length > 4 && /(ches|shes|sses|xes|zes)$/.test(w)) return w.slice(0, -2)
+  if (w.length > 3 && w.endsWith('s') && !w.endsWith('ss')) return w.slice(0, -1)
+  return w
+}
+
 /** How well one typed word matches a list of words: exact 3, start of a word 2, small typo 1, none 0. */
 function wordScore(q: string, target: string[], typos = true): number {
   let best = 0
+  const qs = stem(q)
   for (const t of target) {
-    if (t === q) return 3
-    if (t.startsWith(q) && q.length >= 2) best = Math.max(best, 2)
+    if (t === q || (qs.length >= 3 && stem(t) === qs)) return 3
+    if ((t.startsWith(q) && q.length >= 2) || (qs.length >= 4 && t.startsWith(qs))) best = Math.max(best, 2)
     else if (typos && q.length >= 4 && t.length >= 4 && close(q, t, q.length >= 7 ? 2 : 1)) best = Math.max(best, 1)
   }
   return best
 }
 
-type Prepared = { entry: FindEntry; title: string[]; context: string[]; keywords: string[]; titleText: string; allText: string }
+/** A title's words without filler ("All incidents" → incident, "UK Payroll" → payroll), plurals folded. */
+const TITLE_FILLER = new Set(['all', 'uk', 'view', 'list', 'the', 'of', 'and'])
+const coreTitle = (ws: string[]) => ws.filter(w => !TITLE_FILLER.has(w)).map(stem).join(' ')
+
+type Prepared = { entry: FindEntry; title: string[]; context: string[]; keywords: string[]; aliases: string[]; titleText: string; allText: string }
 
 export function prepare(entries: FindEntry[]): Prepared[] {
   return entries.map(entry => {
     const title = words(entry.title)
     const context = words(entry.context ?? '')
     const keywords = words(entry.keywords ?? '')
-    return { entry, title, context, keywords, titleText: normalise(entry.title), allText: ` ${[...title, ...context, ...keywords].join(' ')} ` }
+    const aliases = words(entry.aliases ?? '')
+    return { entry, title, context, keywords, aliases, titleText: normalise(entry.title), allText: ` ${[...title, ...context, ...keywords, ...aliases].join(' ')} ` }
   })
 }
 
@@ -111,7 +129,7 @@ function termScore(a: string, p: Prepared, weight: number): number {
   }
   // Typos only for what was typed, never for its everyday alternatives ("masks" must not find "tasks").
   const typos = weight === 1
-  return Math.max(wordScore(a, p.title, typos) * 3, wordScore(a, p.context, typos) * 1.5, wordScore(a, p.keywords, typos)) * weight
+  return Math.max(wordScore(a, p.title, typos) * 3, wordScore(a, p.aliases, typos) * 3, wordScore(a, p.context, typos) * 1.5, wordScore(a, p.keywords, typos)) * weight
 }
 
 /**
@@ -137,9 +155,11 @@ export function rank(prepared: Prepared[], query: string, limit = 40): ScoredEnt
       total += best
     }
     if (!ok) continue
-    if (p.titleText === phrase) total += 12
+    if (p.titleText === phrase || coreTitle(p.title) === coreTitle(phrase.split(' '))) total += 12
     else if (p.titleText.startsWith(phrase)) total += 6
-    else if (phrase.length > 3 && p.titleText.includes(phrase)) total += 3
+    else if (phrase.length > 3 && (p.titleText.includes(phrase) || ` ${p.aliases.join(' ')} `.includes(` ${phrase} `))) total += 3
+    // The whole phrase in where it is ("dom care" → everything under Dom Care Settings).
+    if (phrase.includes(' ') && p.allText.includes(` ${phrase} `)) total += 4
     // Pages and tabs before the many settings, when equally good.
     total += p.entry.kind === 'page' ? 1 : p.entry.kind === 'tab' ? 0.5 : p.entry.kind === 'howto' ? 0.75 : 0
     out.push({ ...p.entry, score: total })
