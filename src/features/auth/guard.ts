@@ -27,7 +27,10 @@ function isPortalPath(path: string) {
   return path === '/portal' || path.startsWith('/portal/')
 }
 
-export async function rootAuthBeforeLoad({ location }: { location: { pathname: string } }) {
+/** The temporary inspector sign-in link (Employee → Temporary Inspector Login): /auth/login?as=inspector. */
+export const INSPECTOR_SIGN_IN_SEARCH = { as: 'inspector' } as const
+
+export async function rootAuthBeforeLoad({ location }: { location: { pathname: string; search?: unknown } }) {
   await ensureAuthHydrated()
   const path = location.pathname
   const { isAuthenticated, ipAllowedForCurrent, isServiceUser } = useAuthStore.getState()
@@ -64,7 +67,10 @@ export async function rootAuthBeforeLoad({ location }: { location: { pathname: s
   }
 
   if (STAFF_PUBLIC_PATHS.has(path) || isPublicLegalPath(path) || isPublicSurveyPath(path)) {
-    if (path === '/auth/login' && isAuthenticated()) {
+    // The inspector sign-in link still opens for someone signed in (the office opening it to check
+    // or hand over); the page warns that signing in there signs them out in this browser.
+    const asInspector = (location.search as { as?: unknown } | undefined)?.as === INSPECTOR_SIGN_IN_SEARCH.as
+    if (path === '/auth/login' && isAuthenticated() && !asInspector) {
       throw redirect({ to: isServiceUser() ? '/portal' : '/' })
     }
     return

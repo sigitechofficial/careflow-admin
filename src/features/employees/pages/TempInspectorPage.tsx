@@ -9,7 +9,22 @@ import {
   ChevronLeft,
   ChevronRight,
   HelpCircle,
+  Copy,
 } from 'lucide-react'
+import { INSPECTOR_SIGN_IN_SEARCH } from '@/features/auth/guard'
+import { toastError, toastSuccess } from '@/shared/lib/toast'
+
+/** Copies the temporary inspector sign-in link (opens Sign in on Temporary inspector). */
+async function copyInspectorSignInLink() {
+  const url = new URL('/auth/login', window.location.origin)
+  url.searchParams.set('as', INSPECTOR_SIGN_IN_SEARCH.as)
+  try {
+    await navigator.clipboard.writeText(url.toString())
+    toastSuccess('Sign-in link copied', 'Send it to the inspector with their username and password.')
+  } catch {
+    toastError('Could not copy the link', url.toString())
+  }
+}
 import { cn } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { Link } from '@tanstack/react-router'
@@ -221,11 +236,27 @@ export default function TempInspectorPage() {
         ) : (
           <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
             <span className="font-medium text-foreground">How they sign in:</span> open{' '}
-            <Link to="/auth/login" className="text-primary underline-offset-4 hover:underline">
+            {/* A new tab: this browser stays signed in to CareFlow; the page opens on Temporary inspector. */}
+            <Link
+              to="/auth/login"
+              search={INSPECTOR_SIGN_IN_SEARCH}
+              target="_blank"
+              rel="noopener"
+              className="text-primary underline-offset-4 hover:underline"
+            >
               Sign in
-            </Link>
-            , choose <strong className="text-foreground">Temporary inspector</strong>, and enter this record’s username
-            and password (not email). Access only works between Valid from and Valid to.
+            </Link>{' '}
+            (
+            <button
+              type="button"
+              onClick={() => void copyInspectorSignInLink()}
+              className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden />
+              copy link
+            </button>{' '}
+            to send them), choose <strong className="text-foreground">Temporary inspector</strong>, and enter this
+            record’s username and password (not email). Access only works between Valid from and Valid to.
           </div>
         )}
 
