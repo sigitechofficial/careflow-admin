@@ -550,6 +550,14 @@ export default function SurveysPage() {
             </Button>
           ) : null}
           {canManage ? (
+            <Button type="button" size="sm" variant="outline" className="gap-1.5" asChild>
+              <Link to="/surveys/reviewers" data-testid="reviewers-link">
+                <UsersRound className="h-4 w-4" aria-hidden />
+                Independent reviewers
+              </Link>
+            </Button>
+          ) : null}
+          {canManage ? (
             <Button
               type="button"
               size="sm"

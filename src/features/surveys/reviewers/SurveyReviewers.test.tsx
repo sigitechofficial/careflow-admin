@@ -49,11 +49,12 @@ describe('Independent reviewers', () => {
     wrap(<SurveyReviewersPanel surveyId="s1" canEdit />)
     expect(await screen.findByTestId('survey-reviewers-ending')).toHaveTextContent(/End access.*switch their account off as well/)
     await userEvent.click(await screen.findByRole('button', { name: 'Add a reviewer' }))
+    await userEvent.click(screen.getByTestId('reviewer-way-new'))
     const dialog = screen.getByTestId('add-reviewer-dialog')
     expect(dialog).toHaveTextContent('They are emailed a link to choose their own password; nobody else sets or sees it.')
     // No password box anywhere.
     expect(dialog.querySelector('input[type="password"]')).toBeNull()
-    const make = screen.getByRole('button', { name: 'Make the account' })
+    const make = screen.getByRole('button', { name: /make the account/i })
     expect(make).toBeDisabled()
     await userEvent.type(screen.getByLabelText('First name'), 'Rita')
     await userEvent.type(screen.getByLabelText('Last name'), 'Review')
@@ -63,6 +64,110 @@ describe('Independent reviewers', () => {
     expect(JSON.parse(post[1].body)).toEqual({ firstName: 'Rita', lastName: 'Review', email: 'rita@review.example' })
     expect(toast.toastSuccess).toHaveBeenCalledWith('Reviewer account made', 'They have been emailed a link to choose their own password.')
     expect(await screen.findByTestId('grant-reviewer-dialog')).toBeInTheDocument()
+  })
+
+  it('"Add a reviewer" asks who first; a reviewer added before is chosen as they are, with no new account', async () => {
+    apiJson.mockImplementation(async (rawUrl: unknown, init: { method?: string } = {}) => {
+      const url = String(rawUrl)
+      if (url === '/surveys/s1/reviewers' && init.method === 'GET') {
+        return {
+          data: {
+            anonymousOnly: true,
+            grants: [],
+            accounts: [
+              { id: 'rev-1', name: 'Rita Review', email: 'rita@review.example', active: true },
+              { id: 'rev-2', name: 'Old Reviewer', email: 'old@review.example', active: false },
+            ],
+          },
+        }
+      }
+      if (url === '/surveys/s1/reviewers/survey-staff') return { data: { staff: [] } }
+      return { data: {} }
+    })
+    wrap(<SurveyReviewersPanel surveyId="s1" canEdit />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a reviewer' }))
+    expect(screen.getByText('Who will record answers?')).toBeInTheDocument()
+    const previousWay = screen.getByTestId('reviewer-way-previous')
+    expect(await screen.findByText('1 to choose from')).toBeInTheDocument()
+    // No staff with the responsibility: said on the choice, before anyone opens it.
+    expect(await screen.findByText('Nobody has that responsibility yet')).toBeInTheDocument()
+    await userEvent.click(previousWay)
+    const use = screen.getByTestId('use-existing-reviewer')
+    expect(use).toBeDisabled()
+    await userEvent.click(screen.getByRole('combobox', { name: 'Choose a reviewer' }))
+    expect(screen.getByRole('option', { name: /Old Reviewer · Independent reviewer/ })).toBeDisabled()
+    await userEvent.click(screen.getByRole('option', { name: /Rita Review · Independent reviewer/ }))
+    await userEvent.click(use)
+    // No new account: straight to giving access.
+    expect(apiJson.mock.calls.some(([url]) => url === '/surveys/s1/reviewers/accounts')).toBe(false)
+    expect(await screen.findByTestId('grant-reviewer-dialog')).toBeInTheDocument()
+  })
+
+  it('with no reviewers added before, that choice is shown but cannot be picked', async () => {
+    apiJson.mockImplementation(async (rawUrl: unknown, init: { method?: string } = {}) => {
+      const url = String(rawUrl)
+      if (url === '/surveys/s1/reviewers' && init.method === 'GET') return { data: { anonymousOnly: true, grants: [], accounts: [] } }
+      if (url === '/surveys/s1/reviewers/survey-staff') return { data: { staff: [] } }
+      return { data: {} }
+    })
+    wrap(<SurveyReviewersPanel surveyId="s1" canEdit />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a reviewer' }))
+    expect(await screen.findByText('None added yet')).toBeInTheDocument()
+    expect(screen.getByTestId('reviewer-way-previous')).toBeDisabled()
+  })
+
+  it('"Staff who run surveys": choose staff and ask them to collect answers (a notice, never reviewer access)', async () => {
+    apiJson.mockImplementation(async (rawUrl: unknown, init: { method?: string } = {}) => {
+      const url = String(rawUrl)
+      if (url === '/surveys/s1/reviewers' && init.method === 'GET') return { data: { anonymousOnly: true, grants: [], accounts: [] } }
+      if (url === '/surveys/s1/reviewers/survey-staff') {
+        return { data: { staff: [{ id: 'u-1', name: 'Sam Office', email: 'sam@care.example', roles: ['Care coordinator'], branches: ['North'] }] } }
+      }
+      if (url === '/surveys/s1/reviewers/survey-staff/ask') return { data: { asked: 1 } }
+      return { data: {} }
+    })
+    wrap(<SurveyReviewersPanel surveyId="s1" canEdit />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a reviewer' }))
+    expect(await screen.findByText('1 in this survey’s branches')).toBeInTheDocument()
+    await userEvent.click(screen.getByTestId('reviewer-way-staff'))
+    expect(screen.getByTestId('add-reviewer-dialog')).toHaveTextContent('These count as the office’s answers, not an independent review.')
+    const ask = screen.getByTestId('ask-staff')
+    expect(ask).toBeDisabled()
+    await userEvent.click(screen.getByRole('combobox'))
+    await userEvent.click(screen.getByRole('button', { name: /Sam Office · Care coordinator \(North\)/ }))
+    await userEvent.type(screen.getByLabelText(/Note/), 'By Friday please')
+    await userEvent.click(ask)
+    const post = apiJson.mock.calls.find(([url]) => url === '/surveys/s1/reviewers/survey-staff/ask')!
+    expect(JSON.parse(post[1].body)).toEqual({ userIds: ['u-1'], note: 'By Friday please' })
+    expect(apiJson.mock.calls.some(([url, init]) => url === '/surveys/s1/reviewers' && init?.method === 'POST')).toBe(false)
+    expect(toast.toastSuccess).toHaveBeenCalledWith('Request sent', 'They have a notice in CareFlow linking to Surveys › To collect.')
+  })
+
+  it('someone already connected to us: the links are shown and a declaration is needed before the account is made', async () => {
+    apiJson.mockImplementation(async (rawUrl: unknown, init: { method?: string } = {}) => {
+      const url = String(rawUrl)
+      if (url === '/surveys/s1/reviewers' && init.method === 'GET') return { data: { anonymousOnly: true, grants: [], accounts: [] } }
+      if (url === '/surveys/s1/reviewers/accounts/check')
+        return { data: { links: [{ kind: 'FORMER_STAFF', label: 'Former member of staff: Rita Review', match: 'NAME' }] } }
+      if (url === '/surveys/s1/reviewers/accounts') return { data: { id: 'rev-new', inviteSent: true } }
+      return { data: {} }
+    })
+    wrap(<SurveyReviewersPanel surveyId="s1" canEdit />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a reviewer' }))
+    await userEvent.click(screen.getByTestId('reviewer-way-new'))
+    await userEvent.type(screen.getByLabelText('First name'), 'Rita')
+    await userEvent.type(screen.getByLabelText('Last name'), 'Review')
+    await userEvent.type(screen.getByLabelText('Email'), 'rita@review.example')
+    await userEvent.click(screen.getByRole('button', { name: /make the account/i }))
+    expect(await screen.findByTestId('reviewer-links')).toHaveTextContent('Former member of staff: Rita Review')
+    expect(apiJson.mock.calls.some(([url]) => url === '/surveys/s1/reviewers/accounts')).toBe(false)
+    const make = screen.getByRole('button', { name: 'Make the account' })
+    expect(make).toBeDisabled()
+    await userEvent.click(screen.getByRole('checkbox'))
+    await userEvent.type(screen.getByLabelText('Why they are independent enough'), 'Left in 2022, never in this branch')
+    await userEvent.click(make)
+    const post = apiJson.mock.calls.find(([url]) => url === '/surveys/s1/reviewers/accounts')!
+    expect(JSON.parse(post[1].body)).toMatchObject({ declaration: 'Left in 2022, never in this branch' })
   })
 
   it('a repeating survey: access is given on the period being run, not here', async () => {

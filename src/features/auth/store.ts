@@ -1,3 +1,4 @@
+import { ApiError } from '@/shared/api/api-client'
 import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { appendAuditEvent, loadAuditFromStorage } from '@/features/auth/audit'
@@ -11,6 +12,7 @@ import {
   backendChangePassword,
   backendLogin,
   backendMe,
+  backendLogout,
   backendRefresh,
   backendServiceUserPortalLogin,
   backendTemporaryInspectorLogin,
@@ -348,6 +350,26 @@ const authSessionStorage: StateStorage = {
     localStorage.setItem(portal ? `${name}:portal` : name, value)
   },
   removeItem: (name) => localStorage.removeItem(isPortalPathname() ? `${name}:portal` : name),
+}
+
+/** Why this browser was signed out (another device over the limit, password changed...): shown on the sign-in page. */
+export const SIGNED_OUT_MESSAGE_KEY = 'care-admin-signed-out'
+
+/** One renewal at a time across this browser's tabs (each tab used to renew on its own and they raced). */
+function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator !== 'undefined' ? (navigator as Navigator & { locks?: LockManager }).locks : undefined
+  return locks ? (locks.request('care-admin-auth-refresh', fn) as Promise<T>) : fn()
+}
+
+/** The API says this sign-in has ended: sign out here, keep the reason for the sign-in page, and go there. */
+function endSignInHere(message: string) {
+  try {
+    sessionStorage.setItem(SIGNED_OUT_MESSAGE_KEY, message)
+  } catch {
+    // Private mode: the sign-in page just shows no reason.
+  }
+  useAuthStore.getState().logout('session_ended')
+  if (typeof window !== 'undefined') window.location.assign(isPortalPathname() ? '/portal/login' : '/auth/login')
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -721,6 +743,11 @@ export const useAuthStore = create<AuthState>()(
 
       logout: (reason = 'user') => {
         const u = get().user
+        // Tell the API, so this browser's sign-in ends there too (other devices stay signed in).
+        const token = get().accessToken
+        if (token && reason !== 'session_ended' && getApiBaseUrl() && token.includes('.')) {
+          void backendLogout(token).catch(() => undefined)
+        }
         get().appendLocalAudit({
           at: Date.now(),
           actorId: u?.id ?? null,
@@ -748,8 +775,16 @@ export const useAuthStore = create<AuthState>()(
         const t = Date.now()
 
         if (getApiBaseUrl() && s.refreshToken.includes('.')) {
+          const startedWith = s.refreshToken
+          return withRefreshLock(async () => {
+          // Another tab of this browser may have renewed while this one waited: use its tokens, don't renew again
+          // (the old token is no longer valid once renewed).
+          await useAuthStore.persist.rehydrate()
+          const current = get()
+          if (!current.refreshToken) return false
+          if (current.refreshToken !== startedWith && current.accessExpiresAt - Date.now() > 30_000) return true
           try {
-            const { accessToken, refreshToken } = await backendRefresh(s.refreshToken)
+            const { accessToken, refreshToken } = await backendRefresh(current.refreshToken)
             const accessExpiresAt = accessTokenExpiryMs(accessToken) ?? t + ACCESS_MS
             const refreshExpiresAt = accessTokenExpiryMs(refreshToken) ?? t + REFRESH_MS
             let userPatch: Partial<Pick<AuthState, 'user'>> = {}
@@ -780,9 +815,13 @@ export const useAuthStore = create<AuthState>()(
               meta: { mode: 'api' },
             })
             return true
-          } catch {
+          } catch (e) {
+            // A real sign-out (another device over the limit, password changed, signed out by the office...):
+            // say why, instead of every page failing with "Unauthorized". A network hiccup keeps the sign-in.
+            if (e instanceof ApiError && e.status === 401) endSignInHere(e.message || 'Your sign-in has ended. Please sign in again.')
             return false
           }
+          })
         }
 
         const { at, rt } = tokenPair()
@@ -1059,3 +1098,11 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 )
+
+// Another tab of this browser signed in, renewed or signed out: pick it up here too, so tabs never hold an
+// out-of-date token (which the API refuses once another tab has renewed it).
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', e => {
+    if (e.key && e.key.startsWith('care-admin-auth')) void useAuthStore.persist.rehydrate()
+  })
+}

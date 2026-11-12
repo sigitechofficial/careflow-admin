@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { useAuthStore } from '@/features/auth/store'
+import { SIGNED_OUT_MESSAGE_KEY, useAuthStore } from '@/features/auth/store'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
@@ -25,6 +25,16 @@ export default function LoginPage() {
     import.meta.env.DEV ? (apiUrl ? 'Admin@12345' : 'CareAdmin1!') : '',
   )
   const [error, setError] = React.useState<string | null>(null)
+  // Why this browser was signed out (another device over the limit, password changed...), shown once.
+  const [signedOutWhy] = React.useState<string | null>(() => {
+    try {
+      const m = sessionStorage.getItem(SIGNED_OUT_MESSAGE_KEY)
+      sessionStorage.removeItem(SIGNED_OUT_MESSAGE_KEY)
+      return m
+    } catch {
+      return null
+    }
+  })
   const [loading, setLoading] = React.useState(false)
 
   const onSubmitStaff = async (e: React.FormEvent) => {
@@ -103,6 +113,16 @@ export default function LoginPage() {
             Temporary inspector
           </button>
         </div>
+      ) : null}
+
+      {signedOutWhy ? (
+        <p
+          role="status"
+          data-testid="login-signed-out-reason"
+          className="mt-6 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200"
+        >
+          {signedOutWhy}
+        </p>
       ) : null}
 
       {mode === 'staff' ? (

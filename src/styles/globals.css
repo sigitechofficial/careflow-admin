@@ -517,3 +517,12 @@
   letter-spacing: 0.02em;
   word-spacing: 0.08em;
 }
+
+/* "Find anything": the setting just opened from the search, highlighted for a moment. */
+.find-highlight {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 4px;
+  border-radius: 0.375rem;
+  background-color: hsl(var(--primary) / 0.08);
+  transition: background-color 0.6s ease, outline-color 0.6s ease;
+}

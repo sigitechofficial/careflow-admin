@@ -190,6 +190,28 @@ export function SurveyResponsesPanel({ surveyId }: { surveyId: string }) {
       : null
   const showAnsweredBy = Boolean(data?.responses.some(r => r.respondentRelation))
   const showRecordedBy = Boolean(data?.responses.some(r => r.recordedByName))
+  // Who recorded it: everyone, the office, independent reviewers, or one reviewer (?recordedBy=<id> from the reviewers page).
+  const [recordedBy, setRecordedBy] = React.useState<string>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('recordedBy') ?? 'all'
+    } catch {
+      return 'all'
+    }
+  })
+  const reviewers = React.useMemo(() => {
+    const m = new Map<string, string>()
+    for (const r of data?.responses ?? []) if (r.recordedByReviewer && r.recordedById) m.set(r.recordedById, r.recordedByName ?? 'Reviewer')
+    return [...m.entries()]
+  }, [data])
+  const shownResponses = (data?.responses ?? []).filter(r =>
+    recordedBy === 'all'
+      ? true
+      : recordedBy === 'reviewers'
+        ? r.recordedByReviewer
+        : recordedBy === 'office'
+          ? !r.recordedByReviewer
+          : r.recordedById === recordedBy,
+  )
   const showPeriod = Boolean(data?.responses.some(r => r.periodTitle))
   // A repeating survey's answers are recorded on one of its periods.
   const isSeriesSource = Boolean(survey && !survey.clonedFromId && (survey.recurrence || survey.periodCount > 0))
@@ -273,6 +295,31 @@ export function SurveyResponsesPanel({ surveyId }: { surveyId: string }) {
         </p>
       ) : (
         <div className="overflow-x-auto">
+          {reviewers.length ? (
+            <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2 text-sm" data-testid="responses-recorded-by-filter">
+              <label htmlFor="responses-recorded-by" className="text-muted-foreground">
+                Recorded by
+              </label>
+              <select
+                id="responses-recorded-by"
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                value={recordedBy}
+                onChange={e => setRecordedBy(e.target.value)}
+              >
+                <option value="all">Everyone</option>
+                <option value="office">Online and office staff</option>
+                <option value="reviewers">Independent reviewers</option>
+                {reviewers.map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name} (reviewer)
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-muted-foreground">
+                {shownResponses.length} of {data.responses.length}
+              </span>
+            </div>
+          ) : null}
           <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -287,7 +334,7 @@ export function SurveyResponsesPanel({ surveyId }: { surveyId: string }) {
               </tr>
             </thead>
             <tbody>
-              {data.responses.map(r => (
+              {shownResponses.map(r => (
                 <tr key={r.id} className="border-b border-border/70 last:border-0">
                   <td className="px-4 py-2.5 font-medium text-foreground">
                     {r.respondentLabel}
@@ -311,7 +358,14 @@ export function SurveyResponsesPanel({ surveyId }: { surveyId: string }) {
                     {r.channel ? SURVEY_RESPONSE_CHANNEL_LABELS[r.channel] : '—'}
                   </td>
                   {showRecordedBy ? (
-                    <td className="px-4 py-2.5 text-muted-foreground">{r.recordedByName ?? '—'}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">
+                      {r.recordedByName ?? '—'}
+                      {r.recordedByReviewer ? (
+                        <span className="ml-1.5 rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-800 dark:bg-sky-900 dark:text-sky-100">
+                          Independent reviewer
+                        </span>
+                      ) : null}
+                    </td>
                   ) : null}
                   <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground tabular-nums">
                     {formatSubmitted(r)}

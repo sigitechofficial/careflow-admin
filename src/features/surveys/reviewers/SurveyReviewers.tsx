@@ -1,6 +1,8 @@
 import * as React from 'react'
+import { Combobox } from '@/shared/ui/combobox'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, Loader2, ShieldCheck, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, ChevronRight, ClipboardList, Loader2, ShieldCheck, UserCheck, UserPlus } from 'lucide-react'
+import { MultiSelect } from '@/shared/ui/multi-select'
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
@@ -36,7 +38,7 @@ type Grant = {
   status: 'ACTIVE' | 'NOT_STARTED' | 'ENDED' | 'REVOKED'
 }
 type ReviewerAccount = { id: string; name: string; email: string; active: boolean }
-type ReviewersData = {
+export type ReviewersData = {
   anonymousOnly: boolean
   /** A repeating survey: access is given on the period being run, not here. */
   repeatingParent?: boolean
@@ -143,19 +145,122 @@ export function SurveyReviewersPanel({ surveyId, canEdit }: { surveyId: string; 
   )
 }
 
-/** "Add a reviewer": the account (name, email); they choose their own password from the emailed link. */
-function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: string; onClose: () => void; onAdded: () => void }) {
+type ReviewerWay = 'previous' | 'new' | 'staff'
+type SurveyStaffMember = { id: string; name: string; email: string; roles: string[]; branches: string[] }
+
+/**
+ * "Add a reviewer" in two steps: first choose who (an independent reviewer added before, a new independent
+ * reviewer, or staff who run surveys), then the one action that fits: give access, make the account, or ask
+ * staff to collect answers.
+ */
+export function AddReviewerDialog({
+  surveyId,
+  allSurveyIds,
+  onClose,
+  onAdded,
+}: {
+  surveyId: string
+  /** From the overall page: every survey chosen, so staff are asked about all of them at once. */
+  allSurveyIds?: string[]
+  onClose: () => void
+  onAdded: (userId?: string) => void
+}) {
   const qc = useQueryClient()
+  const [way, setWay] = React.useState<ReviewerWay | null>(null)
+  const existing = useQuery({
+    queryKey: reviewersKey(surveyId),
+    queryFn: async () => (await apiJson<ApiEnvelope<ReviewersData>>(`/surveys/${surveyId}/reviewers`, { method: 'GET' })).data,
+  })
+  const previous = existing.data?.accounts ?? []
+  const previousActive = previous.filter(a => a.active).length
+  const [previousId, setPreviousId] = React.useState('')
+  const staff = useQuery({
+    queryKey: ['surveys', 'reviewers', surveyId, 'survey-staff'],
+    queryFn: async () =>
+      (await apiJson<ApiEnvelope<{ staff: SurveyStaffMember[] }>>(`/surveys/${surveyId}/reviewers/survey-staff`, { method: 'GET' })).data?.staff ?? [],
+  })
+  const [staffIds, setStaffIds] = React.useState<string[]>([])
+  const [staffNote, setStaffNote] = React.useState('')
+  const askSurveyIds = allSurveyIds?.length ? allSurveyIds : [surveyId]
+  const askStaff = useMutation({
+    mutationFn: async () => {
+      for (const id of askSurveyIds) {
+        await apiJson<ApiEnvelope<{ asked: number }>>(`/surveys/${id}/reviewers/survey-staff/ask`, {
+          method: 'POST',
+          body: JSON.stringify({ userIds: staffIds, ...(staffNote.trim() ? { note: staffNote.trim() } : {}) }),
+        })
+      }
+    },
+    onSuccess: () => {
+      const n = staffIds.length
+      toastSuccess(
+        `${n === 1 ? 'Request sent' : `Request sent to ${n} staff`}${askSurveyIds.length > 1 ? ` for ${askSurveyIds.length} surveys` : ''}`,
+        'They have a notice in CareFlow linking to Surveys › To collect.',
+      )
+      onClose()
+    },
+    onError: e => toastApiError(e, 'Could not send the request'),
+  })
+
   const [firstName, setFirstName] = React.useState('')
   const [lastName, setLastName] = React.useState('')
   const [email, setEmail] = React.useState('')
+  // Already connected to us (former staff, a person we support or their family, an outside contact):
+  // shown first, and the manager declares why they are still independent enough.
+  const [links, setLinks] = React.useState<Array<{ kind: string; label: string; match: 'EMAIL' | 'NAME' }> | null>(null)
+  const [checkedFor, setCheckedFor] = React.useState('')
+  const [weighed, setWeighed] = React.useState(false)
+  const [declaration, setDeclaration] = React.useState('')
+  // Choose someone already in CareFlow (outside contacts, family contacts, former staff) to fill in the details.
+  const [knownSearch, setKnownSearch] = React.useState('')
+  const [knownId, setKnownId] = React.useState('')
+  const known = useQuery({
+    queryKey: ['surveys', 'reviewers', surveyId, 'known-people', knownSearch],
+    queryFn: async () =>
+      (
+        await apiJson<
+          ApiEnvelope<{
+            people: Array<{ id: string; firstName: string; lastName: string; email: string; source: string; typeLabel: string; detail: string }>
+          }>
+        >(`/surveys/${surveyId}/reviewers/known-people?search=${encodeURIComponent(knownSearch)}`, { method: 'GET' })
+      ).data?.people ?? [],
+    enabled: way === 'new' && knownSearch.trim().length >= 2,
+    staleTime: 30_000,
+  })
+  const pickKnown = (id: string) => {
+    setKnownId(id)
+    const p = known.data?.find(x => x.id === id)
+    if (!p) return
+    setFirstName(p.firstName)
+    setLastName(p.lastName)
+    setEmail(p.email)
+  }
+  const who = `${firstName.trim()}|${lastName.trim()}|${email.trim().toLowerCase()}`
   const add = useMutation({
-    mutationFn: async () =>
-      apiJson<ApiEnvelope<{ id: string; inviteSent: boolean }>>(`/surveys/${surveyId}/reviewers/accounts`, {
+    mutationFn: async () => {
+      if (checkedFor !== who) {
+        const res = await apiJson<ApiEnvelope<{ links: Array<{ kind: string; label: string; match: 'EMAIL' | 'NAME' }> }>>(
+          `/surveys/${surveyId}/reviewers/accounts/check`,
+          { method: 'POST', body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim() }) },
+        )
+        const found = res.data?.links ?? []
+        setLinks(found)
+        setCheckedFor(who)
+        setWeighed(false)
+        if (found.length) return null
+      }
+      return apiJson<ApiEnvelope<{ id: string; inviteSent: boolean }>>(`/surveys/${surveyId}/reviewers/accounts`, {
         method: 'POST',
-        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim() }),
-      }),
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          ...(links?.length ? { declaration: declaration.trim() } : {}),
+        }),
+      })
+    },
     onSuccess: async res => {
+      if (!res) return // connected to us: the links are shown, waiting for the declaration
       toastSuccess(
         'Reviewer account made',
         res.data?.inviteSent
@@ -163,72 +268,276 @@ function AddReviewerDialog({ surveyId, onClose, onAdded }: { surveyId: string; o
           : 'The email could not be sent: they can use "Forgot password" on the sign-in page.',
       )
       await qc.invalidateQueries({ queryKey: reviewersKey(surveyId) })
-      onAdded()
+      onAdded(res.data?.id)
     },
     onError: e => toastApiError(e, 'Could not make the account'),
   })
-  const ready = Boolean(firstName.trim() && lastName.trim() && /^\S+@\S+\.\S+$/.test(email.trim()))
+  const needsDeclaration = checkedFor === who && Boolean(links?.length)
+  const ready =
+    Boolean(firstName.trim() && lastName.trim() && /^\S+@\S+\.\S+$/.test(email.trim())) &&
+    (!needsDeclaration || (weighed && declaration.trim().length >= 10))
+
+  const count = (q: { isLoading: boolean; isError: boolean }, n: number, none: string, some: string) =>
+    q.isLoading ? 'Loading…' : q.isError ? 'Couldn’t load' : n ? some : none
+  const ways: Array<{ key: ReviewerWay; icon: React.ReactNode; title: string; text: string; meta?: string; disabled?: boolean }> = [
+    {
+      key: 'previous',
+      icon: <UserCheck className="h-5 w-5" aria-hidden />,
+      title: 'An independent reviewer added before',
+      text: 'Someone from outside who already has a reviewer account. Choose them, then give access to this survey.',
+      meta: count(existing, previousActive, 'None added yet', `${previousActive} to choose from`),
+      disabled: existing.isSuccess && !previousActive,
+    },
+    {
+      key: 'new',
+      icon: <UserPlus className="h-5 w-5" aria-hidden />,
+      title: 'A new independent reviewer',
+      text: 'Someone from outside, such as a volunteer, advocate or commissioner. Makes them a reviewer account, then you give access.',
+    },
+    {
+      key: 'staff',
+      icon: <ClipboardList className="h-5 w-5" aria-hidden />,
+      title: 'Staff who run surveys',
+      text: 'Ask staff with the “Record survey responses” responsibility to collect answers. These count as the office’s answers, not an independent review.',
+      meta: count(staff, staff.data?.length ?? 0, 'Nobody has that responsibility yet', `${staff.data?.length ?? 0} in this survey’s branches`),
+    },
+  ]
+  const chosen = ways.find(w => w.key === way)
+
   return (
     <Dialog open onOpenChange={o => (!o ? onClose() : undefined)}>
       <DialogContent className="max-w-lg" data-testid="add-reviewer-dialog">
         <DialogHeader>
-          <DialogTitle>Add a reviewer</DialogTitle>
-          <DialogDescription>
-            Makes a CareFlow account for the reviewer with the Independent reviewer role only: no other access and no branch.
-            Use their own email, not a staff email. They are emailed a link to choose their own password; nobody else sets or
-            sees it. Then give them access to this survey.
-          </DialogDescription>
+          <DialogTitle>{chosen ? chosen.title : 'Who will record answers?'}</DialogTitle>
+          <DialogDescription>{chosen ? chosen.text : 'Choose one. The next step depends on your choice.'}</DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <label htmlFor="reviewer-first-name" className="block text-sm font-medium">
-                First name
-              </label>
-              <Input id="reviewer-first-name" value={firstName} onChange={e => setFirstName(e.target.value)} autoComplete="off" />
+          {!way ? (
+            <div className="space-y-2" role="list" data-testid="reviewer-ways">
+              {ways.map(w => (
+                <button
+                  key={w.key}
+                  type="button"
+                  role="listitem"
+                  disabled={w.disabled}
+                  onClick={() => setWay(w.key)}
+                  data-testid={`reviewer-way-${w.key}`}
+                  className="flex w-full items-start gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:border-primary/60 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-border disabled:hover:bg-card"
+                >
+                  <span className="mt-0.5 rounded-md bg-primary/10 p-2 text-primary">{w.icon}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">{w.title}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">{w.text}</span>
+                    {w.meta ? <span className="mt-1 block text-xs font-medium text-foreground/80">{w.meta}</span> : null}
+                  </span>
+                  <ChevronRight className="mt-2 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                </button>
+              ))}
             </div>
-            <div className="space-y-1">
-              <label htmlFor="reviewer-last-name" className="block text-sm font-medium">
-                Last name
-              </label>
-              <Input id="reviewer-last-name" value={lastName} onChange={e => setLastName(e.target.value)} autoComplete="off" />
+          ) : (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+              onClick={() => setWay(null)}
+              data-testid="reviewer-way-back"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Choose a different option
+            </button>
+          )}
+
+          {way === 'previous' ? (
+            <div className="space-y-1" data-testid="reviewer-previous">
+              <span className="block text-sm font-medium">Reviewer</span>
+              <Combobox
+                options={previous.map(a => ({
+                  value: a.id,
+                  label: `${a.name} · Independent reviewer`,
+                  description: a.active ? a.email : `${a.email} · account switched off (Settings › Users)`,
+                  disabled: !a.active,
+                }))}
+                value={previousId}
+                onChange={setPreviousId}
+                placeholder="Choose a reviewer"
+                searchPlaceholder="Search by name or email"
+                emptyText="Nobody found"
+                aria-label="Choose a reviewer"
+              />
+              <p className="text-xs text-muted-foreground">No new account is made. Next you choose who they ask and for how long.</p>
             </div>
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="reviewer-email" className="block text-sm font-medium">
-              Email
-            </label>
-            <Input id="reviewer-email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="off" />
-          </div>
+          ) : null}
+
+          {way === 'staff' ? (
+            <div className="space-y-3" data-testid="reviewer-staff">
+              {staff.isError ? (
+                <p className="text-sm text-destructive" role="alert">
+                  Couldn’t load staff: {(staff.error as Error).message}
+                </p>
+              ) : staff.data && !staff.data.length ? (
+                <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                  Nobody in this survey’s branches can record survey responses yet. Give a role the “Record survey responses”
+                  responsibility in Settings › Roles.
+                </p>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <span className="block text-sm font-medium">Staff</span>
+                    <MultiSelect
+                      options={(staff.data ?? []).map(u => ({
+                        value: u.id,
+                        // Name, then role (left out when it only repeats the name, e.g. the built-in "Super Admin" account).
+                        label: [u.name, [...new Set(u.roles)].filter(r => r !== u.name).join(', ')].filter(Boolean).join(' · ') + (u.branches.length ? ` (${u.branches.join(', ')})` : ''),
+                      }))}
+                      value={staffIds}
+                      onChange={setStaffIds}
+                      placeholder={staff.isLoading ? 'Loading…' : 'Choose staff'}
+                      searchPlaceholder="Search staff"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="staff-note" className="block text-sm font-medium">
+                      Note <span className="font-normal text-muted-foreground">(optional)</span>
+                    </label>
+                    <textarea
+                      id="staff-note"
+                      className="min-h-[60px] w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                      placeholder="e.g. Please phone the people in the North branch by Friday"
+                      maxLength={500}
+                      value={staffNote}
+                      onChange={e => setStaffNote(e.target.value)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    They get a notice in CareFlow and collect answers from Surveys › To collect, by phone, on paper or in person.
+                  </p>
+                </>
+              )}
+            </div>
+          ) : null}
+
+          {way === 'new' ? (
+            <>
+              <div className="space-y-1" data-testid="reviewer-known-people">
+                <span className="block text-sm font-medium">Already in CareFlow? (optional)</span>
+                <Combobox
+                  options={(known.data ?? [])
+                    .filter(p => p.source !== 'REVIEWER')
+                    .map(p => ({
+                      value: p.id,
+                      // What they are, with the name, so a social worker and a relative are never confused.
+                      label: `${`${p.firstName} ${p.lastName}`.trim()} · ${p.typeLabel}`,
+                      description: `${p.detail}${p.email ? ` · ${p.email}` : ' · no email on file'}`,
+                    }))}
+                  value={knownId}
+                  onChange={pickKnown}
+                  onSearchChange={setKnownSearch}
+                  loading={known.isFetching}
+                  placeholder="Search outside contacts, family contacts and former staff"
+                  searchPlaceholder="Type at least 2 letters"
+                  emptyText={knownSearch.trim().length < 2 ? 'Type at least 2 letters' : 'Nobody found'}
+                  aria-label="Choose someone already in CareFlow"
+                />
+                <p className="text-xs text-muted-foreground">Fills in their details. Or type them below. Current staff can’t be reviewers.</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor="reviewer-first-name" className="block text-sm font-medium">
+                    First name
+                  </label>
+                  <Input id="reviewer-first-name" value={firstName} onChange={e => setFirstName(e.target.value)} autoComplete="off" />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="reviewer-last-name" className="block text-sm font-medium">
+                    Last name
+                  </label>
+                  <Input id="reviewer-last-name" value={lastName} onChange={e => setLastName(e.target.value)} autoComplete="off" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="reviewer-email" className="block text-sm font-medium">
+                  Email
+                </label>
+                <Input id="reviewer-email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="off" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The account has the Independent reviewer role only: no other access and no branch. Use their own email, not a
+                staff email. They are emailed a link to choose their own password; nobody else sets or sees it.
+              </p>
+              {needsDeclaration ? (
+                <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm" data-testid="reviewer-links">
+                  <p className="font-medium">This person is already connected to us:</p>
+                  <ul className="list-disc space-y-0.5 pl-5">
+                    {links!.map(l => (
+                      <li key={l.label}>
+                        {l.label} <span className="text-xs text-muted-foreground">(same {l.match === 'EMAIL' ? 'email' : 'name'})</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    A same-name match may be someone else. If it is them, they can still review if you judge them independent
+                    enough: say why. The people they are connected to are kept out of their sample. This is saved in the audit log.
+                  </p>
+                  <label className="flex items-start gap-2">
+                    <input type="checkbox" className="mt-1" checked={weighed} onChange={e => setWeighed(e.target.checked)} />
+                    <span>I have checked this and they are independent enough for this review.</span>
+                  </label>
+                  <textarea
+                    className="min-h-[70px] w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                    placeholder="Why (e.g. left us 3 years ago and never worked with the people in the sample; or: a different person with the same name)"
+                    value={declaration}
+                    onChange={e => setDeclaration(e.target.value)}
+                    aria-label="Why they are independent enough"
+                  />
+                </div>
+              ) : null}
+            </>
+          ) : null}
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => add.mutate()} disabled={!ready || add.isPending}>
-            {add.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden /> : null}
-            Make the account
-          </Button>
+          {way === 'previous' ? (
+            <Button type="button" disabled={!previousId} onClick={() => onAdded(previousId)} data-testid="use-existing-reviewer">
+              Next: give access
+            </Button>
+          ) : null}
+          {way === 'new' ? (
+            <Button type="button" onClick={() => add.mutate()} disabled={!ready || add.isPending}>
+              {add.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden /> : null}
+              {checkedFor === who ? 'Make the account' : 'Check and make the account'}
+            </Button>
+          ) : null}
+          {way === 'staff' && staff.data?.length ? (
+            <Button type="button" disabled={!staffIds.length || askStaff.isPending} onClick={() => askStaff.mutate()} data-testid="ask-staff">
+              {askStaff.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden /> : null}
+              Ask them to collect answers
+            </Button>
+          ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
 
-function GrantReviewerDialog({
+export function GrantReviewerDialog({
   surveyId,
   data,
   onClose,
   onAddAccount,
+  initialUserId,
 }: {
   surveyId: string
   data: ReviewersData
   onClose: () => void
   onAddAccount: () => void
+  /** Preselect this reviewer (from the all-reviewers page). */
+  initialUserId?: string
 }) {
   const qc = useQueryClient()
   const accounts = data.accounts.filter(a => a.active)
-  const [userId, setUserId] = React.useState(accounts[0]?.id ?? '')
+  const [userId, setUserId] = React.useState(
+    initialUserId && accounts.some(a => a.id === initialUserId) ? initialUserId : (accounts[0]?.id ?? ''),
+  )
   const [from, setFrom] = React.useState(dateInput(new Date()))
   const [to, setTo] = React.useState(dateInput(new Date(Date.now() + 30 * 86400000)))
   const [search, setSearch] = React.useState('')
