@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { FindHighlighter } from '@/features/search/find-navigation'
 import {
   Outlet,
   RouterProvider,
@@ -139,6 +140,7 @@ import SurveyPaperCopyPage from '@/features/surveys/sharing/SurveyPaperCopyPage'
 import SurveyPosterPage from '@/features/surveys/sharing/SurveyPosterPage'
 import ReadyMadeSurveysPage from '@/features/surveys/pages/ReadyMadeSurveysPage'
 import OutsidePeoplePage from '@/features/surveys/outside/OutsidePeoplePage'
+import ReviewersOverviewPage from '@/features/surveys/reviewers/ReviewersOverviewPage'
 import SurveyFollowUpsPage from '@/features/surveys/pages/SurveyFollowUpsPage'
 import SurveyInsightPage, { Survey360Page, SurveyPoolPage } from '@/features/surveys/insight/SurveyInsightPages'
 import SurveyActionsPage from '@/features/surveys/actions/SurveyActionsPage'
@@ -324,9 +326,29 @@ type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 
 
 const pageTitles: Record<string, string> = {
   '/': 'Home',
+  '/medication': 'Medication',
+  '/body-map/review-queue': 'Body map review queue',
+  '/initial-assessments/review-queue': 'Initial assessment review queue',
+  '/assessments/review-queue': 'Assessment review queue',
+  '/care-plans/reviews': 'Care plan reviews',
+  '/scheduling/view': 'Rota view',
+  '/parental-leave': 'Parental leave',
+  '/incidents/dashboard': 'Incidents dashboard',
+  '/hours-approvals': 'Hours approvals',
+  '/over-care-reviews': 'Over care reviews',
+  '/hours-history': 'Hours & visits history',
+  '/incidents/view': 'All incidents',
+  '/incidents/raise': 'Raise incident',
+  '/incidents/my-actions': 'My incident actions',
+  '/incidents/analytics': 'Incident analytics',
+  '/admin/service-user-portal': 'Service user portal access',
+  '/learning': 'Learning',
+  '/specialist-pathways': 'Specialist pathways',
+  '/policies/ready-made': 'Ready-made policies',
   '/surveys': 'Surveys',
   '/surveys/ready-made': 'Ready-made surveys',
   '/surveys/outside-people': 'Outside people',
+  '/surveys/reviewers': 'Independent reviewers',
   '/surveys/follow-ups': 'Survey follow-ups',
   '/surveys/insight': 'Survey insight',
   '/surveys/insight/pool': 'All copies together',
@@ -353,7 +375,7 @@ const pageTitles: Record<string, string> = {
   '/scheduling/list': 'List View of Schedule',
   '/scheduling/templates': 'Schedule Templates',
   '/scheduling/bulk-generate-rota': 'Bulk Generate Rota',
-  '/employee': 'Employee',
+  '/employee': 'Staff',
   '/employee/staff-list': 'Staff list',
   '/employee/hours': 'Employee hours',
   '/employee/absences': 'Absence tracker',
@@ -362,11 +384,11 @@ const pageTitles: Record<string, string> = {
   '/on-call/rota': 'On-call rota',
   '/on-call/calls': 'Out-of-hours calls',
   '/employee/compliance': 'Compliance board',
-  '/employee/review-status': 'Employee',
-  '/employee/skills': 'Employee',
-  '/employee/non-core-activity': 'Employee',
-  '/employee/allocations': 'Employee',
-  '/employee/reports': 'Employee',
+  '/employee/review-status': 'Staff review status',
+  '/employee/skills': 'Staff skills',
+  '/employee/non-core-activity': 'Non-core activity',
+  '/employee/allocations': 'Staff allocations',
+  '/employee/reports': 'Staff reports',
   '/employee/temp-inspector': 'Temporary Inspector Login',
   '/survey-reviews': 'Surveys to record',
   '/employee/documents': 'General Employee Documents',
@@ -664,6 +686,7 @@ function AppRootShell() {
         <SurveyDuePromptHost />
         <PrivacyReviewPromptHost />
         <DevUiTraceChip />
+        <FindHighlighter />
         <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
           <Outlet />
         </AppLayout>
@@ -1847,6 +1870,14 @@ const surveysRoute = createRoute({
     raw.view === 'templates' ? { view: 'templates' } : {},
   beforeLoad: requirePermission('surveys.read'),
   component: SurveysPage,
+})
+
+// Independent reviewers across all surveys, and the answers each recorded (surveys.manage).
+const surveyReviewersRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/reviewers',
+  beforeLoad: requirePermission('surveys.manage'),
+  component: ReviewersOverviewPage,
 })
 
 // Families, professionals and commissioners that public surveys are sent to (surveys.manage).
@@ -3090,6 +3121,7 @@ const routeTree = rootRoute.addChildren([
     surveysRoute,
     surveyReadyMadeRoute,
     surveyOutsidePeopleRoute,
+    surveyReviewersRoute,
     surveyFollowUpsRoute,
     surveyInsightRoute,
     surveyPoolRoute,

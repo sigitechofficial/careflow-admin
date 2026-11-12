@@ -7,6 +7,9 @@ export const DEFAULT_APP_SETTINGS: OrganisationAppSettings = {
   bookHolidaysCareApp: true,
   fingerprintLoginCareApp: true,
   singleDeviceLoginCareApp: false,
+  maxDevicesCareApp: 0,
+  officeMultipleDeviceLogin: true,
+  officeMaxDevices: 0,
 }
 
 export const DEVICE_PIN_DESCRIPTION =
@@ -28,7 +31,9 @@ export const APP_SETTINGS_TOOLTIPS = {
   bookHolidaysCareApp: 'Allow carers to book holidays from the Care app.',
   fingerprintLoginCareApp: 'Allow fingerprint or biometric login on the Care app.',
   singleDeviceLoginCareApp:
-    'Yes allows the same carer to sign in on more than one phone. No limits the account to one signed-in session — a second login is blocked until they sign out, the office signs out the session, or the session goes stale.',
+    'Yes lets the same carer be signed in on more than one phone. No allows one phone: signing in on another phone signs the first one out.',
+  officeMultipleDeviceLogin:
+    'Yes lets the same person be signed in on more than one browser or device (for example a PC and a laptop). No allows one: signing in somewhere else signs the first one out.',
 } as const
 
 export function appSettingsToPayload(s: OrganisationAppSettings) {
@@ -39,5 +44,8 @@ export function appSettingsToPayload(s: OrganisationAppSettings) {
     appSettingBookHolidaysCareApp: s.bookHolidaysCareApp,
     appSettingFingerprintLoginCareApp: s.fingerprintLoginCareApp,
     appSettingSingleDeviceLoginCareApp: s.singleDeviceLoginCareApp,
+    appSettingMaxDevicesCareApp: s.maxDevicesCareApp,
+    officeMultipleDeviceLogin: s.officeMultipleDeviceLogin,
+    officeMaxDevices: s.officeMaxDevices,
   }
 }

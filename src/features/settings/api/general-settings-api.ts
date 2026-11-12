@@ -112,6 +112,12 @@ export type OrganisationAppSettings = {
   bookHolidaysCareApp: boolean
   fingerprintLoginCareApp: boolean
   singleDeviceLoginCareApp: boolean
+  /** Care app: with more than one phone allowed, the most at once (0 = no limit). */
+  maxDevicesCareApp: number
+  /** Office website: one person signed in on more than one browser or device. */
+  officeMultipleDeviceLogin: boolean
+  /** Office website: with more than one allowed, the most at once (0 = no limit). */
+  officeMaxDevices: number
 }
 
 export type OrganisationCriticalInformationSettings = {
@@ -348,6 +354,9 @@ export type AppSettingsUpdatePayload = {
   appSettingBookHolidaysCareApp?: boolean
   appSettingFingerprintLoginCareApp?: boolean
   appSettingSingleDeviceLoginCareApp?: boolean
+  appSettingMaxDevicesCareApp?: number
+  officeMultipleDeviceLogin?: boolean
+  officeMaxDevices?: number
 }
 
 export type CriticalInformationSettingsUpdatePayload = {

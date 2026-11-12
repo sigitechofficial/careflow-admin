@@ -507,6 +507,9 @@ export type SurveyResponseItem = {
   answeredWithoutName?: boolean
   /** Office user who recorded it (telephone / paper / in person). */
   recordedByName?: string | null
+  recordedById?: string | null
+  /** Recorded by an independent reviewer (not office staff). */
+  recordedByReviewer?: boolean
   contactedAt?: string | null
   contactNumber?: string | null
   contactNotes?: string | null
