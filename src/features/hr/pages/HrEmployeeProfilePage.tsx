@@ -1,9 +1,16 @@
 import * as React from 'react'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { ArrowLeft, Save, UserRound } from 'lucide-react'
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
+import { ArrowLeft, Camera, Save, Trash2, UserRound } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '@/shared/api/api-client'
 import { useAuthStore } from '@/features/auth/store'
 import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
+import {
+  usePatchPersonalDetailsMutation,
+  useUploadEmployeePhoto,
+} from '@/features/employees/hooks/useEmployeeMutations'
+import { hrKeys } from '@/features/hr/keys'
+import { resolveMediaUrl } from '@/shared/lib/media-url'
 import {
   useCreateHrProfile,
   useHrProfile,
@@ -16,7 +23,12 @@ import type {
   HrProfilePayload,
 } from '@/features/hr/api/hr.api'
 import { HrDocumentsTab } from '@/features/hr/components/HrDocumentsTab'
-import { HrDeploymentBadge, HrLifecycleBadge } from '@/features/hr/components/HrStatusBadges'
+import {
+  DEPLOYMENT_LEGEND,
+  DeploymentStatusLegend,
+  HrDeploymentBadge,
+  HrLifecycleBadge,
+} from '@/features/hr/components/HrStatusBadges'
 import {
   canWriteHrProfile,
   CARE_WORKFORCE_CATEGORY_OPTIONS,
@@ -41,7 +53,8 @@ export default function HrEmployeeProfilePage() {
   const navigate = useNavigate()
   const can = useAuthStore(s => s.can)
   const canEdit = canWriteHrProfile(can)
-  const [tab, setTab] = React.useState<TabId>('profile')
+  const search = useSearch({ strict: false }) as { tab?: TabId }
+  const [tab, setTab] = React.useState<TabId>(search.tab === 'documents' ? 'documents' : 'profile')
   const [saveError, setSaveError] = React.useState<string | null>(null)
   const [saveOk, setSaveOk] = React.useState(false)
 
@@ -214,13 +227,13 @@ export default function HrEmployeeProfilePage() {
                   onChange={e => setForm(f => ({ ...f, dateOfBirth: e.target.value }))}
                 />
               </Field>
-              <Field label="Profile photo URL">
-                <Input
-                  value={form.profilePhoto ?? ''}
-                  disabled={!canEdit}
-                  onChange={e => setForm(f => ({ ...f, profilePhoto: e.target.value }))}
-                />
-              </Field>
+              <ProfilePhotoField
+                employeeId={employeeId}
+                photoUrl={form.profilePhoto || null}
+                name={displayName}
+                canEdit={canEdit && can('employees.update')}
+                onChange={url => setForm(f => ({ ...f, profilePhoto: url ?? '' }))}
+              />
             </div>
           </section>
 
@@ -383,10 +396,16 @@ export default function HrEmployeeProfilePage() {
                   }
                 >
                   {DEPLOYMENT_STATUS_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                    <option key={o.value} value={o.value}>
+                      {o.label} — {DEPLOYMENT_LEGEND.find(l => l.status === o.value)?.title}
+                    </option>
                   ))}
                 </select>
               </Field>
+              <DeploymentStatusLegend
+                layout="stack"
+                className="rounded-lg border border-dashed border-border p-3 sm:col-span-2"
+              />
               <Field label="Operational employee status">
                 <Input value={profile.hrStatus.operationalStatus ?? '—'} disabled />
               </Field>
@@ -399,6 +418,111 @@ export default function HrEmployeeProfilePage() {
           </section>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif'
+
+/** Profile photo: pick an image file; it is saved straight away (no URL to paste). */
+function ProfilePhotoField({
+  employeeId,
+  photoUrl,
+  name,
+  canEdit,
+  onChange,
+}: {
+  employeeId: string
+  photoUrl: string | null
+  name: string
+  canEdit: boolean
+  onChange: (url: string | null) => void
+}) {
+  const qc = useQueryClient()
+  const upload = useUploadEmployeePhoto()
+  const patch = usePatchPersonalDetailsMutation()
+  const fileRef = React.useRef<HTMLInputElement>(null)
+  const [error, setError] = React.useState<string | null>(null)
+  const busy = upload.isPending || patch.isPending
+  const src = resolveMediaUrl(photoUrl)
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0]?.toUpperCase())
+    .join('')
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setError(null)
+    if (!PHOTO_ACCEPT.split(',').includes(file.type)) {
+      setError('Choose a JPEG, PNG, WebP or GIF image.')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('The image is larger than 2 MB.')
+      return
+    }
+    try {
+      const { photoUrl: url } = await upload.mutateAsync({ employeeId, file })
+      onChange(url)
+      // Lists only: refetching the profile would reset unsaved edits in the form.
+      void qc.invalidateQueries({ queryKey: [...hrKeys.all, 'employees'] })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Photo upload failed.')
+    }
+  }
+
+  const onRemove = async () => {
+    if (!window.confirm('Remove the profile photo?')) return
+    setError(null)
+    try {
+      await patch.mutateAsync({ employeeId, body: { photoUrl: '' } })
+      onChange(null)
+      // Lists only: refetching the profile would reset unsaved edits in the form.
+      void qc.invalidateQueries({ queryKey: [...hrKeys.all, 'employees'] })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not remove the photo.')
+    }
+  }
+
+  return (
+    <div className="space-y-1 text-sm sm:col-span-2">
+      <span className="text-muted-foreground">Profile photo</span>
+      <div className="flex flex-wrap items-center gap-4">
+        {src ? (
+          <img src={src} alt={`${name}'s profile photo`} className="h-16 w-16 rounded-full border border-border object-cover" />
+        ) : (
+          <span
+            className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-border bg-muted text-base font-semibold text-muted-foreground"
+            aria-hidden
+          >
+            {initials || <UserRound className="h-6 w-6" />}
+          </span>
+        )}
+        {canEdit ? (
+          <div className="space-y-1">
+            <div className="flex flex-wrap gap-2">
+              <input ref={fileRef} type="file" accept={PHOTO_ACCEPT} className="hidden" onChange={e => void onPick(e)} />
+              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
+                <Camera className="mr-1.5 h-4 w-4" />
+                {upload.isPending ? 'Uploading…' : src ? 'Change photo' : 'Upload photo'}
+              </Button>
+              {src ? (
+                <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => void onRemove()}>
+                  <Trash2 className="mr-1.5 h-4 w-4" /> Remove
+                </Button>
+              ) : null}
+            </div>
+            <p className="text-xs text-muted-foreground">JPEG, PNG, WebP or GIF, up to 2 MB. Saved straight away.</p>
+          </div>
+        ) : !src ? (
+          <span className="text-xs text-muted-foreground">No photo</span>
+        ) : null}
+      </div>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   )
 }

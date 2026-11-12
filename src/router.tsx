@@ -76,6 +76,7 @@ import RecruitmentDashboardPage from '@/features/hr/recruitment/pages/Recruitmen
 import VacanciesPage from '@/features/hr/recruitment/pages/VacanciesPage'
 import CandidatesPipelinePage from '@/features/hr/recruitment/pages/CandidatesPipelinePage'
 import CandidateDetailPage from '@/features/hr/recruitment/pages/CandidateDetailPage'
+import RecruitmentInboxPage from '@/features/hr/recruitment/pages/RecruitmentInboxPage'
 
 // ΓöÇΓöÇ Scheduling pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import ScheduleJobsPage from '@/features/scheduling/pages/ScheduleJobsPage'
@@ -133,6 +134,8 @@ import SurveyResponsesPage from '@/features/surveys/pages/SurveyResponsesPage'
 import SurveyCallListPage from '@/features/surveys/reminders/SurveyCallListPage'
 import SurveyPreviewPage from '@/features/surveys/pages/SurveyPreviewPage'
 import TakeSurveyPage from '@/features/surveys/pages/TakeSurveyPage'
+import CareersPage from '@/features/careers/pages/CareersPage'
+import CareerVacancyPage from '@/features/careers/pages/CareerVacancyPage'
 import KioskSurveyPage from '@/features/surveys/kiosk/KioskSurveyPage'
 import SurveyUnsubscribePage from '@/features/surveys/pages/SurveyUnsubscribePage'
 import SurveyPaperCopyPage from '@/features/surveys/sharing/SurveyPaperCopyPage'
@@ -376,6 +379,7 @@ const pageTitles: Record<string, string> = {
   '/hr/vacancies': 'Vacancies',
   '/hr/candidates': 'Candidates',
   '/hr/candidates/$candidateId': 'Candidate',
+  '/hr/recruitment-inbox': 'Recruitment inbox',
   '/accidents-incidents/view': 'View Accidents & Incidents',
   '/accidents-incidents/raise': 'Raise Accidents & Incidents',
   '/incidents/feedback': 'Complaints & Compliments',
@@ -742,6 +746,19 @@ const legalPrivacyPolicyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/legal/privacy-policy',
   component: PrivacyPolicyPage,
+})
+
+/** Public careers page: open vacancies and the application form (no login). */
+const publicCareersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/careers',
+  component: CareersPage,
+})
+
+const publicCareerVacancyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/careers/$vacancyId',
+  component: CareerVacancyPage,
 })
 
 const publicTakeSurveyRoute = createRoute({
@@ -1776,6 +1793,8 @@ const hrEmployeesRoute = createRoute({
 const hrEmployeeProfileRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/hr/employees/$employeeId',
+  validateSearch: (raw: Record<string, unknown>): { tab?: 'documents' } =>
+    raw.tab === 'documents' ? { tab: 'documents' } : {},
   beforeLoad: requirePermission('hr.read'),
   component: HrEmployeeProfilePage,
 })
@@ -1804,6 +1823,13 @@ const hrCandidatesRoute = createRoute({
   },
   beforeLoad: requirePermission('hr.candidates.read'),
   component: CandidatesPipelinePage,
+})
+
+const hrRecruitmentInboxRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/recruitment-inbox',
+  beforeLoad: requirePermission('hr.candidates.read'),
+  component: RecruitmentInboxPage,
 })
 
 const hrCandidateDetailRoute = createRoute({
@@ -2979,6 +3005,8 @@ const routeTree = rootRoute.addChildren([
   legalPrivacyPolicyRoute,
   policyPrintRoute,
   readyMadePolicyPrintRoute,
+  publicCareersRoute,
+  publicCareerVacancyRoute,
   publicTakeSurveyRoute,
   publicKioskSurveyRoute,
   publicSurveyUnsubscribeRoute,
@@ -3073,6 +3101,7 @@ const routeTree = rootRoute.addChildren([
     hrVacanciesRoute,
     hrCandidatesRoute,
     hrCandidateDetailRoute,
+    hrRecruitmentInboxRoute,
     accidentsIncidentsViewRoute,
     accidentsIncidentsRaiseRoute,
     surveysRoute,
