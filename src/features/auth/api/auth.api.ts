@@ -186,11 +186,23 @@ export async function backendRefresh(
   const body: unknown = await readJsonResponse(res)
 
   if (!res.ok) {
-    throw new Error(nestErrorMessage(body, res.statusText || 'Refresh failed'))
+    // The status tells a real sign-out (401) from a network or server hiccup (keep the person signed in).
+    throw new ApiError(nestErrorMessage(body, res.statusText || 'Refresh failed'), res.status, body)
   }
 
   const env = parseJsonEnvelope<{ accessToken: string; refreshToken: string }>(body)
   return env.data
+}
+
+/** POST /auth/logout: signs out this browser only (the person stays signed in on their other devices). */
+export async function backendLogout(accessToken: string): Promise<void> {
+  const base = getApiBaseUrl()
+  if (!base) return
+  await fetchWithResilience(
+    `${base}/auth/logout`,
+    { method: 'POST', headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` } },
+    { retry: { maxRetries: 0 } },
+  )
 }
 
 /** POST /auth/change-password */
