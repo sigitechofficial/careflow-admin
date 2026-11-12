@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { BookCopy, CheckCircle2, Loader2, Printer, RefreshCw, Search } from 'lucide-react'
 import { PolicyDownloadButtons } from '@/features/policies/components/PolicyDownloadButtons'
 import { useAuthStore } from '@/features/auth/store'
@@ -46,6 +46,7 @@ export default function ReadyMadePoliciesPage() {
   const canAdopt = useAuthStore(s => s.can('policies.create'))
   const library = useLibraryPolicies()
   const adopt = useAdoptLibraryPolicies()
+  const navigate = useNavigate()
   const [search, setSearch] = React.useState('')
   const [category, setCategory] = React.useState<string>('ALL')
   const [selected, setSelected] = React.useState<Set<string>>(new Set())
@@ -88,6 +89,15 @@ export default function ReadyMadePoliciesPage() {
         setSelected(new Set())
         setPreviewId(null)
         const made = result.created.length
+        // One policy adopted: open it, where it can be edited and sent for review.
+        if (made === 1 && result.created[0]) {
+          toastSuccess(
+            `${result.created[0].title} added to your Policy Library as a draft`,
+            'Check it matches how you work, then send it for review.',
+          )
+          void navigate({ to: POLICY_PATHS.detail, params: { policyId: result.created[0].policyId } })
+          return
+        }
         toastSuccess(
           `${made} draft polic${made === 1 ? 'y' : 'ies'} added to your Policy Library`,
           result.skipped.length
