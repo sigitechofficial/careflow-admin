@@ -37,8 +37,13 @@ const {
       jobTitles: [{ id: 'jt-1', name: 'Care Worker' }],
       workAreas: [] as Array<{ id: string; name: string }>,
       roles: [
-        { id: 'role-1', name: 'Care Worker' },
-        { id: 'role-2', name: 'Senior Care Worker' },
+        { id: 'role-1', name: 'Care Worker', staff: true },
+        { id: 'role-2', name: 'Senior Care Worker', staff: true },
+      ],
+      allRoles: [
+        { id: 'role-1', name: 'Care Worker', staff: true },
+        { id: 'role-2', name: 'Senior Care Worker', staff: true },
+        { id: 'role-sa', name: 'Super Admin', staff: false },
       ],
       careTypes: [{ id: 'ct-1', name: 'Domiciliary', code: 'DOMICILIARY' }],
       locationLabels: { 'loc-1': 'London' } as Record<string, string>,
@@ -1085,6 +1090,27 @@ describe('PolicyForm', () => {
     expect(screen.queryByText('Coming soon')).not.toBeInTheDocument()
     expect(screen.getByTestId('policy-rich-text-mock')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled()
+  })
+
+  it('offers the sign-in roles that are staff groups, and keeps a non-staff role a policy already uses', () => {
+    const values = { ...emptyPolicyForm('u1', true), audiences: [{ targetType: 'ROLE' as const, roleId: 'role-1' }] }
+    const { rerender } = render(
+      <PolicyForm values={values} onChange={vi.fn()} onSubmit={() => {}} submitLabel="Save draft" />,
+      { wrapper: wrapper() },
+    )
+    const rolesBox = () => screen.getByText(/Sign-in roles from Admin → Roles & permissions/).parentElement!
+    expect(within(rolesBox()).getByRole('checkbox', { name: 'Care Worker' })).toBeChecked()
+    expect(within(rolesBox()).queryByRole('checkbox', { name: 'Super Admin' })).not.toBeInTheDocument()
+
+    rerender(
+      <PolicyForm
+        values={{ ...values, audiences: [{ targetType: 'ROLE', roleId: 'role-sa' }] }}
+        onChange={vi.fn()}
+        onSubmit={() => {}}
+        submitLabel="Save draft"
+      />,
+    )
+    expect(within(rolesBox()).getByRole('checkbox', { name: 'Super Admin' })).toBeChecked()
   })
 
   it('puts the summary (title, owner, dates) and tags above the policy content, with tabs for every part', () => {

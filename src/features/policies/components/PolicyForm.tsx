@@ -466,7 +466,13 @@ export function PolicyForm({
           value={values.audiences}
           onChange={(audiences, specific) => patch({ audiences, audienceSpecific: specific || undefined })}
           disabled={readOnly}
-          roles={lookups.roles}
+          roles={[
+            ...lookups.roles,
+            // A role that is not a staff group (e.g. Super Admin) still shows if this policy already uses it, so it can be removed.
+            ...(lookups.allRoles ?? []).filter(
+              role => !role.staff && values.audiences.some(row => row.targetType === 'ROLE' && row.roleId === role.id),
+            ),
+          ]}
           jobTitles={lookups.jobTitles}
           workAreas={lookups.workAreas}
           locations={lookups.locations}

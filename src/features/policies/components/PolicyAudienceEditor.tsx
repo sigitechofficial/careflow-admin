@@ -106,6 +106,7 @@ export function PolicyAudienceEditor({
         <div className="grid gap-4 md:grid-cols-2">
           <CheckboxGroup
             title="Roles"
+            hint="Sign-in roles from Admin → Roles & permissions. To target the role on an employee's record, use Job titles."
             items={roles}
             selected={roleIds}
             onToggle={id => toggle(roleIds, id, 'roleIds')}
@@ -149,12 +150,14 @@ export function PolicyAudienceEditor({
 
 function CheckboxGroup({
   title,
+  hint,
   items,
   selected,
   onToggle,
   disabled,
 }: {
   title: string
+  hint?: string
   items: Lookup[]
   selected: string[]
   onToggle: (id: string) => void
@@ -163,6 +166,7 @@ function CheckboxGroup({
   return (
     <div className="space-y-2 rounded-lg border border-border p-3">
       <p className="text-sm font-medium">{title}</p>
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
       {items.length === 0 ? (
         <p className="text-xs text-muted-foreground">No options available.</p>
       ) : (

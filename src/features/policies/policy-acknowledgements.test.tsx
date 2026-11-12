@@ -78,6 +78,7 @@ vi.mock('@/features/policies/hooks/usePolicyLookups', () => ({
     jobTitles: [],
     workAreas: [],
     roles: [],
+    allRoles: [],
     careTypes: [],
     locationLabels: { 'loc-1': 'London' },
     jobTitleLabels: {},
