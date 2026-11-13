@@ -4,6 +4,7 @@ import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
 import type {
   CreateServiceUserContactPayload,
+  UpdateServiceUserContactPayload,
   ServiceUserDetail,
   ServiceUserDetailContact,
   ServiceUserLookupsBundle,
@@ -73,7 +74,7 @@ function relationshipIdByCode(rows: ServiceUserLookupsBundle['relationshipTypes'
 
 type ContactSectionKind = 'personal' | 'gp' | 'professional'
 
-type ContactFormState = {
+export type ContactFormState = {
   firstName: string
   lastName: string
   relationshipTypeId: string
@@ -132,6 +133,27 @@ function formToPayload(f: ContactFormState): CreateServiceUserContactPayload {
     isPrimary: f.isPrimary,
     isEmergencyContact: f.isEmergencyContact,
     // canReceiveUpdates is not sent: it follows Profile → Privacy.
+  }
+}
+
+/**
+ * Editing: a field emptied in the form is sent as null so it is cleared. Left out, the API keeps the
+ * old value, so a removed email or mobile came back when the contact was opened again.
+ */
+export function formToUpdatePayload(f: ContactFormState): UpdateServiceUserContactPayload {
+  const cleared = (v: string) => v.trim() || null
+  return {
+    firstName: f.firstName.trim(),
+    lastName: cleared(f.lastName),
+    phone: cleared(f.phone),
+    mobile: cleared(f.mobile),
+    email: cleared(f.email),
+    address: cleared(f.address),
+    notes: cleared(f.notes),
+    // Relationship: kept unless one is chosen (the list has no "none").
+    relationshipTypeId: f.relationshipTypeId.trim() || undefined,
+    isPrimary: f.isPrimary,
+    isEmergencyContact: f.isEmergencyContact,
   }
 }
 
@@ -199,13 +221,12 @@ export function ServiceUserContactsTab({
       return
     }
     try {
-      const payload = formToPayload(form)
       if (editingId) {
         if (!canContactsUpdate) return
-        await updateContactMutation.mutateAsync({ contactId: editingId, body: payload })
+        await updateContactMutation.mutateAsync({ contactId: editingId, body: formToUpdatePayload(form) })
       } else {
         if (!canContactsCreate) return
-        await createContactMutation.mutateAsync(payload)
+        await createContactMutation.mutateAsync(formToPayload(form))
       }
       setDialogOpen(false)
       onSaved(detail)
