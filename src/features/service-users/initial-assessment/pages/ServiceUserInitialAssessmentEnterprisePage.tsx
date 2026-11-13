@@ -634,6 +634,11 @@ function InitialAssessmentEnterprisePageContent() {
   // fill never auto-saves), but preserved across answer refetches so the values are not clobbered.
   const demoFilledQuestionIdsRef = React.useRef(new Set<string>())
   const skipAutosaveRef = React.useRef(true)
+  /** An autosave request is running; another one waits for it (`autosaveQueuedRef`). */
+  const autosaveInFlightRef = React.useRef(false)
+  const autosaveQueuedRef = React.useRef(false)
+  /** Bumped to run the autosave effect again when answers are still dirty but nothing re-ran it. */
+  const [autosaveNudge, setAutosaveNudge] = React.useState(0)
   const syncSaveQuestionIdsRef = React.useRef<Set<string>>(new Set())
   const sectionContentRef = React.useRef<HTMLDivElement>(null)
   /** Left-nav tab switch: show feedback before heavy section mount blocks the main thread. */
@@ -932,6 +937,8 @@ function InitialAssessmentEnterprisePageContent() {
     answersHydratedRef.current = true
     const t = window.setTimeout(() => {
       skipAutosaveRef.current = false
+      // A pending autosave was cancelled while this refetch was applied: schedule it again.
+      if (dirtyAnswerQuestionIdsRef.current.size) setAutosaveNudge((n) => n + 1)
     }, 0)
     return () => window.clearTimeout(t)
   }, [
@@ -2678,6 +2685,12 @@ function InitialAssessmentEnterprisePageContent() {
   const persistTabAnswers = React.useCallback(
     async (questions: InitialAssessmentQuestion[], silent = false): Promise<boolean> => {
       if (!submissionId || !editable || !canUpdate) return false
+      // One autosave at a time: two in flight could reach the server out of order, so the older
+      // answer would be stored last. This one runs when the current one is done.
+      if (silent && autosaveInFlightRef.current) {
+        autosaveQueuedRef.current = true
+        return false
+      }
       const extraIds = [...syncSaveQuestionIdsRef.current]
       const syncedQuestions = sections
         .flatMap((s) => s.questions)
@@ -2713,6 +2726,8 @@ function InitialAssessmentEnterprisePageContent() {
       // what was saved: they stay dirty, so the refetch keeps them and the next autosave saves them.
       const unchangedSinceSave = (id: string) =>
         (answerEditCountsRef.current.get(id) ?? 0) === (editCountsAtSave.get(id) ?? 0)
+      autosaveInFlightRef.current = true
+      autosaveQueuedRef.current = false
       try {
         await saveMutation.mutateAsync(answers)
         for (const id of savedQuestionIds) {
@@ -2732,6 +2747,10 @@ function InitialAssessmentEnterprisePageContent() {
         setSaveIndicator('saved')
         markAutosaveRecovered()
         if (!silent) toastSuccess('Saved', `${tabLabel} saved.`)
+        // Answers edited while it was saving (nothing may re-run the autosave for them): save them now.
+        if (autosaveQueuedRef.current || !savedQuestionIds.every(unchangedSinceSave)) {
+          setAutosaveNudge((n) => n + 1)
+        }
         return true
       } catch (e) {
         // Dirty ids are still set; keep the synced extras too so the retry saves the same answers.
@@ -2743,6 +2762,9 @@ function InitialAssessmentEnterprisePageContent() {
           toastApiError(e, 'Save failed')
         }
         return false
+      } finally {
+        autosaveInFlightRef.current = false
+        autosaveQueuedRef.current = false
       }
     },
     [
@@ -2769,7 +2791,7 @@ function InitialAssessmentEnterprisePageContent() {
       void persistTabAnswers(currentTabQuestions, true)
     }, AUTOSAVE_MS)
     return () => window.clearTimeout(timer)
-  }, [draftAnswers, currentTabQuestions, editable, canUpdate, persistTabAnswers, submitModalOpen])
+  }, [draftAnswers, currentTabQuestions, editable, canUpdate, persistTabAnswers, submitModalOpen, autosaveNudge])
 
   const onCustomerChange = (id: string) => {
     void navigate({
