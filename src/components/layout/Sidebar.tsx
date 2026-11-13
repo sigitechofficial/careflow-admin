@@ -9,7 +9,7 @@ import {
   Settings2,
   ScrollText,
   UserCheck,
-  // UserPlus, // TODO(later): restore with HR sidebar tab
+  UserPlus,
 
   BarChart3,
   BookOpen,
@@ -512,14 +512,13 @@ const navItems: NavItem[] = [
         anyPermission: ['ecm.read', 'ecm.monitor'],
         navTestId: 'nav-employee-timesheets',
       },
-      planned("Recruitment", "Recruitment", <Briefcase className="h-4 w-4" />, "Vacancies, candidates, interviews and offers."),
+      { section: 'Recruitment', label: 'HR Dashboard', icon: <Users className="h-4 w-4" />, href: '/hr/employees', permission: 'hr.read', navTestId: 'nav-hr-employees' },
+      { section: 'Recruitment', label: 'Recruitment', icon: <Briefcase className="h-4 w-4" />, href: '/hr/recruitment', anyPermission: ['hr.vacancies.read', 'hr.candidates.read'], navTestId: 'nav-hr-recruitment' },
+      { section: 'Recruitment', label: 'Vacancies', icon: <FileText className="h-4 w-4" />, href: '/hr/vacancies', permission: 'hr.vacancies.read', navTestId: 'nav-hr-vacancies' },
+      { section: 'Recruitment', label: 'Candidates', icon: <UserPlus className="h-4 w-4" />, href: '/hr/candidates', permission: 'hr.candidates.read', navTestId: 'nav-hr-candidates' },
+      { section: 'Recruitment', label: 'Recruitment inbox', icon: <Inbox className="h-4 w-4" />, href: '/hr/recruitment-inbox', permission: 'hr.candidates.read', navTestId: 'nav-hr-recruitment-inbox' },
       planned("Development", "Supervision & appraisals", <MessagesSquare className="h-4 w-4" />, "One-to-one and group supervision records, appraisals and follow-up actions."),
       // Parental leave is recorded via the employee Absence tracker (Maternity / Paternity types).
-      // TODO(later): restore the HR Recruitment pages here (HR dashboard, vacancies, candidates) when HR is ready:
-      //   { section: 'Recruitment', label: 'HR Dashboard', href: '/hr/employees', permission: 'hr.read', navTestId: 'nav-hr-employees' },
-      //   { section: 'Recruitment', label: 'Recruitment', href: '/hr/recruitment', anyPermission: ['hr.vacancies.read', 'hr.candidates.read'], navTestId: 'nav-hr-recruitment' },
-      //   { section: 'Recruitment', label: 'Vacancies', href: '/hr/vacancies', permission: 'hr.vacancies.read', navTestId: 'nav-hr-vacancies' },
-      //   { section: 'Recruitment', label: 'Candidates', href: '/hr/candidates', permission: 'hr.candidates.read', navTestId: 'nav-hr-candidates' },
     ],
   },
   // Specialist Pathways is hidden from the sidebar for now; the pages and routes still work.

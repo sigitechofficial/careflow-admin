@@ -1,8 +1,8 @@
-import { ArrowDownRight, ArrowRight, ArrowUpRight, BellRing, CalendarRange, CheckCircle2, Minus, PoundSterling, TrendingUp } from 'lucide-react'
+import { ArrowDownRight, ArrowRight, ArrowUpRight, BellRing, CalendarRange, CheckCircle2, Mic, Minus, PoundSterling, TrendingUp } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
 import { useCostOverview } from '@/features/azure-pricing/hooks/useAzurePricing'
-import type { AzurePricingTabId, CostOverview } from '@/features/azure-pricing/types'
+import type { AzurePricingTabId, CostOverview, WhisperSpend } from '@/features/azure-pricing/types'
 import {
   changeDirection,
   formatMoney,
@@ -51,6 +51,40 @@ function ChangeKpi({ data }: { data: CostOverview }) {
           : `Same period last month ${formatMoney(data.lastMonthSamePeriod, data.currency)} · full last month ${formatMoney(data.lastMonthTotal, data.currency)}`
       }
     />
+  )
+}
+
+function WhisperSpendCard({ whisper, currency }: { whisper: WhisperSpend; currency: string }) {
+  const stats = [
+    { label: 'This month', value: formatMoney(whisper.monthToDate, currency), testId: 'azure-whisper-mtd' },
+    { label: 'Last month', value: formatMoney(whisper.lastMonthTotal, currency), testId: 'azure-whisper-last-month' },
+    { label: 'Share of this month', value: formatPercent(whisper.shareOfMonth), testId: 'azure-whisper-share' },
+  ]
+  return (
+    <PanelCard
+      title={
+        <span className="inline-flex items-center gap-2">
+          <Mic className="h-4 w-4 text-muted-foreground" aria-hidden />
+          Whisper transcription
+        </span>
+      }
+      description={`Speech-to-text for Initial Assessment recordings (Container Apps Job ${whisper.jobName}). Billed only while it is transcribing.`}
+      data-testid="azure-whisper-spend"
+    >
+      <dl className="grid gap-4 sm:grid-cols-3">
+        {stats.map(s => (
+          <div key={s.label}>
+            <dt className="text-xs text-muted-foreground">{s.label}</dt>
+            <dd className="mt-1 text-xl font-semibold tabular-nums text-foreground" data-testid={s.testId}>
+              {s.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-3 text-xs text-muted-foreground">
+        Azure reports costs up to a day late, so the latest transcriptions may not be included yet.
+      </p>
+    </PanelCard>
   )
 }
 
@@ -133,6 +167,8 @@ export function OverviewTab({ onNavigateTab }: { onNavigateTab: (tab: AzurePrici
           No open cost anomalies.
         </p>
       )}
+
+      {data.whisper ? <WhisperSpendCard whisper={data.whisper} currency={currency} /> : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <PanelCard title="Daily spend" description="Last 30 days of actual cost">

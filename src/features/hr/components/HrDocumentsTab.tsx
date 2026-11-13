@@ -1,16 +1,18 @@
 import * as React from 'react'
-import { FileText, Trash2, Upload } from 'lucide-react'
+import { Check, FileText, Trash2, Upload, X } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { useAuthStore } from '@/features/auth/store'
 import {
   useDeleteHrDocument,
   useHrDocuments,
+  useUpdateHrDocumentStatus,
   useUploadHrDocument,
 } from '@/features/hr/hooks/useHr'
 import type { HrDocumentStatus, HrDocumentType } from '@/features/hr/api/hr.api'
 import {
   canDeleteHrDocuments,
   canUploadHrDocuments,
+  documentExpiry,
   documentStatusLabel,
   documentTypeLabel,
   HR_DOCUMENT_STATUS_OPTIONS,
@@ -19,10 +21,29 @@ import {
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { formatDate } from '@/shared/lib/utils'
+import { cn, formatDate } from '@/shared/lib/utils'
 
 const ACCEPT =
   'application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+const STATUS_CHIP: Record<HrDocumentStatus, string> = {
+  PENDING: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  APPROVED: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  REJECTED: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+}
+
+const EXPIRY_CHIP = {
+  expired: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+  soon: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+} as const
+
+function Chip({ className, children }: { className: string; children: React.ReactNode }) {
+  return (
+    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium', className)}>
+      {children}
+    </span>
+  )
+}
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`
@@ -38,6 +59,7 @@ export function HrDocumentsTab({ employeeId }: { employeeId: string }) {
   const docsQuery = useHrDocuments(employeeId)
   const uploadMutation = useUploadHrDocument(employeeId)
   const deleteMutation = useDeleteHrDocument(employeeId)
+  const statusMutation = useUpdateHrDocumentStatus(employeeId)
 
   const docs = docsQuery.data ?? []
   const [actionError, setActionError] = React.useState<string | null>(null)
@@ -74,6 +96,15 @@ export function HrDocumentsTab({ employeeId }: { employeeId: string }) {
       await deleteMutation.mutateAsync(documentId)
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : 'Delete failed.')
+    }
+  }
+
+  const onSetStatus = async (documentId: string, next: HrDocumentStatus) => {
+    setActionError(null)
+    try {
+      await statusMutation.mutateAsync({ documentId, status: next })
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Could not update the document.')
     }
   }
 
@@ -141,39 +172,72 @@ export function HrDocumentsTab({ employeeId }: { employeeId: string }) {
           <p className="text-sm text-muted-foreground">No HR documents uploaded yet.</p>
         ) : (
           <ul className="divide-y divide-border rounded-lg border border-border">
-            {docs.map(doc => (
+            {docs.map(doc => {
+              const expiry = documentExpiry(doc.expiryDate)
+              const busy = statusMutation.isPending && statusMutation.variables?.documentId === doc.id
+              return (
               <li key={doc.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <a
                       href={resolveMediaUrl(doc.fileUrl) ?? doc.fileUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="truncate font-medium text-primary hover:underline"
+                      className="min-w-0 truncate font-medium text-primary hover:underline"
                     >
                       {doc.name}
                     </a>
+                    {doc.status ? <Chip className={STATUS_CHIP[doc.status]}>{documentStatusLabel(doc.status)}</Chip> : null}
+                    {expiry && expiry.tone !== 'ok' ? (
+                      <Chip className={EXPIRY_CHIP[expiry.tone]}>{expiry.label}</Chip>
+                    ) : null}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {documentTypeLabel(doc.documentType)} · {documentStatusLabel(doc.status)} ·{' '}
-                    {formatBytes(doc.fileSize)} · Uploaded {formatDate(doc.uploadedDate)}
+                    {documentTypeLabel(doc.documentType)} · {formatBytes(doc.fileSize)} · Uploaded{' '}
+                    {formatDate(doc.uploadedDate)}
                     {doc.expiryDate ? ` · Expires ${formatDate(doc.expiryDate)}` : ''}
                   </p>
                 </div>
-                {canDelete ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => void onDelete(doc.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                ) : null}
+                <div className="flex shrink-0 items-center gap-1">
+                  {canUpload && doc.status !== 'APPROVED' ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => void onSetStatus(doc.id, 'APPROVED')}
+                    >
+                      <Check className="mr-1 h-4 w-4" /> Approve
+                    </Button>
+                  ) : null}
+                  {canUpload && doc.status !== 'REJECTED' ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => void onSetStatus(doc.id, 'REJECTED')}
+                    >
+                      <X className="mr-1 h-4 w-4" /> Reject
+                    </Button>
+                  ) : null}
+                  {canDelete ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      aria-label={`Remove ${doc.name}`}
+                      onClick={() => void onDelete(doc.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  ) : null}
+                </div>
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
       </div>

@@ -17,7 +17,8 @@ import {
 } from '@/shared/ui/select'
 import { useAuthStore } from '@/features/auth/store'
 
-const DOC_TYPES: CandidateDocumentType[] = ['CV', 'CERTIFICATE', 'ID_DOCUMENT', 'OTHER']
+// Check evidence is uploaded from the check itself (Pre-employment checks step).
+const DOC_TYPES: CandidateDocumentType[] = ['CV', 'CERTIFICATE', 'ID_DOCUMENT', 'OFFER_LETTER', 'OTHER']
 
 export function CandidateDocumentsPanel({ candidateId }: { candidateId: string }) {
   const canUpload = useAuthStore.getState().can('hr.candidates.update')

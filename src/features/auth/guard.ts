@@ -23,6 +23,11 @@ function isPublicSurveyPath(path: string): boolean {
   )
 }
 
+/** Careers page and job applications (no login). */
+function isPublicCareersPath(path: string): boolean {
+  return path === '/careers' || path.startsWith('/careers/')
+}
+
 function isPortalPath(path: string) {
   return path === '/portal' || path.startsWith('/portal/')
 }
@@ -66,7 +71,12 @@ export async function rootAuthBeforeLoad({ location }: { location: { pathname: s
     return
   }
 
-  if (STAFF_PUBLIC_PATHS.has(path) || isPublicLegalPath(path) || isPublicSurveyPath(path)) {
+  if (
+    STAFF_PUBLIC_PATHS.has(path) ||
+    isPublicLegalPath(path) ||
+    isPublicSurveyPath(path) ||
+    isPublicCareersPath(path)
+  ) {
     // The inspector sign-in link still opens for someone signed in (the office opening it to check
     // or hand over); the page warns that signing in there signs them out in this browser.
     const asInspector = (location.search as { as?: unknown } | undefined)?.as === INSPECTOR_SIGN_IN_SEARCH.as
