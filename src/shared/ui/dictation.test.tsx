@@ -102,6 +102,66 @@ describe('dictation mic', () => {
     expect(screen.getByRole('button', { name: 'Dictate (speech to text)' })).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('fills the field while the user is still speaking; the final words replace those', () => {
+    render(
+      <DictationProvider>
+        <ControlledInput initial="Lives alone" />
+      </DictationProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    const input = screen.getByLabelText('Notes')
+
+    act(() => rec.say('with a', false))
+    expect(input).toHaveValue('Lives alone with a')
+    act(() => rec.say('with a cat and', false))
+    expect(input).toHaveValue('Lives alone with a cat and')
+    act(() => rec.say('with a cat and dog'))
+    expect(input).toHaveValue('Lives alone with a cat and dog')
+
+    // The next phrase follows the finished one.
+    act(() => rec.say('uses', false))
+    expect(input).toHaveValue('Lives alone with a cat and dog uses')
+  })
+
+  it('keeps the words shown when stopped, and lets the late final words replace them', () => {
+    render(
+      <DictationProvider>
+        <ControlledInput initial="" />
+      </DictationProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    rec.endLater = true
+    const input = screen.getByLabelText('Notes')
+
+    act(() => rec.say('needs help with', false))
+    fireEvent.click(screen.getByRole('button', { name: 'Stop dictation' }))
+    expect(input).toHaveValue('needs help with')
+
+    // After Stop the browser still sends the phrase's final words, then ends.
+    act(() => rec.say('needs help with meals'))
+    act(() => rec.onend?.())
+    expect(input).toHaveValue('needs help with meals')
+  })
+
+  it('does not replace words the user has edited meanwhile', () => {
+    render(
+      <DictationProvider>
+        <ControlledInput initial="" />
+      </DictationProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    const input = screen.getByLabelText<HTMLInputElement>('Notes')
+
+    act(() => rec.say('walks with', false))
+    fireEvent.change(input, { target: { value: 'Walks unaided' } })
+    input.setSelectionRange(13, 13)
+    act(() => rec.say('a stick'))
+    expect(input).toHaveValue('Walks unaided a stick')
+  })
+
   it('inserts at the caret in a textarea', () => {
     function ControlledTextarea() {
       const [value, setValue] = React.useState('Morning call. Evening call.')
