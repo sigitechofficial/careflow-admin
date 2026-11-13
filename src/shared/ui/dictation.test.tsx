@@ -162,6 +162,61 @@ describe('dictation mic', () => {
     expect(input).toHaveValue('Walks unaided a stick')
   })
 
+  it('does not replace an edit that only starts like the spoken words', () => {
+    render(
+      <DictationProvider>
+        <ControlledInput initial="" />
+      </DictationProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    const input = screen.getByLabelText<HTMLInputElement>('Notes')
+
+    act(() => rec.say('walks with', false))
+    fireEvent.change(input, { target: { value: 'walks unaided' } })
+    input.setSelectionRange(13, 13)
+    act(() => rec.say('a stick'))
+    expect(input).toHaveValue('walks unaided a stick')
+  })
+
+  it('replaces the spoken words even after the page reset the field to an earlier part of them', () => {
+    let reset: (v: string) => void = () => {}
+    function ResettableInput() {
+      const [value, setValue] = React.useState('')
+      reset = setValue
+      return <Input aria-label="Notes" value={value} onChange={(e) => setValue(e.target.value)} />
+    }
+    render(
+      <DictationProvider>
+        <ResettableInput />
+      </DictationProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    const input = screen.getByLabelText('Notes')
+
+    act(() => rec.say('I am adding my', false))
+    act(() => rec.say('I am adding my address', false))
+    // e.g. a refetch after autosave puts back what was saved a moment ago
+    act(() => reset('I am adding my'))
+    act(() => rec.say('I am adding my address details in this field'))
+    expect(input).toHaveValue('I am adding my address details in this field')
+  })
+
+  it('counts unfinished words before the changed result as part of the phrase', () => {
+    const onInterim = vi.fn()
+    render(<DictationButton onText={vi.fn()} onInterim={onInterim} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    const results = [
+      Object.assign([{ transcript: 'I am adding' }], { isFinal: false }),
+      Object.assign([{ transcript: ' my contact' }], { isFinal: false }),
+    ]
+    // Only the second result changed.
+    act(() => rec.onresult?.({ resultIndex: 1, results }))
+    expect(onInterim).toHaveBeenLastCalledWith('I am adding my contact')
+  })
+
   it('inserts at the caret in a textarea', () => {
     function ControlledTextarea() {
       const [value, setValue] = React.useState('Morning call. Evening call.')

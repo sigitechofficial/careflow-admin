@@ -64,6 +64,18 @@ export function dictationChunk(before: string, text: string, after: string): str
   return lead + trimmed + trail
 }
 
+/** How many leading characters `a` and `b` have in common. */
+function sharedPrefixLength(a: string, b: string): number {
+  let i = 0
+  while (i < a.length && i < b.length && a[i] === b[i]) i++
+  return i
+}
+
+/** Whether a word ends at `index` of `text` (end of text, or whitespace next). */
+function endsWord(text: string, index: number): boolean {
+  return index >= text.length || /\s/.test(text[index]!)
+}
+
 /** Dictated text already in a field: where it starts and exactly what was written. */
 export interface DictatedRange {
   start: number
@@ -81,10 +93,17 @@ export function writeIntoTextControl(
   replace?: DictatedRange | null,
 ): DictatedRange | null {
   const value = el.value
-  // Only replace words still there as written (the user may have edited them meanwhile).
-  const live = replace && value.slice(replace.start, replace.start + replace.text.length) === replace.text
+  // Replace the words written before, as far as they are still there: the page may have put back
+  // an earlier part of them (e.g. a refetch after autosave), and then that part is replaced.
+  // Text that no longer starts with them (the user changed it) is left alone.
+  const rest = replace ? value.slice(replace.start) : ''
+  const kept = replace ? sharedPrefixLength(rest, replace.text) : 0
+  const live =
+    replace != null &&
+    kept > 0 &&
+    (kept === replace.text.length || (endsWord(rest, kept) && endsWord(replace.text, kept)))
   const from = live ? replace.start : (el.selectionEnd ?? value.length)
-  const to = live ? replace.start + replace.text.length : from
+  const to = live ? replace.start + kept : from
   let chunk = dictationChunk(value.slice(0, from), text, value.slice(to))
   if (el.maxLength >= 0) chunk = chunk.slice(0, Math.max(0, el.maxLength - (value.length - (to - from))))
   if (!chunk && from === to) return null
@@ -242,12 +261,14 @@ export function DictationButton({ onText, onInterim, onStart, disabled, withText
     let fatal = false
     rec.onresult = (event) => {
       let interim = ''
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i]
         const transcript = result?.[0]?.transcript ?? ''
         if (result?.isFinal) {
-          if (transcript.trim()) onTextRef.current(transcript)
+          // Results before resultIndex were reported already.
+          if (i >= event.resultIndex && transcript.trim()) onTextRef.current(transcript)
         } else {
+          // Every unfinished result is part of the phrase, including unchanged ones before resultIndex.
           interim += transcript
         }
       }
