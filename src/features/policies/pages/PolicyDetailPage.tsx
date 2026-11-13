@@ -47,6 +47,7 @@ import { DOCUMENT_TYPE_LABEL } from '@/features/policies/policy-labels'
 import { PolicyAcknowledgementPanel } from '@/features/policies/components/PolicyAcknowledgementPanel'
 import { PolicyStaffAcknowledgements } from '@/features/policies/components/PolicyStaffAcknowledgements'
 import { PolicyLibraryUpdateBanner } from '@/features/policies/components/PolicyLibraryUpdateBanner'
+import { PolicySectionNav, type PolicySectionLink } from '@/features/policies/components/PolicySectionNav'
 import {
   useAcknowledgePolicy,
   useMyPolicyAcknowledgements,
@@ -139,6 +140,17 @@ export default function PolicyDetailPage() {
   // Staff acknowledge the published version, so show that content even while a new draft is in progress.
   const contentVersion = mustAcknowledge && publishedVersion ? publishedVersion : displayVersion
   const ownerLabel = document.ownerId === userId ? 'You' : document.ownerId ? 'Assigned' : '—'
+  const showStaffAcknowledgements = canManageAcknowledgements && Boolean(publishedVersion?.acknowledgementRequired)
+  // Every part of this page, in page order, for the tabs under the title.
+  const sections: PolicySectionLink[] = [
+    { id: 'policy-summary', label: 'Summary' },
+    { id: 'policy-content', label: 'Content' },
+    { id: 'policy-applicability', label: 'Applicability' },
+    { id: 'policy-audience', label: 'Audience' },
+    { id: 'policy-links', label: 'CareFlow links' },
+    ...(showStaffAcknowledgements ? [{ id: 'staff-acknowledgements', label: 'Staff acknowledgements' }] : []),
+    { id: 'policy-version-history', label: 'Version history' },
+  ]
 
   return (
     <PolicySectionLayout
@@ -147,6 +159,7 @@ export default function PolicyDetailPage() {
       testId="policy-detail-page"
     >
       <div className="space-y-8">
+        <PolicySectionNav sections={sections} />
         <header className="space-y-4 border-b border-border pb-4">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -295,7 +308,7 @@ export default function PolicyDetailPage() {
 
         {can('policies.update') ? <PolicyLibraryUpdateBanner policyId={document.id} /> : null}
 
-        <Section title="Summary" description="Key information about this policy.">
+        <Section id="policy-summary" title="Summary" description="Key information about this policy.">
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Item label="Description" value={document.description || '—'} />
             <Item label="Owner" value={ownerLabel} />
@@ -311,46 +324,8 @@ export default function PolicyDetailPage() {
           </dl>
         </Section>
 
-        <Section title="Applicability" description="Where this policy applies.">
-          <p data-testid="policy-applicability-readonly">
-            {summariseApplicability(displayVersion?.applicability, {
-              locations: lookups.locationLabels,
-              services: lookups.serviceLabels,
-            })}
-          </p>
-        </Section>
-
-        <Section title="Audience" description="Who this policy is for.">
-          <p data-testid="policy-audience-readonly">
-            {summariseAudience(displayVersion?.audiences, {
-              roles: lookups.roleLabels,
-              jobTitles: lookups.jobTitleLabels,
-              workAreas: lookups.workAreaLabels,
-              locations: lookups.locationLabels,
-            })}
-          </p>
-        </Section>
-
-        <Section title="CareFlow links" description="Areas of CareFlow that reference this policy.">
-          {displayVersion?.links?.length ? (
-            <ul className="space-y-3">
-              {displayVersion.links.map((link, index) => (
-                <li
-                  key={link.id ?? `${link.moduleType}-${index}`}
-                  className="rounded-lg border border-border p-3"
-                  data-testid="policy-link-block"
-                >
-                  <p className="text-sm font-medium">{moduleLabel(link.moduleType)}</p>
-                  <p className="text-sm text-muted-foreground">{linkTargetSummary(link)}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">This policy is not linked to any CareFlow area.</p>
-          )}
-        </Section>
-
         <Section
+          id="policy-content"
           title="Content"
           description={
             contentVersion !== displayVersion && contentVersion
@@ -398,7 +373,47 @@ export default function PolicyDetailPage() {
           )}
         </Section>
 
-        {canManageAcknowledgements && publishedVersion?.acknowledgementRequired ? (
+        <Section id="policy-applicability" title="Applicability" description="Where this policy applies.">
+          <p data-testid="policy-applicability-readonly">
+            {summariseApplicability(displayVersion?.applicability, {
+              locations: lookups.locationLabels,
+              services: lookups.serviceLabels,
+            })}
+          </p>
+        </Section>
+
+        <Section id="policy-audience" title="Audience" description="Who this policy is for.">
+          <p data-testid="policy-audience-readonly">
+            {summariseAudience(displayVersion?.audiences, {
+              roles: lookups.roleLabels,
+              jobTitles: lookups.jobTitleLabels,
+              workAreas: lookups.workAreaLabels,
+              locations: lookups.locationLabels,
+            })}
+          </p>
+        </Section>
+
+        <Section id="policy-links" title="CareFlow links" description="Areas of CareFlow that reference this policy.">
+          {displayVersion?.links?.length ? (
+            <ul className="space-y-3">
+              {displayVersion.links.map((link, index) => (
+                <li
+                  key={link.id ?? `${link.moduleType}-${index}`}
+                  className="rounded-lg border border-border p-3"
+                  data-testid="policy-link-block"
+                >
+                  <p className="text-sm font-medium">{moduleLabel(link.moduleType)}</p>
+                  <p className="text-sm text-muted-foreground">{linkTargetSummary(link)}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">This policy is not linked to any CareFlow area.</p>
+          )}
+        </Section>
+
+
+        {showStaffAcknowledgements && publishedVersion ? (
           <Section
             id="staff-acknowledgements"
             title="Staff acknowledgements"
@@ -408,7 +423,7 @@ export default function PolicyDetailPage() {
           </Section>
         ) : null}
 
-        <Section title="Version history" description="Previous versions are always read-only.">
+        <Section id="policy-version-history" title="Version history" description="Previous versions are always read-only.">
           <PolicyVersionHistory
             versions={versions}
             policyId={document.id}

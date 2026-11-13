@@ -34,6 +34,7 @@ import type {
 } from '@/features/policies/types/policy.types'
 import { POLICY_DOCUMENT_TYPE_OPTIONS } from '@/features/policies/types/policy.types'
 import { POLICY_PATHS } from '@/features/policies/policy-routes'
+import { PolicySectionNav, type PolicySectionLink } from '@/features/policies/components/PolicySectionNav'
 
 export type PolicyContentMode = 'EDITOR' | 'UPLOAD'
 
@@ -58,6 +59,8 @@ export type PolicyFormValues = {
   tagIds: string[]
   applicability: PolicyApplicabilityInput[]
   audiences: PolicyAudienceInput[]
+  /** "All employees" is unticked: at least one role, job title, work area or location must be chosen. Not saved. */
+  audienceSpecific?: boolean
   links: PolicyLinkInput[]
 }
 
@@ -194,6 +197,17 @@ type Props = {
   removingDocument?: boolean
 }
 
+/** The parts of the policy form, in page order, for the tabs at the top. */
+const POLICY_FORM_SECTIONS: PolicySectionLink[] = [
+  { id: 'policy-form-summary', label: 'Summary' },
+  { id: 'policy-form-tags', label: 'Tags' },
+  { id: 'policy-form-content', label: 'Content' },
+  { id: 'policy-form-applicability', label: 'Applicability' },
+  { id: 'policy-form-audience', label: 'Audience' },
+  { id: 'policy-form-acknowledgement', label: 'Staff acknowledgement' },
+  { id: 'policy-form-links', label: 'CareFlow links' },
+]
+
 export function PolicyForm({
   values,
   onChange,
@@ -227,85 +241,10 @@ export function PolicyForm({
       }}
       data-testid="policy-form"
     >
-      <section className="space-y-4" data-testid="policy-content-source">
-        <div>
-          <h2 className="text-base font-semibold">Policy content</h2>
-          <p className="mt-1 text-sm text-muted-foreground">How would you like to add this policy?</p>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <button
-            type="button"
-            disabled={readOnly}
-            data-testid="policy-source-editor"
-            aria-pressed={values.contentMode === 'EDITOR'}
-            onClick={() => patch({ contentMode: 'EDITOR' })}
-            className={cn(
-              'rounded-lg border p-4 text-left',
-              values.contentMode === 'EDITOR' ? 'border-primary bg-muted/30' : 'border-border',
-              readOnly && 'opacity-70',
-            )}
-          >
-            <p className="text-sm font-medium">Write policy</p>
-            <p className="mt-1 text-xs text-muted-foreground">Create and format the policy inside CareFlow.</p>
-          </button>
-          <button
-            type="button"
-            disabled={readOnly}
-            data-testid="policy-source-upload"
-            aria-pressed={values.contentMode === 'UPLOAD'}
-            onClick={() => patch({ contentMode: 'UPLOAD' })}
-            className={cn(
-              'rounded-lg border p-4 text-left',
-              values.contentMode === 'UPLOAD' ? 'border-primary bg-muted/30' : 'border-border',
-              readOnly && 'opacity-70',
-            )}
-          >
-            <p className="text-sm font-medium">Upload document</p>
-            <p className="mt-1 text-xs text-muted-foreground">Upload an existing PDF or Word policy.</p>
-          </button>
-        </div>
-        {values.contentMode === 'EDITOR' ? (
-          <FormField label="Policy text" htmlFor="policy-content" error={errors?.contentHtml}>
-            <div data-testid="policy-rich-text-editor">
-              <RichTextEditor
-                value={values.contentHtml}
-                placeholder="Write the policy…"
-                disabled={readOnly}
-                minHeight={280}
-                contentClassName="policy-doc"
-                onChange={(html, json) => patch({ contentHtml: html, contentJson: json ?? values.contentJson })}
-              />
-            </div>
-          </FormField>
-        ) : (
-          <FormField label="Source document" error={errors?.contentHtml}>
-            <PolicyDocumentUploader
-              uploaded={values.uploadedFile}
-              pendingFile={pendingFile}
-              status={uploadStatus === 'idle' && (pendingFile || values.uploadedFile) ? 'success' : uploadStatus}
-              progress={uploadProgress}
-              error={uploadError}
-              disabled={readOnly}
-              onSelectFile={file => {
-                onPendingFileChange?.(file)
-                patch({ pendingFileName: file.name })
-              }}
-              onClearPending={() => {
-                onPendingFileChange?.(null)
-                patch({ pendingFileName: '', uploadedFile: values.uploadedFile })
-              }}
-              onRemoveUploaded={() => {
-                onPendingFileChange?.(null)
-                patch({ pendingFileName: '', uploadedFile: null })
-                onRemoveUploaded?.()
-              }}
-              removing={removingDocument}
-            />
-          </FormField>
-        )}
-      </section>
+      <PolicySectionNav sections={POLICY_FORM_SECTIONS} testId="policy-form-section-nav" />
 
-      <section className="space-y-4">
+      {/* Summary first: title, owner, dates and tags, then the policy itself. */}
+      <section id="policy-form-summary" className="scroll-mt-14 space-y-4">
         <h2 className="text-base font-semibold">Basic information</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label="Policy title" required htmlFor="policy-title" error={errors?.title}>
@@ -427,32 +366,121 @@ export function PolicyForm({
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section id="policy-form-tags" className="scroll-mt-14 space-y-3">
         <h2 className="text-base font-semibold">Tags</h2>
         <PolicyTagPicker value={values.tagIds} onChange={tagIds => patch({ tagIds })} disabled={readOnly} />
       </section>
 
-      <PolicyApplicabilityEditor
-        value={values.applicability}
-        onChange={applicability => patch({ applicability })}
-        disabled={readOnly}
-        locations={lookups.locations}
-        careTypes={lookups.careTypes}
-        locationRestricted={lookups.isLocationRestricted}
-        error={errors?.applicability}
-      />
+      <section id="policy-form-content" className="scroll-mt-14 space-y-4" data-testid="policy-content-source">
+        <div>
+          <h2 className="text-base font-semibold">Policy content</h2>
+          <p className="mt-1 text-sm text-muted-foreground">How would you like to add this policy?</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <button
+            type="button"
+            disabled={readOnly}
+            data-testid="policy-source-editor"
+            aria-pressed={values.contentMode === 'EDITOR'}
+            onClick={() => patch({ contentMode: 'EDITOR' })}
+            className={cn(
+              'rounded-lg border p-4 text-left',
+              values.contentMode === 'EDITOR' ? 'border-primary bg-muted/30' : 'border-border',
+              readOnly && 'opacity-70',
+            )}
+          >
+            <p className="text-sm font-medium">Write policy</p>
+            <p className="mt-1 text-xs text-muted-foreground">Create and format the policy inside CareFlow.</p>
+          </button>
+          <button
+            type="button"
+            disabled={readOnly}
+            data-testid="policy-source-upload"
+            aria-pressed={values.contentMode === 'UPLOAD'}
+            onClick={() => patch({ contentMode: 'UPLOAD' })}
+            className={cn(
+              'rounded-lg border p-4 text-left',
+              values.contentMode === 'UPLOAD' ? 'border-primary bg-muted/30' : 'border-border',
+              readOnly && 'opacity-70',
+            )}
+          >
+            <p className="text-sm font-medium">Upload document</p>
+            <p className="mt-1 text-xs text-muted-foreground">Upload an existing PDF or Word policy.</p>
+          </button>
+        </div>
+        {values.contentMode === 'EDITOR' ? (
+          <FormField label="Policy text" htmlFor="policy-content" error={errors?.contentHtml}>
+            <div data-testid="policy-rich-text-editor">
+              <RichTextEditor
+                value={values.contentHtml}
+                placeholder="Write the policy…"
+                disabled={readOnly}
+                minHeight={280}
+                contentClassName="policy-doc"
+                onChange={(html, json) => patch({ contentHtml: html, contentJson: json ?? values.contentJson })}
+              />
+            </div>
+          </FormField>
+        ) : (
+          <FormField label="Source document" error={errors?.contentHtml}>
+            <PolicyDocumentUploader
+              uploaded={values.uploadedFile}
+              pendingFile={pendingFile}
+              status={uploadStatus === 'idle' && (pendingFile || values.uploadedFile) ? 'success' : uploadStatus}
+              progress={uploadProgress}
+              error={uploadError}
+              disabled={readOnly}
+              onSelectFile={file => {
+                onPendingFileChange?.(file)
+                patch({ pendingFileName: file.name })
+              }}
+              onClearPending={() => {
+                onPendingFileChange?.(null)
+                patch({ pendingFileName: '', uploadedFile: values.uploadedFile })
+              }}
+              onRemoveUploaded={() => {
+                onPendingFileChange?.(null)
+                patch({ pendingFileName: '', uploadedFile: null })
+                onRemoveUploaded?.()
+              }}
+              removing={removingDocument}
+            />
+          </FormField>
+        )}
+      </section>
 
-      <PolicyAudienceEditor
-        value={values.audiences}
-        onChange={audiences => patch({ audiences })}
-        disabled={readOnly}
-        roles={lookups.roles}
-        jobTitles={lookups.jobTitles}
-        workAreas={lookups.workAreas}
-        locations={lookups.locations}
-      />
+      <div id="policy-form-applicability" className="scroll-mt-14">
+        <PolicyApplicabilityEditor
+          value={values.applicability}
+          onChange={applicability => patch({ applicability })}
+          disabled={readOnly}
+          locations={lookups.locations}
+          careTypes={lookups.careTypes}
+          locationRestricted={lookups.isLocationRestricted}
+          error={errors?.applicability}
+        />
+      </div>
 
-      <section className="space-y-3" data-testid="policy-acknowledgement-setting">
+      <div id="policy-form-audience" className="scroll-mt-14">
+        <PolicyAudienceEditor
+          value={values.audiences}
+          onChange={(audiences, specific) => patch({ audiences, audienceSpecific: specific || undefined })}
+          disabled={readOnly}
+          roles={[
+            ...lookups.roles,
+            // A role that is not a staff group (e.g. Super Admin) still shows if this policy already uses it, so it can be removed.
+            ...(lookups.allRoles ?? []).filter(
+              role => !role.staff && values.audiences.some(row => row.targetType === 'ROLE' && row.roleId === role.id),
+            ),
+          ]}
+          jobTitles={lookups.jobTitles}
+          workAreas={lookups.workAreas}
+          locations={lookups.locations}
+          error={errors?.audiences}
+        />
+      </div>
+
+      <section id="policy-form-acknowledgement" className="scroll-mt-14 space-y-3" data-testid="policy-acknowledgement-setting">
         <div>
           <h2 className="text-base font-semibold">Staff acknowledgement</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -472,11 +500,13 @@ export function PolicyForm({
         </label>
       </section>
 
-      <PolicyLinksEditor
-        value={values.links}
-        onChange={links => patch({ links })}
-        disabled={readOnly}
-      />
+      <div id="policy-form-links" className="scroll-mt-14">
+        <PolicyLinksEditor
+          value={values.links}
+          onChange={links => patch({ links })}
+          disabled={readOnly}
+        />
+      </div>
 
       {!readOnly ? (
         <div className="flex justify-end gap-2">
@@ -517,6 +547,10 @@ function validatePersistableFields(
     mode,
   })
   if (applicabilityError) errors.applicability = applicabilityError
+  // Saving an empty audience would quietly make the policy apply to everyone again.
+  if (values.audienceSpecific && !values.audiences.some(row => row.targetType !== 'ALL_EMPLOYEES')) {
+    errors.audiences = 'Choose at least one role, job title, work area or location, or tick All employees.'
+  }
   return errors
 }
 

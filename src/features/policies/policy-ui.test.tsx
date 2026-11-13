@@ -10,7 +10,7 @@ import { PolicyWorkflowActions } from '@/features/policies/components/PolicyWork
 import { PolicyVersionCreateDialog } from '@/features/policies/components/PolicyVersionCreateDialog'
 import { PolicyStatusBadge } from '@/features/policies/components/PolicyStatusBadge'
 import { PolicyLinksEditor } from '@/features/policies/components/PolicyLinksEditor'
-import { PolicyForm, emptyPolicyForm } from '@/features/policies/components/PolicyForm'
+import { PolicyForm, emptyPolicyForm, validatePolicyDraft } from '@/features/policies/components/PolicyForm'
 import { PolicyDocumentUploader } from '@/features/policies/components/PolicyDocumentUploader'
 import { useAuthStore } from '@/features/auth/store'
 import type { PolicyDocument, PolicyStatus } from '@/features/policies/types/policy.types'
@@ -37,8 +37,13 @@ const {
       jobTitles: [{ id: 'jt-1', name: 'Care Worker' }],
       workAreas: [] as Array<{ id: string; name: string }>,
       roles: [
-        { id: 'role-1', name: 'Care Worker' },
-        { id: 'role-2', name: 'Senior Care Worker' },
+        { id: 'role-1', name: 'Care Worker', staff: true },
+        { id: 'role-2', name: 'Senior Care Worker', staff: true },
+      ],
+      allRoles: [
+        { id: 'role-1', name: 'Care Worker', staff: true },
+        { id: 'role-2', name: 'Senior Care Worker', staff: true },
+        { id: 'role-sa', name: 'Super Admin', staff: false },
       ],
       careTypes: [{ id: 'ct-1', name: 'Domiciliary', code: 'DOMICILIARY' }],
       locationLabels: { 'loc-1': 'London' } as Record<string, string>,
@@ -632,7 +637,7 @@ describe('PolicyAudienceEditor', () => {
     )
     expect(screen.getByTestId('policy-audience-summary')).toHaveTextContent('All employees')
     await user.click(screen.getByRole('checkbox'))
-    expect(onChange).toHaveBeenCalledWith([])
+    expect(onChange).toHaveBeenCalledWith([], true)
     rerender(
       <PolicyAudienceEditor
         value={[
@@ -650,6 +655,49 @@ describe('PolicyAudienceEditor', () => {
     expect(screen.getByTestId('policy-audience-summary')).toHaveTextContent(
       'Care Worker OR Senior Care Worker AND London',
     )
+  })
+})
+
+describe('PolicyAudienceEditor: unticking All employees', () => {
+  it('stays unticked and shows the groups to choose from before any is picked', async () => {
+    const user = userEvent.setup()
+    let value: Parameters<typeof PolicyAudienceEditor>[0]['value'] = []
+    const onChange = vi.fn((next: typeof value) => {
+      value = next
+    })
+    const props = {
+      onChange,
+      roles: [{ id: 'role-1', name: 'Care Worker' }],
+      jobTitles: [],
+      workAreas: [],
+      locations: [{ id: 'loc-1', name: 'London' }],
+    }
+    const { rerender } = render(<PolicyAudienceEditor value={value} {...props} />)
+    await user.click(screen.getByRole('checkbox', { name: 'All employees' }))
+    rerender(<PolicyAudienceEditor value={value} {...props} />)
+    expect(screen.getByRole('checkbox', { name: 'All employees' })).not.toBeChecked()
+    expect(screen.getByText('Roles')).toBeInTheDocument()
+    expect(screen.getByTestId('policy-audience-summary')).toHaveTextContent('No group chosen yet')
+
+    await user.click(screen.getByRole('checkbox', { name: 'Care Worker' }))
+    expect(onChange).toHaveBeenLastCalledWith([{ targetType: 'ROLE', roleId: 'role-1' }], true)
+
+    // Ticking it again goes back to everyone.
+    rerender(<PolicyAudienceEditor value={value} {...props} />)
+    await user.click(screen.getByRole('checkbox', { name: 'All employees' }))
+    expect(onChange).toHaveBeenLastCalledWith([], false)
+  })
+
+  it('does not save with All employees unticked and no group chosen', () => {
+    const values = { ...emptyPolicyForm('u1', true), title: 'T', reference: 'R', primaryCategoryId: 'c1' }
+    expect(validatePolicyDraft({ ...values, audienceSpecific: true, audiences: [] }).audiences).toBe(
+      'Choose at least one role, job title, work area or location, or tick All employees.',
+    )
+    expect(
+      validatePolicyDraft({ ...values, audienceSpecific: true, audiences: [{ targetType: 'ROLE', roleId: 'role-1' }] })
+        .audiences,
+    ).toBeUndefined()
+    expect(validatePolicyDraft({ ...values, audiences: [] }).audiences).toBeUndefined()
   })
 })
 
@@ -848,6 +896,28 @@ describe('PolicyDetailPage publish', () => {
     } as never)
   })
 
+  it('lists every part of the page in tabs under the title, in page order, and a tab jumps to its part', async () => {
+    const user = userEvent.setup()
+    const scrolled = vi.fn()
+    // Only the content area (here the window) scrolls, never the app's outer frame.
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(scrolled)
+    const intoView = vi.fn()
+    Element.prototype.scrollIntoView = intoView
+    render(<PolicyDetailPage />, { wrapper: wrapper() })
+    const nav = screen.getByRole('navigation', { name: 'Sections of this policy' })
+    const tabs = within(nav).getAllByRole('button').map(b => b.textContent)
+    expect(tabs).toEqual(['Summary', 'Content', 'Applicability', 'Audience', 'CareFlow links', 'Version history'])
+    // Content follows the summary on the page, as on the tabs.
+    const summary = document.getElementById('policy-summary')!
+    const content = document.getElementById('policy-content')!
+    expect(summary.compareDocumentPosition(content) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await user.click(within(nav).getByRole('button', { name: 'Version history' }))
+    expect(scrolled).toHaveBeenCalled()
+    expect(intoView).not.toHaveBeenCalled()
+    expect(within(nav).getByRole('button', { name: 'Version history' })).toHaveAttribute('aria-current', 'true')
+    scrollTo.mockRestore()
+  })
+
   it('shows Ready to publish and Publish policy for an approved policy', () => {
     render(<PolicyDetailPage />, { wrapper: wrapper() })
     expect(screen.getByTestId('policy-ready-to-publish')).toHaveTextContent('Ready to publish')
@@ -1020,6 +1090,47 @@ describe('PolicyForm', () => {
     expect(screen.queryByText('Coming soon')).not.toBeInTheDocument()
     expect(screen.getByTestId('policy-rich-text-mock')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled()
+  })
+
+  it('offers the sign-in roles that are staff groups, and keeps a non-staff role a policy already uses', () => {
+    const values = { ...emptyPolicyForm('u1', true), audiences: [{ targetType: 'ROLE' as const, roleId: 'role-1' }] }
+    const { rerender } = render(
+      <PolicyForm values={values} onChange={vi.fn()} onSubmit={() => {}} submitLabel="Save draft" />,
+      { wrapper: wrapper() },
+    )
+    const rolesBox = () => screen.getByText(/Sign-in roles from Admin → Roles & permissions/).parentElement!
+    expect(within(rolesBox()).getByRole('checkbox', { name: 'Care Worker' })).toBeChecked()
+    expect(within(rolesBox()).queryByRole('checkbox', { name: 'Super Admin' })).not.toBeInTheDocument()
+
+    rerender(
+      <PolicyForm
+        values={{ ...values, audiences: [{ targetType: 'ROLE', roleId: 'role-sa' }] }}
+        onChange={vi.fn()}
+        onSubmit={() => {}}
+        submitLabel="Save draft"
+      />,
+    )
+    expect(within(rolesBox()).getByRole('checkbox', { name: 'Super Admin' })).toBeChecked()
+  })
+
+  it('puts the summary (title, owner, dates) and tags above the policy content, with tabs for every part', () => {
+    render(
+      <PolicyForm values={emptyPolicyForm('u1', true)} onChange={vi.fn()} onSubmit={() => {}} submitLabel="Save draft" />,
+      { wrapper: wrapper() },
+    )
+    const nav = screen.getByTestId('policy-form-section-nav')
+    expect(within(nav).getAllByRole('button').map(b => b.textContent)).toEqual([
+      'Summary',
+      'Tags',
+      'Content',
+      'Applicability',
+      'Audience',
+      'Staff acknowledgement',
+      'CareFlow links',
+    ])
+    const title = screen.getByLabelText(/Policy title/)
+    const content = screen.getByTestId('policy-content-source')
+    expect(title.compareDocumentPosition(content) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('opens the upload interface when Upload document is selected', async () => {
