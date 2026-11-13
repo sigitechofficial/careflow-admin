@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
+import { X } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -21,14 +22,16 @@ import {
   useOutsideLists,
   useSendOutside,
   useSendOutsideCheck,
+  type OutsideContact,
   type SendOutsideInput,
 } from './survey-outside'
+import { ContactDialog } from './OutsidePeoplePage'
 
 /**
  * Send a named public survey to outside people, each with their own link (email, and text when the survey's
- * reminders use texts): people and lists from Outside people, and families of one person we support from
- * their People involved (only those who agreed to be contacted). The survey can be linked to that person, so
- * it is found from their record. Shows who cannot be sent it and why before sending.
+ * reminders use texts): people and lists from Outside people, and families of one or more people we support
+ * from their People involved (only those who agreed to surveys: "Surveys" ticked on their sharing in Privacy). With one person chosen, the survey can
+ * be linked to them, so it is found from their record. Shows who cannot be sent it and why before sending.
  */
 export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: string; open: boolean; onOpenChange: (o: boolean) => void }) {
   const [search, setSearch] = React.useState('')
@@ -36,9 +39,12 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
   const { data: lists } = useOutsideLists()
   const [contactIds, setContactIds] = React.useState<string[]>([])
   const [listIds, setListIds] = React.useState<string[]>([])
-  const [person, setPerson] = React.useState<FeedbackPersonRef | null>(null)
-  const { data: families } = useFamiliesOf(person ? [person.id] : [])
+  // Several people we support; their families are listed under each of them.
+  const [people, setPeople] = React.useState<FeedbackPersonRef[]>([])
+  const { data: families } = useFamiliesOf(people.map(p => p.id))
   const [familyIds, setFamilyIds] = React.useState<string[]>([])
+  // A survey can be linked to one person's record, so "about" is offered only when one person is chosen.
+  const person = people.length === 1 ? people[0]! : null
   const [about, setAbout] = React.useState(true)
   const [anyway, setAnyway] = React.useState(false)
   const [reason, setReason] = React.useState('')
@@ -48,7 +54,7 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
     if (open) {
       setContactIds([])
       setListIds([])
-      setPerson(null)
+      setPeople([])
       setFamilyIds([])
       setAnyway(false)
       setReason('')
@@ -56,16 +62,92 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
       setDeathReason('')
     }
   }, [open])
-  React.useEffect(() => setFamilyIds([]), [person])
+  const addPerson = (p: FeedbackPersonRef | null) => {
+    if (p) setPeople(v => (v.some(x => x.id === p.id) ? v : [...v, p]))
+  }
+  // A person added from People has no name yet: take it from their family list once it loads.
+  React.useEffect(() => {
+    if (!families?.length) return
+    setPeople(v => {
+      let changed = false
+      const next = v.map(p => {
+        const name = p.name ? null : families.find(f => f.serviceUserId === p.id)?.aboutName
+        if (!name) return p
+        changed = true
+        return { ...p, name }
+      })
+      return changed ? next : v
+    })
+  }, [families])
+  // Removing a person also unticks their family.
+  const removePerson = (id: string) => {
+    setPeople(v => v.filter(x => x.id !== id))
+    const theirs = new Set((families ?? []).filter(f => f.serviceUserId === id).map(f => f.sourceId))
+    setFamilyIds(v => v.filter(x => !theirs.has(x)))
+  }
+  const canContact = (f: { consent: boolean; reachable: boolean }) => f.consent && f.reachable
+  // An outside person opened to add their missing email or mobile.
+  const [editingContact, setEditingContact] = React.useState<OutsideContact | null>(null)
+  const linkClass = 'font-medium text-primary underline underline-offset-2'
+  /** What is missing: with a mobile but a survey sent by email only, it is the email. */
+  const missing = (emailOnly: boolean) => (emailOnly ? 'no email (this survey is sent by email only)' : 'no email or mobile')
+  /** A family member's details are kept on Contacts and Family of the person we support. */
+  const familyNoDetails = (serviceUserId: string, name: string, emailOnly = false) => (
+    <>
+      {' · '}
+      <Link
+        to="/service-users/$serviceUserId/profile"
+        params={{ serviceUserId }}
+        search={{ tab: 'contacts' }}
+        className={linkClass}
+        onClick={() => onOpenChange(false)}
+        aria-label={`${name} has ${missing(emailOnly)}: add it in Contacts and Family`}
+      >
+        {missing(emailOnly)} – add in Contacts and Family
+      </Link>
+    </>
+  )
+
+  // A family member listed under "Families of…" is also an outside person in People: the two tick boxes are one choice.
+  const familyById = React.useMemo(() => new Map((families ?? []).map(f => [f.sourceId, f])), [families])
+  const familyOf = (c: { sourceType: string; sourceId?: string | null }) =>
+    c.sourceType === 'SERVICE_USER_CONTACT' && c.sourceId ? familyById.get(c.sourceId) : undefined
+  // Someone ticked in People whose family is then listed above: keep one tick, on the family member.
+  React.useEffect(() => {
+    const moved = (contacts ?? []).filter(c => contactIds.includes(c.id) && familyOf(c) && canContact(familyOf(c)!))
+    if (!moved.length) return
+    setFamilyIds(v => [...new Set([...v, ...moved.map(c => c.sourceId!)])])
+    setContactIds(v => v.filter(id => !moved.some(m => m.id === id)))
+  }, [familyById, contacts])
+
+  // Outside people seen so far (the list changes with the search), to know whose family a chosen one is.
+  const seen = React.useRef(new Map<string, OutsideContact>())
+  for (const c of contacts ?? []) seen.current.set(c.id, c)
+  // Family of someone else, chosen in People or through a list: the survey is then not about one person.
+  const familyOfOthers = person
+    ? [...seen.current.values()].filter(
+        c =>
+          c.sourceType === 'SERVICE_USER_CONTACT' &&
+          c.serviceUserId &&
+          c.serviceUserId !== person.id &&
+          (contactIds.includes(c.id) || c.listIds.some(id => listIds.includes(id))),
+      )
+    : []
+  const aboutOffered = Boolean(person && familyIds.length && familyOfOthers.length === 0)
 
   const input: SendOutsideInput = {
     contactIds,
     listIds,
     familyContactIds: familyIds,
-    ...(person && familyIds.length && about ? { aboutServiceUserId: person.id } : {}),
+    ...(person && aboutOffered && about ? { aboutServiceUserId: person.id } : {}),
   }
   const chosen = contactIds.length + listIds.length + familyIds.length
   const { data: check } = useSendOutsideCheck(surveyId, input, open && chosen > 0)
+  // Chosen people this survey cannot reach (from the check), by outside person and by family record.
+  const unreachable = check?.noDetailsPeople ?? []
+  const unreachableById = new Map(unreachable.map(u => [u.id, u]))
+  const unreachableFamily = new Map(unreachable.filter(u => u.sourceType === 'SERVICE_USER_CONTACT' && u.sourceId).map(u => [u.sourceId!, u]))
+  const emailOnly = (u?: { hasMobile: boolean }) => Boolean(u?.hasMobile && !check?.textOn)
   const send = useSendOutside(surveyId)
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, id: string, on: boolean) => setter(v => (on ? [...v, id] : v.filter(x => x !== id)))
 
@@ -95,39 +177,106 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
         </DialogHeader>
         <DialogBody className="space-y-4">
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Families of someone we support</legend>
-            <ServiceUserPicker value={person} onChange={setPerson} placeholder="Choose the person we support…" testId="send-outside-person" />
-            {person && families ? (
-              families.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No People involved recorded for {person.name}.</p>
-              ) : (
-                <div className="space-y-1">
-                  {families.map(f => (
-                    <label key={f.sourceId} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-input"
-                        disabled={!f.consent || !f.reachable}
-                        checked={familyIds.includes(f.sourceId)}
-                        onChange={e => toggle(setFamilyIds, f.sourceId, e.target.checked)}
-                      />
-                      <span>
-                        {f.name}
-                        <span className="text-xs text-muted-foreground">
-                          {f.relationship ? ` · ${f.relationship}` : ''}
-                          {!f.consent ? ' · has not agreed to be contacted' : !f.reachable ? ' · no email or mobile' : ''}
+            <legend className="text-sm font-medium">Families of people we support</legend>
+            <ServiceUserPicker
+              value={null}
+              onChange={addPerson}
+              placeholder={people.length ? 'Add another person we support…' : 'Choose the people we support…'}
+              testId="send-outside-person"
+            />
+            {people.map(p => {
+              const theirs = (families ?? []).filter(f => f.serviceUserId === p.id)
+              const contactable = theirs.filter(canContact).map(f => f.sourceId)
+              const allTicked = contactable.length > 0 && contactable.every(id => familyIds.includes(id))
+              return (
+                <div key={p.id} className="space-y-1 rounded-md border border-border px-3 py-2" data-testid={`send-outside-family-${p.id}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{p.name || 'Loading…'}</span>
+                    <div className="flex items-center gap-1">
+                      {contactable.length > 1 ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() =>
+                            setFamilyIds(v => (allTicked ? v.filter(id => !contactable.includes(id)) : [...new Set([...v, ...contactable])]))
+                          }
+                        >
+                          {allTicked ? 'Untick all' : 'Tick all who can be contacted'}
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        aria-label={`Remove ${p.name}`}
+                        onClick={() => removePerson(p.id)}
+                      >
+                        <X className="h-4 w-4" aria-hidden />
+                      </Button>
+                    </div>
+                  </div>
+                  {!families ? (
+                    <p className="text-xs text-muted-foreground">Loading…</p>
+                  ) : theirs.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No People involved recorded for {p.name}.</p>
+                  ) : (
+                    theirs.map(f => (
+                      <label key={f.sourceId} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-input"
+                          disabled={!canContact(f)}
+                          checked={familyIds.includes(f.sourceId)}
+                          onChange={e => toggle(setFamilyIds, f.sourceId, e.target.checked)}
+                        />
+                        <span>
+                          {f.name}
+                          <span className="text-xs text-muted-foreground">
+                            {f.relationship ? ` · ${f.relationship}` : ''}
+                            {!f.consent ? ' · has not agreed to surveys' : null}
+                            {!f.reachable || unreachableFamily.has(f.sourceId)
+                              ? familyNoDetails(f.serviceUserId, f.name, emailOnly(unreachableFamily.get(f.sourceId)))
+                              : null}
+                          </span>
                         </span>
-                      </span>
-                    </label>
-                  ))}
-                  {familyIds.length ? (
-                    <label className="flex items-center gap-2 pt-1 text-sm">
-                      <input type="checkbox" className="h-4 w-4 rounded border-input" checked={about} onChange={e => setAbout(e.target.checked)} />
-                      This survey is about {person.name}’s care (found from their record)
-                    </label>
+                      </label>
+                    ))
+                  )}
+                  {theirs.some(f => !f.consent) ? (
+                    <p className="pt-1 text-xs text-muted-foreground">
+                      To send them surveys,{' '}
+                      <Link
+                        to="/service-users/$serviceUserId/profile"
+                        params={{ serviceUserId: p.id }}
+                        search={{ tab: 'privacy' }}
+                        className="font-medium text-primary underline underline-offset-2"
+                        onClick={() => onOpenChange(false)}
+                      >
+                        tick “Surveys about our care” in {p.name}’s Privacy
+                      </Link>
+                      .
+                    </p>
                   ) : null}
                 </div>
               )
+            })}
+            {person && aboutOffered ? (
+              <label className="flex items-center gap-2 pt-1 text-sm">
+                <input type="checkbox" className="h-4 w-4 rounded border-input" checked={about} onChange={e => setAbout(e.target.checked)} />
+                This survey is about {person.name}’s care (found from their record)
+              </label>
+            ) : person && familyIds.length && familyOfOthers.length ? (
+              <p className="text-xs text-muted-foreground">
+                {familyOfOthers.map(c => c.name).join(', ')} {familyOfOthers.length === 1 ? 'is' : 'are'} family of someone else we support, so the
+                survey is not linked to {person.name}’s record. Each family member still gets their own link.
+              </p>
+            ) : people.length > 1 && familyIds.length ? (
+              <p className="text-xs text-muted-foreground">
+                Several people are chosen, so the survey is not linked to one person’s record. Each family member still gets their own link.
+              </p>
             ) : null}
           </fieldset>
 
@@ -147,26 +296,60 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
             <legend className="text-sm font-medium">People</legend>
             <Input placeholder="Search outside people" value={search} onChange={e => setSearch(e.target.value)} aria-label="Search outside people" />
             <div className="max-h-48 space-y-1 overflow-y-auto">
-              {(contacts ?? []).map(c => (
-                <label key={c.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-input"
-                    checked={contactIds.includes(c.id)}
-                    disabled={c.optedOut.includes('ALL')}
-                    onChange={e => toggle(setContactIds, c.id, e.target.checked)}
-                  />
-                  <span>
-                    {c.name}
-                    <span className="text-xs text-muted-foreground">
-                      {' · '}
-                      {OUTSIDE_KIND_LABEL[c.kind]}
-                      {c.organisation ? `, ${c.organisation}` : ''}
-                      {c.optedOut.includes('ALL') ? ' · does not want surveys' : ''}
+              {(contacts ?? []).map(c => {
+                const fam = familyOf(c)
+                return (
+                  <label key={c.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input"
+                      checked={fam ? familyIds.includes(fam.sourceId) : contactIds.includes(c.id)}
+                      disabled={c.optedOut.includes('ALL') || (fam ? !canContact(fam) : false)}
+                      onChange={e => {
+                        if (fam) return toggle(setFamilyIds, fam.sourceId, e.target.checked)
+                        toggle(setContactIds, c.id, e.target.checked)
+                        // Family of someone we support: show that person's card too (the tick then moves onto it).
+                        if (e.target.checked && c.sourceType === 'SERVICE_USER_CONTACT' && c.serviceUserId) {
+                          addPerson({ id: c.serviceUserId, name: '' })
+                        }
+                      }}
+                    />
+                    <span>
+                      {c.name}
+                      <span className="text-xs text-muted-foreground">
+                        {' · '}
+                        {OUTSIDE_KIND_LABEL[c.kind]}
+                        {c.organisation ? `, ${c.organisation}` : ''}
+                        {c.optedOut.includes('ALL') ? ' · does not want surveys' : fam ? ` · family of ${fam.aboutName ?? 'someone above'}` : ''}
+                        {(() => {
+                          const u = unreachableById.get(c.id) ?? (fam ? unreachableFamily.get(fam.sourceId) : undefined)
+                          const only = emailOnly(u)
+                          if (fam) return !fam.reachable || u ? familyNoDetails(fam.serviceUserId, c.name, only) : null
+                          if (!u && (c.email || c.mobile)) return null
+                          if (c.sourceType === 'SERVICE_USER_CONTACT' && c.serviceUserId) return familyNoDetails(c.serviceUserId, c.name, only)
+                          if (!c.canChange) return ` · ${missing(only)} (change it where they are recorded)`
+                          return (
+                            <>
+                              {' · '}
+                              <button
+                                type="button"
+                                className={linkClass}
+                                onClick={e => {
+                                  e.preventDefault()
+                                  setEditingContact(c)
+                                }}
+                                aria-label={`${c.name} has ${missing(only)}: add it`}
+                              >
+                                {missing(only)} – add
+                              </button>
+                            </>
+                          )
+                        })()}
+                      </span>
                     </span>
-                  </span>
-                </label>
-              ))}
+                  </label>
+                )
+              })}
             </div>
           </fieldset>
 
@@ -177,8 +360,14 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
               </p>
               {check.already ? <p className="text-muted-foreground">{check.already} already have it.</p> : null}
               {check.optedOut ? <p className="text-muted-foreground">{check.optedOut} asked not to be contacted about surveys.</p> : null}
-              {check.noDetails ? <p className="text-muted-foreground">{check.noDetails} have no email or mobile.</p> : null}
-              {check.noConsent ? <p className="text-muted-foreground">{check.noConsent} family {check.noConsent === 1 ? 'member has' : 'members have'} not agreed to be contacted.</p> : null}
+              {check.noDetails ? (
+                <p className="text-muted-foreground">
+                  {check.noDetails} {check.noDetails === 1 ? 'has' : 'have'} no {check.textOn ? 'email or mobile' : 'email'}
+                  {unreachable.length ? `: ${unreachable.map(u => u.name).join(', ')}` : ''}.
+                  {!check.textOn && unreachable.some(u => u.hasMobile) ? ' This survey is sent by email only, so a mobile alone is not enough.' : ''}
+                </p>
+              ) : null}
+              {check.noConsent ? <p className="text-muted-foreground">{check.noConsent} family {check.noConsent === 1 ? 'member has' : 'members have'} not agreed to surveys.</p> : null}
               {check.died ? <p className="text-muted-foreground">{check.died} family {check.died === 1 ? 'member' : 'members'} will not be sent it because the person we supported has died.</p> : null}
               {check.afterDeath ? (
                 <>
@@ -235,6 +424,7 @@ export function SendOutsideDialog({ surveyId, open, onOpenChange }: { surveyId: 
           </Button>
         </DialogFooter>
       </DialogContent>
+      {editingContact ? <ContactDialog contact={editingContact} onClose={() => setEditingContact(null)} /> : null}
     </Dialog>
   )
 }

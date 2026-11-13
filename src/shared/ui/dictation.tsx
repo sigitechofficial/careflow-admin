@@ -64,21 +64,41 @@ export function dictationChunk(before: string, text: string, after: string): str
   return lead + trimmed + trail
 }
 
+/** Dictated text already in a field: where it starts and exactly what was written. */
+export interface DictatedRange {
+  start: number
+  text: string
+}
+
 /**
- * Insert at the caret (after any selection — selected text is kept) and fire a native input
- * event so React's onChange sees it.
+ * Write dictated text into the field and fire a native input event so React's onChange sees it.
+ * With `replace` (words shown while still being spoken), those are swapped for `text`; otherwise
+ * it goes at the caret (after any selection — selected text is kept). Returns what was written.
  */
-export function insertIntoTextControl(el: HTMLInputElement | HTMLTextAreaElement, text: string): void {
+export function writeIntoTextControl(
+  el: HTMLInputElement | HTMLTextAreaElement,
+  text: string,
+  replace?: DictatedRange | null,
+): DictatedRange | null {
   const value = el.value
-  const pos = el.selectionEnd ?? value.length
-  let chunk = dictationChunk(value.slice(0, pos), text, value.slice(pos))
-  if (el.maxLength >= 0) chunk = chunk.slice(0, Math.max(0, el.maxLength - value.length))
-  if (!chunk) return
+  // Only replace words still there as written (the user may have edited them meanwhile).
+  const live = replace && value.slice(replace.start, replace.start + replace.text.length) === replace.text
+  const from = live ? replace.start : (el.selectionEnd ?? value.length)
+  const to = live ? replace.start + replace.text.length : from
+  let chunk = dictationChunk(value.slice(0, from), text, value.slice(to))
+  if (el.maxLength >= 0) chunk = chunk.slice(0, Math.max(0, el.maxLength - (value.length - (to - from))))
+  if (!chunk && from === to) return null
   const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
-  Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(el, value.slice(0, pos) + chunk + value.slice(pos))
+  Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(el, value.slice(0, from) + chunk + value.slice(to))
   el.dispatchEvent(new Event('input', { bubbles: true }))
-  const caret = pos + chunk.length
+  const caret = from + chunk.length
   el.setSelectionRange(caret, caret)
+  return chunk ? { start: from, text: chunk } : null
+}
+
+/** Insert at the caret (after any selection — selected text is kept). */
+export function insertIntoTextControl(el: HTMLInputElement | HTMLTextAreaElement, text: string): void {
+  writeIntoTextControl(el, text)
 }
 
 const LAYOUT_CLASS =
@@ -96,7 +116,38 @@ export function splitLayoutClasses(className: string | undefined): [layout: stri
 }
 
 /* ─── Mic button ─────────────────────────────────────────────── */
+/** The recognition the user wants running (it may still be waiting to start). */
 let activeRecognition: SpeechRecognitionLike | null = null
+
+/**
+ * The recognition the browser is running: started and not ended yet. Browsers run one at a time,
+ * and one started while another is still ending can fail, so the next one waits for it.
+ */
+let busyRecognition: SpeechRecognitionLike | null = null
+let idleWaiters: Array<() => void> = []
+
+/** How long to wait for an ending recognition before starting the next one anyway. */
+const IDLE_WAIT_MS = 1000
+
+function markIdle() {
+  busyRecognition = null
+  const waiters = idleWaiters
+  idleWaiters = []
+  for (const run of waiters) run()
+}
+
+/** Runs `run` once no recognition is running (or after `IDLE_WAIT_MS`, if one never reports its end). */
+function whenIdle(run: () => void) {
+  const busy = busyRecognition
+  if (!busy) {
+    run()
+    return
+  }
+  idleWaiters.push(run)
+  setTimeout(() => {
+    if (busyRecognition === busy && idleWaiters.includes(run)) markIdle()
+  }, IDLE_WAIT_MS)
+}
 
 function toastRecognitionError(error: string) {
   if (error === 'not-allowed' || error === 'service-not-allowed') {
@@ -112,6 +163,8 @@ function toastRecognitionError(error: string) {
 
 /** Errors after which listening again would only fail again. */
 const FATAL_RECOGNITION_ERRORS = new Set([
+  // Something else took the microphone (another tab or app): listening again would loop.
+  'aborted',
   'not-allowed',
   'service-not-allowed',
   'audio-capture',
@@ -120,11 +173,15 @@ const FATAL_RECOGNITION_ERRORS = new Set([
 ])
 
 export interface DictationButtonProps {
-  /** Called once per finished phrase. */
+  /**
+   * Called once per finished phrase. Where `onInterim` showed the phrase's words while it was
+   * spoken, these final words replace them.
+   */
   onText: (text: string) => void
   /**
    * Words heard so far in the phrase still being spoken (not final yet), so they can be shown
-   * while the user talks; '' once the phrase is finished or dictation stops.
+   * while the user talks. '' once the phrase is finished or listening has ended: whatever was
+   * shown stays as it is.
    */
   onInterim?: (text: string) => void
   /** Called just before recording starts (e.g. to focus the field). */
@@ -148,8 +205,8 @@ export function DictationButton({ onText, onInterim, onStart, disabled, withText
     // Cleared first, so onend knows the user stopped it and does not listen again.
     const rec = recognitionRef.current
     recognitionRef.current = null
+    // The browser still sends the final words of the phrase being spoken; onend then ends it.
     rec?.stop()
-    onInterimRef.current?.('')
     setRecording(false)
   }, [])
 
@@ -170,10 +227,13 @@ export function DictationButton({ onText, onInterim, onStart, disabled, withText
   if (!Ctor) return null
 
   const start = () => {
-    // Another field's mic stops; clearing activeRecognition first stops it from listening again.
+    // Another field's mic stops (its last words still go to its field); clearing activeRecognition
+    // first stops it from listening again.
     const previous = activeRecognition
     activeRecognition = null
     previous?.stop()
+    // Words left from an earlier run of this mic (if its end never came) stay as they are.
+    onInterimRef.current?.('')
     const rec = new Ctor()
     rec.lang = 'en-GB'
     rec.continuous = true
@@ -213,17 +273,29 @@ export function DictationButton({ onText, onInterim, onStart, disabled, withText
         recognitionRef.current = null
         setRecording(false)
       }
-    }
-    onStart?.()
-    try {
-      rec.start()
-    } catch {
-      toastError('Dictation unavailable', 'Speech recognition could not start. Try again.')
-      return
+      if (busyRecognition === rec) markIdle()
     }
     recognitionRef.current = rec
     activeRecognition = rec
     setRecording(true)
+    onStart?.()
+    // Starts once the previous field's recognition (if any) has ended.
+    whenIdle(() => {
+      if (recognitionRef.current !== rec) {
+        // Stopped, or the field went away, while waiting.
+        if (activeRecognition === rec) activeRecognition = null
+        return
+      }
+      try {
+        rec.start()
+        busyRecognition = rec
+      } catch {
+        toastError('Dictation unavailable', 'Speech recognition could not start. Try again.')
+        if (activeRecognition === rec) activeRecognition = null
+        recognitionRef.current = null
+        setRecording(false)
+      }
+    })
   }
 
   const label = recording ? 'Stop dictation' : 'Dictate (speech to text)'
@@ -287,6 +359,8 @@ export function DictationTextControl({
   children: React.ReactNode
 }) {
   const wrapRef = React.useRef<HTMLDivElement>(null)
+  /** Words of the phrase still being spoken, already written into the field. */
+  const interimRef = React.useRef<DictatedRange | null>(null)
   const control = () =>
     wrapRef.current?.querySelector<HTMLInputElement | HTMLTextAreaElement>('input, textarea') ?? null
 
@@ -304,7 +378,18 @@ export function DictationTextControl({
         }}
         onText={(text) => {
           const el = control()
-          if (el) insertIntoTextControl(el, text)
+          const interim = interimRef.current
+          interimRef.current = null
+          if (el) writeIntoTextControl(el, text, interim)
+        }}
+        // Words appear in the field as they are spoken; the phrase's final words replace them.
+        onInterim={(text) => {
+          if (!text) {
+            interimRef.current = null
+            return
+          }
+          const el = control()
+          if (el) interimRef.current = writeIntoTextControl(el, text, interimRef.current)
         }}
       />
     </div>
