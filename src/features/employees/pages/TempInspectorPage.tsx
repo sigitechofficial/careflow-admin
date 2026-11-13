@@ -9,7 +9,22 @@ import {
   ChevronLeft,
   ChevronRight,
   HelpCircle,
+  Copy,
 } from 'lucide-react'
+import { INSPECTOR_SIGN_IN_SEARCH } from '@/features/auth/guard'
+import { toastError, toastSuccess } from '@/shared/lib/toast'
+
+/** Copies the temporary inspector sign-in link (opens Sign in on Temporary inspector). */
+async function copyInspectorSignInLink() {
+  const url = new URL('/auth/login', window.location.origin)
+  url.searchParams.set('as', INSPECTOR_SIGN_IN_SEARCH.as)
+  try {
+    await navigator.clipboard.writeText(url.toString())
+    toastSuccess('Sign-in link copied', 'Send it to the inspector with their username and password.')
+  } catch {
+    toastError('Could not copy the link', url.toString())
+  }
+}
 import { cn } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { Link } from '@tanstack/react-router'
@@ -221,11 +236,27 @@ export default function TempInspectorPage() {
         ) : (
           <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
             <span className="font-medium text-foreground">How they sign in:</span> open{' '}
-            <Link to="/auth/login" className="text-primary underline-offset-4 hover:underline">
+            {/* A new tab: this browser stays signed in to CareFlow; the page opens on Temporary inspector. */}
+            <Link
+              to="/auth/login"
+              search={INSPECTOR_SIGN_IN_SEARCH}
+              target="_blank"
+              rel="noopener"
+              className="text-primary underline-offset-4 hover:underline"
+            >
               Sign in
-            </Link>
-            , choose <strong className="text-foreground">Temporary inspector</strong>, and enter this record’s username
-            and password (not email). Access only works between Valid from and Valid to.
+            </Link>{' '}
+            (
+            <button
+              type="button"
+              onClick={() => void copyInspectorSignInLink()}
+              className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden />
+              copy link
+            </button>{' '}
+            to send them), choose <strong className="text-foreground">Temporary inspector</strong>, and enter this
+            record’s username and password (not email). Access only works between Valid from and Valid to.
           </div>
         )}
 
@@ -256,18 +287,20 @@ export default function TempInspectorPage() {
                 </FormRow>
 
                 <FormRow label="Password" required>
-                  <div className="relative flex">
+                  {/* One outline round the field and the show/hide button, so focus highlights the whole field. */}
+                  <div className="flex h-9 w-full overflow-hidden rounded-md border border-input bg-background shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring">
                     <input
                       type={showPwd ? 'text' : 'password'}
                       placeholder="Enter password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      className="flex h-9 w-full rounded-l-md border border-input border-r-0 bg-background px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="h-full w-full min-w-0 bg-transparent px-3 py-1 text-sm placeholder:text-muted-foreground focus:outline-none"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPwd(v => !v)}
-                      className="h-9 rounded-r-md border border-input border-l-0 bg-background px-3 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      aria-label={showPwd ? 'Hide password' : 'Show password'}
+                      className="shrink-0 px-3 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none"
                     >
                       {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -404,8 +437,9 @@ export default function TempInspectorPage() {
                             <button
                               type="button"
                               title="Remove"
+                              aria-label={`Remove ${row.firstName} ${row.lastName}`}
                               onClick={() => void handleDelete(row.id)}
-                              className="text-destructive/60 transition-colors hover:text-destructive"
+                              className="rounded-md p-1.5 text-destructive transition-colors hover:bg-destructive/10"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>

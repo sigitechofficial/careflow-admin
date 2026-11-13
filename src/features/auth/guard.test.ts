@@ -79,3 +79,29 @@ describe('independent reviewer route guard', () => {
     expect(isReviewerAllowedPath('/')).toBe(false)
   })
 })
+
+describe('temporary inspector sign-in link', () => {
+  const initial = useAuthStore.getState()
+  afterEach(() => useAuthStore.setState(initial, true))
+
+  async function loginLanding(search?: Record<string, unknown>): Promise<string | null> {
+    try {
+      await rootAuthBeforeLoad({ location: { pathname: '/auth/login', search } })
+      return null
+    } catch (e) {
+      if (isRedirect(e)) return (e.options as { to?: string }).to ?? null
+      throw e
+    }
+  }
+
+  it('opens for someone already signed in (the page warns before they sign in)', async () => {
+    signInAs('manager')
+    expect(await loginLanding({ as: 'inspector' })).toBeNull()
+  })
+
+  it('the plain sign-in page still sends someone signed in to Home', async () => {
+    signInAs('manager')
+    expect(await loginLanding()).toBe('/')
+    expect(await loginLanding({ as: 'someone-else' })).toBe('/')
+  })
+})
