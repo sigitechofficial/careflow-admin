@@ -21,6 +21,8 @@ export const SHARING_CATEGORIES = {
   HEALTH_MEDICINES: 'Health and medicines',
   INCIDENTS: 'Incidents, falls and concerns',
   FINANCE: 'Money and invoices',
+  /** Agreed to be sent our surveys. Separate from "Everything": it is asking them, not sharing with them. */
+  SURVEYS: 'Surveys about our care',
 } as const
 export type SharingCategory = keyof typeof SHARING_CATEGORIES
 

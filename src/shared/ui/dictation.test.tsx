@@ -15,6 +15,8 @@ class FakeRecognition {
   onend: (() => void) | null = null
   started = false
   starts = 0
+  /** Like a real browser: stop() only asks to end; the test fires onend itself. */
+  endLater = false
   constructor() {
     FakeRecognition.last = this
   }
@@ -24,7 +26,7 @@ class FakeRecognition {
   }
   stop() {
     this.started = false
-    this.onend?.()
+    if (!this.endLater) this.onend?.()
   }
   abort() {
     this.stop()
@@ -100,6 +102,66 @@ describe('dictation mic', () => {
     expect(screen.getByRole('button', { name: 'Dictate (speech to text)' })).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('fills the field while the user is still speaking; the final words replace those', () => {
+    render(
+      <DictationProvider>
+        <ControlledInput initial="Lives alone" />
+      </DictationProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    const input = screen.getByLabelText('Notes')
+
+    act(() => rec.say('with a', false))
+    expect(input).toHaveValue('Lives alone with a')
+    act(() => rec.say('with a cat and', false))
+    expect(input).toHaveValue('Lives alone with a cat and')
+    act(() => rec.say('with a cat and dog'))
+    expect(input).toHaveValue('Lives alone with a cat and dog')
+
+    // The next phrase follows the finished one.
+    act(() => rec.say('uses', false))
+    expect(input).toHaveValue('Lives alone with a cat and dog uses')
+  })
+
+  it('keeps the words shown when stopped, and lets the late final words replace them', () => {
+    render(
+      <DictationProvider>
+        <ControlledInput initial="" />
+      </DictationProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    rec.endLater = true
+    const input = screen.getByLabelText('Notes')
+
+    act(() => rec.say('needs help with', false))
+    fireEvent.click(screen.getByRole('button', { name: 'Stop dictation' }))
+    expect(input).toHaveValue('needs help with')
+
+    // After Stop the browser still sends the phrase's final words, then ends.
+    act(() => rec.say('needs help with meals'))
+    act(() => rec.onend?.())
+    expect(input).toHaveValue('needs help with meals')
+  })
+
+  it('does not replace words the user has edited meanwhile', () => {
+    render(
+      <DictationProvider>
+        <ControlledInput initial="" />
+      </DictationProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    const input = screen.getByLabelText<HTMLInputElement>('Notes')
+
+    act(() => rec.say('walks with', false))
+    fireEvent.change(input, { target: { value: 'Walks unaided' } })
+    input.setSelectionRange(13, 13)
+    act(() => rec.say('a stick'))
+    expect(input).toHaveValue('Walks unaided a stick')
+  })
+
   it('inserts at the caret in a textarea', () => {
     function ControlledTextarea() {
       const [value, setValue] = React.useState('Morning call. Evening call.')
@@ -154,5 +216,87 @@ describe('dictation mic', () => {
     })
     expect(rec.starts).toBe(1)
     expect(screen.getByRole('button', { name: 'Dictate (speech to text)' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('does not listen again after something else takes the microphone', () => {
+    render(<DictationButton onText={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Dictate (speech to text)' }))
+    const rec = FakeRecognition.last!
+    act(() => {
+      rec.onerror?.({ error: 'aborted' })
+      rec.onend?.()
+    })
+    expect(rec.starts).toBe(1)
+    expect(screen.getByRole('button', { name: 'Dictate (speech to text)' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it("starts another field's mic only once the previous one has ended", () => {
+    const onTextA = vi.fn()
+    render(
+      <>
+        <DictationButton onText={onTextA} />
+        <DictationButton onText={vi.fn()} />
+      </>,
+    )
+    const [micA, micB] = screen.getAllByRole('button', { name: 'Dictate (speech to text)' })
+    fireEvent.click(micA!)
+    const recA = FakeRecognition.last!
+    recA.endLater = true
+
+    fireEvent.click(micB!)
+    const recB = FakeRecognition.last!
+    expect(recA.started).toBe(false)
+    expect(recB.started).toBe(false)
+
+    // The first field's last words still reach it while it ends.
+    act(() => recA.say('last words'))
+    expect(onTextA).toHaveBeenCalledWith('last words')
+
+    act(() => recA.onend?.())
+    expect(recA.starts).toBe(1)
+    expect(recB.started).toBe(true)
+    expect(micA).toHaveAttribute('aria-pressed', 'false')
+    expect(micB).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('starts the next mic anyway if the previous one never reports its end', () => {
+    vi.useFakeTimers()
+    try {
+      render(
+        <>
+          <DictationButton onText={vi.fn()} />
+          <DictationButton onText={vi.fn()} />
+        </>,
+      )
+      const [micA, micB] = screen.getAllByRole('button', { name: 'Dictate (speech to text)' })
+      fireEvent.click(micA!)
+      FakeRecognition.last!.endLater = true
+      fireEvent.click(micB!)
+      const recB = FakeRecognition.last!
+      expect(recB.started).toBe(false)
+      act(() => vi.advanceTimersByTime(1000))
+      expect(recB.started).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not start a mic that was stopped while waiting', () => {
+    render(
+      <>
+        <DictationButton onText={vi.fn()} />
+        <DictationButton onText={vi.fn()} />
+      </>,
+    )
+    const [micA, micB] = screen.getAllByRole('button', { name: 'Dictate (speech to text)' })
+    fireEvent.click(micA!)
+    const recA = FakeRecognition.last!
+    recA.endLater = true
+    fireEvent.click(micB!)
+    const recB = FakeRecognition.last!
+    fireEvent.click(micB!)
+    act(() => recA.onend?.())
+    expect(recB.starts).toBe(0)
+    expect(micB).toHaveAttribute('aria-pressed', 'false')
   })
 })

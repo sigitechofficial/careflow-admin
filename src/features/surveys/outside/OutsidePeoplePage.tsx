@@ -226,7 +226,8 @@ export default function OutsidePeoplePage() {
   )
 }
 
-function ContactDialog({ contact, onClose }: { contact: OutsideContact | null; onClose: () => void }) {
+/** Add or change an outside person (also opened from Send to people to add a missing email or mobile). */
+export function ContactDialog({ contact, onClose }: { contact: OutsideContact | null; onClose: () => void }) {
   const save = useSaveOutsideContact()
   const [form, setForm] = React.useState<ContactInput>({
     kind: contact?.kind ?? 'PROFESSIONAL',

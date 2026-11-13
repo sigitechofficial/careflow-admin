@@ -680,7 +680,9 @@ function SharingDialog({ serviceUserId, data, id, initial, onClose, openContacts
   const needsAuthority = f.basis === 'LPA_HEALTH_WELFARE' || f.basis === 'DEPUTY'
   const submit = async () => {
     try {
-      await save.mutateAsync({ id, input: { ...f, legalAuthorityId: needsAuthority ? f.legalAuthorityId : undefined } })
+      // Surveys are only for family and friends (People involved).
+      const categories = f.recipientKind === 'CONTACT' ? f.categories : f.categories.filter(c => c !== 'SURVEYS')
+      await save.mutateAsync({ id, input: { ...f, categories, legalAuthorityId: needsAuthority ? f.legalAuthorityId : undefined } })
       toastSuccess(id ? 'Sharing updated' : 'Sharing recorded')
       onClose()
     } catch (e) {
@@ -748,14 +750,36 @@ function SharingDialog({ serviceUserId, data, id, initial, onClose, openContacts
           <fieldset>
             <legend className={LABEL_CLASS}>What may be shared</legend>
             <div className="grid gap-1.5 sm:grid-cols-2">
-              {Object.entries(SHARING_CATEGORIES).map(([k, label]) => (
-                <label key={k} className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" className="h-4 w-4 rounded border-input" checked={f.categories.includes(k)} onChange={() => toggleIn('categories', k)} />
-                  {label}
-                </label>
-              ))}
+              {Object.entries(SHARING_CATEGORIES)
+                .filter(([k]) => k !== 'SURVEYS')
+                .map(([k, label]) => (
+                  <label key={k} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" className="h-4 w-4 rounded border-input" checked={f.categories.includes(k)} onChange={() => toggleIn('categories', k)} />
+                    {label}
+                  </label>
+                ))}
             </div>
           </fieldset>
+          {f.recipientKind === 'CONTACT' ? (
+            <fieldset>
+              <legend className={LABEL_CLASS}>Surveys</legend>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-input"
+                  checked={f.categories.includes('SURVEYS')}
+                  onChange={() => toggleIn('categories', 'SURVEYS')}
+                />
+                <span>
+                  {SHARING_CATEGORIES.SURVEYS}
+                  <span className="block text-xs text-muted-foreground">
+                    They agreed to be sent our surveys (by email or text). Needed before any survey is sent to them; “Everything about
+                    their care” does not include it.
+                  </span>
+                </span>
+              </label>
+            </fieldset>
+          ) : null}
           <fieldset>
             <legend className={LABEL_CLASS}>How</legend>
             <div className="flex flex-wrap gap-x-4 gap-y-1.5">

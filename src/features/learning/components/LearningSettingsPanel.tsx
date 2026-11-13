@@ -20,8 +20,22 @@ export function LearningSettingsPanel() {
   }, [settingsQuery.data])
 
   const onSave = async () => {
+    // Send only the editable fields: the GET response also has `id` and
+    // `updatedAt`, which the API rejects (forbidNonWhitelisted).
+    const body: Partial<LearningSettings> = {
+      defaultExpiryWarningDays: form.defaultExpiryWarningDays,
+      defaultAssignmentDueDays: form.defaultAssignmentDueDays,
+      allowEmployeeExternalTrainingSubmission: form.allowEmployeeExternalTrainingSubmission,
+      requireManagerApprovalForExternalTraining: form.requireManagerApprovalForExternalTraining,
+      automaticRefresherAssignment: form.automaticRefresherAssignment,
+      automaticOverdueEscalation: form.automaticOverdueEscalation,
+      defaultCertificateValidityDays: form.defaultCertificateValidityDays,
+      allowCourseAccessAfterExpiry: form.allowCourseAccessAfterExpiry,
+      allowCourseRetakeAfterPass: form.allowCourseRetakeAfterPass,
+      complianceCalculationMode: form.complianceCalculationMode,
+    }
     try {
-      await updateMut.mutateAsync(form)
+      await updateMut.mutateAsync(body)
       toastSuccess('Learning settings saved')
     } catch (err) {
       toastApiError(err instanceof ApiError ? err : new Error('Save failed'))

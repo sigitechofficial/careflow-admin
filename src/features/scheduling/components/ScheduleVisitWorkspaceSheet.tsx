@@ -15,7 +15,7 @@ import {
 import { ScheduleVisitRefResetRow } from '@/features/scheduling/components/ScheduleVisitResetDeliveryButton'
 import { getScheduledJob } from '@/features/scheduling/api/scheduling.api'
 import { schedulingKeys } from '@/features/scheduling/keys'
-import { serviceUserLabel, formatJobTimeRange } from '@/features/scheduling/utils/scheduling-format'
+import { serviceUserFullLabel, formatJobTimeRange } from '@/features/scheduling/utils/scheduling-format'
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { cn } from '@/shared/lib/utils'
@@ -107,7 +107,7 @@ export function ScheduleVisitWorkspaceSheet({
           <SheetDescription asChild>
             <div className="space-y-1.5 text-sm text-muted-foreground">
               <p>
-                {serviceUserLabel(job.serviceUser)}
+                {serviceUserFullLabel(job.serviceUser)}
                 {timelineJobVisitPlanSlot(job) ? ` · ${timelineJobVisitPlanSlot(job)}` : ''} ·{' '}
                 {formatOrganisationIsoDate(date)} · {formatJobTimeRange(job)}
               </p>
