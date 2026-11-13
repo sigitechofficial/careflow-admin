@@ -96,7 +96,38 @@ export function splitLayoutClasses(className: string | undefined): [layout: stri
 }
 
 /* ─── Mic button ─────────────────────────────────────────────── */
+/** The recognition the user wants running (it may still be waiting to start). */
 let activeRecognition: SpeechRecognitionLike | null = null
+
+/**
+ * The recognition the browser is running: started and not ended yet. Browsers run one at a time,
+ * and one started while another is still ending can fail, so the next one waits for it.
+ */
+let busyRecognition: SpeechRecognitionLike | null = null
+let idleWaiters: Array<() => void> = []
+
+/** How long to wait for an ending recognition before starting the next one anyway. */
+const IDLE_WAIT_MS = 1000
+
+function markIdle() {
+  busyRecognition = null
+  const waiters = idleWaiters
+  idleWaiters = []
+  for (const run of waiters) run()
+}
+
+/** Runs `run` once no recognition is running (or after `IDLE_WAIT_MS`, if one never reports its end). */
+function whenIdle(run: () => void) {
+  const busy = busyRecognition
+  if (!busy) {
+    run()
+    return
+  }
+  idleWaiters.push(run)
+  setTimeout(() => {
+    if (busyRecognition === busy && idleWaiters.includes(run)) markIdle()
+  }, IDLE_WAIT_MS)
+}
 
 function toastRecognitionError(error: string) {
   if (error === 'not-allowed' || error === 'service-not-allowed') {
@@ -112,6 +143,8 @@ function toastRecognitionError(error: string) {
 
 /** Errors after which listening again would only fail again. */
 const FATAL_RECOGNITION_ERRORS = new Set([
+  // Something else took the microphone (another tab or app): listening again would loop.
+  'aborted',
   'not-allowed',
   'service-not-allowed',
   'audio-capture',
@@ -170,7 +203,8 @@ export function DictationButton({ onText, onInterim, onStart, disabled, withText
   if (!Ctor) return null
 
   const start = () => {
-    // Another field's mic stops; clearing activeRecognition first stops it from listening again.
+    // Another field's mic stops (its last words still go to its field); clearing activeRecognition
+    // first stops it from listening again.
     const previous = activeRecognition
     activeRecognition = null
     previous?.stop()
@@ -213,17 +247,29 @@ export function DictationButton({ onText, onInterim, onStart, disabled, withText
         recognitionRef.current = null
         setRecording(false)
       }
-    }
-    onStart?.()
-    try {
-      rec.start()
-    } catch {
-      toastError('Dictation unavailable', 'Speech recognition could not start. Try again.')
-      return
+      if (busyRecognition === rec) markIdle()
     }
     recognitionRef.current = rec
     activeRecognition = rec
     setRecording(true)
+    onStart?.()
+    // Starts once the previous field's recognition (if any) has ended.
+    whenIdle(() => {
+      if (recognitionRef.current !== rec) {
+        // Stopped, or the field went away, while waiting.
+        if (activeRecognition === rec) activeRecognition = null
+        return
+      }
+      try {
+        rec.start()
+        busyRecognition = rec
+      } catch {
+        toastError('Dictation unavailable', 'Speech recognition could not start. Try again.')
+        if (activeRecognition === rec) activeRecognition = null
+        recognitionRef.current = null
+        setRecording(false)
+      }
+    })
   }
 
   const label = recording ? 'Stop dictation' : 'Dictate (speech to text)'
