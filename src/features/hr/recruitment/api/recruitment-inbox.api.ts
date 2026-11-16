@@ -50,6 +50,17 @@ export type RecruitmentEmailDetail = {
   error: string | null
   /** Free rules before Claude reads it: SKIP means set aside unread. */
   screening: { decision: 'READ' | 'SKIP'; reason: string } | null
+  /** The inbox rules against what Claude read (switched-off rules left out). */
+  checks: { key: string; label: string; answer: 'YES' | 'NO' | 'UNKNOWN'; outcome: RecruitmentRuleOutcome; met: boolean }[]
+  /** What the settings did when it arrived (null: nothing, or it arrived before automation). */
+  automation: {
+    declined: string | null
+    held: string | null
+    candidateCreated: boolean
+    acknowledged: boolean
+    notified: string[]
+  } | null
+  acknowledgedAt: string | null
   attachments: { index: number; fileName: string; mimeType: string; size: number; available: boolean; skippedReason: string | null }[]
   extraction: { isApplication: boolean; summary: string; vacancyReason: string; checkNotes: string[] } | null
   draft: ApplicationDraft
@@ -118,3 +129,34 @@ export async function openRecruitmentAttachment(id: string, index: number) {
   else window.location.href = url
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
+
+/** Which new emails Claude reads in full (same choices as the referral inbox). */
+export type RecruitmentScreening = {
+  mode: 'OFF' | 'RULES' | 'RULES_AND_AI'
+  trustedSenders: string[]
+  blockedSenders: string[]
+}
+
+/** OFF: not checked. NOTE: shown to staff. STAFF: staff decide (no automatic candidate). DECLINE: set aside when the answer is no. */
+export type RecruitmentRuleOutcome = 'OFF' | 'NOTE' | 'STAFF' | 'DECLINE'
+
+/** Same keys and order as the API (recruitment-inbox.util RECRUITMENT_RULES). */
+export const RECRUITMENT_RULES = [
+  { key: 'rightToWork', label: 'Right to work in the UK', hint: 'They say they can work in the UK.' },
+  { key: 'drivesForWork', label: 'Drives for work (licence and car)', hint: 'They say they drive and have a car for work.' },
+  { key: 'careExperience', label: 'Care experience', hint: 'Their CV shows care or support work.' },
+] as const
+export type RecruitmentRuleKey = (typeof RECRUITMENT_RULES)[number]['key']
+
+export type RecruitmentInboxSettings = {
+  screening: RecruitmentScreening
+  autoCreateCandidate: boolean
+  autoAcknowledge: boolean
+  rules: Record<RecruitmentRuleKey, RecruitmentRuleOutcome>
+  notifyTo: string[]
+}
+
+export const fetchRecruitmentInboxSettings = () => data<RecruitmentInboxSettings>('/hr/recruitment-inbox/settings')
+
+export const saveRecruitmentInboxSettings = (body: RecruitmentInboxSettings) =>
+  data<RecruitmentInboxSettings>('/hr/recruitment-inbox/settings', { method: 'PUT', body: JSON.stringify(body) })

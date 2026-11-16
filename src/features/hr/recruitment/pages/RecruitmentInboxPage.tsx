@@ -10,6 +10,7 @@ import {
   Paperclip,
   RefreshCw,
   Settings2,
+  SlidersHorizontal,
   Sparkles,
   UserPlus,
   X,
@@ -26,6 +27,7 @@ import { fetchReferralMailbox } from '@/features/crm/api/referral-inbox.api'
 import { ReferralMailboxesDialog, mailboxName } from '@/features/crm/components/ReferralMailboxes'
 import { useVacancies } from '@/features/hr/recruitment/hooks/useRecruitment'
 import { candidateStageLabel, formatDateTime } from '@/features/hr/recruitment/utils/recruitment-display.util'
+import { RecruitmentInboxSettingsDialog } from '@/features/hr/recruitment/components/RecruitmentInboxSettingsDialog'
 import { Field, Textarea } from '@/features/hr/recruitment/components/flow/flow-ui'
 import {
   createCandidateFromEmail,
@@ -286,6 +288,48 @@ function EmailDetail({ id, canCreate, canUpdate }: { id: string; canCreate: bool
           </p>
         ) : null}
 
+        {email.automation?.declined ? (
+          <p className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground">
+            Set aside by a rule ({email.automation.declined}). Nothing was sent to the applicant. Use “Move back to inbox” if it should be reviewed.
+          </p>
+        ) : null}
+
+        {email.checks.length || (email.automation && !email.automation.declined) ? (
+          <div className="rounded-lg border border-border px-3 py-2.5 text-sm" data-testid="recruitment-email-checks">
+            {email.checks.length ? (
+              <ul className="flex flex-wrap gap-1.5">
+                {email.checks.map(c => (
+                  <li
+                    key={c.key}
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-xs font-medium',
+                      c.met
+                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                        : c.answer === 'NO'
+                          ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                          : 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+                    )}
+                  >
+                    {c.label}: {c.answer === 'YES' ? 'yes' : c.answer === 'NO' ? 'no' : 'not stated'}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {email.automation && !email.automation.declined ? (
+              <p className={cn('text-xs text-muted-foreground', email.checks.length && 'mt-2')}>
+                {[
+                  email.automation.candidateCreated ? 'Candidate created automatically' : null,
+                  email.automation.held ? `Not created automatically: ${email.automation.held}` : null,
+                  email.automation.acknowledged ? 'applicant told we received it' : null,
+                  email.automation.notified.length ? `copy sent to ${email.automation.notified.join(', ')}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {email.existingEmployee ? (
           <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
@@ -535,6 +579,7 @@ export default function RecruitmentInboxPage() {
   const [tab, setTab] = React.useState<RecruitmentInboxTab>('open')
   const [selected, setSelected] = React.useState<string | null>(null)
   const [mailboxesOpen, setMailboxesOpen] = React.useState(false)
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
 
   const listQuery = useQuery({
     queryKey: keys.list(tab),
@@ -568,11 +613,12 @@ export default function RecruitmentInboxPage() {
           { label: 'Recruitment', href: '/hr/recruitment' },
           { label: 'Inbox' },
         ]}
-        actions={
-          canManageMailboxes
+        actions={[
+          { label: 'Settings', icon: <SlidersHorizontal className="h-4 w-4" />, variant: 'outline' as const, onClick: () => setSettingsOpen(true) },
+          ...(canManageMailboxes
             ? [{ label: 'Mailboxes', icon: <Settings2 className="h-4 w-4" />, variant: 'outline' as const, onClick: () => setMailboxesOpen(true) }]
-            : undefined
-        }
+            : []),
+        ]}
       />
 
       {mailboxQuery.data ? (
@@ -667,6 +713,7 @@ export default function RecruitmentInboxPage() {
         </div>
       </section>
 
+      <RecruitmentInboxSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {canManageMailboxes ? (
         <ReferralMailboxesDialog open={mailboxesOpen} onOpenChange={setMailboxesOpen} status={mailboxQuery.data} purpose="RECRUITMENT" />
       ) : null}
