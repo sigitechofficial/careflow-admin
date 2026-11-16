@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Pencil, Plus } from 'lucide-react'
+import { Pencil, Plus, Search, X } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -79,6 +79,34 @@ export function OfficeUsersPanel() {
   const [createOpen, setCreateOpen] = React.useState(false)
   const [createForm, setCreateForm] = React.useState(emptyCreateForm)
   const [createError, setCreateError] = React.useState<string | null>(null)
+  const [search, setSearch] = React.useState('')
+  const [roleFilter, setRoleFilter] = React.useState('')
+  const [branchFilter, setBranchFilter] = React.useState('')
+
+  const allUsers = React.useMemo(() => usersQuery.data ?? [], [usersQuery.data])
+  const roleFilterOptions = React.useMemo(
+    () => [...new Set(allUsers.flatMap(u => u.roles.map(r => r.name)))].sort((a, b) => a.localeCompare(b)),
+    [allUsers],
+  )
+  const branchFilterOptions = React.useMemo(() => {
+    const byId = new Map<string, string>()
+    for (const u of allUsers) for (const l of u.locations) byId.set(l.id, l.name)
+    return [...byId.entries()].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label))
+  }, [allUsers])
+  const filteredUsers = React.useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return allUsers.filter(u => {
+      if (q && ![displayName(u), u.email, u.username ?? ''].some(v => v.toLowerCase().includes(q))) return false
+      if (roleFilter === '__none') {
+        if (u.roles.length) return false
+      } else if (roleFilter && !u.roles.some(r => r.name === roleFilter)) return false
+      if (branchFilter === '__all') {
+        if (u.locations.length || u.scopeType === 'branch') return false
+      } else if (branchFilter && !u.locations.some(l => l.id === branchFilter)) return false
+      return true
+    })
+  }, [allUsers, search, roleFilter, branchFilter])
+  const filtersActive = Boolean(search.trim() || roleFilter || branchFilter)
 
   const locationOptions = React.useMemo(() => {
     const rows = locationsQuery.data ?? []
@@ -185,13 +213,82 @@ export function OfficeUsersPanel() {
               </Button>
             ) : null}
           </div>
+          <div className="space-y-2 border-b border-border px-4 py-3" data-testid="office-users-filters">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name, email or username"
+                aria-label="Search office users"
+                className="pl-8"
+                data-testid="office-users-search"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={roleFilter}
+                onChange={e => setRoleFilter(e.target.value)}
+                aria-label="Filter by role"
+                className="h-9 min-w-[140px] flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                data-testid="office-users-role-filter"
+              >
+                <option value="">All roles</option>
+                {roleFilterOptions.map(r => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+                <option value="__none">No roles</option>
+              </select>
+              <select
+                value={branchFilter}
+                onChange={e => setBranchFilter(e.target.value)}
+                aria-label="Filter by branch"
+                className="h-9 min-w-[140px] flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                data-testid="office-users-branch-filter"
+              >
+                <option value="">All branches</option>
+                {branchFilterOptions.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.label}
+                  </option>
+                ))}
+                <option value="__all">Company-wide (all branches)</option>
+              </select>
+              {filtersActive ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setSearch('')
+                    setRoleFilter('')
+                    setBranchFilter('')
+                  }}
+                >
+                  <X className="mr-1 h-3.5 w-3.5" aria-hidden />
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+            {usersQuery.data ? (
+              <p className="text-xs text-muted-foreground" data-testid="office-users-count">
+                {filtersActive ? `${filteredUsers.length} of ${allUsers.length} users` : `${allUsers.length} users`}
+              </p>
+            ) : null}
+          </div>
           {usersQuery.isLoading ? (
             <p className="p-4 text-sm text-muted-foreground">Loading users…</p>
           ) : usersQuery.isError ? (
             <p className="p-4 text-sm text-destructive">Could not load users.</p>
+          ) : filteredUsers.length === 0 ? (
+            <p className="p-4 text-sm text-muted-foreground">
+              {filtersActive ? 'No users match these filters.' : 'No office users yet.'}
+            </p>
           ) : (
             <ul className="max-h-[70vh] divide-y divide-border overflow-auto">
-              {(usersQuery.data ?? []).map(u => {
+              {filteredUsers.map(u => {
                 const active = u.id === selectedId
                 return (
                   <li key={u.id}>
