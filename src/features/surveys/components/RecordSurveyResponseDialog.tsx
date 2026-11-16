@@ -52,7 +52,15 @@ const FIELD_CLASS =
 
 function relationOptions(targetKind: SurveyTargetKind): { value: SurveyRespondentRelation; label: string }[] {
   return [
-    { value: 'SELF', label: targetKind === 'SERVICE_USER' ? 'The service user themselves' : 'The employee themselves' },
+    {
+      value: 'SELF',
+      label:
+        targetKind === 'SERVICE_USER'
+          ? 'The service user themselves'
+          : targetKind === 'PUBLIC'
+            ? 'The person themselves'
+            : 'The employee themselves',
+    },
     ...(targetKind === 'SERVICE_USER'
       ? ([
           { value: 'FAMILY_MEMBER', label: 'A family member' },
@@ -136,6 +144,9 @@ export function RecordSurveyResponseDialog({
 }: Props) {
   const isEdit = Boolean(editing)
   const forServiceUsers = targetKind === 'SERVICE_USER'
+  // Families / outside people survey: the people it was sent to are listed (outside contacts).
+  const forOutside = targetKind === 'PUBLIC'
+  const personNoun = forServiceUsers ? 'service user' : forOutside ? 'person this survey was sent to' : 'employee'
   const recordMutation = useRecordSurveyResponse(surveyId, asReviewer)
   const updateMutation = useUpdateRecordedSurveyResponse(surveyId, listedOnSurveyId)
   const saving = recordMutation.isPending || updateMutation.isPending
@@ -249,7 +260,7 @@ export function RecordSurveyResponseDialog({
 
   const blocker = (() => {
     if (!isEdit && !anonymous && !personId) {
-      return `Choose the ${forServiceUsers ? 'service user' : 'employee'} or tick Anonymous.`
+      return `Choose the ${personNoun} or tick Anonymous.`
     }
     if (!isEdit && isTelephone && !consent) return 'Confirm the person agreed to answer over the phone.'
     if (answeredCount === 0) return 'Enter at least one answer.'
@@ -392,10 +403,16 @@ export function RecordSurveyResponseDialog({
                     onChange={setPersonId}
                     onSearchChange={setPersonSearch}
                     loading={candidatesQuery.isFetching}
-                    placeholder={forServiceUsers ? 'Search service user…' : 'Search employee…'}
+                    placeholder={
+                      forServiceUsers ? 'Search service user…' : forOutside ? 'Search family member or contact…' : 'Search employee…'
+                    }
                     searchPlaceholder="Search by name…"
-                    emptyText="No matching people."
-                    aria-label={`Whose response is this? Choose the ${forServiceUsers ? 'service user' : 'employee'}`}
+                    emptyText={
+                      forOutside
+                        ? 'No one this survey was sent to matches. For an answer from the shared link, tick Anonymous.'
+                        : 'No matching people.'
+                    }
+                    aria-label={`Whose response is this? Choose the ${personNoun}`}
                     data-testid="record-person"
                   />
                 )}

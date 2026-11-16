@@ -415,3 +415,14 @@ describe('recordCandidateDescription', () => {
     expect(recordCandidateDescription({ ...base, careEnded: false })).toBe('Sent: no portal account — phone, visit or post')
   })
 })
+
+describe('families / outside people survey', () => {
+  it('asks for a family member or contact this survey was sent to, not an employee', () => {
+    render(<RecordSurveyResponseDialog surveyId="s1" targetKind="PUBLIC" questions={questions} open onClose={() => {}} />)
+    expect(screen.getByText('Search family member or contact…')).toBeInTheDocument()
+    expect(screen.queryByText('Search employee…')).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'The person themselves' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'The employee themselves' })).not.toBeInTheDocument()
+    expect(screen.getByText('Choose the person this survey was sent to or tick Anonymous.')).toBeInTheDocument()
+  })
+})
