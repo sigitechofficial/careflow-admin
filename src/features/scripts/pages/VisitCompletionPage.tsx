@@ -108,7 +108,7 @@ export default function VisitCompletionPage() {
     <div className="space-y-4">
       <PageHeader
         title="Visit Completion"
-        description="Complete a carer's visits on a day as the office does with Record visit — tasks ticked, actual times, reasons — then see the pay, charge, travel time and mileage CareFlow works out for each visit."
+        description="Complete a carer's visits on a day as the office does with Record visit — tasks ticked, medicines due recorded as given, actual times, reasons — then see the pay, charge, travel time and mileage CareFlow works out for each visit."
         icon={<ClipboardCheck className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Scripts', href: '/scripts' }, { label: 'Visit Completion' }]}
       />
@@ -277,7 +277,7 @@ export default function VisitCompletionPage() {
               {chosenGroups.length === 1 ? '' : 's'}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Saved for real, under your name, as Record visit does: tasks ticked, actual times {SCENARIO_LABELS[scenario].toLowerCase()},
+              Saved for real, under your name, as Record visit does: tasks ticked, medicines due on each visit recorded as given on the MAR (for the carer), actual times {SCENARIO_LABELS[scenario].toLowerCase()},
               then CareFlow prices each visit (pay, charge, travel, mileage). A double-up shared by two chosen carers is completed once.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -373,9 +373,14 @@ function CarerResults({ name, results, dryRun }: { name: string; results: VisitC
           </div>
           <p className="text-muted-foreground">{r.outcome}</p>
           {r.tasksDone.length ? <p className="text-foreground">Tasks done: {r.tasksDone.join(', ')}</p> : null}
-          {r.tasksLeft.length ? (
+          {r.medicinesGiven.length ? (
+            <p className="text-foreground">
+              {dryRun ? 'Medicines to record as given' : 'Medicines given'}: {r.medicinesGiven.join(', ')}
+            </p>
+          ) : null}
+          {r.tasksLeft.length || r.medicinesLeft.length ? (
             <ul className="space-y-0.5">
-              {r.tasksLeft.map((t) => (
+              {[...r.tasksLeft, ...r.medicinesLeft].map((t) => (
                 <li key={t} className="flex items-start gap-1.5 text-amber-700 dark:text-amber-400">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden /> {t}
                 </li>

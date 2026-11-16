@@ -1,7 +1,8 @@
 /**
  * Scripts → Visit Completion. Completes a carer's visits on a day the way the office does it with
- * Record visit (Schedule jobs): tick the visit's tasks, record the actual times (and the reason the
- * dialog asks for when a visit is late or runs over), complete. The app then prices each visit on
+ * Record visit (Schedule jobs): tick the visit's tasks, record the medicines due on the visit as
+ * given on the MAR (as the visit workspace's Medication tab does), record the actual times (and the
+ * reason the dialog asks for when a visit is late or runs over), complete. The app then prices each visit on
  * its own — pay, charge, and travel time and mileage from the carer's previous visit — and this
  * reads those figures back. Nothing is written straight to the database.
  */
@@ -12,6 +13,12 @@ import {
   type VisitJobTaskRow,
   type VisitJobTasksResponse,
 } from '@/features/scheduling/types/visit-job-tasks.types'
+import type {
+  MedicationRegularChartResponse,
+  MarChartMedicationRow,
+} from '@/features/service-users/api/medication-mar.api'
+import { collectVisitDateMarSlots } from '@/features/scheduling/utils/visit-mar-daily.util'
+import { marRowMatchesVisitWindow } from '@/features/scheduling/utils/visit-medication-window.util'
 
 type Envelope<T> = { data?: T; meta?: Record<string, unknown>; message?: string }
 
@@ -49,8 +56,11 @@ type DayJob = {
   scheduledStartDateTime: string
   scheduledEndDateTime: string | null
   durationMinutes?: number | null
+  serviceUserId?: string | null
   serviceUser?: { firstName?: string | null; lastName?: string | null; preferredName?: string | null } | null
   allocations?: DayJobAllocation[]
+  visitPlan?: { plannedStartTime?: string | null; plannedEndTime?: string | null } | null
+  visits?: Array<{ id: string }>
 }
 
 export type CarerVisit = {
@@ -67,6 +77,14 @@ export type CarerVisit = {
   /** Active carers on the visit (allocation id + carer), for per-carer times on double-ups. */
   allocations: Array<{ id: string; employeeId: string }>
   requiredCarers: number
+  serviceUserId?: string | null
+  /** The visit (ScheduledVisit) id — medicine records are linked to it. */
+  scheduledVisitId?: string | null
+  /** The carer the medicines are recorded for (the lead carer on a double-up). */
+  leadEmployeeId?: string | null
+  /** HH:mm window the visit workspace uses to pick the medicines due on this visit. */
+  windowStartHm?: string | null
+  windowEndHm?: string | null
 }
 
 function personName(p: DayJob['serviceUser']): string {
@@ -124,6 +142,12 @@ function carerVisitsFrom(jobs: DayJob[], employeeId: string): CarerVisit[] {
         blockedReason,
         allocations: active.map((a) => ({ id: a.id, employeeId: a.employeeId })),
         requiredCarers: required,
+        serviceUserId: j.serviceUserId ?? null,
+        scheduledVisitId: j.visits?.[0]?.id ?? null,
+        leadEmployeeId: (active.find((a) => a.isLeadCarer) ?? active.find((a) => a.employeeId === employeeId) ?? active[0])?.employeeId ?? null,
+        // Same window as the visit workspace's Medication tab: the visit plan's times, else the scheduled times.
+        windowStartHm: j.visitPlan?.plannedStartTime || hm(j.scheduledStartDateTime),
+        windowEndHm: j.visitPlan?.plannedEndTime || hm(plannedEnd),
       }
     })
     .sort((a, b) => a.plannedStart.localeCompare(b.plannedStart))
@@ -151,6 +175,10 @@ export type VisitCompletionResult = {
   completed: boolean
   tasksDone: string[]
   tasksLeft: string[]
+  /** Medicines recorded as given on the MAR (or that would be, on a check). */
+  medicinesGiven: string[]
+  /** Medicines due on the visit that were already recorded, or could not be recorded. */
+  medicinesLeft: string[]
   pay?: VisitPay
 }
 
@@ -216,6 +244,93 @@ export function tasksAsDone(tasks: VisitJobTaskRow[]) {
   return { rows, done, left }
 }
 
+/**
+ * The scheduled medicines due on the visit, as the visit workspace's Medication tab lists them:
+ * the MAR rows (blister pack and other) whose due time is inside the visit window, on the visit
+ * date. PRN (as-needed) medicines are left out — they are only given when needed.
+ */
+export function visitMedicinesDue(
+  medications: MarChartMedicationRow[],
+  date: string,
+  windowStartHm: string | null | undefined,
+  windowEndHm: string | null | undefined,
+) {
+  if (!windowStartHm || !windowEndHm) return { due: [], alreadyRecorded: [] }
+  const scheduled = medications.filter((r) => r.scheduleType !== 'prn')
+  const slots = collectVisitDateMarSlots(scheduled, date).filter((s) =>
+    marRowMatchesVisitWindow(s.row, windowStartHm, windowEndHm),
+  )
+  return {
+    due: slots.filter((s) => s.cell.cellState === 'due').map((s) => s.row),
+    alreadyRecorded: slots.filter((s) => s.cell.cellState === 'recorded').map((s) => s.row),
+  }
+}
+
+const medicineLabel = (r: MarChartMedicationRow) =>
+  `${r.medicationName}${r.dose ? ` ${r.dose}` : ''}${r.dueTime ? ` (${r.dueTime})` : ''}`
+
+/** The MAR record for a medicine given on the visit — on behalf of the carer, at the visit time. */
+export function givenMedicinePayload(
+  row: MarChartMedicationRow,
+  date: string,
+  actualStartIso: string,
+  carerEmployeeId: string | null | undefined,
+  scheduledVisitId: string | null | undefined,
+) {
+  return {
+    serviceUserMedicationId: row.medicationId,
+    ...(row.scheduleId ? { medicationScheduleId: row.scheduleId } : {}),
+    statusCode: 'G',
+    // Same scheduled time the MAR record dialogs send, so the dose lands in its MAR slot.
+    scheduledDateTime: `${date}T${row.dueTime && /^\d{2}:\d{2}$/.test(row.dueTime) ? row.dueTime : '12:00'}:00.000Z`,
+    actualDateTime: actualStartIso,
+    ...(row.dose ? { doseGiven: row.dose } : {}),
+    notes: 'Recorded from Scripts → Visit Completion',
+    ...(carerEmployeeId ? { recordOnBehalfOfCarer: true, administeredById: carerEmployeeId } : {}),
+    ...(scheduledVisitId ? { visitId: scheduledVisitId } : {}),
+  }
+}
+
+/** Records each medicine due on the visit as given (or lists them on a check). */
+async function recordVisitMedicines(
+  v: CarerVisit,
+  date: string,
+  actualStartIso: string,
+  dryRun: boolean,
+  log: (line: string) => void,
+): Promise<{ given: string[]; left: string[] }> {
+  if (!v.serviceUserId) return { given: [], left: [] }
+  const chart = (
+    await api<MedicationRegularChartResponse>(
+      'GET',
+      `/service-users/${v.serviceUserId}/medication-chart/regular?month=${date.slice(0, 7)}`,
+    )
+  ).data
+  const { due, alreadyRecorded } = visitMedicinesDue(chart?.medications ?? [], date, v.windowStartHm, v.windowEndHm)
+  const given: string[] = []
+  const left = alreadyRecorded.map((r) => `${medicineLabel(r)} — already recorded`)
+  for (const row of due) {
+    if (dryRun) {
+      given.push(medicineLabel(row))
+      continue
+    }
+    try {
+      await api(
+        'POST',
+        `/service-users/${v.serviceUserId}/medication-events`,
+        givenMedicinePayload(row, date, actualStartIso, v.leadEmployeeId, v.scheduledVisitId),
+      )
+      given.push(medicineLabel(row))
+    } catch (e) {
+      left.push(`${medicineLabel(row)} — not recorded: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+  if (due.length || alreadyRecorded.length) {
+    log(`  medicines ${dryRun ? 'to record' : 'recorded'}: ${given.length}${left.length ? `, ${left.length} not recorded` : ''}`)
+  }
+  return { given, left }
+}
+
 /** One chosen carer and the visits chosen for them. */
 export type CarerSelection = { employeeId: string; name: string; visits: CarerVisit[] }
 
@@ -244,7 +359,7 @@ export async function runCompleteVisits(
 
   // 1–2) Each visit once: tasks, then Record visit.
   const done = new Map<string, VisitCompletionResult>()
-  for (const v of visits) done.set(v.jobId, await completeVisit(v, input.scenario, dryRun, log))
+  for (const v of visits) done.set(v.jobId, await completeVisit(v, input.date, input.scenario, dryRun, log))
 
   // 3) Each carer's own pay record for each of their visits.
   const out: CarerCompletionResult[] = []
@@ -264,6 +379,7 @@ export async function runCompleteVisits(
 
 async function completeVisit(
   v: CarerVisit,
+  date: string,
   scenario: CompletionScenario,
   dryRun: boolean,
   log: (line: string) => void,
@@ -273,7 +389,18 @@ async function completeVisit(
   log(`━━ ${label}`)
   if (v.blockedReason) {
     log(`  skipped: ${v.blockedReason}`)
-    return { jobId: v.jobId, label, planned, actual: '—', outcome: `Skipped: ${v.blockedReason}`, completed: false, tasksDone: [], tasksLeft: [] }
+    return {
+      jobId: v.jobId,
+      label,
+      planned,
+      actual: '—',
+      outcome: `Skipped: ${v.blockedReason}`,
+      completed: false,
+      tasksDone: [],
+      tasksLeft: [],
+      medicinesGiven: [],
+      medicinesLeft: [],
+    }
   }
   const times = actualTimes(v, scenario)
   const actual = `${hm(times.start)}–${hm(times.end)}`
@@ -285,6 +412,17 @@ async function completeVisit(
     if (!dryRun && taskData?.medicationRoundCode && tasks.length) {
       await api('PATCH', `/scheduled-jobs-housekeeping/jobs/${v.jobId}/visit-tasks`, { tasks: rows.map(mapVisitJobTaskForSave) })
       log(`  tasks saved: ${done.length} done${left.length ? `, ${left.length} left for you` : ''}`)
+    }
+
+    // Medicines due on the visit — recorded on the MAR as given, as the Medication tab does.
+    // A problem here never stops the visit being completed; it is listed on the result.
+    let medicines: { given: string[]; left: string[] }
+    try {
+      medicines = await recordVisitMedicines(v, date, times.start, dryRun, log)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      log(`  medicines not recorded: ${message}`)
+      medicines = { given: [], left: [`Medicines not recorded: ${message}`] }
     }
 
     // Complete — actual times (each carer's on a double-up), and the reasons the dialog asks for.
@@ -324,11 +462,24 @@ async function completeVisit(
       completed: !dryRun,
       tasksDone: done,
       tasksLeft: left,
+      medicinesGiven: medicines.given,
+      medicinesLeft: medicines.left,
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     log(`  ✖ ${message}`)
-    return { jobId: v.jobId, label, planned, actual, outcome: `Not completed: ${message}`, completed: false, tasksDone: [], tasksLeft: [] }
+    return {
+      jobId: v.jobId,
+      label,
+      planned,
+      actual,
+      outcome: `Not completed: ${message}`,
+      completed: false,
+      tasksDone: [],
+      tasksLeft: [],
+      medicinesGiven: [],
+      medicinesLeft: [],
+    }
   }
 }
 

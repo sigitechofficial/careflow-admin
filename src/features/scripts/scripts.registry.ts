@@ -23,7 +23,7 @@ export const SCRIPT_WORKFLOWS: ScriptWorkflow[] = [
     id: 'visit-completion',
     title: 'Visit Completion',
     description:
-      "Complete a carer's visits on a day the way the office records them — tasks ticked, actual times, reasons — then see the pay, charge, travel time and mileage CareFlow works out for each visit.",
+      "Complete a carer's visits on a day the way the office records them — tasks ticked, medicines due recorded as given, actual times, reasons — then see the pay, charge, travel time and mileage CareFlow works out for each visit.",
     href: '/scripts/visit-completion',
   },
 ]
