@@ -1,6 +1,36 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 
-export type VacancyStatus = 'OPEN' | 'PAUSED' | 'CLOSED'
+export type VacancyStatus = 'DRAFT' | 'OPEN' | 'PAUSED' | 'CLOSED'
+
+export type WorkSetting = 'HOME_VISITS' | 'CARE_HOME' | 'OFFICE' | 'LIVE_IN' | 'REMOTE'
+export type HoursType = 'FULL_TIME' | 'PART_TIME' | 'FLEXIBLE'
+export type ShiftKind = 'MORNINGS' | 'AFTERNOONS' | 'EVENINGS' | 'NIGHTS' | 'WEEKENDS' | 'SLEEP_INS' | 'LIVE_IN'
+export type CvRequirement = 'REQUIRED' | 'OPTIONAL' | 'HIDDEN'
+export type NotifyMode = 'EACH' | 'DAILY' | 'NONE'
+export type QuestionKind =
+  | 'RIGHT_TO_WORK'
+  | 'DRIVING'
+  | 'DBS'
+  | 'DBS_UPDATE_SERVICE'
+  | 'CARE_EXPERIENCE'
+  | 'QUALIFICATION'
+  | 'WEEKENDS'
+  | 'START_DATE'
+  | 'CUSTOM'
+export type QuestionType = 'YES_NO' | 'CHOICE' | 'TEXT'
+
+/** A question asked when applying. acceptedAnswers set = a deal breaker (never sent to applicants). */
+export type ScreeningQuestion = {
+  id: string
+  kind: QuestionKind
+  text: string
+  type: QuestionType
+  options?: string[]
+  required: boolean
+  acceptedAnswers?: string[]
+}
+
+export type ScreeningAnswer = { questionId: string; question: string; answer: string; dealBreakerMissed: boolean }
 
 export type SalaryPeriod = 'HOUR' | 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'
 
@@ -135,6 +165,19 @@ export type VacancyRow = {
   /** Last day to apply (YYYY-MM-DD), inclusive. */
   closingDate: string | null
   numberOfPositions: number
+  workSetting: WorkSetting | null
+  hoursType: HoursType | null
+  hoursPerWeekMin: number | null
+  hoursPerWeekMax: number | null
+  /** First day of work (YYYY-MM-DD); null = as soon as possible. */
+  startDate: string | null
+  payMin: number | null
+  payMax: number | null
+  shifts: ShiftKind[]
+  benefits: string[]
+  screeningQuestions: ScreeningQuestion[]
+  cvRequirement: CvRequirement
+  notifyMode: NotifyMode
   status: VacancyStatus
   hiringManagerId: string | null
   hiringManagerName: string | null
@@ -172,6 +215,10 @@ export type CandidateRow = {
   needsSponsorship: boolean | null
   drivesForWork: boolean | null
   livedOverseas: boolean | null
+  /** Answers to the vacancy's questions when applying. */
+  screeningAnswers: ScreeningAnswer[]
+  /** Questions whose answer missed what the vacancy needs (shown in red; never rejected automatically). */
+  dealBreakersMissed: string[]
   screeningNotes: string | null
   offerStatus: CandidateOfferStatus | null
   offerStartDate: string | null
@@ -260,6 +307,20 @@ export type CreateVacancyPayload = {
   closingDate?: string | null
   numberOfPositions?: number
   hiringManagerId?: string
+  /** Create only: save as a draft or publish (status changes later go through the status action). */
+  status?: 'DRAFT' | 'OPEN'
+  workSetting?: WorkSetting | null
+  hoursType?: HoursType | null
+  hoursPerWeekMin?: number | null
+  hoursPerWeekMax?: number | null
+  startDate?: string | null
+  payMin?: number | null
+  payMax?: number | null
+  shifts?: ShiftKind[]
+  benefits?: string[]
+  screeningQuestions?: ScreeningQuestion[]
+  cvRequirement?: CvRequirement
+  notifyMode?: NotifyMode
 }
 
 export type UpdateVacancyPayload = Partial<CreateVacancyPayload>

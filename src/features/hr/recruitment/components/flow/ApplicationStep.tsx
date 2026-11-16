@@ -1,4 +1,5 @@
 import * as React from "react";
+import { cn } from "@/shared/lib/utils";
 import { AlertTriangle, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   candidateFlowApi,
@@ -585,6 +586,33 @@ export function ApplicationStep({
             </div>
           ) : null}
         </dl>
+        {candidate.screeningAnswers?.length ? (
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold">Answers when applying</h4>
+            <ul className="divide-y divide-border rounded-lg border border-border text-sm">
+              {candidate.screeningAnswers.map((a) => (
+                <li
+                  key={a.questionId}
+                  className={cn(
+                    "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-3 py-2",
+                    a.dealBreakerMissed && "bg-red-500/5",
+                  )}
+                >
+                  <span className="text-muted-foreground">{a.question}</span>
+                  <span
+                    className={cn(
+                      "font-medium",
+                      a.dealBreakerMissed && "text-red-700 dark:text-red-300",
+                    )}
+                  >
+                    {a.answer}
+                    {a.dealBreakerMissed ? " · does not meet what the job needs" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
       <EmploymentHistoryEditor
         candidate={candidate}

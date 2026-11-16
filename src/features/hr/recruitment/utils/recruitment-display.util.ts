@@ -7,8 +7,11 @@ import type {
   CandidateSource,
   CandidateStage,
   RecruitmentEmploymentType,
+  HoursType,
   SalaryPeriod,
+  ShiftKind,
   VacancyStatus,
+  WorkSetting,
 } from '@/features/hr/recruitment/api/recruitment.api'
 
 /** The recruitment steps, in order (one step at a time). */
@@ -48,8 +51,15 @@ export function candidateStageLabel(stage: CandidateStage): string {
   return STAGE_LABELS[stage] ?? stage.replace(/_/g, ' ')
 }
 
+const VACANCY_STATUS_LABELS: Record<VacancyStatus, string> = {
+  DRAFT: 'Draft',
+  OPEN: 'Open',
+  PAUSED: 'Paused',
+  CLOSED: 'Closed',
+}
+
 export function vacancyStatusLabel(status: VacancyStatus): string {
-  return status.replace(/_/g, ' ')
+  return VACANCY_STATUS_LABELS[status] ?? status.replace(/_/g, ' ')
 }
 
 const SOURCE_LABELS: Record<CandidateSource, string> = {
@@ -216,4 +226,63 @@ export function appliedAgo(iso: string): string {
   if (days === 1) return 'Applied yesterday'
   if (days < 30) return `Applied ${days} days ago`
   return `Applied ${new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+}
+
+/* ─── Vacancy form choices (shown on the careers page too) ─── */
+
+export const WORK_SETTING_OPTIONS: { value: WorkSetting; label: string }[] = [
+  { value: 'HOME_VISITS', label: "Visiting people in their homes" },
+  { value: 'CARE_HOME', label: 'In a care home' },
+  { value: 'LIVE_IN', label: 'Live-in care' },
+  { value: 'OFFICE', label: 'In the office' },
+  { value: 'REMOTE', label: 'From home (remote)' },
+]
+
+export const HOURS_TYPE_OPTIONS: { value: HoursType; label: string }[] = [
+  { value: 'FULL_TIME', label: 'Full-time' },
+  { value: 'PART_TIME', label: 'Part-time' },
+  { value: 'FLEXIBLE', label: 'Flexible hours' },
+]
+
+export const SHIFT_OPTIONS: { value: ShiftKind; label: string }[] = [
+  { value: 'MORNINGS', label: 'Mornings' },
+  { value: 'AFTERNOONS', label: 'Afternoons' },
+  { value: 'EVENINGS', label: 'Evenings' },
+  { value: 'NIGHTS', label: 'Nights' },
+  { value: 'WEEKENDS', label: 'Weekends' },
+  { value: 'SLEEP_INS', label: 'Sleep-ins' },
+  { value: 'LIVE_IN', label: 'Live-in' },
+]
+
+/** Common care benefits, offered as chips (any other benefit can be typed). */
+export const BENEFIT_SUGGESTIONS = [
+  'Mileage paid',
+  'Paid travel time',
+  'Paid training',
+  'Free DBS check',
+  'Uniform provided',
+  'Workplace pension',
+  'Holiday pay',
+  'Flexible hours',
+  'Refer-a-friend bonus',
+  'Career progression',
+]
+
+export const workSettingLabel = (v: WorkSetting | null | undefined) => WORK_SETTING_OPTIONS.find(o => o.value === v)?.label ?? null
+export const shiftLabel = (v: ShiftKind) => SHIFT_OPTIONS.find(o => o.value === v)?.label ?? v
+
+/** "Part-time · 16–30 hours a week", "Full-time", "20 hours a week", or null. */
+export function hoursText(type: HoursType | null | undefined, min: number | null | undefined, max: number | null | undefined): string | null {
+  const kind = HOURS_TYPE_OPTIONS.find(o => o.value === type)?.label
+  const lo = min ?? max
+  const hi = max ?? min
+  const hours = lo == null || hi == null ? null : lo === hi ? `${lo} hours a week` : `${lo}–${hi} hours a week`
+  return [kind, hours].filter(Boolean).join(' · ') || null
+}
+
+/** Pay typed as text on older vacancies ("£12.60 – £13.50 per hour") as numbers, when it can be read. */
+export function payNumbersFromText(text: string | null | undefined): { min: number | null; max: number | null } {
+  const nums = (text ?? '').replace(/,/g, '').match(/\d+(?:\.\d+)?/g)?.map(Number) ?? []
+  if (!nums.length || nums.length > 2) return { min: null, max: null }
+  return { min: nums[0] ?? null, max: nums[1] ?? nums[0] ?? null }
 }

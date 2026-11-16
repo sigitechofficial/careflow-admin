@@ -278,6 +278,20 @@ export default function CandidateDetailPage() {
         )}
       </PageHeader>
 
+      {candidate.dealBreakersMissed?.length && !closed && !hired ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-800 dark:text-red-300">
+          <p className="font-medium">Does not meet what the job needs</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+            {candidate.dealBreakersMissed.map(q => (
+              <li key={q}>{q}</li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-red-700/80 dark:text-red-300/80">
+            From their answers when applying (see Application). You decide whether to carry on or reject.
+          </p>
+        </div>
+      ) : null}
+
       {closed ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/5 p-4">
           <div className="text-sm">
