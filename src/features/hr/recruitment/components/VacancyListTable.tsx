@@ -166,6 +166,7 @@ export function VacancyListTable({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All statuses</SelectItem>
+            <SelectItem value="DRAFT">Draft</SelectItem>
             <SelectItem value="OPEN">Open</SelectItem>
             <SelectItem value="PAUSED">Paused</SelectItem>
             <SelectItem value="CLOSED">Closed</SelectItem>

@@ -75,6 +75,7 @@ import HrDashboardPage from '@/features/hr/pages/HrDashboardPage'
 import HrEmployeeProfilePage from '@/features/hr/pages/HrEmployeeProfilePage'
 import RecruitmentDashboardPage from '@/features/hr/recruitment/pages/RecruitmentDashboardPage'
 import VacanciesPage from '@/features/hr/recruitment/pages/VacanciesPage'
+import VacancyEditorPage from '@/features/hr/recruitment/pages/VacancyEditorPage'
 import CandidatesPipelinePage from '@/features/hr/recruitment/pages/CandidatesPipelinePage'
 import CandidateDetailPage from '@/features/hr/recruitment/pages/CandidateDetailPage'
 import RecruitmentInboxPage from '@/features/hr/recruitment/pages/RecruitmentInboxPage'
@@ -401,6 +402,8 @@ const pageTitles: Record<string, string> = {
   '/hr/recruitment': 'Recruitment',
   '/hr/vacancies': 'Vacancies',
   '/hr/candidates': 'Candidates',
+  '/hr/vacancies/new': 'New vacancy',
+  '/hr/vacancies/$vacancyId/edit': 'Edit vacancy',
   '/hr/candidates/$candidateId': 'Candidate',
   '/hr/recruitment-inbox': 'Recruitment inbox',
   '/accidents-incidents/view': 'View Accidents & Incidents',
@@ -1837,6 +1840,20 @@ const hrVacanciesRoute = createRoute({
   component: VacanciesPage,
 })
 
+const hrVacancyNewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/vacancies/new',
+  beforeLoad: requirePermission('hr.vacancies.create'),
+  component: VacancyEditorPage,
+})
+
+const hrVacancyEditRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/vacancies/$vacancyId/edit',
+  beforeLoad: requirePermission('hr.vacancies.update'),
+  component: VacancyEditorPage,
+})
+
 const hrCandidatesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/hr/candidates',
@@ -3142,6 +3159,8 @@ const routeTree = rootRoute.addChildren([
     hrEmployeeProfileRoute,
     hrRecruitmentRoute,
     hrVacanciesRoute,
+    hrVacancyNewRoute,
+    hrVacancyEditRoute,
     hrCandidatesRoute,
     hrCandidateDetailRoute,
     hrRecruitmentInboxRoute,

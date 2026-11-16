@@ -1,6 +1,13 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
-import type { SalaryPeriod } from '@/features/hr/recruitment/api/recruitment.api'
+import type {
+  CvRequirement,
+  HoursType,
+  SalaryPeriod,
+  ScreeningQuestion,
+  ShiftKind,
+  WorkSetting,
+} from '@/features/hr/recruitment/api/recruitment.api'
 import { daysUntilClosing, formatClosingDate } from '@/features/hr/recruitment/utils/recruitment-display.util'
 
 export { formatPay } from '@/features/hr/recruitment/utils/recruitment-display.util'
@@ -27,6 +34,17 @@ export type PublicVacancy = {
   /** Last day to apply (YYYY-MM-DD), inclusive. */
   closingDate: string | null
   numberOfPositions: number
+  workSetting: WorkSetting | null
+  hoursType: HoursType | null
+  hoursPerWeekMin: number | null
+  hoursPerWeekMax: number | null
+  /** First day of work; null = as soon as possible. */
+  startDate: string | null
+  shifts: ShiftKind[]
+  benefits: string[]
+  /** Questions asked when applying (never which answers the job needs). */
+  questions: Omit<ScreeningQuestion, 'acceptedAnswers'>[]
+  cvRequirement: CvRequirement
   description: string | null
   requirements: string | null
   postedAt: string
@@ -38,8 +56,11 @@ export type ApplicationInput = {
   email: string
   phone: string
   address?: string
-  hasRightToWork: boolean
+  /** Vacancies without their own questions. */
+  hasRightToWork?: boolean
   drivesForWork?: boolean
+  /** Answers to the vacancy's questions, by question id. */
+  answers?: Record<string, string>
   coverLetter?: string
   consent: boolean
   /** Honeypot: hidden from people; must stay empty. */
@@ -65,7 +86,8 @@ export async function submitApplication(vacancyId: string, input: ApplicationInp
   form.append('email', input.email)
   form.append('phone', input.phone)
   if (input.address) form.append('address', input.address)
-  form.append('hasRightToWork', String(input.hasRightToWork))
+  if (input.hasRightToWork !== undefined) form.append('hasRightToWork', String(input.hasRightToWork))
+  if (input.answers && Object.keys(input.answers).length) form.append('answers', JSON.stringify(input.answers))
   if (input.drivesForWork !== undefined) form.append('drivesForWork', String(input.drivesForWork))
   if (input.coverLetter) form.append('coverLetter', input.coverLetter)
   form.append('consent', String(input.consent))

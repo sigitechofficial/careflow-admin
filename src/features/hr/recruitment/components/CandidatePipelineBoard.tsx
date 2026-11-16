@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, BadgeCheck, Briefcase, CalendarDays, SearchX, UsersRound } from 'lucide-react'
+import { AlertTriangle, ArrowRight, BadgeCheck, Briefcase, CalendarDays, SearchX, UsersRound } from 'lucide-react'
 import { useCandidatePipeline } from '@/features/hr/recruitment/hooks/useRecruitment'
 import {
   PIPELINE_STAGES,
@@ -52,6 +52,18 @@ function CandidatePipelineCard({ candidate }: { candidate: CandidateRow }) {
           <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {appliedAgo(candidate.createdAt)}
         </p>
+        {candidate.dealBreakersMissed?.length ? (
+          <p
+            className="flex items-start gap-1.5 rounded-md bg-red-500/10 px-1.5 py-1 font-medium text-red-700 dark:text-red-300"
+            title={candidate.dealBreakersMissed.join('; ')}
+          >
+            <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="line-clamp-2">
+              Doesn't meet: {candidate.dealBreakersMissed[0]}
+              {candidate.dealBreakersMissed.length > 1 ? ` +${candidate.dealBreakersMissed.length - 1} more` : ''}
+            </span>
+          </p>
+        ) : null}
       </div>
       <div
         className={cn(

@@ -1,12 +1,12 @@
 import * as React from 'react'
-import { Briefcase, ChevronRight, CircleCheck, CircleSlash, ExternalLink, Globe, Link2, PauseCircle, Plus } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { FilePen, Briefcase, ChevronRight, CircleCheck, CircleSlash, ExternalLink, Globe, Link2, PauseCircle, Plus } from 'lucide-react'
 import { toastError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
 import { STAT_CARD_TONES, type StatCardTone } from '@/shared/ui/card'
 import { VacancyListTable } from '@/features/hr/recruitment/components/VacancyListTable'
-import { VacancyFormDialog } from '@/features/hr/recruitment/components/VacancyFormDialog'
 import { useVacancies } from '@/features/hr/recruitment/hooks/useRecruitment'
 import type { VacancyRow, VacancyStatus } from '@/features/hr/recruitment/api/recruitment.api'
 import { cn } from '@/shared/lib/utils'
@@ -85,12 +85,14 @@ function StatusTile({
 export default function VacanciesPage() {
   const canCreate = useAuthStore.getState().can('hr.vacancies.create')
   const canUpdate = useAuthStore.getState().can('hr.vacancies.update')
-  const [createOpen, setCreateOpen] = React.useState(false)
-  const [editing, setEditing] = React.useState<VacancyRow | null>(null)
+  const navigate = useNavigate()
+  const newVacancy = () => void navigate({ to: '/hr/vacancies/new' })
+  const editVacancy = (v: VacancyRow) => void navigate({ to: '/hr/vacancies/$vacancyId/edit', params: { vacancyId: v.id } })
   const [status, setStatus] = React.useState<VacancyStatus | 'ALL'>('ALL')
 
   const counts = {
     ALL: useVacancyCount(),
+    DRAFT: useVacancyCount('DRAFT'),
     OPEN: useVacancyCount('OPEN'),
     PAUSED: useVacancyCount('PAUSED'),
     CLOSED: useVacancyCount('CLOSED'),
@@ -116,12 +118,12 @@ export default function VacanciesPage() {
         ]}
         actions={
           canCreate
-            ? [{ label: 'New vacancy', icon: <Plus className="h-4 w-4" />, onClick: () => setCreateOpen(true) }]
+            ? [{ label: 'New vacancy', icon: <Plus className="h-4 w-4" />, onClick: newVacancy }]
             : undefined
         }
       />
 
-      <section aria-label="Vacancies by status" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Vacancies by status" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StatusTile
           label="All vacancies"
           hint="Every job on record"
@@ -130,6 +132,15 @@ export default function VacanciesPage() {
           tone="violet"
           active={status === 'ALL'}
           onClick={() => setStatus('ALL')}
+        />
+        <StatusTile
+          label="Drafts"
+          hint="Being written, not on the careers page"
+          value={counts.DRAFT}
+          icon={<FilePen className="h-5 w-5" />}
+          tone="sky"
+          active={status === 'DRAFT'}
+          onClick={() => toggle('DRAFT')}
         />
         <StatusTile
           label="Open"
@@ -188,15 +199,11 @@ export default function VacanciesPage() {
         <VacancyListTable
           status={status}
           onStatusChange={setStatus}
-          onEdit={canUpdate ? setEditing : undefined}
-          onCreateClick={canCreate ? () => setCreateOpen(true) : undefined}
+          onEdit={canUpdate ? editVacancy : undefined}
+          onCreateClick={canCreate ? newVacancy : undefined}
         />
       </section>
 
-      {canCreate ? <VacancyFormDialog open={createOpen} onOpenChange={setCreateOpen} /> : null}
-      {canUpdate ? (
-        <VacancyFormDialog open={!!editing} vacancy={editing} onOpenChange={o => !o && setEditing(null)} />
-      ) : null}
     </div>
   )
 }
