@@ -34,6 +34,43 @@ function displayName(u: OfficeUserRow): string {
   return name || u.email
 }
 
+const BRANCH_CHIP_LIMIT = 4
+
+/** A user's branches as small chips; long lists show the first few and "+N more" (all names on hover). */
+function BranchChips({ user }: { user: OfficeUserRow }) {
+  if (!user.locations.length) {
+    return (
+      <span className="text-xs text-muted-foreground">
+        {user.scopeType === 'branch' ? 'No branches' : 'All branches'}
+      </span>
+    )
+  }
+  const names = user.locations.map(l => l.name).sort((a, b) => a.localeCompare(b))
+  const shown = names.slice(0, BRANCH_CHIP_LIMIT)
+  const rest = names.length - shown.length
+  return (
+    <span className="mt-0.5 flex flex-wrap gap-1" data-testid="office-user-branches">
+      {shown.map(name => (
+        <span
+          key={name}
+          className="max-w-full truncate rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[11px] text-foreground/80"
+          title={name}
+        >
+          {name}
+        </span>
+      ))}
+      {rest > 0 ? (
+        <span
+          className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-primary"
+          title={names.slice(BRANCH_CHIP_LIMIT).join('\n')}
+        >
+          +{rest} more
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
 function rolesNeedBranches(roleNames: string[]): boolean {
   return (
     roleNames.some(r => BRANCH_SCOPED_ROLE_NAMES.has(r))
@@ -302,13 +339,9 @@ export function OfficeUsersPanel() {
                       <span className="text-xs text-muted-foreground">
                         {u.roles.map(r => r.name).join(', ') || 'No roles'}
                         {' · '}
-                        {u.scopeType}
-                        {u.locations.length
-                          ? ` · ${u.locations.map(l => l.name).join(', ')}`
-                          : u.scopeType === 'branch'
-                            ? ' · no branches'
-                            : ' · all branches'}
+                        <span className="capitalize">{u.scopeType}</span>
                       </span>
+                      <BranchChips user={u} />
                     </button>
                   </li>
                 )
