@@ -48,6 +48,8 @@ export type RecruitmentEmailDetail = {
   receivedAt: string
   bodyText: string
   error: string | null
+  /** Free rules before Claude reads it: SKIP means set aside unread. */
+  screening: { decision: 'READ' | 'SKIP'; reason: string } | null
   attachments: { index: number; fileName: string; mimeType: string; size: number; available: boolean; skippedReason: string | null }[]
   extraction: { isApplication: boolean; summary: string; vacancyReason: string; checkNotes: string[] } | null
   draft: ApplicationDraft

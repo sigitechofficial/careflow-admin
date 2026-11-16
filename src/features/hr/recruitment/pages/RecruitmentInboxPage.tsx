@@ -280,7 +280,9 @@ function EmailDetail({ id, canCreate, canUpdate }: { id: string; canCreate: bool
 
         {email.status === 'NOT_AN_APPLICATION' ? (
           <p className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground">
-            Claude doesn&apos;t think this is a job application. You can still create a candidate from it, or leave it set aside.
+            {!email.extraction && email.screening?.decision === 'SKIP'
+              ? `Set aside without reading: ${email.screening.reason}. Use "Read again" if it is an application.`
+              : "Claude doesn't think this is a job application. You can still create a candidate from it, or leave it set aside."}
           </p>
         ) : null}
 
