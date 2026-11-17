@@ -20,8 +20,8 @@ const SRC = resolve(ROOT, 'src')
 const OUT = resolve(SRC, 'features/search/catalog.generated.ts')
 const read = rel => readFileSync(resolve(SRC, rel), 'utf8')
 
-/** Pages that are not for searching (sign-in, portal, internal tools). */
-const EXCLUDED_PAGES = [/^\/auth/, /^\/portal/, /^\/in-progress$/, /^\/showcase$/, /^\/test-office-alerts$/, /^\/legal\//]
+/** Pages that are not for searching (sign-in, portal, the public careers pages, internal tools). */
+const EXCLUDED_PAGES = [/^\/auth/, /^\/portal/, /^\/careers/, /^\/in-progress$/, /^\/showcase$/, /^\/test-office-alerts$/, /^\/legal\//]
 
 // ─── Pages ──────────────────────────────────────────────────────────────────
 function parsePages() {

@@ -376,10 +376,24 @@ export const CATALOG_PAGES: CatalogPage[] = [
     ]
   },
   {
+    "path": "/hr/recruitment-inbox",
+    "title": "Recruitment inbox",
+    "permissions": [
+      "hr.candidates.read"
+    ]
+  },
+  {
     "path": "/hr/vacancies",
     "title": "Vacancies",
     "permissions": [
       "hr.vacancies.read"
+    ]
+  },
+  {
+    "path": "/hr/vacancies/new",
+    "title": "New vacancy",
+    "permissions": [
+      "hr.vacancies.create"
     ]
   },
   {
