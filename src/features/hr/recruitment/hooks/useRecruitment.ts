@@ -147,6 +147,13 @@ export function useUpdateCandidateStage(candidateId: string) {
   })
 }
 
+/** An interview or offer email the server is still sending in the background (its "emailed at" is not set yet). */
+function emailPending(c: CandidateDetail | undefined): boolean {
+  if (!c?.email) return false
+  if (c.offerStatus === 'SENT' && !c.offerEmailedAt) return true
+  return c.interviews.some(i => i.status === 'SCHEDULED' && !i.candidateEmailedAt)
+}
+
 /** Runs one recruitment-flow action; the server answers with the refreshed candidate. */
 export function useCandidateFlowAction<TArgs>(
   candidateId: string,
@@ -158,6 +165,15 @@ export function useCandidateFlowAction<TArgs>(
     onSuccess: data => {
       qc.setQueryData(recruitmentKeys.candidate(candidateId), data)
       void qc.invalidateQueries({ queryKey: recruitmentKeys.all })
+      // Emails go in the background after the save, so look again shortly to show "Emailed" without a page refresh.
+      if (emailPending(data)) {
+        for (const ms of [4_000, 10_000, 20_000]) {
+          setTimeout(() => {
+            const key = recruitmentKeys.candidate(candidateId)
+            if (emailPending(qc.getQueryData<CandidateDetail>(key))) void qc.invalidateQueries({ queryKey: key })
+          }, ms)
+        }
+      }
     },
   })
 }

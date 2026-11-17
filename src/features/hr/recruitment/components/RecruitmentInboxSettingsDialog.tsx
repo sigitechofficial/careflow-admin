@@ -66,7 +66,12 @@ export function RecruitmentInboxSettingsDialog({ open, onOpenChange }: { open: b
   const save = useMutation({
     mutationFn: (s: RecruitmentInboxSettings) =>
       saveRecruitmentInboxSettings({
-        screening: { mode: s.screening.mode, trustedSenders: toList(trusted), blockedSenders: toList(blocked) },
+        screening: {
+          mode: s.screening.mode,
+          trustedSenders: toList(trusted),
+          blockedSenders: toList(blocked),
+          openVacanciesOnly: !!s.screening.openVacanciesOnly,
+        },
         autoCreateCandidate: s.autoCreateCandidate,
         autoAcknowledge: s.autoAcknowledge,
         rules: s.rules,
@@ -124,6 +129,13 @@ export function RecruitmentInboxSettingsDialog({ open, onOpenChange }: { open: b
                     </label>
                   ))}
                 </div>
+                <Toggle
+                  label="Only show applications for our open vacancies"
+                  hint="Read only emails whose subject or first lines name one of our open vacancies, by reference (VAC-0012) or job title. Others are set aside as “Not for one of our open vacancies”. Trusted senders and people who applied before are still read. Free rule, no AI. Not used when screening is off."
+                  checked={!!draft.screening.openVacanciesOnly}
+                  disabled={disabled}
+                  onChange={v => set({ screening: { ...draft.screening, openVacanciesOnly: v } })}
+                />
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="block text-sm">
                     <span className="font-medium">Always read (trusted senders)</span>
