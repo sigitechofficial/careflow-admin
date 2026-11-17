@@ -4,13 +4,23 @@ import {
   candidateFlowApi,
   type CandidateDetail,
   type OfferPayload,
+  type SalaryPeriod,
 } from "@/features/hr/recruitment/api/recruitment.api";
 import { useCandidateFlowAction } from "@/features/hr/recruitment/hooks/useRecruitment";
 import {
   formatDate,
   formatDateTime,
+  formatPay,
+  SALARY_PERIOD_OPTIONS,
   toDateInput,
 } from "@/features/hr/recruitment/utils/recruitment-display.util";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import {
@@ -24,6 +34,20 @@ import {
 } from "@/shared/ui/dialog";
 import { toastApiError, toastSuccess } from "@/shared/lib/toast";
 import { Detail, Field, Textarea } from "./flow-ui";
+
+const PAY_PERIOD_WORDS: Record<string, SalaryPeriod> = {
+  hour: "HOUR", hr: "HOUR", day: "DAY", week: "WEEK", wk: "WEEK",
+  month: "MONTH", year: "YEAR", yr: "YEAR", annum: "YEAR",
+};
+
+/** "£12.60 per hour" → { amount: "£12.60", period: "HOUR" }; text with no period keeps it all as the amount. */
+function splitPay(text: string | null): { amount: string; period: SalaryPeriod } {
+  const value = text?.trim() ?? "";
+  const m = value.match(/^(.*?)\s*(?:per|\/)\s*(hour|hr|day|week|wk|month|year|yr|annum)\.?$/i);
+  const period = m?.[2] ? PAY_PERIOD_WORDS[m[2].toLowerCase()] : undefined;
+  if (m && period) return { amount: (m[1] ?? "").trim(), period };
+  return { amount: value, period: "HOUR" };
+}
 
 /** Make or change the conditional offer. From the interview step this moves the candidate to the offer step. */
 export function OfferDialog({
@@ -41,6 +65,7 @@ export function OfferDialog({
   const [startDate, setStartDate] = React.useState("");
   const [hours, setHours] = React.useState("");
   const [pay, setPay] = React.useState("");
+  const [payPeriod, setPayPeriod] = React.useState<SalaryPeriod>("HOUR");
   const [notes, setNotes] = React.useState("");
   const [notify, setNotify] = React.useState(true);
   const hasEmail = !!candidate.email;
@@ -50,7 +75,9 @@ export function OfferDialog({
     if (!open) return;
     setStartDate(toDateInput(candidate.offerStartDate));
     setHours(candidate.offerHoursPerWeek ?? "");
-    setPay(candidate.offerPayRate ?? "");
+    const offered = splitPay(candidate.offerPayRate);
+    setPay(offered.amount);
+    setPayPeriod(offered.period);
     setNotes(candidate.offerNotes ?? "");
     setNotify(true);
   }, [open, candidate]);
@@ -62,7 +89,8 @@ export function OfferDialog({
       await save.mutateAsync({
         startDate,
         hoursPerWeek: hours.trim() || undefined,
-        payRate: pay.trim() || undefined,
+        // Always says what the pay is per (hour, week, month…), in the offer and its email.
+        payRate: formatPay(pay, payPeriod) ?? undefined,
         notes: notes.trim() || undefined,
         notifyCandidate: hasEmail && notify,
       });
@@ -116,12 +144,30 @@ export function OfferDialog({
                 />
               </Field>
               <Field label="Pay rate" htmlFor="of-pay">
-                <Input
-                  id="of-pay"
-                  placeholder="e.g. £12.60 / hour"
-                  value={pay}
-                  onChange={(e) => setPay(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="of-pay"
+                    className="min-w-0 flex-1"
+                    placeholder="e.g. £12.60"
+                    value={pay}
+                    onChange={(e) => setPay(e.target.value)}
+                  />
+                  <Select
+                    value={payPeriod}
+                    onValueChange={(v) => setPayPeriod(v as SalaryPeriod)}
+                  >
+                    <SelectTrigger aria-label="Pay is per" className="w-[118px] shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SALARY_PERIOD_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </Field>
             </div>
             <Field label="Notes (staff only, not emailed)" htmlFor="of-notes">
