@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { Eye, Info, Loader2, Plus, Search } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -37,18 +38,36 @@ function ColumnInfo({ label, tooltip }: { label: string; tooltip: string }) {
   )
 }
 
+type CertTab = 'ACTIVE' | 'EXPIRED' | 'ALL'
+const CERT_TABS: Array<{ value: CertTab; label: string }> = [
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'EXPIRED', label: 'Expired' },
+  { value: 'ALL', label: 'All' },
+]
+
 export function CertificatesPanel() {
   const canManage = useAuthStore(s => s.can('learning.certificates.manage'))
   const [page, setPage] = React.useState(1)
   const [search, setSearch] = React.useState('')
   const [viewCertificate, setViewCertificate] = React.useState<LearningCertificate | null>(null)
   const [issueOpen, setIssueOpen] = React.useState(false)
+  // Active / Expired tabs (17 Nov 2026). Revoked and replaced certificates show under All.
+  const [tab, setTab] = React.useState<CertTab>('ACTIVE')
 
   const query = useLearningCertificates({
     page,
     limit: 20,
     search: search || undefined,
+    status: tab === 'ALL' ? undefined : tab,
   })
+  const activeCount = useLearningCertificates({ limit: 1, search: search || undefined, status: 'ACTIVE' })
+  const expiredCount = useLearningCertificates({ limit: 1, search: search || undefined, status: 'EXPIRED' })
+  const allCount = useLearningCertificates({ limit: 1, search: search || undefined })
+  const countOf: Record<CertTab, number | undefined> = {
+    ACTIVE: activeCount.data?.meta?.total,
+    EXPIRED: expiredCount.data?.meta?.total,
+    ALL: allCount.data?.meta?.total,
+  }
   const rows = query.data?.rows ?? []
   const meta = query.data?.meta
 
@@ -67,6 +86,23 @@ export function CertificatesPanel() {
             ) : undefined
           }
         />
+
+        <Tabs
+          value={tab}
+          onValueChange={v => {
+            setTab(v as CertTab)
+            setPage(1)
+          }}
+        >
+          <TabsList variant="underline" className="h-auto justify-start" aria-label="Certificate status">
+            {CERT_TABS.map(t => (
+              <TabsTrigger key={t.value} value={t.value} variant="underline" data-testid={`certificates-tab-${t.value}`}>
+                {t.label}
+                <span className="ml-1.5 text-xs text-muted-foreground">{countOf[t.value] ?? ''}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         <div className="relative max-w-sm">
           <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -90,7 +126,9 @@ export function CertificatesPanel() {
             Unable to load certificates. Please try again.
           </p>
         ) : rows.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No certificates found.</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {tab === 'ACTIVE' ? 'No active certificates.' : tab === 'EXPIRED' ? 'No expired certificates.' : 'No certificates found.'}
+          </p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full min-w-[780px] text-sm">
@@ -132,7 +170,13 @@ export function CertificatesPanel() {
                       {row.expiresAt ? new Date(row.expiresAt).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-3 py-2">
-                      <LearningStatusBadge status={row.status} />
+                      <LearningStatusBadge
+                        status={
+                          row.status === 'ACTIVE' && row.expiresAt && new Date(row.expiresAt).getTime() < Date.now()
+                            ? 'EXPIRED'
+                            : row.status
+                        }
+                      />
                     </td>
                     <td className="px-3 py-2 text-right">
                       <Button size="sm" variant="outline" onClick={() => setViewCertificate(row)}>

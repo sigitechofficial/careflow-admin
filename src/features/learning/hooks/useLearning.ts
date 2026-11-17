@@ -485,10 +485,11 @@ export function useDeleteAssessmentQuestion() {
   })
 }
 
-export function useLearningAssignments(params?: LearningAssignmentListParams) {
+export function useLearningAssignments(params?: LearningAssignmentListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: learningKeys.assignments(params),
     queryFn: () => fetchLearningAssignments(params),
+    enabled: options?.enabled ?? true,
   })
 }
 

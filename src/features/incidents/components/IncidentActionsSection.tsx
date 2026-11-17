@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Link } from '@tanstack/react-router'
 import { CheckCircle2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -16,7 +17,15 @@ import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
 import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
 import { useEmployees } from '@/features/employees/hooks/useEmployees'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
-import { useLearningCourses } from '@/features/learning/hooks/useLearning'
+import {
+  useLearningAssignments,
+  useLearningCategories,
+  useLearningCourses,
+} from '@/features/learning/hooks/useLearning'
+import { LearningStatusBadge } from '@/features/learning/components/LearningStatusBadge'
+import { assignmentStatusForBadge } from '@/features/learning/components/AssignmentRecordSheet'
+import { LEARNING_DELIVERY_METHOD_OPTIONS } from '@/features/learning/types/learning.types'
+import type { IncidentCarerCourseRecommendation } from '@/features/incidents/types'
 import { useContributingFactorOptions } from '@/features/incidents/hooks/useContributingFactorOptions'
 import { RecordItemsPicker } from '@/features/incidents/components/ContributingFactorDetail'
 import {
@@ -122,6 +131,77 @@ function actionToForm(a: IncidentAction): FormState {
 }
 
 /** Title suggested from the type and what it links to (until the user edits it). */
+/**
+ * Learning categories suggested for each incident category (user: "match by category", 17 Nov 2026).
+ * Suggestions only: any published course can still be chosen.
+ */
+const SUGGESTED_LEARNING_CATEGORIES: Record<string, string[]> = {
+  MEDICATION: ['MEDICATION'],
+  SAFEGUARDING: ['SAFEGUARDING'],
+  ACCIDENT: ['MOVING_HANDLING', 'HEALTH_SAFETY'],
+  HEALTH_SAFETY: ['HEALTH_SAFETY'],
+  INFECTION: ['HEALTH_SAFETY'],
+  CARE_DELIVERY: ['CORE_CARE'],
+  BEHAVIOUR: ['DEMENTIA_MH', 'LD_AUTISM'],
+  HEALTH_DETERIORATION: ['FIRST_AID', 'CLINICAL'],
+  SKIN_WOUND: ['CLINICAL', 'MOVING_HANDLING'],
+  DATA_BREACH: ['PROFESSIONAL'],
+  VIOLENCE_TO_STAFF: ['DEMENTIA_MH', 'HEALTH_SAFETY'],
+}
+
+const COURSE_DONE = ['COMPLETED', 'PASSED']
+const COURSE_CLOSED_BAD = ['FAILED', 'EXPIRED']
+
+function courseMinutes(m?: number | null): string | null {
+  if (!m || m <= 0) return null
+  return m < 60 ? `${m} min` : `${Math.round((m / 60) * 10) / 10} h`
+}
+
+/** Live course state on a "Course for carer" measure (17 Nov 2026). */
+function CourseMeasureProgress({ rec }: { rec: IncidentCarerCourseRecommendation }) {
+  const l = rec.learning
+  if (!rec.learningAssignmentId || !l) return null
+  const pct = l.lessonsTotal ? Math.round((l.lessonsDone / l.lessonsTotal) * 100) : 0
+  const bad = COURSE_CLOSED_BAD.includes(l.status)
+  const done = COURSE_DONE.includes(l.status)
+  const target = { to: '/learning/assignments', search: { open: rec.learningAssignmentId } }
+  return (
+    <div className="mt-2 rounded-md border border-border bg-muted/20 px-3 py-2" data-testid="course-measure-progress">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
+          Learning:
+          <LearningStatusBadge status={assignmentStatusForBadge(l.status)} size="sm" />
+          {l.lessonsTotal ? <span>{l.lessonsDone} of {l.lessonsTotal} lessons</span> : null}
+          {l.quizPercent != null ? <span>· quiz {l.quizPercent}%</span> : null}
+          {l.certificateNumber ? <span>· certificate {l.certificateNumber}</span> : null}
+        </span>
+        <Link to={target.to} search={target.search as never} className="font-medium text-primary hover:underline">
+          Open in Learning
+        </Link>
+      </div>
+      {!done && !bad && l.lessonsTotal ? (
+        <div className="mt-1.5 h-1.5 rounded-full bg-muted">
+          <div className="h-1.5 rounded-full bg-sky-600" style={{ width: `${pct}%` }} />
+        </div>
+      ) : null}
+      {bad ? (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-medium text-red-700 dark:text-red-300">
+            {l.status === 'FAILED' ? 'Course not passed.' : 'Course incomplete.'} This measure stays open.
+          </p>
+          <Link
+            to={target.to}
+            search={target.search as never}
+            className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium hover:bg-muted"
+          >
+            Give course again
+          </Link>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function suggestedTitle(f: FormState, needNew: boolean): string {
   const type = incidentMeasureTypeLabel(f.measureType)
   if (!type) return ''
@@ -142,7 +222,12 @@ export function IncidentActionsSection({
   serviceUsers = [],
   involvedEmployees = [],
   incidentReference = '',
+  categoryKey,
+  courseRecommendations = [],
 }: {
+  /** Incident category key, used to suggest courses (17 Nov 2026). */
+  categoryKey?: string
+  courseRecommendations?: IncidentCarerCourseRecommendation[]
   incidentId: string
   /** e.g. INC-2026-000012 — carried to the care plan page so the new version links back. */
   incidentReference?: string
@@ -257,13 +342,48 @@ export function IncidentActionsSection({
     return [...involved, ...others]
   }, [carersQuery.data, involvedEmployees])
 
+  const courseDescription = (c: { code?: string | null; deliveryMethod?: string | null; estimatedDurationMinutes?: number | null }) =>
+    [
+      c.code,
+      LEARNING_DELIVERY_METHOD_OPTIONS.find((o) => o.value === c.deliveryMethod)?.label,
+      courseMinutes(c.estimatedDurationMinutes),
+    ]
+      .filter(Boolean)
+      .join(' · ') || undefined
   const courseOptions: ComboboxOption[] = React.useMemo(
     () =>
       (coursesQuery.data?.rows ?? [])
         .filter((c) => c.status === 'PUBLISHED' || !c.status)
-        .map((c) => ({ value: c.id, label: c.title, description: c.code ?? undefined })),
+        .map((c) => ({ value: c.id, label: c.title, description: courseDescription(c) })),
     [coursesQuery.data],
   )
+  // Suggested courses for this incident's category (17 Nov 2026).
+  const suggestCodes = categoryKey ? (SUGGESTED_LEARNING_CATEGORIES[categoryKey] ?? []) : []
+  const learningCategoriesQuery = useLearningCategories({ limit: 100 })
+  const suggestQuery = useLearningCourses({ limit: 100, status: 'PUBLISHED' })
+  const suggestedCourses = React.useMemo(() => {
+    if (!suggestCodes.length) return []
+    const ids = new Set(
+      (learningCategoriesQuery.data?.rows ?? []).filter((c) => suggestCodes.includes(c.code)).map((c) => c.id),
+    )
+    return (suggestQuery.data?.rows ?? [])
+      .filter((c) => (c.status === 'PUBLISHED' || !c.status) && c.categoryId && ids.has(c.categoryId))
+      .slice(0, 4)
+  }, [suggestCodes, learningCategoriesQuery.data, suggestQuery.data])
+  const categoryLabel = (learningCategoriesQuery.data?.rows ?? [])
+    .filter((c) => suggestCodes.includes(c.code))
+    .map((c) => c.name)
+    .join(' / ')
+  // Does the carer already have this course? (17 Nov 2026)
+  const pickedCarerId = form.courseEmployee?.id
+  const pickedCourseId = form.course?.id
+  const existingQuery = useLearningAssignments(
+    { employeeId: pickedCarerId, courseId: pickedCourseId, limit: 5 },
+    { enabled: !!pickedCarerId && !!pickedCourseId },
+  )
+  const existingCourse = pickedCarerId && pickedCourseId
+    ? (existingQuery.data?.rows ?? []).find((r) => r.status !== 'CANCELLED' && r.status !== 'EXEMPT')
+    : undefined
 
   const addressOptions = [
     ...(findings?.rootCause ? ['ROOT_CAUSE'] : []),
@@ -500,6 +620,12 @@ export function IncidentActionsSection({
                             : `Linked: ${links.map((i) => i.label).join(', ')}`}
                         </p>
                       )}
+                      {a.measureType === 'COURSE' && a.courseRecommendationId
+                        ? (() => {
+                            const rec = courseRecommendations.find((r) => r.id === a.courseRecommendationId)
+                            return rec ? <CourseMeasureProgress rec={rec} /> : null
+                          })()
+                        : null}
                       {(a.addresses ?? []).length > 0 && (
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           Addresses: {(a.addresses ?? []).map(factorLabel).join(', ')}
@@ -856,9 +982,50 @@ export function IncidentActionsSection({
                         emptyText="No published courses match."
                       />
                     </div>
+                    {suggestedCourses.length ? (
+                      <div className="rounded-md border border-dashed border-border p-2 sm:col-span-2" data-testid="suggested-courses">
+                        <p className="mb-1.5 text-xs text-muted-foreground">
+                          Suggested for this incident{categoryLabel ? ` (${categoryLabel})` : ''}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {suggestedCourses.map((c) => {
+                            const active = form.course?.id === c.id
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => patch({ course: { id: c.id, label: c.title } })}
+                                aria-pressed={active}
+                                className={
+                                  active
+                                    ? 'rounded-full border border-primary bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground'
+                                    : 'rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground hover:bg-muted'
+                                }
+                                title={courseDescription(c)}
+                              >
+                                {c.title}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                    {existingCourse ? (
+                      <p
+                        className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200 sm:col-span-2"
+                        data-testid="course-already-given"
+                      >
+                        {COURSE_DONE.includes(existingCourse.status)
+                          ? `${form.courseEmployee?.label ?? 'This carer'} passed this course${existingCourse.completedAt ? ` on ${formatOrganisationIsoDateLong(existingCourse.completedAt.slice(0, 10))}` : ''}.`
+                          : COURSE_CLOSED_BAD.includes(existingCourse.status)
+                            ? `${form.courseEmployee?.label ?? 'This carer'} did not pass this course last time.`
+                            : `${form.courseEmployee?.label ?? 'This carer'} already has this course (not finished${existingCourse.dueAt ? `, due ${formatOrganisationIsoDateLong(existingCourse.dueAt.slice(0, 10))}` : ''}).`}{' '}
+                        You can still give it again.
+                      </p>
+                    ) : null}
                     <p className="text-xs text-muted-foreground sm:col-span-2">
-                      Creates a mandatory learning assignment for the carer (works for suspended carers too).
-                      Cancelling the measure cancels the assignment.
+                      The carer gets this as a mandatory course in the app (suspended carers too). This measure
+                      completes itself when they pass. Cancelling the measure cancels the course.
                     </p>
                   </div>
                 )}
@@ -1020,7 +1187,8 @@ export function IncidentActionsSection({
                   )}
                   <label className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
                     <span>
-                      Due<span className="ml-0.5 text-destructive dark:text-red-400">*</span>
+                      {form.measureType === 'COURSE' ? 'Course due' : 'Due'}
+                      <span className="ml-0.5 text-destructive dark:text-red-400">*</span>
                     </span>
                     <input
                       type="date"
@@ -1037,7 +1205,9 @@ export function IncidentActionsSection({
                       onChange={(e) => patch({ isMandatory: e.target.checked })}
                       className="h-4 w-4 rounded border-input"
                     />
-                    Mandatory
+                    <span title="A mandatory measure must be done before a High or Critical incident can close.">
+                      Mandatory
+                    </span>
                   </label>
                 </div>
                 {droppingMandatory && (
@@ -1065,7 +1235,8 @@ export function IncidentActionsSection({
                   )}
                 <div>
                   <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
-                    Responsible person<span className="ml-0.5 text-destructive dark:text-red-400">*</span>
+                    {form.measureType === 'COURSE' ? 'Who checks it is done' : 'Responsible person'}
+                    <span className="ml-0.5 text-destructive dark:text-red-400">*</span>
                   </p>
                   <Combobox
                     value={form.assignedEmployeeId}

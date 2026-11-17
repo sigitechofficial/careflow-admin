@@ -557,6 +557,16 @@ export type IncidentCarerCourseRecommendation = {
   dueAt: string | null
   recommendedAt: string
   createdAt: string
+  /** Live state of the carer's learning assignment (17 Nov 2026). */
+  learning?: {
+    status: string
+    dueAt: string | null
+    completedAt: string | null
+    lessonsDone: number
+    lessonsTotal: number
+    quizPercent: number | null
+    certificateNumber: string | null
+  } | null
 }
 
 export type IncidentPersonKind =

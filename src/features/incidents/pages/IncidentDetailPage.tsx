@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, useParams, useSearch } from '@tanstack/react-router'
 import { AlertTriangle, ArrowLeft, Check, Lock, PencilLine, ShieldAlert } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
@@ -148,14 +148,18 @@ export default function IncidentDetailPage() {
 
   const [correctOpen, setCorrectOpen] = React.useState(false)
   // Selected tab; null = follow the current workflow step (and jump there when the step changes).
-  const [tab, setTab] = React.useState<string | null>(null)
+  const urlTab = (useSearch({ strict: false }) as { tab?: string }).tab
+  const [tab, setTab] = React.useState<string | null>(urlTab ?? null)
   const completeInvestigationRef = React.useRef<(() => void) | null>(null)
   const currentStepId = incident
     ? resolveIncidentDetailWorkflow(incident.status, Boolean(incident.outcome?.finalOutcome?.trim()))
         .currentId
     : null
+  // Moving to a new step shows that step; the first load keeps a ?tab= from the URL.
+  const lastStepId = React.useRef<string | null>(null)
   React.useEffect(() => {
-    setTab(null)
+    if (currentStepId && lastStepId.current && lastStepId.current !== currentStepId) setTab(null)
+    if (currentStepId) lastStepId.current = currentStepId
   }, [currentStepId])
 
   const canReview = can('incidents.review')
@@ -711,6 +715,8 @@ export default function IncidentDetailPage() {
             }
             serviceUsers={involvedServiceUsers}
             involvedEmployees={involvedEmployees}
+            categoryKey={incident.category?.key}
+            courseRecommendations={incident.courseRecommendations}
           />
         </IncidentWorkflowStepCard>
         </TabsContent>
