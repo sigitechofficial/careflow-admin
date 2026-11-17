@@ -135,6 +135,8 @@ export type RecruitmentScreening = {
   mode: 'OFF' | 'RULES' | 'RULES_AND_AI'
   trustedSenders: string[]
   blockedSenders: string[]
+  /** Only bring in emails that name one of our open vacancies (reference or title). Free rule, no AI. */
+  openVacanciesOnly?: boolean
 }
 
 /** OFF: not checked. NOTE: shown to staff. STAFF: staff decide (no automatic candidate). DECLINE: set aside when the answer is no. */
