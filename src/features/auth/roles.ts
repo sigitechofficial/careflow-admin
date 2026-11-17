@@ -265,6 +265,8 @@ const LEARNING_ALL: Permission[] = [
   'learning.categories.manage',
   'learning.courses.read',
   'learning.courses.manage',
+  'learning.competencies.read',
+  'learning.competencies.manage',
   'learning.assignments.read',
   'learning.assignments.manage',
   'learning.compliance.read',

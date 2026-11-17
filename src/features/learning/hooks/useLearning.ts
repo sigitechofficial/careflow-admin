@@ -10,6 +10,7 @@ import {
   createLearningCategory,
   createLearningContentItem,
   createLearningCourse,
+  suggestLearningCourseCode,
   createLearningCourseVersion,
   createLearningExternalTraining,
   createLearningSection,
@@ -40,19 +41,45 @@ import {
   fetchLearningSettings,
   fetchLearningTrainingEvent,
   fetchLearningTrainingEvents,
+  fetchLearningEligibleAttendees,
+  fetchLearningReviewOptions,
+  fetchLearningAssignmentStatusCounts,
+  recordLearningOutcome,
+  assignLearningAgain,
+  startLearningAssignment,
+  markLearningLessons,
+  fetchLearningAssignmentRecord,
+  extendLearningAssignment,
+  recordLearningAssignmentReview,
+  addLearningTrainingEventAttendee,
+  updateLearningTrainingEventAttendee,
+  removeLearningTrainingEventAttendee,
   publishLearningCourse,
   rejectLearningExternalTraining,
   issueManualLearningCertificate,
   revokeLearningCertificate,
-  unpublishLearningCourse,
+  withdrawLearningCourse,
+  reactivateLearningCourse,
   updateLearningAssessment,
   updateLearningCategory,
   updateLearningContentItem,
   updateLearningCourse,
   updateLearningSection,
+  reorderLearningSections,
+  uploadLearningFile,
+  reorderLearningContent,
+  moveLearningContent,
   updateLearningSettings,
   updateLearningTrainingEvent,
   verifyLearningExternalTraining,
+  updateAssessmentQuestion,
+  reorderAssessmentQuestions,
+  fetchLearningCompetencies,
+  createLearningCompetency,
+  updateLearningCompetency,
+  fetchLearningPublishCheck,
+  fetchLearningCourseStatusCounts,
+  unarchiveLearningCourse,
 } from '@/features/learning/api/learning.api'
 import { learningKeys } from '@/features/learning/keys'
 import type {
@@ -75,6 +102,13 @@ import type {
   LearningSectionInput,
   LearningSettings,
   LearningTrainingEventInput,
+  LearningAttendanceStatus,
+  LearningBookingStatus,
+  ExtendAssignmentInput,
+  RecordAssignmentReviewInput,
+  RecordOutcomeInput,
+  AssignAgainInput,
+  LearningCompetencyInput,
 } from '@/features/learning/types/learning.types'
 
 function invalidateLearning(qc: ReturnType<typeof useQueryClient>) {
@@ -136,10 +170,32 @@ export function useDeleteLearningCategory() {
   })
 }
 
-export function useLearningCourses(params?: LearningCourseListParams) {
+export function useLearningCourses(params?: LearningCourseListParams, options?: { alwaysFresh?: boolean }) {
   return useQuery({
     queryKey: learningKeys.courses(params),
     queryFn: () => fetchLearningCourses(params),
+    // The Courses page tabs show counts next to the list, so that page always re-checks.
+    ...(options?.alwaysFresh ? { staleTime: 0 } : {}),
+  })
+}
+
+export function useLearningCourseStatusCounts(params?: LearningCourseListParams) {
+  return useQuery({
+    queryKey: learningKeys.courseStatusCounts(params),
+    queryFn: () => fetchLearningCourseStatusCounts(params),
+    // Counts sit next to the list: never serve them from cache.
+    staleTime: 0,
+  })
+}
+
+export function useUnarchiveLearningCourse() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => unarchiveLearningCourse(id),
+    onSuccess: (_d, id) => {
+      invalidateLearning(qc)
+      void qc.invalidateQueries({ queryKey: learningKeys.course(id) })
+    },
   })
 }
 
@@ -148,6 +204,12 @@ export function useLearningCourse(id: string | null, enabled = true) {
     queryKey: learningKeys.course(id ?? ''),
     queryFn: () => fetchLearningCourse(id!),
     enabled: enabled && !!id,
+  })
+}
+
+export function useSuggestLearningCourseCode() {
+  return useMutation({
+    mutationFn: (categoryId: string) => suggestLearningCourseCode(categoryId),
   })
 }
 
@@ -174,20 +236,30 @@ export function useUpdateLearningCourse() {
 export function usePublishLearningCourse() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, changeSummary }: { id: string; changeSummary?: string }) =>
-      publishLearningCourse(id, { changeSummary }),
+    mutationFn: ({ id, changeSummary, reactivate }: { id: string; changeSummary?: string; reactivate?: boolean }) =>
+      publishLearningCourse(id, { changeSummary, reactivate }),
     onSuccess: () => invalidateLearning(qc),
   })
 }
 
-export function useUnpublishLearningCourse() {
+export function useWithdrawLearningCourse() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => unpublishLearningCourse(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => withdrawLearningCourse(id, reason),
+    onSuccess: (_d, { id }) => {
+      invalidateLearning(qc)
+      void qc.invalidateQueries({ queryKey: learningKeys.course(id) })
+    },
+  })
+}
+
+export function useReactivateLearningCourse() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => reactivateLearningCourse(id),
     onSuccess: (_d, id) => {
       invalidateLearning(qc)
       void qc.invalidateQueries({ queryKey: learningKeys.course(id) })
-      void qc.invalidateQueries({ queryKey: learningKeys.courseVersions(id) })
     },
   })
 }
@@ -206,6 +278,16 @@ export function useArchiveLearningCourse() {
   return useMutation({
     mutationFn: (id: string) => archiveLearningCourse(id),
     onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useLearningPublishCheck(courseId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: learningKeys.publishCheck(courseId ?? ''),
+    queryFn: () => fetchLearningPublishCheck(courseId!),
+    enabled: enabled && !!courseId,
+    // Always re-check: any builder change can add or clear a blocker.
+    staleTime: 0,
   })
 }
 
@@ -273,6 +355,37 @@ export function useUpdateLearningContentItem() {
   })
 }
 
+export function useUploadLearningFile() {
+  return useMutation({ mutationFn: (file: File) => uploadLearningFile(file) })
+}
+
+export function useReorderLearningSections() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ versionId, sectionIds }: { versionId: string; sectionIds: string[] }) =>
+      reorderLearningSections(versionId, sectionIds),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useReorderLearningContent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ sectionId, contentIds }: { sectionId: string; contentIds: string[] }) =>
+      reorderLearningContent(sectionId, contentIds),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useMoveLearningContent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ contentId, sectionId }: { contentId: string; sectionId: string }) =>
+      moveLearningContent(contentId, sectionId),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
 export function useDeleteLearningContentItem() {
   const qc = useQueryClient()
   return useMutation({
@@ -317,6 +430,49 @@ export function useCreateAssessmentQuestion() {
       assessmentId: string
       body: LearningAssessmentQuestionInput
     }) => createAssessmentQuestion(assessmentId, body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useUpdateAssessmentQuestion() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ questionId, body }: { questionId: string; body: Partial<LearningAssessmentQuestionInput> }) =>
+      updateAssessmentQuestion(questionId, body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useReorderAssessmentQuestions() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ assessmentId, questionIds }: { assessmentId: string; questionIds: string[] }) =>
+      reorderAssessmentQuestions(assessmentId, questionIds),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useLearningCompetencies(params?: LearningListParams, enabled = true) {
+  return useQuery({
+    queryKey: learningKeys.competencies(params),
+    queryFn: () => fetchLearningCompetencies(params),
+    enabled,
+  })
+}
+
+export function useCreateLearningCompetency() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: LearningCompetencyInput) => createLearningCompetency(body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useUpdateLearningCompetency() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Partial<LearningCompetencyInput> }) =>
+      updateLearningCompetency(id, body),
     onSuccess: () => invalidateLearning(qc),
   })
 }
@@ -465,6 +621,46 @@ export function useDeleteLearningTrainingEvent() {
   })
 }
 
+export function useLearningEligibleAttendees(id: string | null) {
+  return useQuery({
+    queryKey: [...learningKeys.trainingEvent(id ?? ''), 'eligible'],
+    queryFn: () => fetchLearningEligibleAttendees(id!),
+    enabled: !!id,
+    staleTime: 0,
+  })
+}
+
+export function useAddLearningTrainingEventAttendee() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, employeeId }: { id: string; employeeId: string }) =>
+      addLearningTrainingEventAttendee(id, { employeeId }),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useUpdateLearningTrainingEventAttendee() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      attendeeId,
+      body,
+    }: {
+      attendeeId: string
+      body: { attendanceStatus?: LearningAttendanceStatus; bookingStatus?: LearningBookingStatus }
+    }) => updateLearningTrainingEventAttendee(attendeeId, body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useRemoveLearningTrainingEventAttendee() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (attendeeId: string) => removeLearningTrainingEventAttendee(attendeeId),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
 export function useLearningExternalTraining(params?: LearningExternalTrainingListParams) {
   return useQuery({
     queryKey: learningKeys.externalTraining(params),
@@ -538,5 +734,84 @@ export function useEmployeeLearningCertificates(employeeId: string | null, enabl
     queryKey: learningKeys.employeeCertificates(employeeId ?? ''),
     queryFn: () => fetchLearningCertificates({ employeeId: employeeId!, limit: 50 }),
     enabled: enabled && !!employeeId,
+  })
+}
+
+// ─── Overdue / late review (16 Nov 2026) ─────────────────────
+
+export function useLearningReviewOptions(enabled = true) {
+  return useQuery({
+    queryKey: [...learningKeys.all, 'review-options'],
+    queryFn: fetchLearningReviewOptions,
+    enabled,
+    staleTime: 10 * 60_000,
+  })
+}
+
+export function useLearningAssignmentRecord(id: string | null) {
+  return useQuery({
+    queryKey: [...learningKeys.all, 'assignment-record', id ?? ''],
+    queryFn: () => fetchLearningAssignmentRecord(id!),
+    enabled: !!id,
+    staleTime: 0,
+  })
+}
+
+export function useExtendLearningAssignment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ExtendAssignmentInput }) => extendLearningAssignment(id, body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useRecordLearningAssignmentReview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: RecordAssignmentReviewInput }) =>
+      recordLearningAssignmentReview(id, body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+/** Counts for the Assignments status tabs; never from cache (they sit next to the list). */
+export function useLearningAssignmentStatusCounts(params?: LearningAssignmentListParams) {
+  return useQuery({
+    queryKey: [...learningKeys.all, 'assignment-status-counts', params ?? {}],
+    queryFn: () => fetchLearningAssignmentStatusCounts(params),
+    staleTime: 0,
+  })
+}
+
+export function useRecordLearningOutcome() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: RecordOutcomeInput }) => recordLearningOutcome(id, body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useStartLearningAssignment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => startLearningAssignment(id),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useMarkLearningLessons() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { lessonIds?: string[]; done: boolean } }) =>
+      markLearningLessons(id, body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useAssignLearningAgain() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: AssignAgainInput }) => assignLearningAgain(id, body),
+    onSuccess: () => invalidateLearning(qc),
   })
 }
