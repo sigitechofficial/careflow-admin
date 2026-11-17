@@ -666,11 +666,11 @@ function LearningInsights() {
           <Group title="Training compliance" description="Assigned training that staff owe (cancelled and exempt excluded)">
             <Kpi label="Mandatory training complete" value={mandatory === null ? null : `${mandatory}%`} progress={mandatory} art="shield" tone={rate(mandatory, 95, 80)} loading={L} to="/learning/assignments" hint={`${n0(d?.mandatoryCompleted)} of ${n0(d?.mandatoryOwed)} mandatory assignments`} />
             <Kpi label="All training complete" value={completion === null ? null : `${completion}%`} progress={completion} art="check-mark-button" tone={rate(completion, 90, 70)} loading={L} to="/learning/assignments" hint={`${n0(d?.completedAssignments)} of ${n0(owed)} assignments`} />
-            <Kpi label="Not overdue" value={onTrack === null ? null : `${onTrack}%`} progress={onTrack} art="stopwatch" tone={rate(onTrack, 95, 85)} loading={L} to="/learning/assignments" hint="Assignments still within their due date" />
+            <Kpi label="On time" value={onTrack === null ? null : `${onTrack}%`} progress={onTrack} art="stopwatch" tone={rate(onTrack, 95, 85)} loading={L} to="/learning/assignments" hint="Assignments not past their due date" />
             <Kpi label="Overdue training" value={d?.overdueAssignments} art="books" tone={attn(d?.overdueAssignments, 'bad')} loading={L} to="/learning/assignments" />
             <Kpi label="Due in 30 days" value={d?.dueNext30} art="calendar" tone={attn(d?.dueNext30, 'warn')} loading={L} to="/learning/assignments" />
             <Kpi label="Waiting for sign-off" value={d?.awaitingSignOff} art="writing-hand" tone={attn(d?.awaitingSignOff, 'warn')} loading={L} to="/learning/assignments" hint="Assessment or approval outstanding" />
-            <Kpi label="Failed or expired" value={n0(d?.failedAssignments) + n0(d?.expiredAssignments)} art="cross-mark" tone={attn(n0(d?.failedAssignments) + n0(d?.expiredAssignments), 'bad')} loading={L} to="/learning/assignments" hint={`${n0(d?.failedAssignments)} failed · ${n0(d?.expiredAssignments)} expired`} />
+            <Kpi label="Not passed or incomplete" value={n0(d?.failedAssignments) + n0(d?.expiredAssignments)} art="cross-mark" tone={attn(n0(d?.failedAssignments) + n0(d?.expiredAssignments), 'bad')} loading={L} to="/learning/assignments" hint={`${n0(d?.failedAssignments)} not passed · ${n0(d?.expiredAssignments)} incomplete`} />
           </Group>
           <Group title="Certificates & events" description="Proof of training and what is coming up">
             <Kpi label="Active certificates" value={d?.activeCertificates} art="scroll" tone="good" loading={L} to="/learning/certificates" />

@@ -2118,6 +2118,9 @@ const feedbackDetailRoute = createRoute({
 const incidentDetailRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/incidents/$incidentId',
+  // Links from Learning open the Corrective measures tab (?tab=actions, 17 Nov 2026).
+  validateSearch: (raw: Record<string, unknown>): { tab?: string } =>
+    typeof raw.tab === 'string' && /^[a-z]{3,20}$/.test(raw.tab) ? { tab: raw.tab } : {},
   beforeLoad: requirePermission('incidents.read'),
   component: IncidentDetailPage,
 })
@@ -2775,6 +2778,15 @@ const learningCourseDetailRoute = createRoute({
 const learningAssignmentsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/learning/assignments',
+  // Dashboard links open a tab / quick filter (17 Nov 2026).
+  validateSearch: (
+    raw: Record<string, unknown>,
+  ): { tab?: string; filter?: string; source?: string; open?: string } => ({
+    ...(typeof raw.tab === 'string' ? { tab: raw.tab } : {}),
+    ...(typeof raw.filter === 'string' ? { filter: raw.filter } : {}),
+    ...(raw.source === 'INCIDENT' ? { source: 'INCIDENT' } : {}),
+    ...(typeof raw.open === 'string' && /^[0-9a-f-]{36}$/.test(raw.open) ? { open: raw.open } : {}),
+  }),
   beforeLoad: requirePermission('learning.assignments.read'),
   component: LearningAssignmentsPage,
 })

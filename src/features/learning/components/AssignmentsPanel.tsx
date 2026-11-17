@@ -12,27 +12,42 @@ import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLoca
 import { LearningStatusBadge } from '@/features/learning/components/LearningStatusBadge'
 import { AssignmentWizardDialog } from '@/features/learning/components/AssignmentWizardDialog'
 import { AssignmentRecordSheet, assignmentStatusForBadge } from '@/features/learning/components/AssignmentRecordSheet'
+import { useSearch } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 
-type StatusTab = 'ALL' | 'OPEN' | 'COMPLETED' | 'NOT_COMPLETED' | 'CANCELLED'
-type OpenFilter = 'ALL' | 'ASSIGNED' | 'IN_PROGRESS' | 'OVERDUE'
+type StatusTab =
+  | 'ALL'
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'OVERDUE'
+  | 'COMPLETED'
+  | 'NOT_PASSED'
+  | 'INCOMPLETE'
+  | 'CANCELLED'
 
-/** 5 status tabs (user, 16 Nov 2026). Groups are defined in the API (ASSIGNMENT_STATUS_GROUPS). */
+/**
+ * Status tabs (17 Nov 2026): the old Open / Not completed tabs are split so each one means one thing.
+ * Values are API status groups (ASSIGNMENT_STATUS_GROUPS).
+ */
 const STATUS_TABS: Array<{ value: StatusTab; label: string }> = [
   { value: 'ALL', label: 'All' },
-  { value: 'OPEN', label: 'Open' },
-  { value: 'COMPLETED', label: 'Completed' },
-  { value: 'NOT_COMPLETED', label: 'Not completed' },
+  { value: 'ASSIGNED', label: 'Scheduled' },
+  { value: 'IN_PROGRESS', label: 'In progress' },
+  { value: 'OVERDUE', label: 'Overdue' },
+  { value: 'COMPLETED', label: 'Passed' },
+  { value: 'NOT_PASSED', label: 'Not passed' },
+  { value: 'INCOMPLETE', label: 'Incomplete' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ]
 
-/** Quick filters inside Open: overdue courses can still be finished, so they stay open. */
-const OPEN_FILTERS: Array<{ value: OpenFilter; label: string }> = [
-  { value: 'ALL', label: 'All open' },
-  { value: 'ASSIGNED', label: 'Not started' },
-  { value: 'IN_PROGRESS', label: 'In progress' },
-  { value: 'OVERDUE', label: 'Overdue' },
-]
+const RESULT_TABS: StatusTab[] = ['COMPLETED', 'NOT_PASSED', 'INCOMPLETE']
+
+/** Old links (?tab=OPEN&filter=…, ?tab=NOT_COMPLETED) still land on a sensible tab. */
+function tabFromUrl(tab?: string, filter?: string): StatusTab {
+  if (tab === 'OPEN') return filter === 'IN_PROGRESS' || filter === 'OVERDUE' || filter === 'ASSIGNED' ? filter : 'ALL'
+  if (tab === 'NOT_COMPLETED') return 'NOT_PASSED'
+  return STATUS_TABS.some(t => t.value === tab) ? (tab as StatusTab) : 'ALL'
+}
 
 /** "3 days late", "5 hours late" (16 Nov 2026). */
 /** Pass / fail with how it was decided (16 Nov 2026). */
@@ -53,8 +68,8 @@ function ResultCell({ result }: { result?: LearningAssignmentResult | null }) {
       ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
       : result.result === 'NOT_PASSED'
         ? 'bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-200'
-        : 'bg-muted text-muted-foreground'
-  const label = result.result === 'PASSED' ? 'Passed' : result.result === 'NOT_PASSED' ? 'Not passed' : 'Expired'
+        : 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
+  const label = result.result === 'PASSED' ? 'Passed' : result.result === 'NOT_PASSED' ? 'Not passed' : 'Incomplete'
   return (
     <div>
       <span className={`rounded-md px-1.5 py-0.5 text-xs font-medium ${tone}`}>{label}</span>
@@ -78,11 +93,13 @@ export function AssignmentsPanel() {
   const { locationId } = useGlobalLocationScope()
   const [page, setPage] = React.useState(1)
   const [search, setSearch] = React.useState('')
-  const [status, setStatus] = React.useState<StatusTab>('ALL')
-  const showResult = status === 'COMPLETED' || status === 'NOT_COMPLETED'
-  const [openFilter, setOpenFilter] = React.useState<OpenFilter>('ALL')
+  const urlSearch = useSearch({ strict: false }) as { tab?: string; filter?: string; source?: string; open?: string }
+  const [fromIncidents, setFromIncidents] = React.useState(urlSearch.source === 'INCIDENT')
+  const [status, setStatus] = React.useState<StatusTab>(() => tabFromUrl(urlSearch.tab, urlSearch.filter))
+  const showResult = RESULT_TABS.includes(status)
   const [wizardOpen, setWizardOpen] = React.useState(false)
-  const [openId, setOpenId] = React.useState<string | null>(null)
+  // ?open=<assignment id> opens that record (e.g. from an incident's course measure, 17 Nov 2026).
+  const [openId, setOpenId] = React.useState<string | null>(urlSearch.open ?? null)
 
   React.useEffect(() => {
     setPage(1)
@@ -93,11 +110,12 @@ export function AssignmentsPanel() {
     limit: 20,
     search: search || undefined,
     locationId: locationId ?? undefined,
-    statusGroup:
-      status === 'ALL' ? undefined : status === 'OPEN' && openFilter !== 'ALL' ? openFilter : status,
+    statusGroup: status === 'ALL' ? undefined : status,
+    source: fromIncidents ? 'INCIDENT' : undefined,
   })
   const countsQuery = useLearningAssignmentStatusCounts({
     search: search || undefined,
+    source: fromIncidents ? 'INCIDENT' : undefined,
     locationId: locationId ?? undefined,
   })
   const counts = countsQuery.data
@@ -123,7 +141,6 @@ export function AssignmentsPanel() {
         value={status}
         onValueChange={v => {
           setStatus(v as StatusTab)
-          setOpenFilter('ALL')
           setPage(1)
         }}
       >
@@ -132,60 +149,45 @@ export function AssignmentsPanel() {
             {STATUS_TABS.map(t => (
               <TabsTrigger key={t.value} value={t.value} variant="underline" data-testid={`assignments-tab-${t.value}`}>
                 {t.label}
-                <span className="ml-1.5 text-xs text-muted-foreground">{counts ? counts[t.value] : ''}</span>
-                {t.value === 'OPEN' && counts && counts.OVERDUE > 0 ? (
-                  <span
-                    className="ml-1.5 rounded-full bg-red-100 px-1.5 text-[11px] font-medium text-red-700 dark:bg-red-950/50 dark:text-red-200"
-                    title="Overdue"
-                  >
-                    {counts.OVERDUE} overdue
-                  </span>
-                ) : null}
+                <span
+                  className={
+                    t.value === 'OVERDUE' && counts && counts.OVERDUE > 0
+                      ? 'ml-1.5 rounded-full bg-red-100 px-1.5 text-[11px] font-medium text-red-700 dark:bg-red-950/50 dark:text-red-200'
+                      : 'ml-1.5 text-xs text-muted-foreground'
+                  }
+                >
+                  {counts ? counts[t.value] : ''}
+                </span>
               </TabsTrigger>
             ))}
           </TabsList>
         </div>
       </Tabs>
 
-      {status === 'OPEN' ? (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter open assignments">
-          {OPEN_FILTERS.map(f => {
-            const n = counts ? (f.value === 'ALL' ? counts.OPEN : counts[f.value]) : undefined
-            const active = openFilter === f.value
-            return (
-              <button
-                key={f.value}
-                type="button"
-                onClick={() => {
-                  setOpenFilter(f.value)
-                  setPage(1)
-                }}
-                aria-pressed={active}
-                className={
-                  active
-                    ? 'rounded-full border border-primary bg-primary px-3 py-1 text-xs font-medium text-primary-foreground'
-                    : f.value === 'OVERDUE' && n
-                      ? 'rounded-full border border-red-300 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200'
-                      : 'rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted'
-                }
-              >
-                {f.label}
-                {n !== undefined ? ` · ${n}` : ''}
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
-
-      <Input
-        placeholder="Search by carer or course…"
-        value={search}
-        onChange={e => {
-          setSearch(e.target.value)
-          setPage(1)
-        }}
-        className="max-w-sm"
-      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          placeholder="Search by carer or course…"
+          value={search}
+          onChange={e => {
+            setSearch(e.target.value)
+            setPage(1)
+          }}
+          className="max-w-sm"
+        />
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-primary"
+            checked={fromIncidents}
+            onChange={e => {
+              setFromIncidents(e.target.checked)
+              setPage(1)
+            }}
+            data-testid="assignments-from-incidents"
+          />
+          Only from incidents
+        </label>
+      </div>
 
       {query.isLoading ? (
         <div className="flex justify-center py-12">
@@ -235,6 +237,11 @@ export function AssignmentsPanel() {
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap items-center gap-1">
                       <LearningStatusBadge status={assignmentStatusForBadge(row.status)} />
+                      {row.sourceEntityType === 'Incident' ? (
+                        <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                          Incident
+                        </span>
+                      ) : null}
                       {row.completedLate ? (
                         <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
                           Late

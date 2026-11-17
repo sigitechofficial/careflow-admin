@@ -39,9 +39,17 @@ const err = (e: unknown, fallback: string) => toastApiError(e instanceof ApiErro
 const when = (iso?: string | null) => (iso ? formatOrganisationDateTime(iso) : '—')
 const minutes = (s?: number | null) => (s == null ? '' : s < 60 ? `${s}s` : `${Math.round(s / 60)} min`)
 
-/** Shown as "Not completed" (stored as EXPIRED) — 16 Nov 2026. */
+/** Plain tags for assignment statuses (17 Nov 2026): Scheduled, In progress, Passed, Not passed, Incomplete. */
+const ASSIGNMENT_TAG: Record<string, string> = {
+  ASSIGNED: 'SCHEDULED',
+  NOT_STARTED: 'SCHEDULED',
+  COMPLETED: 'PASSED',
+  PASSED: 'PASSED',
+  FAILED: 'NOT_PASSED',
+  EXPIRED: 'INCOMPLETE',
+}
 export function assignmentStatusForBadge(status: string) {
-  return status === 'EXPIRED' ? 'NOT_COMPLETED' : status
+  return ASSIGNMENT_TAG[status] ?? status
 }
 
 /** One assignment: everything recorded, plus the overdue / late review (16 Nov 2026). */
@@ -129,6 +137,18 @@ function Summary({ r }: { r: LearningAssignmentRecord }) {
         <span>Last opened: {when(r.lastAccessedAt)}</span>
         <span>Lessons: {Math.round(r.progressPercentage)}%</span>
       </div>
+      {r.source?.type === 'Incident' ? (
+        <Link
+          to="/incidents/$incidentId"
+          params={{ incidentId: r.source.id }}
+          search={{ tab: 'actions' } as never}
+          className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 hover:underline dark:bg-amber-950/40 dark:text-amber-200"
+          data-testid="assignment-source-incident"
+        >
+          <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+          From incident {r.source.reference ?? ''}
+        </Link>
+      ) : null}
       {r.assignmentReason ? <p className="mt-2 text-xs text-muted-foreground">Reason: {r.assignmentReason}</p> : null}
     </div>
   )
@@ -389,7 +409,7 @@ function Review({ r, onChanged }: { r: LearningAssignmentRecord; onChanged: () =
         ) : null}
         {r.status === 'OVERDUE' ? (
           <Button size="sm" variant={mode === 'not-completed' ? 'default' : 'outline'} onClick={() => setMode(mode === 'not-completed' ? null : 'not-completed')}>
-            Mark not completed
+            Mark as incomplete
           </Button>
         ) : null}
       </div>
@@ -429,7 +449,7 @@ function Review({ r, onChanged }: { r: LearningAssignmentRecord; onChanged: () =
                           : v.kind === 'ASSIGNED_AGAIN'
                             ? `Course given again, due ${when(v.newDueAt)}`
                       : v.kind === 'NOT_COMPLETED'
-                        ? 'Marked not completed'
+                        ? 'Marked as incomplete'
                         : 'Action taken'}
                 </div>
                 <div className="text-xs text-muted-foreground">
@@ -553,8 +573,8 @@ function ReviewForm({
       toastSuccess(
         closing
           ? res.reassignedAssignmentId
-            ? 'Marked not completed and re-assigned'
-            : 'Marked not completed'
+            ? 'Marked as incomplete and given again'
+            : 'Marked as incomplete'
           : 'Action recorded',
       )
       onDone()
@@ -610,7 +630,7 @@ function ReviewForm({
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Button size="sm" variant={closing ? 'destructive' : 'default'} onClick={() => void submit()} disabled={mut.isPending}>
         {mut.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
-        {closing ? 'Mark not completed' : 'Save'}
+        {closing ? 'Mark as incomplete' : 'Save'}
       </Button>
     </div>
   )

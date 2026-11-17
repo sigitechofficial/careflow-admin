@@ -100,8 +100,16 @@ export type LearningAssignmentStatusGroup =
   | 'OVERDUE'
   | 'COMPLETED'
   | 'NOT_COMPLETED'
+  | 'NOT_PASSED'
+  | 'INCOMPLETE'
   | 'CANCELLED'
-export type LearningAssignmentListParams = LearningListParams & { statusGroup?: LearningAssignmentStatusGroup }
+export type LearningAssignmentListParams = LearningListParams & {
+  statusGroup?: LearningAssignmentStatusGroup
+  /** Only courses given from another record (17 Nov 2026). */
+  source?: 'INCIDENT'
+  employeeId?: string
+  courseId?: string
+}
 export type LearningAssignmentStatusCounts = Record<LearningAssignmentStatusGroup | 'ALL', number>
 export type LearningComplianceListParams = {
   page?: number
@@ -115,6 +123,8 @@ export type LearningCertificateListParams = {
   limit?: number
   employeeId?: string
   search?: string
+  /** Certificates page tabs (17 Nov 2026). */
+  status?: 'ACTIVE' | 'EXPIRED'
 }
 export type LearningExternalTrainingListParams = LearningListParams & {
   employeeId?: string
@@ -153,6 +163,17 @@ export type LearningDashboardSummary = {
   certificatesExpired?: number
   /** Legacy 'policy' courses: read-and-sign now lives in the Policy Library. */
   policyTypeCourses?: number
+  /** Learning dashboard (17 Nov 2026). */
+  sessionsNeedAttendance?: number
+  nextSessions?: Array<{
+    id: string
+    title: string
+    courseTitle: string | null
+    startAt: string
+    endAt: string
+    booked: number
+  }>
+  mandatoryCoursesLowest?: Array<{ courseId: string; title: string; owed: number; completed: number }>
 }
 
 export type LearningCategory = {
@@ -497,6 +518,8 @@ export type LearningAssignment = {
   priority?: LearningAssignmentPriority | null
   isMandatory?: boolean
   assignmentReason?: string | null
+  sourceEntityType?: string | null
+  sourceEntityId?: string | null
   status: LearningAssignmentStatus
   completedAt?: string | null
   completedLate?: boolean
@@ -745,6 +768,8 @@ export type LearningAssignmentRecord = {
   assignedAt: string
   assignedByName: string | null
   assignmentReason: string | null
+  /** Where the course came from, e.g. an incident's corrective measure (17 Nov 2026). */
+  source?: { type: 'Incident'; id: string; reference: string | null } | null
   dueAt: string | null
   startedAt: string | null
   lastAccessedAt: string | null
