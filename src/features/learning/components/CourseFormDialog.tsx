@@ -5,7 +5,6 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { FormField } from '@/shared/ui/form-field'
 import { Combobox } from '@/shared/ui/combobox'
-import { Checkbox } from '@/shared/ui/toggle-controls'
 import {
   Dialog,
   DialogBody,
@@ -22,6 +21,7 @@ import {
 } from '@/features/learning/hooks/useLearning'
 import type { LearningCourse, LearningCourseInput } from '@/features/learning/types/learning.types'
 import {
+  CREATABLE_COURSE_TYPES,
   LEARNING_COURSE_TYPE_OPTIONS,
   LEARNING_DELIVERY_METHOD_OPTIONS,
 } from '@/features/learning/types/learning.types'
@@ -83,13 +83,16 @@ export function CourseFormDialog({ open, onOpenChange, course, onCreated }: Prop
   }, [open, course, reset])
 
   const onSubmit = handleSubmit(async values => {
+    // Completion, certificate and mandatory settings are edited in the builder's Completion step.
+    const duration = Number(values.estimatedDurationMinutes)
     const body: LearningCourseInput = {
-      ...values,
+      title: values.title,
+      code: values.code,
       courseType: values.courseType || 'COURSE',
       deliveryMethod: values.deliveryMethod || 'ONLINE',
       categoryId: values.categoryId || undefined,
       shortDescription: values.shortDescription?.trim() || undefined,
-      description: values.description?.trim() || undefined,
+      ...(Number.isInteger(duration) && duration > 0 ? { estimatedDurationMinutes: duration } : {}),
     }
     try {
       if (course) {
@@ -138,7 +141,9 @@ export function CourseFormDialog({ open, onOpenChange, course, onCreated }: Prop
               <Combobox
                 value={watch('courseType') ?? 'COURSE'}
                 onChange={v => setValue('courseType', v as LearningCourseInput['courseType'])}
-                options={LEARNING_COURSE_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+                options={LEARNING_COURSE_TYPE_OPTIONS.filter(
+                  o => CREATABLE_COURSE_TYPES.some(t => t.value === o.value) || o.value === course?.courseType,
+                ).map(o => ({ value: o.value, label: o.label }))}
                 allowDeselect={false}
               />
             </FormField>
@@ -146,7 +151,10 @@ export function CourseFormDialog({ open, onOpenChange, course, onCreated }: Prop
               <Combobox
                 value={watch('deliveryMethod') ?? 'ONLINE'}
                 onChange={v => setValue('deliveryMethod', v as LearningCourseInput['deliveryMethod'])}
-                options={LEARNING_DELIVERY_METHOD_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+                options={LEARNING_DELIVERY_METHOD_OPTIONS.filter(o => {
+                  const allowed = CREATABLE_COURSE_TYPES.find(t => t.value === watch('courseType'))?.deliveryMethods
+                  return !allowed || allowed.includes(o.value)
+                }).map(o => ({ value: o.value, label: o.label }))}
                 allowDeselect={false}
               />
             </FormField>
@@ -156,29 +164,6 @@ export function CourseFormDialog({ open, onOpenChange, course, onCreated }: Prop
             <FormField label="Estimated duration (minutes)">
               <Input type="number" {...register('estimatedDurationMinutes', { valueAsNumber: true })} />
             </FormField>
-            <FormField label="CPD minutes">
-              <Input type="number" {...register('cpdMinutes', { valueAsNumber: true })} />
-            </FormField>
-            <div className="sm:col-span-2 flex flex-wrap gap-4">
-              <label className="inline-flex items-center gap-2 text-sm">
-                <Checkbox checked={watch('isMandatory')} onCheckedChange={v => setValue('isMandatory', !!v)} />
-                Mandatory
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={watch('requiresAssessment')}
-                  onCheckedChange={v => setValue('requiresAssessment', !!v)}
-                />
-                Requires assessment
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={watch('certificateEnabled')}
-                  onCheckedChange={v => setValue('certificateEnabled', !!v)}
-                />
-                Certificate enabled
-              </label>
-            </div>
           </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

@@ -1,5 +1,6 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  LearningFileInfo,
   BulkLearningAssignmentInput,
   BulkLearningAssignmentResult,
   EmployeeLearningEligibility,
@@ -11,6 +12,8 @@ import type {
   LearningAssignmentListParams,
   LearningCategory,
   LearningCategoryInput,
+  LearningCompetency,
+  LearningCompetencyInput,
   LearningCategoryListParams,
   LearningCertificate,
   LearningCertificateListParams,
@@ -22,6 +25,8 @@ import type {
   LearningCourseInput,
   LearningCourseListParams,
   LearningCourseVersion,
+  LearningPublishCheck,
+  LearningCourseStatusCounts,
   LearningDashboardSummary,
   LearningExternalTraining,
   LearningExternalTrainingInput,
@@ -33,6 +38,17 @@ import type {
   LearningSettings,
   LearningTrainingEvent,
   LearningTrainingEventInput,
+  LearningEligibleAttendee,
+  LearningAssignmentStatusCounts,
+  RecordOutcomeInput,
+  AssignAgainInput,
+  LearningReviewOptions,
+  LearningAssignmentRecord,
+  ExtendAssignmentInput,
+  RecordAssignmentReviewInput,
+  LearningTrainingEventAttendee,
+  LearningAttendanceStatus,
+  LearningBookingStatus,
   PaginatedResult,
   PaginationMeta,
 } from '@/features/learning/types/learning.types'
@@ -124,8 +140,25 @@ export async function fetchLearningCourses(
   return fetchPaginated<LearningCourse>('/learning/courses', params)
 }
 
+export async function fetchLearningCourseStatusCounts(
+  params?: LearningCourseListParams,
+): Promise<LearningCourseStatusCounts> {
+  return fetchData<LearningCourseStatusCounts>(`/learning/courses/status-counts${buildQuery(params)}`)
+}
+
+export async function unarchiveLearningCourse(id: string): Promise<LearningCourse> {
+  return fetchData<LearningCourse>(`/learning/courses/${id}/unarchive`, { method: 'POST' })
+}
+
 export async function fetchLearningCourse(id: string): Promise<LearningCourse> {
   return fetchData<LearningCourse>(`/learning/courses/${id}`)
+}
+
+/** Next free code for a category, e.g. SAFEGUARDING-003. */
+export async function suggestLearningCourseCode(categoryId: string): Promise<{ code: string }> {
+  return fetchData<{ code: string }>(
+    `/learning/courses/code-suggestion?categoryId=${encodeURIComponent(categoryId)}`,
+  )
 }
 
 export async function createLearningCourse(body: LearningCourseInput): Promise<LearningCourse> {
@@ -147,7 +180,7 @@ export async function updateLearningCourse(
 
 export async function publishLearningCourse(
   id: string,
-  body?: { changeSummary?: string },
+  body?: { changeSummary?: string; reactivate?: boolean },
 ): Promise<{ course: LearningCourse; version: LearningCourseVersion }> {
   return fetchData(`/learning/courses/${id}/publish`, {
     method: 'POST',
@@ -165,14 +198,24 @@ export async function createLearningCourseVersion(
   })
 }
 
-export async function unpublishLearningCourse(
-  id: string,
-): Promise<{ course: LearningCourse; version: LearningCourseVersion }> {
-  return fetchData(`/learning/courses/${id}/unpublish`, { method: 'POST' })
+/** No new assignments; carers already on the course continue. The published version stays locked. */
+export async function withdrawLearningCourse(id: string, reason: string): Promise<LearningCourse> {
+  return fetchData<LearningCourse>(`/learning/courses/${id}/withdraw`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export async function reactivateLearningCourse(id: string): Promise<LearningCourse> {
+  return fetchData<LearningCourse>(`/learning/courses/${id}/reactivate`, { method: 'POST' })
 }
 
 export async function archiveLearningCourse(id: string): Promise<LearningCourse> {
   return fetchData<LearningCourse>(`/learning/courses/${id}/archive`, { method: 'POST' })
+}
+
+export async function fetchLearningPublishCheck(courseId: string): Promise<LearningPublishCheck> {
+  return fetchData<LearningPublishCheck>(`/learning/courses/${courseId}/publish-check`)
 }
 
 export async function fetchLearningCourseVersions(courseId: string): Promise<LearningCourseVersion[]> {
@@ -246,6 +289,28 @@ export async function reorderLearningSections(
   })
 }
 
+/** Upload a lesson file (PDF, Word .docx, JPG or PNG). */
+export async function uploadLearningFile(file: File): Promise<LearningFileInfo> {
+  const form = new FormData()
+  form.append('file', file)
+  return fetchData<LearningFileInfo>('/learning/files', { method: 'POST', body: form })
+}
+
+/** Every lesson id of the section, in the new order. */
+export async function reorderLearningContent(sectionId: string, contentIds: string[]): Promise<void> {
+  await apiJson(`/learning/sections/${sectionId}/reorder-content`, {
+    method: 'POST',
+    body: JSON.stringify({ contentIds }),
+  })
+}
+
+export async function moveLearningContent(contentId: string, sectionId: string): Promise<void> {
+  await apiJson(`/learning/content/${contentId}/move`, {
+    method: 'POST',
+    body: JSON.stringify({ sectionId }),
+  })
+}
+
 // ─── Assessments ─────────────────────────────────────────────
 
 export async function createLearningAssessment(
@@ -282,6 +347,45 @@ export async function createAssessmentQuestion(
   })
 }
 
+export async function updateAssessmentQuestion(
+  questionId: string,
+  body: Partial<LearningAssessmentQuestionInput>,
+): Promise<unknown> {
+  return fetchData(`/learning/questions/${questionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function reorderAssessmentQuestions(assessmentId: string, questionIds: string[]): Promise<unknown> {
+  return fetchData(`/learning/assessments/${assessmentId}/reorder-questions`, {
+    method: 'POST',
+    body: JSON.stringify({ questionIds }),
+  })
+}
+
+// ─── Competencies ────────────────────────────────────────────
+
+export async function fetchLearningCompetencies(
+  params?: LearningListParams,
+): Promise<PaginatedResult<LearningCompetency>> {
+  return fetchPaginated<LearningCompetency>('/learning/competencies', params)
+}
+
+export async function createLearningCompetency(body: LearningCompetencyInput): Promise<LearningCompetency> {
+  return fetchData<LearningCompetency>('/learning/competencies', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function updateLearningCompetency(
+  id: string,
+  body: Partial<LearningCompetencyInput>,
+): Promise<LearningCompetency> {
+  return fetchData<LearningCompetency>(`/learning/competencies/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
 export async function deleteAssessmentQuestion(questionId: string): Promise<void> {
   await apiJson(`/learning/questions/${questionId}`, { method: 'DELETE' })
 }
@@ -292,6 +396,13 @@ export async function fetchLearningAssignments(
   params?: LearningAssignmentListParams,
 ): Promise<PaginatedResult<LearningAssignment>> {
   return fetchPaginated<LearningAssignment>('/learning/assignments', params)
+}
+
+export async function fetchLearningAssignmentStatusCounts(
+  params?: LearningAssignmentListParams,
+): Promise<LearningAssignmentStatusCounts> {
+  const { statusGroup: _g, page: _p, limit: _l, ...rest } = params ?? {}
+  return fetchData<LearningAssignmentStatusCounts>(`/learning/assignments/status-counts${buildQuery(rest)}`)
 }
 
 export async function fetchLearningAssignment(id: string): Promise<LearningAssignment> {
@@ -421,6 +532,34 @@ export async function deleteLearningTrainingEvent(id: string): Promise<void> {
   await apiJson(`/learning/training-events/${id}`, { method: 'DELETE' })
 }
 
+export async function fetchLearningEligibleAttendees(id: string): Promise<LearningEligibleAttendee[]> {
+  return fetchData<LearningEligibleAttendee[]>(`/learning/training-events/${id}/eligible-attendees`)
+}
+
+export async function addLearningTrainingEventAttendee(
+  id: string,
+  body: { employeeId: string },
+): Promise<LearningTrainingEventAttendee> {
+  return fetchData<LearningTrainingEventAttendee>(`/learning/training-events/${id}/attendees`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateLearningTrainingEventAttendee(
+  attendeeId: string,
+  body: { attendanceStatus?: LearningAttendanceStatus; bookingStatus?: LearningBookingStatus },
+): Promise<LearningTrainingEventAttendee> {
+  return fetchData<LearningTrainingEventAttendee>(`/learning/training-events/attendees/${attendeeId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function removeLearningTrainingEventAttendee(attendeeId: string): Promise<void> {
+  await apiJson(`/learning/training-events/attendees/${attendeeId}`, { method: 'DELETE' })
+}
+
 // ─── External training ───────────────────────────────────────
 
 export async function fetchLearningExternalTraining(
@@ -478,4 +617,60 @@ export async function fetchEmployeeLearningEligibility(
   employeeId: string,
 ): Promise<EmployeeLearningEligibility> {
   return fetchData<EmployeeLearningEligibility>(`/learning/employees/${employeeId}/eligibility`)
+}
+
+// ─── Overdue / late review (16 Nov 2026) ─────────────────────
+
+export async function fetchLearningReviewOptions(): Promise<LearningReviewOptions> {
+  return fetchData<LearningReviewOptions>('/learning/assignment-review-options')
+}
+
+export async function fetchLearningAssignmentRecord(id: string): Promise<LearningAssignmentRecord> {
+  return fetchData<LearningAssignmentRecord>(`/learning/assignments/${id}/record`)
+}
+
+export async function extendLearningAssignment(id: string, body: ExtendAssignmentInput): Promise<LearningAssignmentRecord> {
+  return fetchData<LearningAssignmentRecord>(`/learning/assignments/${id}/extend-with-reason`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function recordLearningAssignmentReview(
+  id: string,
+  body: RecordAssignmentReviewInput,
+): Promise<LearningAssignmentRecord & { reassignedAssignmentId: string | null }> {
+  return fetchData(`/learning/assignments/${id}/reviews`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function recordLearningOutcome(
+  id: string,
+  body: RecordOutcomeInput,
+): Promise<LearningAssignmentRecord & { reassignedAssignmentId: string | null }> {
+  return fetchData(`/learning/assignments/${id}/outcome`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+/** Short-lived link to a certificate PDF (17 Nov 2026). */
+export async function fetchLearningCertificatePdfLink(id: string): Promise<{ url: string }> {
+  return fetchData(`/learning/certificates/${id}/pdf-link`)
+}
+
+/** Face to face: the office starts the course for the carer (16 Nov 2026). */
+export async function startLearningAssignment(id: string): Promise<LearningAssignmentRecord> {
+  return fetchData(`/learning/assignments/${id}/start`, { method: 'POST', body: JSON.stringify({}) })
+}
+
+/** Face to face: mark lessons done / not done. No lessonIds = all lessons. */
+export async function markLearningLessons(
+  id: string,
+  body: { lessonIds?: string[]; done: boolean },
+): Promise<LearningAssignmentRecord> {
+  return fetchData(`/learning/assignments/${id}/lessons/mark`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function assignLearningAgain(
+  id: string,
+  body: AssignAgainInput,
+): Promise<LearningAssignmentRecord & { reassignedAssignmentId: string | null }> {
+  return fetchData(`/learning/assignments/${id}/assign-again`, { method: 'POST', body: JSON.stringify(body) })
 }

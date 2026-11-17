@@ -19,6 +19,11 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   APPROVED: 'success',
   VERIFIED: 'success',
   ATTENDED: 'success',
+  // Training session whose end time has passed (display only).
+  ENDED: 'muted',
+  // Overdue course closed by the office (stored as EXPIRED).
+  NOT_COMPLETED: 'destructive',
+  FAILED: 'destructive',
   CONFIRMED: 'success',
 
   DRAFT: 'warning',
@@ -39,6 +44,7 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   REJECTED: 'destructive',
   CANCELLED: 'muted',
   ARCHIVED: 'muted',
+  WITHDRAWN: 'warning',
   EXEMPT: 'muted',
   NOT_ASSIGNED: 'secondary',
 }

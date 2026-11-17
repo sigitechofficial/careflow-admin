@@ -9,6 +9,7 @@ import {
   emptyPolicyLink,
   isDuplicatePolicyLink,
   scopesForModule,
+  TRAINING_POLICY_SECTIONS,
 } from '@/features/policies/policy-link-rules'
 import { moduleLabel, summariseLink } from '@/features/policies/policy-format'
 import { POLICY_LINK_MODULE_OPTIONS } from '@/features/policies/types/policy.types'
@@ -268,6 +269,25 @@ function LinkTargetFields({
   }
   if (link.moduleType === 'INITIAL_ASSESSMENT' && link.scope === 'RECORD') {
     return <InitialAssessmentRecordPicker link={link} onChange={onChange} />
+  }
+  if (link.moduleType === 'TRAINING' && link.scope === 'SECTION') {
+    return (
+      <div className="space-y-1.5">
+        <Label htmlFor="policy-link-training-section">Learning screen</Label>
+        <Combobox
+          id="policy-link-training-section"
+          value={link.sectionKey ?? ''}
+          onChange={v =>
+            onChange({
+              sectionKey: v || undefined,
+              label: TRAINING_POLICY_SECTIONS.find(o => o.value === v)?.label,
+            })
+          }
+          options={TRAINING_POLICY_SECTIONS}
+          placeholder="Choose a screen"
+        />
+      </div>
+    )
   }
   if (link.moduleType === 'INITIAL_ASSESSMENT' && link.scope === 'SECTION') {
     return (

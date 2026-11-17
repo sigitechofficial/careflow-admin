@@ -17,9 +17,14 @@ export const learningKeys = {
   categories: (params?: LearningCategoryListParams) =>
     [...learningKeys.all, 'categories', params ?? {}] as const,
   category: (id: string) => [...learningKeys.all, 'category', id] as const,
+  competencies: (params?: LearningListParams) =>
+    [...learningKeys.all, 'competencies', params ?? {}] as const,
   courses: (params?: LearningCourseListParams) =>
     [...learningKeys.all, 'courses', params ?? {}] as const,
+  courseStatusCounts: (params?: LearningCourseListParams) =>
+    [...learningKeys.all, 'course-status-counts', params ?? {}] as const,
   course: (id: string) => [...learningKeys.all, 'course', id] as const,
+  publishCheck: (courseId: string) => [...learningKeys.all, 'publish-check', courseId] as const,
   courseVersions: (courseId: string) => [...learningKeys.all, 'course-versions', courseId] as const,
   courseVersion: (courseId: string, versionId: string) =>
     [...learningKeys.all, 'course-version', courseId, versionId] as const,

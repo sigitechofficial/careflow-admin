@@ -5,7 +5,7 @@ import { LEARNING_PATHS } from '@/features/learning/learning-routes'
 
 type Props = {
   title: string
-  description: string
+  description?: string
   testId: string
   children: React.ReactNode
 }
