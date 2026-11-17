@@ -561,10 +561,6 @@ function InterviewEmailStatus({
         <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300">
           <Mail className="h-3.5 w-3.5" aria-hidden /> Emailed {formatDateTime(interview.candidateEmailedAt)}
         </span>
-      ) : scheduled ? (
-        <span className="inline-flex items-center gap-1.5 text-amber-700 dark:text-amber-300">
-          <MailWarning className="h-3.5 w-3.5" aria-hidden /> Candidate not emailed yet
-        </span>
       ) : null}
       {canResend && scheduled ? (
         <button
