@@ -743,6 +743,9 @@ export type LearningSettings = {
   allowCourseAccessAfterExpiry?: boolean
   allowCourseRetakeAfterPass?: boolean
   complianceCalculationMode?: string
+  /** Role that gets Learning tasks in My tasks (18 Nov 2026); null = Admin. */
+  taskRoleId?: string | null
+  taskRoleOptions?: Array<{ id: string; name: string }>
 }
 
 export type EmployeeLearningEligibility = {

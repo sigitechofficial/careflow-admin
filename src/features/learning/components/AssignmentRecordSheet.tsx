@@ -140,7 +140,7 @@ function Summary({ r }: { r: LearningAssignmentRecord }) {
         <span>Started: {when(r.startedAt)}</span>
         <span>Completed: {when(r.completedAt)}</span>
         <span>Last opened: {when(r.lastAccessedAt)}</span>
-        <span>Lessons: {Math.round(r.progressPercentage)}%</span>
+        <span>Course progress: {Math.round(r.progressPercentage)}%</span>
       </div>
       {r.source?.type === 'Incident' ? (
         <Link

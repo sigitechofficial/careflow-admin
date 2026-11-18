@@ -55,8 +55,10 @@ export function RoleTaskRow({ task, showRole = true }: { task: RoleTask; showRol
 
   const done = task.status === 'DONE'
   const pageLabel = rolePageLabel(task.link)
-  // Survey alerts are closed on their follow-up, which asks what was done.
-  const closedOnPage = Boolean(task.link?.startsWith('/surveys/follow-ups'))
+  // Survey alerts are closed on their follow-up, which asks what was done. Learning tasks close
+  // themselves when the work is done in Learning (18 Nov 2026).
+  const learningTask = Boolean(task.link?.startsWith('/learning/'))
+  const closedOnPage = Boolean(task.link?.startsWith('/surveys/follow-ups')) || learningTask
 
   return (
     <li className="flex flex-wrap items-start gap-3 px-4 py-3">
@@ -106,7 +108,7 @@ export function RoleTaskRow({ task, showRole = true }: { task: RoleTask; showRol
             Open page <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           </Button>
         ) : null}
-        {done ? (
+        {done && learningTask ? null : done ? (
           <Button
             type="button"
             size="sm"
