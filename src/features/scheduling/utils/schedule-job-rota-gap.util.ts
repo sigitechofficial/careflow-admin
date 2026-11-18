@@ -81,10 +81,6 @@ export function rotaGapDisplayModeIncludesTravel(mode: RotaGapDisplayMode): bool
   return mode === 'travel' || mode === 'both'
 }
 
-function formatMinuteRange(startMin: number, endMin: number, dayStartHour = SCHEDULE_JOBS_DAY_START_HOUR): string {
-  return `${timelineMinutesToHm(startMin, dayStartHour)} – ${timelineMinutesToHm(endMin, dayStartHour)}`
-}
-
 /** Compact clock range for block header, e.g. `08:00–09:35`. */
 export function formatGapTimeRange(
   startMin: number,
@@ -244,7 +240,7 @@ export function buildFirstJobRotaGapSegments(options: {
     travelWindowMinutes,
     idleMinutes: 0,
     dayStartHour,
-    title: `Travel to ${toClientLabel} (${formatMinuteRange(departMin, visitStartMin, dayStartHour)})`,
+    title: `Travel to ${toClientLabel}`,
     toJobId: toJob.id,
     travelTimingStatus,
     breakdownLabel: formatTravelBreakdown(travelMinutes, options.bufferMinutes),
@@ -295,7 +291,7 @@ export function buildBetweenJobsRotaGapSegments(options: {
           travelWindowMinutes: 0,
           idleMinutes: gapMinutes,
           dayStartHour,
-          title: `Idle before ${toClientLabel} (${formatMinuteRange(gapStartMin, visitStartMin, dayStartHour)})`,
+          title: `Before ${toClientLabel}`,
           toJobId: toJob.id,
         }))
       }
@@ -321,7 +317,7 @@ export function buildBetweenJobsRotaGapSegments(options: {
         travelWindowMinutes: split.travelMinutes,
         idleMinutes: split.idleMinutes,
         dayStartHour,
-        title: `Idle before travelling to ${toClientLabel} (${formatMinuteRange(gapStartMin, split.departMin, dayStartHour)})`,
+        title: `Before travelling to ${toClientLabel}`,
         toJobId: toJob.id,
       }))
     }
@@ -333,7 +329,7 @@ export function buildBetweenJobsRotaGapSegments(options: {
         travelWindowMinutes: split.travelMinutes,
         idleMinutes: 0,
         dayStartHour,
-        title: `Travel to ${toClientLabel} (${formatMinuteRange(split.departMin, visitStartMin, dayStartHour)})`,
+        title: `Travel to ${toClientLabel}`,
         toJobId: toJob.id,
         travelTimingStatus,
         breakdownLabel: formatTravelBreakdown(travelMinutes, options.bufferMinutes),
