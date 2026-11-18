@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Pencil, Plus, Search, X } from 'lucide-react'
+import { Mail, Pencil, Plus, Search, X } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -14,6 +14,7 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import {
   useCreateOfficeUser,
+  useSendOfficeUserLink,
   useOfficeUsers,
   useSetOfficeUserLocations,
   useSetOfficeUserRoles,
@@ -28,6 +29,7 @@ import {
 import { fetchLookupList } from '@/features/settings/api/lookups-admin-api'
 import { settingsKeys } from '@/features/settings/keys'
 import { accessibleBranchIds, isBranchScoped } from '@/features/auth/org-scope'
+import { PasswordChoiceForm, type PasswordChoice } from '@/features/employees/components/PasswordChoiceForm'
 
 function displayName(u: OfficeUserRow): string {
   const name = [u.firstName, u.lastName].filter(Boolean).join(' ').trim()
@@ -83,7 +85,6 @@ const emptyCreateForm = {
   username: '',
   firstName: '',
   lastName: '',
-  password: '',
   roleNames: [] as string[],
   locationIds: [] as string[],
 }
@@ -109,6 +110,7 @@ export function OfficeUsersPanel() {
   const setRoles = useSetOfficeUserRoles()
   const setLocations = useSetOfficeUserLocations()
   const createUser = useCreateOfficeUser()
+  const sendLink = useSendOfficeUserLink()
 
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
   const [draftRoles, setDraftRoles] = React.useState<string[]>([])
@@ -116,6 +118,7 @@ export function OfficeUsersPanel() {
   const [createOpen, setCreateOpen] = React.useState(false)
   const [createForm, setCreateForm] = React.useState(emptyCreateForm)
   const [createError, setCreateError] = React.useState<string | null>(null)
+  const [createChoice, setCreateChoice] = React.useState<PasswordChoice | null>({ mode: 'link' })
   const [search, setSearch] = React.useState('')
   const [roleFilter, setRoleFilter] = React.useState('')
   const [branchFilter, setBranchFilter] = React.useState('')
@@ -208,8 +211,8 @@ export function OfficeUsersPanel() {
       setCreateError('Email is required.')
       return
     }
-    if (createForm.password.length < 8) {
-      setCreateError('Password must be at least 8 characters.')
+    if (!createChoice) {
+      setCreateError('Check the password: at least 8 characters, typed the same twice.')
       return
     }
     if (createNeedsBranches && createForm.locationIds.length === 0) {
@@ -219,7 +222,7 @@ export function OfficeUsersPanel() {
     try {
       const created = await createUser.mutateAsync({
         email,
-        password: createForm.password,
+        ...(createChoice.mode === 'password' ? { password: createChoice.password } : {}),
         username: createForm.username.trim() || undefined,
         firstName: createForm.firstName.trim() || undefined,
         lastName: createForm.lastName.trim() || undefined,
@@ -334,7 +337,14 @@ export function OfficeUsersPanel() {
                       onClick={() => setSelectedId(u.id)}
                       className={`flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-muted/60 ${active ? 'bg-muted' : ''}`}
                     >
-                      <span className="text-sm font-medium">{displayName(u)}</span>
+                      <span className="flex items-center gap-2 text-sm font-medium">
+                        {displayName(u)}
+                        {u.invitePending ? (
+                          <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-foreground" data-testid="office-user-invite-pending">
+                            Waiting for password
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="text-xs text-muted-foreground">{u.email}</span>
                       <span className="text-xs text-muted-foreground">
                         {u.roles.map(r => r.name).join(', ') || 'No roles'}
@@ -363,8 +373,25 @@ export function OfficeUsersPanel() {
                 <div className="min-w-0">
                   <h2 className="text-sm font-semibold">{displayName(selected)}</h2>
                   <p className="truncate text-xs text-muted-foreground">{selected.email}</p>
+                  {selected.invitePending ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      We’ve emailed them a link to choose a password. They haven’t used it yet.
+                    </p>
+                  ) : null}
                 </div>
                 {canCreate ? (
+                  <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<Mail className="h-3.5 w-3.5" />}
+                    disabled={sendLink.isPending || !selected.isActive}
+                    onClick={() => sendLink.mutate({ id: selected.id, email: selected.email, invitePending: selected.invitePending, name: displayName(selected) })}
+                    data-testid="office-user-send-link"
+                  >
+                    {selected.invitePending ? 'Send the link again' : 'Email a password reset link'}
+                  </Button>
                   <Button
                     type="button"
                     size="sm"
@@ -375,6 +402,7 @@ export function OfficeUsersPanel() {
                   >
                     Edit details
                   </Button>
+                  </div>
                 ) : null}
               </div>
               <EditOfficeUserDialog
@@ -563,21 +591,17 @@ export function OfficeUsersPanel() {
                     placeholder="Optional"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label htmlFor="ua-password" className="text-sm font-medium">
-                    Temporary password
-                  </label>
-                  <Input
-                    id="ua-password"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    minLength={8}
-                    value={createForm.password}
-                    onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
-                    placeholder="Min. 8 characters"
-                  />
-                </div>
+              </div>
+              <div className="space-y-2 rounded-md bg-muted/50 px-3 py-2" data-testid="office-user-invite-note">
+                <p className="text-xs text-muted-foreground">
+                  We’ll email them once their roles and branches are saved. A link to choose their own password works for 72 hours.
+                </p>
+                <PasswordChoiceForm
+                  key={createOpen ? 'open' : 'closed'}
+                  name={createForm.firstName.trim() || 'them'}
+                  idPrefix="office-user"
+                  onChange={setCreateChoice}
+                />
               </div>
 
               {canManage ? (
@@ -687,7 +711,7 @@ export function OfficeUsersPanel() {
                 Cancel
               </Button>
               <Button type="submit" disabled={createUser.isPending}>
-                {createUser.isPending ? 'Creating…' : 'Create user'}
+                {createUser.isPending ? 'Adding…' : 'Add and email them'}
               </Button>
             </DialogFooter>
           </form>
@@ -697,7 +721,7 @@ export function OfficeUsersPanel() {
   )
 }
 
-/** Admin edit of an office user: name, sign-in email and an optional new password. */
+/** Admin edit of an office user: name, sign-in email and (optionally) a new password the office gives them. */
 function EditOfficeUserDialog({
   user,
   open,
@@ -711,26 +735,19 @@ function EditOfficeUserDialog({
   const [firstName, setFirstName] = React.useState(user.firstName ?? '')
   const [lastName, setLastName] = React.useState(user.lastName ?? '')
   const [email, setEmail] = React.useState(user.email)
-  const [password, setPassword] = React.useState('')
-  const [confirm, setConfirm] = React.useState('')
+  const [setPassword, setSetPassword] = React.useState(false)
+  const [passwordChoice, setPasswordChoice] = React.useState<PasswordChoice | null>(null)
 
   React.useEffect(() => {
     if (!open) return
     setFirstName(user.firstName ?? '')
     setLastName(user.lastName ?? '')
     setEmail(user.email)
-    setPassword('')
-    setConfirm('')
+    setSetPassword(false)
   }, [open, user])
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
-  const passwordError =
-    password && password.length < 8
-      ? 'Use at least 8 characters.'
-      : password && password !== confirm
-        ? 'Passwords do not match.'
-        : null
-  const canSave = emailValid && !passwordError && !update.isPending
+  const canSave = emailValid && !update.isPending && (!setPassword || Boolean(passwordChoice))
 
   const save = () => {
     update.mutate(
@@ -739,7 +756,7 @@ function EditOfficeUserDialog({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         ...(email.trim() !== user.email ? { email: email.trim() } : {}),
-        ...(password ? { password } : {}),
+        ...(setPassword && passwordChoice?.mode === 'password' ? { password: passwordChoice.password } : {}),
       },
       { onSuccess: onClose },
     )
@@ -768,27 +785,17 @@ function EditOfficeUserDialog({
             {!emailValid ? <span className="text-xs text-destructive">Enter a valid email.</span> : null}
           </label>
           <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-            <p className="text-xs font-medium text-foreground">Set a new password (optional)</p>
-            <p className="text-xs text-muted-foreground">
-              Leave blank to keep the current password. A new password signs them out of other sessions.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Input
-                type="password"
-                autoComplete="new-password"
-                placeholder="New password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-              />
-              <Input
-                type="password"
-                autoComplete="new-password"
-                placeholder="Confirm new password"
-                value={confirm}
-                onChange={e => setConfirm(e.target.value)}
-              />
-            </div>
-            {passwordError ? <p className="text-xs text-destructive">{passwordError}</p> : null}
+            <label className="flex items-center gap-2 text-xs font-medium text-foreground">
+              <input type="checkbox" checked={setPassword} onChange={e => setSetPassword(e.target.checked)} data-testid="office-user-edit-set-password" />
+              Set a new password now
+            </label>
+            {setPassword ? (
+              <PasswordChoiceForm name={user.firstName?.trim() || 'them'} idPrefix="office-user-edit" allowLink={false} onChange={setPasswordChoice} />
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Or close this and use “Email a password reset link”, so they choose a new one themselves.
+              </p>
+            )}
           </div>
         </DialogBody>
         <DialogFooter>

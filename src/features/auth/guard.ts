@@ -7,6 +7,9 @@ const STAFF_PUBLIC_PATHS = new Set([
   '/auth/forgot-password',
   '/auth/reset-password',
   '/legal/privacy-policy',
+  // Care app: set-password page and "get the app" (links in the welcome and reset emails).
+  '/app/set-password',
+  '/get-app',
 ])
 
 function isPublicLegalPath(path: string): boolean {

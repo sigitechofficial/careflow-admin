@@ -54,7 +54,7 @@ import { EmployeeEditLearningPanel } from '@/features/employees/components/Emplo
 import { EmployeeEditSuspensionsPanel } from '@/features/employees/components/EmployeeEditSuspensionsPanel'
 import { EmployeeEditIncidentsPanel } from '@/features/employees/components/EmployeeEditIncidentsPanel'
 import { EmployeeEditAllocationsPanel } from '@/features/employees/components/EmployeeEditAllocationsPanel'
-import { EmployeeAppAccessSection } from '@/features/employees/components/EmployeeAppAccessSection'
+import { StaffSignInAccessSection } from '@/features/employees/components/StaffSignInAccessSection'
 import { PersonSurveysSection, SurveyContactSettingsLink } from '@/features/surveys/reminders/PersonSurveysSection'
 import { SurveyContactPreferencesSection } from '@/features/surveys/reminders/SurveyContactPreferencesSection'
 import { EmployeeEditReviewsPanel } from '@/features/employees/components/EmployeeEditReviewsPanel'
@@ -1650,10 +1650,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
               </form>
               {isEditMode && editEmployeeId ? (
                 <>
-                  <EmployeeAppAccessSection
-                    employeeId={editEmployeeId}
-                    defaultEmail={watch('email') || savedPersonal?.email}
-                  />
+                  <StaffSignInAccessSection employeeId={editEmployeeId} />
                   <SurveyContactPreferencesSection subjectKind="EMPLOYEE" subjectId={editEmployeeId} />
                 </>
               ) : null}

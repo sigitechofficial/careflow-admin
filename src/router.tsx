@@ -96,6 +96,8 @@ import LoginPage from '@/features/auth/pages/LoginPage'
 import PrivacyPolicyPage from '@/features/legal/pages/PrivacyPolicyPage'
 import ForgotPasswordPage from '@/features/auth/pages/ForgotPasswordPage'
 import ResetPasswordPage from '@/features/auth/pages/ResetPasswordPage'
+import GetAppPage from '@/features/care-app/pages/GetAppPage'
+import CareAppSetPasswordPage from '@/features/care-app/pages/CareAppSetPasswordPage'
 import BlockedIpPage from '@/features/auth/pages/BlockedIpPage'
 
 import PortalLoginPage from '@/features/service-user-portal/pages/PortalLoginPage'
@@ -761,6 +763,20 @@ const authResetRoute = createRoute({
   getParentRoute: () => authLayoutRoute,
   path: 'reset-password',
   component: ResetPasswordPage,
+})
+
+/** Care app: choosing a password from the welcome or reset email (no login). Same API as /auth/reset-password. */
+const careAppSetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/app/set-password',
+  component: CareAppSetPasswordPage,
+})
+
+/** Public: opens the Care app if installed, else the phone's store (links in the welcome emails). */
+const publicGetAppRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/get-app',
+  component: GetAppPage,
 })
 
 const authBlockedRoute = createRoute({
@@ -3074,6 +3090,8 @@ const routeTree = rootRoute.addChildren([
     authResetRoute,
     authBlockedRoute,
   ]),
+  careAppSetPasswordRoute,
+  publicGetAppRoute,
   legalPrivacyPolicyRoute,
   policyPrintRoute,
   readyMadePolicyPrintRoute,
