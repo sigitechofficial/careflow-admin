@@ -1163,11 +1163,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
               <p className="text-xs text-muted-foreground">Loading reference data…</p>
             ) : null}
             {lookupsError ? <p className="text-xs text-amber-800 dark:text-amber-200">{lookupsError}</p> : null}
-            {!isEditMode && createdEmployeeId ? (
-              <p className="text-xs text-muted-foreground">
-                Draft employee ID: <span className="font-mono text-foreground">{createdEmployeeId}</span>
-              </p>
-            ) : null}
+
             {isEditMode && createdEmployeeId && !employeeBootstrapError ? (
               <p className="text-xs text-muted-foreground">
                 Employee ID: <span className="font-mono text-foreground">{createdEmployeeId}</span>
@@ -1593,7 +1589,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                 <div className="border-t border-border pt-5">
                   <h3 className="mb-3 text-sm font-semibold text-foreground">Next of Kin / Emergency Contacts</h3>
                   <p className="mb-3 text-xs text-muted-foreground">
-                    Contacts are saved to the server per employee (<span className="font-mono">/employees/:id/emergency-contacts</span>).
+                    People to contact in an emergency.
                   </p>
                   <EmployeeEmergencyContactsEditor
                     employeeId={createdEmployeeId ?? editEmployeeId ?? null}
@@ -1605,9 +1601,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                   <div className="border-t border-border pt-5">
                     <h3 className="mb-3 text-sm font-semibold text-foreground">Employee documents</h3>
                     <p className="mb-3 text-xs text-muted-foreground">
-                      Upload insurance certificates, right-to-work evidence, training records, and other HR files (
-                      <span className="font-mono">POST /employees/:id/documents</span>). Requires document permissions
-                      (read / upload / delete) on your account.
+                      Upload insurance certificates, right-to-work evidence, training records and other HR files.
                     </p>
                     <EmployeeDocumentsSection
                       employeeId={createdEmployeeId ?? editEmployeeId ?? null}

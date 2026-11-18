@@ -54,6 +54,7 @@ const TABBED_PAGES = [
   { file: 'features/settings/pages/GeneralSettingsPage.tsx', array: 'GENERAL_SETTINGS_TABS', path: '/settings/general', param: 'tab' },
   { file: 'features/settings/pages/SettingsPage.tsx', array: 'SETTINGS_TABS', path: '/settings', param: 'tab' },
   { file: 'features/settings/components/RolesPermissionsPanel.tsx', array: 'SUB_TABS', path: '/settings/roles-permissions', param: 'sub' },
+  { file: 'features/settings/pages/DeleteRecordsPage.tsx', array: 'DELETE_RECORD_TABS', path: '/settings/delete-records', param: 'tab' },
   { file: 'features/billing/pages/BillingManagementPage.tsx', array: 'BILLING_TABS', path: '/billing', param: 'tab' },
   { file: 'features/surveys/pages/SurveyFollowUpsPage.tsx', path: '/surveys/follow-ups', param: 'view', valueKey: 'value' },
   { file: 'features/azure-pricing/pages/AzurePricingPage.tsx', path: '/azure-pricing', param: 'tab', triggers: true },

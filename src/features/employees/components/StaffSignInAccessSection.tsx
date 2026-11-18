@@ -109,7 +109,7 @@ function AccessRow({
 
 /**
  * Staff record › Sign-in access: the office login (CareFlow website) and the Care app, each switched on or off.
- * Nobody types a password: switching on emails the person a link to choose one, and one password works for both.
+ * Switching on emails the person a link to choose a password, or the office sets one now; one password works for both.
  */
 export function StaffSignInAccessSection({ employeeId }: { employeeId: string }) {
   const canRead = useAuthStore(s => s.can('employees.read'))
@@ -177,7 +177,7 @@ export function StaffSignInAccessSection({ employeeId }: { employeeId: string })
     <section className="rounded-xl border border-border bg-card p-4 shadow-sm" data-testid="staff-sign-in-access">
       <h2 className="text-sm font-semibold text-foreground">Sign-in access</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        What {name} can sign in to. Nobody types a password: we email {name} a link to choose one, and one password works for both.
+        What {name} can sign in to. We email {name} a link to choose a password, or you can set one now and give it to them. One password works for both.
       </p>
 
       {isLoading ? (

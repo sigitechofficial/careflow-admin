@@ -8,7 +8,6 @@ import {
   ChevronRight,
   X,
   Download,
-  Trash2,
 } from 'lucide-react'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
@@ -28,7 +27,6 @@ import {
 } from '@/features/service-users/types'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
-import { useDeleteServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
 import { useUploadServiceUserPhoto } from '@/features/service-users/hooks/useServiceUserPhoto'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useLocationManagementTree } from '@/features/settings/hooks/useLocationManagement'
@@ -279,8 +277,6 @@ export default function ServiceUsersPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const routeSearch = useSearch({ strict: false }) as ServiceUsersListSearch
-  const canDelete = useAuthStore((s) => s.can('service_users.delete'))
-  const deleteMutation = useDeleteServiceUser()
 
   const lookupsQuery = useServiceUserLookups()
   const lookups = lookupsQuery.data ?? null
@@ -504,38 +500,6 @@ export default function ServiceUsersPage() {
     )
   }
 
-  const handleBulkDelete = async () => {
-    if (!canDelete || viewingDeleted || selectedRows.length === 0) return
-    const n = selectedRows.length
-    const ok = window.confirm(
-      `Soft-delete ${n} selected service user${n === 1 ? '' : 's'}? They can be found again under Deleted.`,
-    )
-    if (!ok) return
-    setBulkWorking(true)
-    let failed = 0
-    try {
-      for (const row of selectedRows) {
-        try {
-          await deleteMutation.mutateAsync(row.id)
-        } catch {
-          failed += 1
-        }
-      }
-      const deleted = n - failed
-      if (deleted > 0) {
-        toastSuccess(
-          `Deleted ${deleted} service user${deleted === 1 ? '' : 's'}${failed > 0 ? ` (${failed} failed)` : ''}`,
-        )
-      }
-      if (failed > 0 && deleted === 0) {
-        toastApiError(new Error(`Could not delete ${failed} service user${failed === 1 ? '' : 's'}`), 'Bulk delete failed')
-      }
-      setSelectedIds(new Set())
-      triggerReload()
-    } finally {
-      setBulkWorking(false)
-    }
-  }
 
   const onProfilePhotoUploaded = React.useCallback(
     (_userId: string, _profilePhotoUrl: string) => {
@@ -806,24 +770,6 @@ export default function ServiceUsersPage() {
             <Download className="h-3.5 w-3.5" aria-hidden />
             Export selected
           </Button>
-          {canDelete && !viewingDeleted ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-8 gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              disabled={bulkWorking || deleteMutation.isPending}
-              onClick={() => void handleBulkDelete()}
-              data-testid="service-users-bulk-delete"
-            >
-              {bulkWorking ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5" aria-hidden />
-              )}
-              Soft-delete
-            </Button>
-          ) : null}
           <Button
             type="button"
             size="sm"

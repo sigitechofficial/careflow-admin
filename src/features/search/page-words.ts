@@ -4,6 +4,7 @@
  */
 export const PAGE_WORDS: Record<string, string> = {
   '/settings/location-management': 'branches branch offices office sites site areas zones',
+  '/settings/delete-records': 'delete remove erase service user client employee staff carer duplicate mistake record',
   '/settings/roles-permissions': 'users office users access permissions roles logins accounts',
   '/settings/company': 'company organisation logo name address branding cqc provider',
   '/settings/general': 'settings options preferences configuration',

@@ -867,6 +867,14 @@ export const CATALOG_PAGES: CatalogPage[] = [
     ]
   },
   {
+    "path": "/settings/delete-records",
+    "title": "Delete records",
+    "permissions": [
+      "service_users.delete",
+      "employees.delete"
+    ]
+  },
+  {
     "path": "/settings/general",
     "title": "General Settings",
     "permissions": [
@@ -1558,6 +1566,30 @@ export const CATALOG_TABS: CatalogTab[] = [
       "users.read",
       "roles.manage",
       "permissions.manage"
+    ]
+  },
+  {
+    "label": "Delete service user",
+    "pageTitle": "Delete records",
+    "path": "/settings/delete-records",
+    "search": {
+      "tab": "service-user"
+    },
+    "permissions": [
+      "service_users.delete",
+      "employees.delete"
+    ]
+  },
+  {
+    "label": "Delete employee",
+    "pageTitle": "Delete records",
+    "path": "/settings/delete-records",
+    "search": {
+      "tab": "employee"
+    },
+    "permissions": [
+      "service_users.delete",
+      "employees.delete"
     ]
   },
   {

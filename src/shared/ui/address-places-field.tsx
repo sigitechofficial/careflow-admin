@@ -42,9 +42,11 @@ type Props = {
 }
 
 function coordsFromValue(value: AddressPlacesValue): { lat: number; lng: number } | null {
+  // Empty boxes are no position (Number('') is 0, which would put the address in the Atlantic).
+  if (!String(value.latitude ?? '').trim() || !String(value.longitude ?? '').trim()) return null
   const lat = Number(value.latitude)
   const lng = Number(value.longitude)
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null
   return { lat, lng }
 }
 

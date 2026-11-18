@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import {
   Users, ShieldCheck, Star, Award, Activity, TrendingUp, Package,
-  PenLine, Plus, X, Filter, FileText, Globe, Trash2,
+  PenLine, Plus, X, Filter, FileText, Globe,
   ChevronDown, ChevronUp, ChevronsUpDown,
 } from 'lucide-react'
 import { cn, formatDate } from '@/shared/lib/utils'
@@ -23,7 +23,7 @@ import {
   useEmployeeLookups,
   useEmployeeListFacets,
 } from '@/features/employees/hooks/useEmployees'
-import { usePatchAnyEmployeeStatus, useDeleteEmployee } from '@/features/employees/hooks/useEmployeeMutations'
+import { usePatchAnyEmployeeStatus } from '@/features/employees/hooks/useEmployeeMutations'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import { resolveEmployeeVisaTypes } from '@/features/settings/employee/employee-visa-defaults'
 import { useEmployeeReviewsOverview } from '@/features/employees/hooks/useEmployeeReviews'
@@ -523,10 +523,8 @@ function StaffListTab() {
   const urlSearch = useSearch({ strict: false }) as StaffListSearch
   const canCreateEmployee = useAuthStore(s => s.can('employees.create'))
   const canUpdateEmployee = useAuthStore(s => s.can('employees.update'))
-  const canDeleteEmployee = useAuthStore(s => s.can('employees.delete'))
   const canUpdateEmployeeStatus = useAuthStore(s => s.can('employees.status.update'))
   const patchStatus = usePatchAnyEmployeeStatus()
-  const deleteEmployeeMutation = useDeleteEmployee()
 
   const filters = React.useMemo(() => staffListSearchToFilters(urlSearch), [urlSearch])
   const sort = React.useMemo(() => staffListSearchToSort(urlSearch), [urlSearch])
@@ -566,7 +564,6 @@ function StaffListTab() {
 
   const [statusBusyId, setStatusBusyId] = React.useState<string | null>(null)
   const [statusUpdateError, setStatusUpdateError] = React.useState<string | null>(null)
-  const [deleteBusyId, setDeleteBusyId] = React.useState<string | null>(null)
 
   const { data: lookups = null, isLoading: lookupsLoading, error: lookupsError } = useEmployeeLookups()
   const { data: generalSettings } = useGeneralSettings()
@@ -673,25 +670,6 @@ function StaffListTab() {
     [lookups, patchStatus],
   )
 
-  const handleDeleteEmployee = React.useCallback(
-    async (emp: EmployeeListRow, displayName: string) => {
-      if (!canDeleteEmployee) return
-      const ok = window.confirm(
-        `Delete ${displayName}? They will be removed from the staff list and unallocated from future scheduled jobs. This can be reversed only from the database.`,
-      )
-      if (!ok) return
-      setDeleteBusyId(emp.id)
-      try {
-        await deleteEmployeeMutation.mutateAsync(emp.id)
-        toastSuccess('Employee deleted', `${displayName} was removed from the staff list.`)
-      } catch (e) {
-        toastApiError(e, 'Could not delete employee.')
-      } finally {
-        setDeleteBusyId(null)
-      }
-    },
-    [canDeleteEmployee, deleteEmployeeMutation],
-  )
 
   const { active: activeStatusLookup, inactive: inactiveStatusLookup } = activeInactiveLookups(lookups)
   const showStatusSwitch = Boolean(canUpdateEmployeeStatus && activeStatusLookup && inactiveStatusLookup)
@@ -947,21 +925,6 @@ function StaffListTab() {
                             </UiTooltip>
                           </TooltipProvider>
                         )}
-                        {canDeleteEmployee ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            data-testid={`employee-delete-${emp.id}`}
-                            title="Delete employee"
-                            aria-label={`Delete ${name}`}
-                            disabled={deleteBusyId === emp.id || deleteEmployeeMutation.isPending}
-                            onClick={() => void handleDeleteEmployee(emp, name)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                          </Button>
-                        ) : null}
                       </div>
                     </td>
                   </tr>

@@ -258,6 +258,7 @@ import type { GeneralSettingsTabId } from '@/features/settings/pages/GeneralSett
 import CompanyDetailsPage from '@/features/settings/pages/CompanyDetailsPage'
 import LocationManagementPage from '@/features/settings/pages/LocationManagementPage'
 import RolesPermissionsPage from '@/features/settings/pages/RolesPermissionsPage'
+import DeleteRecordsPage, { DELETE_RECORD_TABS, type DeleteRecordTab } from '@/features/settings/pages/DeleteRecordsPage'
 import CarePathwayPage from '@/features/settings/pages/CarePathwayPage'
 import type { SettingsTabId } from '@/features/settings/pages/SettingsPage'
 
@@ -427,6 +428,7 @@ const pageTitles: Record<string, string> = {
   '/settings/location-management': 'Location Management',
   '/settings/users-access': 'Users & access',
   '/settings/roles-permissions': 'Roles & permissions',
+  '/settings/delete-records': 'Delete records',
   '/settings/care-pathway': 'Care Pathway',
   '/billing': 'Billing Management',
   '/billing/pay-cards/new': 'New pay card',
@@ -2378,6 +2380,17 @@ const usersAccessRoute = createRoute({
   },
 })
 
+const deleteRecordsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/settings/delete-records',
+  validateSearch: (raw: Record<string, unknown>): { tab?: DeleteRecordTab } => {
+    const tab = raw.tab
+    return typeof tab === 'string' && DELETE_RECORD_TABS.some((t) => t.id === tab) ? { tab: tab as DeleteRecordTab } : {}
+  },
+  beforeLoad: requireAnyPermission('service_users.delete', 'employees.delete'),
+  component: DeleteRecordsPage,
+})
+
 const rolesPermissionsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/settings/roles-permissions',
@@ -3239,6 +3252,7 @@ const routeTree = rootRoute.addChildren([
     locationManagementRoute,
     usersAccessRoute,
     rolesPermissionsRoute,
+    deleteRecordsRoute,
     carePathwayRoute,
     billingRoute,
     billingPayCardNewRoute,

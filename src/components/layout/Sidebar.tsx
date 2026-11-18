@@ -93,8 +93,7 @@ import {
   Sparkles,
   PhoneCall,
   PhoneIncoming,
-  Hourglass,
-} from 'lucide-react'
+  Hourglass, Trash2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
 // import { UserAvatar } from '@/shared/ui/avatar' // TODO(later): restore with sidebar Super Admin / account card
@@ -1024,6 +1023,14 @@ const navItems: NavItem[] = [
         search: { sub: 'office-users' },
         anyPermission: ['users.read', 'roles.manage', 'permissions.manage', 'lookups.read'],
         navTestId: 'nav-settings-roles-permissions',
+      },
+      {
+        section: 'Organisation',
+        label: 'Delete records',
+        icon: <Trash2 className="h-4 w-4" />,
+        href: '/settings/delete-records',
+        anyPermission: ['service_users.delete', 'employees.delete'],
+        navTestId: 'nav-settings-delete-records',
       },
       {
         section: 'Configuration',
