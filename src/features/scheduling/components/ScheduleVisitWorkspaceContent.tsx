@@ -41,6 +41,7 @@ import { VisitMedicationPanel } from '@/features/scheduling/components/VisitMedi
 import { VisitObservationsPanel } from '@/features/scheduling/components/VisitObservationsPanel'
 import { VisitLogTimelinePanel } from '@/features/scheduling/components/VisitLogTimelinePanel'
 import { VisitArrivalSafetySection } from '@/features/scheduling/components/VisitArrivalSafetySection'
+import { VisitThisVisitNotesSection } from '@/features/scheduling/components/VisitHandoverSection'
 import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
 import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
 import { useVisitVoiceNotes } from '@/features/scheduling/hooks/useVisitVoiceNotes'
@@ -816,6 +817,8 @@ export function ScheduleVisitWorkspaceContent({
           <VisitPurposeLine jobId={job.id} />
 
           <VisitPreviousNotesSection jobId={job.id} className={cardSurface} />
+
+          <VisitThisVisitNotesSection jobId={job.id} className={cardSurface} />
 
           <VisitCareConsentSection
             jobId={job.id}
