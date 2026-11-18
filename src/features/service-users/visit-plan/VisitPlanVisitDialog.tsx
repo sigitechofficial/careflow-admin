@@ -167,6 +167,22 @@ export function VisitPlanVisitDialog({
           </DialogHeader>
           <DialogBody className="space-y-5">
             <section>
+              <Label htmlFor="visit-purpose" className="text-xs text-muted-foreground">
+                What is this visit for? (optional)
+              </Label>
+              <Input
+                id="visit-purpose"
+                className="mt-1"
+                maxLength={200}
+                value={draft.notes ?? ''}
+                placeholder="e.g. Weekly shopping trip, or escort to the day centre"
+                onChange={(e) => patch({ notes: e.target.value })}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Shown on every visit this makes (the visit window and the carer app) and on the person&apos;s plan.
+              </p>
+            </section>
+            <section>
               <Label className="text-xs text-muted-foreground">Days of the week</Label>
               <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-2">
                 {MONDAY_FIRST.map((day) => (

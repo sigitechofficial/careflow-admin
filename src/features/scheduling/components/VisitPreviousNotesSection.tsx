@@ -61,3 +61,23 @@ export function VisitPreviousNotesSection({ jobId, className }: { jobId: string;
     </section>
   )
 }
+
+export type VisitPurpose = { text: string; source: 'regular' | 'extra' }
+
+export async function fetchVisitPurpose(jobId: string): Promise<VisitPurpose | null> {
+  const res = await apiJson<ApiEnvelope<VisitPurpose | null>>(`/scheduled-jobs-housekeeping/jobs/${jobId}/visit-purpose`)
+  const d = res?.data
+  return d && typeof d.text === 'string' && d.text.trim() ? d : null
+}
+
+/** What this visit is for, from the visit plan. Nothing is shown when none was written. */
+export function VisitPurposeLine({ jobId, className }: { jobId: string; className?: string }) {
+  const q = useQuery({ queryKey: ['visit-purpose', jobId], queryFn: () => fetchVisitPurpose(jobId), staleTime: 60_000, retry: false })
+  if (!q.data) return null
+  return (
+    <p className={cn('rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm', className)} data-testid="visit-purpose">
+      <span className="font-medium">{q.data.source === 'extra' ? 'Extra visit: ' : 'Visit for: '}</span>
+      {q.data.text}
+    </p>
+  )
+}
