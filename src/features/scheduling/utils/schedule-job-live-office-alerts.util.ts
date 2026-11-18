@@ -6,9 +6,10 @@ import {
 
 export const LIVE_OFFICE_ALERT_PRIORITY: Record<BoardLiveOfficeAlertKind, number> = {
   CARER_SOS: 0,
-  LEFT_VISIT_AREA: 1,
-  UNABLE_TO_START: 2,
-  OUTSIDE_AREA_CHECK_IN_REQUEST: 3,
+  WELFARE_ON_ARRIVAL: 1,
+  LEFT_VISIT_AREA: 2,
+  UNABLE_TO_START: 3,
+  OUTSIDE_AREA_CHECK_IN_REQUEST: 4,
 }
 
 export type LiveOfficeAlert = {
@@ -33,6 +34,13 @@ const META: Record<
   CARER_SOS: {
     shortLabel: 'SOS',
     label: 'Carer SOS',
+    chipClass: 'bg-red-600 text-white shadow-sm',
+    pulseClass:
+      'z-[30] origin-center overflow-visible border-2 border-red-500 bg-rose-50 text-rose-950 dark:bg-rose-950/80 dark:text-rose-50 schedule-job-live-alert-danger',
+  },
+  WELFARE_ON_ARRIVAL: {
+    shortLabel: 'Welfare',
+    label: 'Welfare concern on arrival',
     chipClass: 'bg-red-600 text-white shadow-sm',
     pulseClass:
       'z-[30] origin-center overflow-visible border-2 border-red-500 bg-rose-50 text-rose-950 dark:bg-rose-950/80 dark:text-rose-50 schedule-job-live-alert-danger',
@@ -74,6 +82,7 @@ export function liveOfficeAlertChipIsSentence(alert: LiveOfficeAlert): boolean {
   return (
     alert.kind === 'OUTSIDE_AREA_CHECK_IN_REQUEST' ||
     alert.kind === 'UNABLE_TO_START' ||
+    alert.kind === 'WELFARE_ON_ARRIVAL' ||
     alert.kind === 'LEFT_VISIT_AREA'
   )
 }
@@ -234,6 +243,7 @@ export function liveOfficeAlertCardFit(
 
 export type LiveOfficeAlertBoardCounts = {
   sos: number
+  welfare: number
   leftArea: number
   unableToStart: number
   checkIn: number
@@ -246,6 +256,7 @@ export function countLiveOfficeAlertsOnBoard(
 ): LiveOfficeAlertBoardCounts {
   const firstJobIdByKind: Partial<Record<BoardLiveOfficeAlertKind, string>> = {}
   let sos = 0
+  let welfare = 0
   let leftArea = 0
   let unableToStart = 0
   let checkIn = 0
@@ -253,6 +264,7 @@ export function countLiveOfficeAlertsOnBoard(
     for (const alert of alerts) {
       if (firstJobIdByKind[alert.kind] == null) firstJobIdByKind[alert.kind] = jobId
       if (alert.kind === 'CARER_SOS') sos += 1
+      else if (alert.kind === 'WELFARE_ON_ARRIVAL') welfare += 1
       else if (alert.kind === 'LEFT_VISIT_AREA') leftArea += 1
       else if (alert.kind === 'UNABLE_TO_START') unableToStart += 1
       else checkIn += 1
@@ -260,6 +272,7 @@ export function countLiveOfficeAlertsOnBoard(
   }
   return {
     sos,
+    welfare,
     leftArea,
     unableToStart,
     checkIn,

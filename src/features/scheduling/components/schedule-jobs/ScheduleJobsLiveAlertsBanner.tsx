@@ -7,9 +7,10 @@ import { cn } from '@/shared/lib/utils'
 
 const BANNER_ITEMS: Array<{
   kind: BoardLiveOfficeAlertKind
-  countKey: keyof Pick<LiveOfficeAlertBoardCounts, 'sos' | 'leftArea' | 'unableToStart' | 'checkIn'>
+  countKey: keyof Pick<LiveOfficeAlertBoardCounts, 'sos' | 'welfare' | 'leftArea' | 'unableToStart' | 'checkIn'>
 }> = [
   { kind: 'CARER_SOS', countKey: 'sos' },
+  { kind: 'WELFARE_ON_ARRIVAL', countKey: 'welfare' },
   { kind: 'LEFT_VISIT_AREA', countKey: 'leftArea' },
   { kind: 'UNABLE_TO_START', countKey: 'unableToStart' },
   { kind: 'OUTSIDE_AREA_CHECK_IN_REQUEST', countKey: 'checkIn' },
