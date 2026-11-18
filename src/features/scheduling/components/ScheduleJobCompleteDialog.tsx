@@ -4,7 +4,6 @@ import { Clock, Loader2 } from 'lucide-react'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Label } from '@/shared/ui/form-field'
-import { Input } from '@/shared/ui/input'
 import {
   Select,
   SelectContent,
@@ -79,6 +78,7 @@ import {
 } from '@/features/scheduling/utils/visit-care-not-delivered-reason.util'
 import type { VisitPlanCalendarOutcomeStatus } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 /** "HH:mm" plus minutes, on a 24-hour clock (an end past midnight is read as the next day). */
 function addMinutesToHm(hm: string, minutes: number): string {
   const [h = 0, m = 0] = hm.split(':').map(Number)
@@ -803,8 +803,8 @@ export function ScheduleJobCompleteDialog({
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div>
                           <Label className="text-xs text-muted-foreground">Actual start</Label>
-                          <Input
-                            type="time"
+                          <TimeInput
+                           
                             className="mt-1"
                             value={draft.startHm}
                             disabled={busy}
@@ -823,8 +823,8 @@ export function ScheduleJobCompleteDialog({
                         {isStartedOutcome ? null : (
                           <div>
                             <Label className="text-xs text-muted-foreground">Actual end</Label>
-                            <Input
-                              type="time"
+                            <TimeInput
+                             
                               className="mt-1"
                               value={draft.endHm}
                               disabled={busy}
@@ -858,9 +858,9 @@ export function ScheduleJobCompleteDialog({
                   <Label htmlFor="schedule-job-actual-start" className="text-xs text-muted-foreground">
                     Start time
                   </Label>
-                  <Input
+                  <TimeInput
                     id="schedule-job-actual-start"
-                    type="time"
+                   
                     className="mt-1"
                     value={actualStartTime}
                     disabled={busy}
@@ -872,9 +872,9 @@ export function ScheduleJobCompleteDialog({
                     <Label htmlFor="schedule-job-actual-end" className="text-xs text-muted-foreground">
                       End time
                     </Label>
-                    <Input
+                    <TimeInput
                       id="schedule-job-actual-end"
-                      type="time"
+                     
                       className="mt-1"
                       value={actualEndTime}
                       disabled={busy}

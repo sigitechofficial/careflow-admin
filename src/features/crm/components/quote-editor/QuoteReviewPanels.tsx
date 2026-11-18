@@ -56,9 +56,11 @@ import type {
   QuoteVersionDetail,
 } from '@/features/crm/types/quotation.types'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDateTime, formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm'
 const labelClass = 'text-sm font-medium text-foreground'
-const fmtDateTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '—')
+const fmtDateTime = (iso: string | null) => (iso ? formatOrganisationDateTime(iso) : '—')
 const toIso = (local: string) => (local ? new Date(local).toISOString() : undefined)
 
 function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
@@ -75,7 +77,7 @@ type Props = { enquiryId: string; detail: QuoteVersionDetail; onOpenVersion: (ve
 /* ─── Review & Send ───────────────────────────────────────────────────── */
 
 const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null
+  iso ? String(formatOrganisationDay(iso)) : null
 
 /** The latest send attempt for this version failed (and nothing was sent since). */
 function lastAttemptFailed(detail: QuoteVersionDetail): boolean {
@@ -209,8 +211,8 @@ function SendForm({ enquiryId, detail, onDone }: { enquiryId: string; detail: Qu
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Recipient name"><Input value={name} onChange={e => setName(e.target.value)} /></Field>
         <Field label={isEmail ? 'Recipient email *' : 'Recipient email'}><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></Field>
-        {!isEmail && <Field label="Sent at"><Input type="datetime-local" value={sentAt} onChange={e => setSentAt(e.target.value)} /></Field>}
-        <Field label="Follow up on"><Input type="datetime-local" value={followUp} onChange={e => setFollowUp(e.target.value)} /></Field>
+        {!isEmail && <Field label="Sent at"><DateTimeInput value={sentAt} onChange={e => setSentAt(e.target.value)} /></Field>}
+        <Field label="Follow up on"><DateTimeInput value={followUp} onChange={e => setFollowUp(e.target.value)} /></Field>
         {isEmail && <Field label="Message" className="sm:col-span-2"><Textarea value={message} placeholder="Optional covering message. The PDF is attached." onChange={e => setMessage(e.target.value)} /></Field>}
       </div>
       <div className="flex justify-end gap-2 border-t border-border pt-4">
@@ -611,7 +613,7 @@ function ResponseForm({ enquiryId, detail, onOpenVersion }: Props) {
         <Field label="Who responded"><Input value={form.responderName} onChange={set('responderName')} /></Field>
         <Field label="Relationship"><Input value={form.responderRelationship} onChange={set('responderRelationship')} placeholder="e.g. Daughter" /></Field>
         <Field label="How"><Input value={form.method} onChange={set('method')} /></Field>
-        <Field label="When"><Input type="datetime-local" value={form.respondedAt} onChange={set('respondedAt')} /></Field>
+        <Field label="When"><DateTimeInput value={form.respondedAt} onChange={set('respondedAt')} /></Field>
         <Field label="Evidence"><Input value={form.evidence} onChange={set('evidence')} placeholder="e.g. Email saved to documents" /></Field>
       </div>
       {needsReason && (
@@ -631,7 +633,7 @@ function ResponseForm({ enquiryId, detail, onOpenVersion }: Props) {
       <Field label={needsReason && reason === 'OTHER' ? 'Details (required)' : 'Details'}><Textarea value={form.details} onChange={set('details')} /></Field>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Next action"><Input value={form.nextAction} onChange={set('nextAction')} /></Field>
-        <Field label="Follow up on"><Input type="datetime-local" value={form.followUpAt} onChange={set('followUpAt')} /></Field>
+        <Field label="Follow up on"><DateTimeInput value={form.followUpAt} onChange={set('followUpAt')} /></Field>
       </div>
       {type === 'ACCEPTED' && (
         <p className="text-xs text-muted-foreground">Accepting marks this exact version. The enquiry is not marked Won automatically — create the service user to win it.</p>
@@ -670,7 +672,7 @@ function FollowUps({ enquiryId, detail }: { enquiryId: string; detail: QuoteVers
             )}
             {moving?.id === f.id && (
               <span className="flex w-full gap-2">
-                <Input type="datetime-local" value={moving.dueAt} onChange={e => setMoving({ id: f.id, dueAt: e.target.value })} />
+                <DateTimeInput value={moving.dueAt} onChange={e => setMoving({ id: f.id, dueAt: e.target.value })} />
                 <Button
                   size="sm"
                   disabled={!moving.dueAt}
@@ -684,7 +686,7 @@ function FollowUps({ enquiryId, detail }: { enquiryId: string; detail: QuoteVers
         ))}
       </ul>
       <div className="grid items-end gap-2 sm:grid-cols-4">
-        <Field label="Due"><Input type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)} /></Field>
+        <Field label="Due"><DateTimeInput value={dueAt} onChange={e => setDueAt(e.target.value)} /></Field>
         <Field label="How"><Input value={method} onChange={e => setMethod(e.target.value)} /></Field>
         <Field label="Note"><Input value={note} onChange={e => setNote(e.target.value)} /></Field>
         <Button

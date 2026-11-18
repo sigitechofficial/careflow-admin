@@ -26,6 +26,7 @@ import {
 import { formatBillingDate } from '@/features/billing/types/billing-cards.types'
 import { DayPriorityCard } from '@/features/billing/components/DayPriorityCard'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const selectClass = 'flex h-9 rounded-md border border-input bg-background px-3 text-sm'
 const MIN_REASON_LENGTH = 10
 
@@ -259,7 +260,7 @@ export function BankHolidaysPanel() {
         <form onSubmit={onAdd} className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-3">
           <label className="space-y-1 text-sm">
             <span className="text-xs font-medium text-foreground/90">Date</span>
-            <Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} required />
+            <DateInput value={newDate} onChange={e => setNewDate(e.target.value)} required />
           </label>
           <label className="min-w-[220px] flex-1 space-y-1 text-sm">
             <span className="text-xs font-medium text-foreground/90">Name</span>

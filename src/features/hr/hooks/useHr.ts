@@ -4,8 +4,11 @@ import {
   fetchHrDocuments,
   fetchHrEmployees,
   fetchHrProfile,
+  fetchHrSummary,
   updateHrProfile,
   deleteHrDocument,
+  fetchExpiringHrDocuments,
+  updateHrDocumentStatus,
   type HrProfilePayload,
   type ListHrEmployeesParams,
 } from '@/features/hr/api/hr.api'
@@ -19,6 +22,15 @@ export function useHrEmployees(params: ListHrEmployeesParams, enabled = true) {
   return useQuery({
     queryKey: hrKeys.employees(params),
     queryFn: () => fetchHrEmployees(params),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useHrSummary(enabled = true) {
+  return useQuery({
+    queryKey: hrKeys.summary(),
+    queryFn: () => fetchHrSummary(),
     enabled,
     staleTime: 30_000,
   })
@@ -97,7 +109,29 @@ export function useUploadHrDocument(employeeId: string) {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: hrKeys.documents(employeeId) })
+      void qc.invalidateQueries({ queryKey: hrKeys.expiringDocuments() })
     },
+  })
+}
+
+export function useUpdateHrDocumentStatus(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { documentId: string; status: HrDocumentStatus }) =>
+      updateHrDocumentStatus(input.documentId, input.status),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: hrKeys.documents(employeeId) })
+      void qc.invalidateQueries({ queryKey: hrKeys.expiringDocuments() })
+    },
+  })
+}
+
+export function useExpiringHrDocuments(enabled = true) {
+  return useQuery({
+    queryKey: hrKeys.expiringDocuments(),
+    queryFn: fetchExpiringHrDocuments,
+    enabled,
+    staleTime: 60_000,
   })
 }
 
@@ -107,6 +141,7 @@ export function useDeleteHrDocument(employeeId: string) {
     mutationFn: (documentId: string) => deleteHrDocument(documentId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: hrKeys.documents(employeeId) })
+      void qc.invalidateQueries({ queryKey: hrKeys.expiringDocuments() })
     },
   })
 }

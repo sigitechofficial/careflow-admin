@@ -151,7 +151,7 @@ describe('pay agreements of an employee (WM-02 / WM-03)', () => {
     renderPanel()
     const endButton = screen.getByRole('button', { name: 'End agreement' })
     expect(endButton).toBeDisabled()
-    fireEvent.change(screen.getByLabelText('Last day of the agreement from 2026-01-01'), { target: { value: '2026-11-10' } })
+    fireEvent.change(screen.getByLabelText('Last day of the agreement from 01/01/2026'), { target: { value: '2026-11-10' } })
     fireEvent.click(endButton)
     expect(state.end).toHaveBeenCalledWith({ agreementId: 'a-1', effectiveTo: '2026-11-10' })
     expect(screen.getByRole('button', { name: 'Save for approval' })).toBeInTheDocument()

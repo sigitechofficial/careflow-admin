@@ -19,6 +19,7 @@ import {
   matchStatusVariant,
 } from '@/features/billing/utils/payment-display.util'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 function needsLinking(row: PaymentRow): boolean {
   return row.recordStatus === 'RECEIVED' && row.matchStatus !== 'FULLY_MATCHED'
 }
@@ -163,7 +164,7 @@ export function BillingPaymentsPanel() {
                 <div>
                   <p className="font-medium text-sm">{inv.period}</p>
                   <p className="text-xs text-muted-foreground">
-                    {inv.outstanding} due · sent {inv.dueDate}
+                    {inv.outstanding} due · sent {formatOrganisationDay(inv.dueDate)}
                   </p>
                 </div>
                 {canManage ? (

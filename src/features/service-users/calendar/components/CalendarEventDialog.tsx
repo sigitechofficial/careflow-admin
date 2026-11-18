@@ -21,6 +21,7 @@ import {
   type CalendarEventFormValues,
 } from './CalendarEventForm'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 export function CalendarEventDialog({
   open,
   onOpenChange,
@@ -118,7 +119,7 @@ export function CalendarEventDialog({
           <DialogDescription>
             {defaultDate && !event ? (
               <span>
-                Date <strong>{defaultDate}</strong> is prefilled. Choose service user, event type, time, and
+                Date <strong>{formatOrganisationDay(defaultDate)}</strong> is prefilled. Choose service user, event type, time, and
                 notes.
               </span>
             ) : (

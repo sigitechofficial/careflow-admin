@@ -11,7 +11,6 @@ import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/toggle-controls'
-import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import {
   Dialog,
@@ -29,6 +28,7 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type PauseReason = SuLookupRow & { suggestsUseAbsence?: boolean }
 
 /** Settings → Reviews & reminders `visitPlanSuspensionReviewDays`; blank until known (the API then applies it). */
@@ -192,8 +192,8 @@ export function VisitPlanSuspendDialog({
 
           <div>
             <Label className={contentOverlineClass}>Visits should stop from</Label>
-            <Input
-              type="date"
+            <DateInput
+             
               className="mt-1"
               value={effectiveFrom}
               max={todayIso()}
@@ -250,8 +250,8 @@ export function VisitPlanSuspendDialog({
                 </Label>
               </div>
               {!indefinite ? (
-                <Input
-                  type="date"
+                <DateInput
+                 
                   className="mt-2"
                   value={expectedResumeAt}
                   onChange={(e) => setExpectedResumeAt(e.target.value)}
@@ -260,8 +260,8 @@ export function VisitPlanSuspendDialog({
             </div>
             <div>
               <Label className={contentOverlineClass}>Review suspension by</Label>
-              <Input
-                type="date"
+              <DateInput
+               
                 className="mt-1"
                 value={reviewDueAt}
                 onChange={(e) => setReviewDueAt(e.target.value)}

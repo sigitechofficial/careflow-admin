@@ -21,11 +21,11 @@ import { ContentCard, contentBodyClass, contentHelperClass, contentTitleClass } 
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { FormField } from '@/shared/ui/form-field'
-import { Input } from '@/shared/ui/input'
 import { cn, formatDateTime } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { toastApiError } from '@/shared/lib/toast'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function visitStatusLabel(status: string): string {
   if (status === 'PARTIALLY_COMPLETED') return 'Partially completed'
   if (status === 'COMPLETED') return 'Completed'
@@ -240,16 +240,16 @@ export default function ServiceUserActivityPage() {
 
           <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border/70 bg-muted/15 px-3 py-3">
             <FormField label="From" className="min-w-[10rem]">
-              <Input
-                type="date"
+              <DateInput
+               
                 value={dateFrom}
                 max={dateTo || undefined}
                 onChange={(e) => setDateFrom(e.target.value)}
               />
             </FormField>
             <FormField label="To" className="min-w-[10rem]">
-              <Input
-                type="date"
+              <DateInput
+               
                 value={dateTo}
                 min={dateFrom || undefined}
                 onChange={(e) => setDateTo(e.target.value)}

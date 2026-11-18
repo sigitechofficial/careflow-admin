@@ -3,6 +3,7 @@ import { Button } from '@/shared/ui/button'
 import { Textarea } from '@/shared/ui/form-field'
 import type { BodyMapWoundAssessment, BodyMapWoundReviewPayload } from '@/features/service-users/body-map/types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   woundAssessment: BodyMapWoundAssessment | null | undefined
   disabled?: boolean
@@ -124,8 +125,8 @@ export function WoundReviewForm({ woundAssessment, disabled, onSubmit }: Props) 
       </label>
       <label className="block text-xs font-medium">
         Next dressing change
-        <input
-          type="date"
+        <DateInput
+         
           className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
           value={nextDressingChange}
           onChange={e => setNextDressingChange(e.target.value)}
@@ -159,8 +160,8 @@ export function WoundReviewForm({ woundAssessment, disabled, onSubmit }: Props) 
       </div>
       <label className="block text-xs font-medium">
         Next review date
-        <input
-          type="date"
+        <DateInput
+         
           className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
           value={nextReviewAt}
           onChange={e => setNextReviewAt(e.target.value)}

@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '')
   Object.assign(process.env, env)
 
+  // Where the dev server's /api proxy sends requests (a second checkout can run its own API on another port).
+  const apiTarget = env.DEV_API_PROXY_TARGET || 'http://localhost:3000'
+
   const plugins: PluginOption[] = [react()]
   if (mode === 'development') {
     plugins.push(iaPlaywrightRunnerPlugin())
@@ -37,13 +40,13 @@ export default defineConfig(({ mode }) => {
     // Set VITE_API_BASE_URL=/api in .env (see .env.example).
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: apiTarget,
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, ''),
         ws: true,
       },
       '/socket.io': {
-        target: 'http://localhost:3000',
+        target: apiTarget,
         changeOrigin: true,
         ws: true,
       },

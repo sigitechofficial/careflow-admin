@@ -19,6 +19,7 @@ import { useEmployees } from '@/features/employees/hooks/useEmployees'
 import { useEmployeeHolidays } from '@/features/employees/hooks/useEmployeeTabs'
 import { useEmployeeAbsences } from '@/features/employees/hooks/useEmployeeAbsences'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const fieldLabel = 'text-xs font-medium text-foreground/90'
 const selectClass = 'flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm'
 
@@ -169,7 +170,7 @@ export default function PayItemCreatePage() {
             </label>
             <label className="space-y-1 text-sm">
               <span className={fieldLabel}>Date it relates to <span className="text-destructive">*</span></span>
-              <Input type="date" value={workDate} onChange={e => setWorkDate(e.target.value)} disabled={saving} required />
+              <DateInput value={workDate} onChange={e => setWorkDate(e.target.value)} disabled={saving} required />
             </label>
           </div>
           <p className="text-xs text-muted-foreground">{typeMeta.hint}</p>

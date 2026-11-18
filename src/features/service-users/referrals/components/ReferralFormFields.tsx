@@ -19,6 +19,7 @@ import {
 } from '@/features/service-users/referrals/referral-labels'
 import { Input } from '@/shared/ui/input'
 
+import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 export const referralSelectClass =
   'h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 export const referralTextareaClass =
@@ -261,11 +262,11 @@ export function ReferralFormFields({
 
       <Group title="When and how">
         <Field label="Referral date & time" hint="As written on the referral.">
-          <Input type="datetime-local" value={value.referralDate} onChange={e => set('referralDate')(e.target.value)} />
+          <DateTimeInput value={value.referralDate} onChange={e => set('referralDate')(e.target.value)} />
         </Field>
         <Field label="Received date & time *" hint="When it actually reached you.">
-          <Input
-            type="datetime-local"
+          <DateTimeInput
+           
             value={value.receivedAt}
             onChange={e => set('receivedAt')(e.target.value)}
             data-testid="referral-received-at"
@@ -323,8 +324,8 @@ export function ReferralFormFields({
           />
         </Field>
         <Field label="Expected start date">
-          <Input
-            type="date"
+          <DateInput
+           
             value={value.expectedStartDate}
             onChange={e => set('expectedStartDate')(e.target.value)}
             data-testid="referral-expected-start"
@@ -397,8 +398,8 @@ export function ReferralFormFields({
               />
             </Field>
             <Field label="Next follow-up">
-              <Input
-                type="datetime-local"
+              <DateTimeInput
+               
                 value={value.nextFollowUpAt}
                 onChange={e => set('nextFollowUpAt')(e.target.value)}
               />

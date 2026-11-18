@@ -34,6 +34,7 @@ import {
   returnDueIsoToDate,
 } from '@/features/employees/components/employee-allocations/allocation-labels'
 
+import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 const textareaClass =
   'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
@@ -202,10 +203,10 @@ export function AllocationFormDialog({
             </Field>
           </div>
           <Field label="Issued date & time *">
-            <Input type="datetime-local" value={issuedAt} onChange={e => setIssuedAt(e.target.value)} />
+            <DateTimeInput value={issuedAt} onChange={e => setIssuedAt(e.target.value)} />
           </Field>
           <Field label="Return due">
-            <Input type="date" value={returnDue} onChange={e => setReturnDue(e.target.value)} />
+            <DateInput value={returnDue} onChange={e => setReturnDue(e.target.value)} />
           </Field>
           {selectedItem?.returnable && !returnDue ? (
             <p className="text-xs text-muted-foreground">
@@ -303,7 +304,7 @@ export function ReturnAllocationDialog({
             ))}
           </div>
           <Field label={status === 'LOST' ? 'Reported lost on *' : 'Returned date & time *'}>
-            <Input type="datetime-local" value={returnedAt} onChange={e => setReturnedAt(e.target.value)} />
+            <DateTimeInput value={returnedAt} onChange={e => setReturnedAt(e.target.value)} />
           </Field>
           <Field label="Notes">
             <textarea

@@ -7,6 +7,7 @@ import type { ProposeDeductionAdjustmentInput } from '@/features/payroll/types/p
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const KINDS: Array<[ProposeDeductionAdjustmentInput['kind'], string]> = [
   ['STUDENT_LOAN', 'Student loan'],
   ['POSTGRADUATE_LOAN', 'Postgraduate loan'],
@@ -109,7 +110,7 @@ export function PayrollCorrectionsSection({ employeeId, canPropose }: { employee
               <option value="">Choose</option>
               {closedRuns.map((p) => (
                 <option key={p.runEmployeeId} value={p.ukPayrollRunId}>
-                  {p.runLabel} · {p.paymentDate}
+                  {p.runLabel} · {formatOrganisationDay(p.paymentDate)}
                 </option>
               ))}
             </select>

@@ -12,6 +12,7 @@ import {
   type TravelEvidence,
 } from '@/features/billing/api/travel-disruptions.api'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 const MIN_NOTE_LENGTH = 5
 const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-2 text-sm'
 const fieldClass = 'flex flex-col gap-1.5 text-xs'
@@ -123,11 +124,11 @@ export function VisitTravelTimeCard({ visitReconciliationId, visitDate }: { visi
             </label>
             <label className={fieldClass}>
               <span className={labelClass}>From</span>
-              <Input type="time" value={from} onChange={e => setFrom(e.target.value)} aria-label="Interval start" />
+              <TimeInput value={from} onChange={e => setFrom(e.target.value)} aria-label="Interval start" />
             </label>
             <label className={fieldClass}>
               <span className={labelClass}>To</span>
-              <Input type="time" value={to} onChange={e => setTo(e.target.value)} aria-label="Interval end" />
+              <TimeInput value={to} onChange={e => setTo(e.target.value)} aria-label="Interval end" />
             </label>
           </div>
           {policyCategory ? (

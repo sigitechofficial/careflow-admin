@@ -35,6 +35,7 @@ import type {
   SafeguardingStatus,
 } from '@/features/safeguarding/types/safeguarding.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function RaiseForm({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
   const create = useCreateSafeguarding()
@@ -172,7 +173,7 @@ function RaiseForm({ onClose }: { onClose: () => void }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Review date</label>
-            <Input type="date" value={reviewDate} onChange={e => setReviewDate(e.target.value)} />
+            <DateInput value={reviewDate} onChange={e => setReviewDate(e.target.value)} />
           </div>
         </div>
         <div className="flex flex-col gap-1.5">

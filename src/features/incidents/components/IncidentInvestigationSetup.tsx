@@ -20,6 +20,7 @@ import {
   type InvestigatorInvolvement,
 } from '@/features/incidents/types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 /** Pause / resume calls for whatever the investigation belongs to (an incident, a complaint). */
 export type InvestigationPauseControls = {
   pause: {
@@ -269,9 +270,9 @@ function InvestigationStatusControl({
               Next review date
               <Req />
             </label>
-            <input
+            <DateInput
               id="pause-review"
-              type="date"
+             
               className={inputClass}
               min={today}
               value={nextReviewDate}
@@ -500,9 +501,9 @@ export function InvestigationSetupForm({
             </span>
             {investigation?.overdue && <OverdueBadge />}
           </label>
-          <input
+          <DateInput
             id="inv-target"
-            type="date"
+           
             className={inputClass}
             min={startedOn ?? today}
             value={values.targetDate}

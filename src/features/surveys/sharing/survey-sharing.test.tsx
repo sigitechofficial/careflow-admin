@@ -147,8 +147,8 @@ describe('poster and ended page', () => {
   it('an ended survey gets a page of its own saying so', () => {
     const page = unavailablePage(form({ unavailableKind: 'ENDED', status: 'ACTIVE', closesAt: '2026-11-20T12:00:00.000Z' }))
     expect(page?.title).toBe('This survey has ended')
-    expect(page?.description).toContain('closed on 20 November 2026')
-    expect(unavailablePage(form({ unavailableKind: 'NOT_OPEN', opensAt: '2026-12-01T09:00:00.000Z' }))?.description).toContain('opens on 1 December 2026')
+    expect(page?.description).toContain('closed on 20/11/2026')
+    expect(unavailablePage(form({ unavailableKind: 'NOT_OPEN', opensAt: '2026-12-01T09:00:00.000Z' }))?.description).toContain('opens on 01/12/2026')
     expect(unavailablePage(form({ unavailableKind: 'NO_OPEN_PERIOD', unavailableReason: 'The next one opens on 1 Dec 2026.' }))?.title).toBe('No survey is open right now')
     // An invitation that lapsed (the person can no longer be sent it): closed for them.
     expect(unavailablePage(form({ unavailableKind: 'CLOSED_FOR_YOU', unavailableReason: 'This survey is closed for you. Thank you.' }))?.title).toBe('This survey is closed for you')

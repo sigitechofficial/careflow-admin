@@ -25,11 +25,11 @@ import type { EcmLiveVisitRow } from '@/features/ecm/types/ecm.types'
 import { dayKeyFromInstant, operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { ContentCard } from '@/shared/ui/content-section'
 import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
 import { cn } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function employeeName(e: EmployeeListRow): string {
   return e.fullName?.trim() || [e.firstName, e.lastName].filter(Boolean).join(' ').trim() || 'Unnamed'
 }
@@ -387,8 +387,8 @@ export default function EmployeeTimesheetsPage() {
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             From
-            <Input
-              type="date"
+            <DateInput
+             
               className="h-9 w-40"
               value={range.dateFrom}
               onChange={e => setRange(r => ({ ...r, dateFrom: e.target.value }))}
@@ -397,8 +397,8 @@ export default function EmployeeTimesheetsPage() {
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             To
-            <Input
-              type="date"
+            <DateInput
+             
               className="h-9 w-40"
               value={range.dateTo}
               onChange={e => setRange(r => ({ ...r, dateTo: e.target.value }))}

@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import {
   Users, ShieldCheck, Star, Award, Activity, TrendingUp, Package,
-  PenLine, Plus, X, Filter, FileText, Globe, Trash2,
+  PenLine, Plus, X, Filter, FileText, Globe,
   ChevronDown, ChevronUp, ChevronsUpDown,
 } from 'lucide-react'
 import { cn, formatDate } from '@/shared/lib/utils'
@@ -23,7 +23,7 @@ import {
   useEmployeeLookups,
   useEmployeeListFacets,
 } from '@/features/employees/hooks/useEmployees'
-import { usePatchAnyEmployeeStatus, useDeleteEmployee } from '@/features/employees/hooks/useEmployeeMutations'
+import { usePatchAnyEmployeeStatus } from '@/features/employees/hooks/useEmployeeMutations'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import { resolveEmployeeVisaTypes } from '@/features/settings/employee/employee-visa-defaults'
 import { useEmployeeReviewsOverview } from '@/features/employees/hooks/useEmployeeReviews'
@@ -55,7 +55,10 @@ import {
   staffListSearchToFilters,
   staffListSearchToSort,
   hasStaffListFilters,
+  countActiveStaffListFilters,
+  DEFAULT_STAFF_LIST_FILTERS,
 } from '@/features/employees/utils/staff-list-filter.util'
+import { StaffListVisibilityNote } from '@/features/employees/components/StaffListVisibilityNote'
 import { pruneStaffListFiltersToFacets } from '@/features/employees/utils/staff-list-facet.util'
 import { Switch } from '@/shared/ui/toggle-controls'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -520,16 +523,21 @@ function StaffListTab() {
   const urlSearch = useSearch({ strict: false }) as StaffListSearch
   const canCreateEmployee = useAuthStore(s => s.can('employees.create'))
   const canUpdateEmployee = useAuthStore(s => s.can('employees.update'))
-  const canDeleteEmployee = useAuthStore(s => s.can('employees.delete'))
   const canUpdateEmployeeStatus = useAuthStore(s => s.can('employees.status.update'))
   const patchStatus = usePatchAnyEmployeeStatus()
-  const deleteEmployeeMutation = useDeleteEmployee()
 
   const filters = React.useMemo(() => staffListSearchToFilters(urlSearch), [urlSearch])
   const sort = React.useMemo(() => staffListSearchToSort(urlSearch), [urlSearch])
   const [searchInput, setSearchInput] = React.useState(filters.search)
-  const { locationIds: globalLocationIds, isScoped: globalLocationScoped } =
-    useGlobalLocationScope()
+  const {
+    locationIds: globalLocationIds,
+    isScoped: globalLocationScoped,
+    locationId: globalLocationId,
+    isLocked: globalLocationLocked,
+    setSelectedLocationId,
+  } = useGlobalLocationScope()
+  const assignedLocations = useAuthStore((s) => s.user?.assignedLocations)
+  const assignedLocationIds = useAuthStore((s) => s.user?.assignedLocationIds)
 
   React.useEffect(() => {
     setSearchInput(filters.search)
@@ -556,7 +564,6 @@ function StaffListTab() {
 
   const [statusBusyId, setStatusBusyId] = React.useState<string | null>(null)
   const [statusUpdateError, setStatusUpdateError] = React.useState<string | null>(null)
-  const [deleteBusyId, setDeleteBusyId] = React.useState<string | null>(null)
 
   const { data: lookups = null, isLoading: lookupsLoading, error: lookupsError } = useEmployeeLookups()
   const { data: generalSettings } = useGeneralSettings()
@@ -663,25 +670,6 @@ function StaffListTab() {
     [lookups, patchStatus],
   )
 
-  const handleDeleteEmployee = React.useCallback(
-    async (emp: EmployeeListRow, displayName: string) => {
-      if (!canDeleteEmployee) return
-      const ok = window.confirm(
-        `Delete ${displayName}? They will be removed from the staff list and unallocated from future scheduled jobs. This can be reversed only from the database.`,
-      )
-      if (!ok) return
-      setDeleteBusyId(emp.id)
-      try {
-        await deleteEmployeeMutation.mutateAsync(emp.id)
-        toastSuccess('Employee deleted', `${displayName} was removed from the staff list.`)
-      } catch (e) {
-        toastApiError(e, 'Could not delete employee.')
-      } finally {
-        setDeleteBusyId(null)
-      }
-    },
-    [canDeleteEmployee, deleteEmployeeMutation],
-  )
 
   const { active: activeStatusLookup, inactive: inactiveStatusLookup } = activeInactiveLookups(lookups)
   const showStatusSwitch = Boolean(canUpdateEmployeeStatus && activeStatusLookup && inactiveStatusLookup)
@@ -734,10 +722,41 @@ function StaffListTab() {
         <p className="mb-3 text-sm text-destructive">{statusUpdateError}</p>
       ) : null}
       {!loading && !error ? (
-        <p className="mb-3 mt-3 text-xs text-muted-foreground">
-          Showing {rows.length} of {meta.total} employee{meta.total === 1 ? '' : 's'} (up to 100 per page).
-          {filtersActive ? ' Filters applied.' : ''}
-        </p>
+        <>
+          <StaffListVisibilityNote
+            assignedLocations={
+              assignedLocationIds == null
+                ? null
+                : (assignedLocations ??
+                    assignedLocationIds.map((id) => ({ id, name: locationNames.get(id) ?? 'Unnamed branch' })))
+            }
+            selectedBranchName={
+              globalLocationId ? (locationNames.get(globalLocationId) ?? 'one branch') : null
+            }
+            canShowAllBranches={assignedLocationIds == null && !globalLocationLocked}
+            onShowAllBranches={() => {
+              setSelectedLocationId(null)
+              applyFilters({ ...filters, locationIds: [] })
+            }}
+            activeFilterCount={countActiveStaffListFilters(
+              { ...filters, search: '' },
+              { omitLocation: globalLocationScoped },
+            )}
+            searchText={filters.search}
+            onClearFilters={() => {
+              setSearchInput('')
+              applyFiltersWithScope({ ...DEFAULT_STAFF_LIST_FILTERS })
+            }}
+            total={meta.total}
+            empty={rows.length === 0}
+          />
+          {rows.length > 0 ? (
+            <p className="mb-3 text-xs text-muted-foreground">
+              Showing {rows.length} of {meta.total} employee{meta.total === 1 ? '' : 's'} (up to 100 per page).
+              {filtersActive ? ' Filters applied.' : ''}
+            </p>
+          ) : null}
+        </>
       ) : null}
 
       <div className="overflow-x-auto rounded-lg border border-border">
@@ -786,9 +805,9 @@ function StaffListTab() {
                 <td colSpan={tableColumnCount} className="px-3 py-10 text-center text-muted-foreground">
                   {error
                     ? 'Could not load employees.'
-                    : filtersActive
-                      ? 'No employees match these filters.'
-                      : 'No employees match this filter.'}
+                    : filtersActive || globalLocationScoped
+                      ? 'No employees match what is selected. See the note above for why, and how to widen the list.'
+                      : 'No employees yet. Use the + button next to Employee Management to add someone.'}
                 </td>
               </tr>
             ) : (
@@ -874,38 +893,38 @@ function StaffListTab() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          data-testid={`employee-edit-${emp.id}`}
-                          title="Edit employee"
-                          aria-label={`Edit ${name}`}
-                          disabled={!canUpdateEmployee}
-                          onClick={() =>
-                            navigate({
-                              to: '/employee/$employeeId/edit',
-                              params: { employeeId: emp.id },
-                            })
-                          }
-                        >
-                          <PenLine className="h-3.5 w-3.5" aria-hidden />
-                        </Button>
-                        {canDeleteEmployee ? (
+                        {canUpdateEmployee ? (
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="text-destructive hover:text-destructive"
-                            data-testid={`employee-delete-${emp.id}`}
-                            title="Delete employee"
-                            aria-label={`Delete ${name}`}
-                            disabled={deleteBusyId === emp.id || deleteEmployeeMutation.isPending}
-                            onClick={() => void handleDeleteEmployee(emp, name)}
+                            data-testid={`employee-edit-${emp.id}`}
+                            title="Edit employee"
+                            aria-label={`Edit ${name}`}
+                            onClick={() =>
+                              navigate({
+                                to: '/employee/$employeeId/edit',
+                                params: { employeeId: emp.id },
+                              })
+                            }
                           >
-                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                            <PenLine className="h-3.5 w-3.5" aria-hidden />
                           </Button>
-                        ) : null}
+                        ) : (
+                          <TooltipProvider delayDuration={150}>
+                            <UiTooltip>
+                              <TooltipTrigger asChild>
+                                {/* A disabled button gets no hover, so the span carries the tip. */}
+                                <span tabIndex={0} className="inline-flex cursor-not-allowed" data-testid={`employee-edit-${emp.id}`}>
+                                  <Button type="button" variant="ghost" size="sm" disabled aria-label={`Edit ${name}`} className="pointer-events-none">
+                                    <PenLine className="h-3.5 w-3.5" aria-hidden />
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left">Your role can't open staff records. Ask an administrator.</TooltipContent>
+                            </UiTooltip>
+                          </TooltipProvider>
+                        )}
                       </div>
                     </td>
                   </tr>

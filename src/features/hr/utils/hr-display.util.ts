@@ -66,6 +66,11 @@ export function documentStatusLabel(status: HrDocumentStatus | null | undefined)
   return HR_DOCUMENT_STATUS_OPTIONS.find(o => o.value === status)?.label ?? status
 }
 
+/** "DBS (EXPIRING_SOON)" → "DBS (expiring soon)". */
+export function complianceIssueLabel(label: string): string {
+  return label.replace(/\(([A-Z_]+)\)$/, (_, s: string) => `(${s.toLowerCase().replace(/_/g, ' ')})`)
+}
+
 export function canWriteHrProfile(can: (p: Permission | Permission[]) => boolean): boolean {
   return can('hr.profile.update') || can('hr.profile.create')
 }
@@ -76,4 +81,20 @@ export function canUploadHrDocuments(can: (p: Permission | Permission[]) => bool
 
 export function canDeleteHrDocuments(can: (p: Permission | Permission[]) => boolean): boolean {
   return can('hr.documents.delete')
+}
+
+/** How close a document is to its expiry date (whole days, today = 0). Null when it has no expiry. */
+export function documentExpiry(
+  expiryDate: string | null | undefined,
+  today = new Date(),
+): { tone: 'expired' | 'soon' | 'ok'; days: number; label: string } | null {
+  if (!expiryDate) return null
+  const [y = 0, m = 1, d = 1] = expiryDate.slice(0, 10).split('-').map(Number)
+  const days = Math.round(
+    (Date.UTC(y, m - 1, d) - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / 86_400_000,
+  )
+  if (days < 0) return { tone: 'expired', days, label: days === -1 ? 'Expired yesterday' : `Expired ${-days} days ago` }
+  if (days === 0) return { tone: 'soon', days, label: 'Expires today' }
+  if (days <= 30) return { tone: 'soon', days, label: days === 1 ? 'Expires tomorrow' : `Expires in ${days} days` }
+  return { tone: 'ok', days, label: 'Valid' }
 }

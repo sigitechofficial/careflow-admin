@@ -39,6 +39,7 @@ import {
 import type { ExtraHoursOutcome, ExtraHoursPeriod, ExtraWeeklyHours } from '@/features/hours-approvals/types'
 import { formatHours } from '@/features/hours-approvals/components/ContractedHoursImpactSummary'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 /** Permission to give or cancel extra weekly hours. */
 export const EXTRA_HOURS_PERMISSION = 'employees.extra_hours.manage'
 
@@ -429,9 +430,9 @@ export function AddExtraHoursDialog({
             {period === 'DAY' ? (
               <div className="space-y-1.5">
                 <Label htmlFor="extra-hours-day">Day</Label>
-                <Input
+                <DateInput
                   id="extra-hours-day"
-                  type="date"
+                 
                   value={day}
                   onChange={e => setDay(e.target.value)}
                   disabled={sending}
@@ -444,9 +445,9 @@ export function AddExtraHoursDialog({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="extra-hours-from">From</Label>
-                  <Input
+                  <DateInput
                     id="extra-hours-from"
-                    type="date"
+                   
                     value={rangeFrom}
                     onChange={e => setRangeFrom(e.target.value)}
                     disabled={sending}
@@ -454,9 +455,9 @@ export function AddExtraHoursDialog({
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="extra-hours-to">To</Label>
-                  <Input
+                  <DateInput
                     id="extra-hours-to"
-                    type="date"
+                   
                     value={rangeTo}
                     min={rangeFrom || undefined}
                     onChange={e => setRangeTo(e.target.value)}

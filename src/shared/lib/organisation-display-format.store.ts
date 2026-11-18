@@ -17,7 +17,7 @@ import {
   type DisplayDateOptions,
   type TimeDisplayFormat,
 } from '@/shared/lib/display-format.util'
-import { dayKeyFromInstant, formatOpsHm } from '@/shared/lib/operational-day.util'
+import { dayKeyFromInstant, formatOpsHm, getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 
 let dateDisplayFormat: DateDisplayFormat = DEFAULT_DATE_DISPLAY_FORMAT
 let timeDisplayFormat: TimeDisplayFormat = DEFAULT_TIME_DISPLAY_FORMAT
@@ -148,4 +148,37 @@ export function formatOrganisationWeekdayShort(isoDate: string): string {
 
 export function formatOrganisationMonthYear(month: string): string {
   return formatDisplayMonthYear(month, dateDisplayFormat)
+}
+
+/**
+ * A stored day or time-stamp ("2026-11-04", "2026-11-04T10:00:00Z") in the organisation date format.
+ * Anything else (already formatted text, "N/A") and empty values come back unchanged.
+ */
+export function formatOrganisationDay<T extends string | null | undefined>(value: T): T | string {
+  if (!value) return value
+  const v = value.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return formatDisplayDateShort(v, dateDisplayFormat)
+  if (/^\d{4}-\d{2}-\d{2}T/.test(v)) return formatOrganisationDate(v)
+  return value
+}
+
+/** Time with seconds (audit trails), 24-hour, in the organisation time zone. */
+export function formatOrganisationTimeSeconds(value: Date | string | null | undefined): string {
+  if (value == null || value === '') return '—'
+  const d = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+    timeZone: getSyncedOperationalTimeZone(),
+  }).format(d)
+}
+
+/** Date and time with seconds (audit trails) in the organisation format and time zone. */
+export function formatOrganisationDateTimeSeconds(value: Date | string | null | undefined): string {
+  if (value == null || value === '') return '—'
+  const time = formatOrganisationTimeSeconds(value)
+  return `${formatOrganisationDate(value)} ${time}`
 }

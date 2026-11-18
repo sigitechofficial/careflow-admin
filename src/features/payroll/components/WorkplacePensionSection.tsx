@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { TooltipProvider } from '@/shared/ui/tooltip'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type PensionFields = Pick<
   EmployeePayrollProfile,
   | 'pensionStatus'
@@ -149,7 +150,7 @@ export function WorkplacePensionSection({
                 <div className="grid gap-2 sm:grid-cols-3">
                   <label className="block space-y-1 text-sm">
                     <PayrollFieldLabel label="Joined on" info="The date their pension membership starts (the enrolment date). Contributions are taken from pay on or after it." className="font-normal" />
-                    <Input type="date" value={enrolledFrom} onChange={(e) => setEnrolledFrom(e.target.value)} aria-label="Enrolment effective date" />
+                    <DateInput value={enrolledFrom} onChange={(e) => setEnrolledFrom(e.target.value)} aria-label="Enrolment effective date" />
                   </label>
                   <label className="block space-y-1 text-sm">
                     <PayrollFieldLabel label="Scheme reference" info="The pension provider's reference for your scheme (e.g. from NEST, The People's Pension or your provider's letter)." className="font-normal" />

@@ -67,7 +67,7 @@ export const SERVICE_USER_PROFILE_TABS: {
   },
   { id: 'surveys', label: 'Surveys', Icon: MessageSquareText, iconClassName: 'text-emerald-600 dark:text-emerald-400' },
   { id: 'calendar', label: 'Calendar', Icon: Calendar, iconClassName: 'text-teal-600 dark:text-teal-400' },
-  { id: 'privacy', label: 'Privacy', Icon: Shield, iconClassName: 'text-slate-600 dark:text-slate-300' },
+  { id: 'privacy', label: 'Consent and Privacy', Icon: Shield, iconClassName: 'text-slate-600 dark:text-slate-300' },
   { id: 'dom', label: 'DOM Care', Icon: Home, iconClassName: 'text-emerald-600 dark:text-emerald-400' },
   { id: 'nfc', label: 'NFC tags', Icon: Nfc, iconClassName: 'text-sky-600 dark:text-sky-400' },
   { id: 'assessment', label: 'Initial Assessment', Icon: ClipboardList, iconClassName: 'text-indigo-600 dark:text-indigo-400' },

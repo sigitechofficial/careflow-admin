@@ -5,6 +5,7 @@ import {
   type SchedulePattern,
 } from '@/features/service-users/medication/medication-schedule-pattern'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type Props = {
   schedulePattern?: SchedulePattern | null
   frequencyIntervalDays?: number | null
@@ -82,7 +83,7 @@ export function MedicationScheduleFrequencyReadOnly({
           {monthlyAnchor ? (
             <p>
               Same calendar day as start date
-              {startDate ? ` (${startDate.slice(0, 10)})` : ''}
+              {startDate ? ` (${formatOrganisationDay(startDate.slice(0, 10))})` : ''}
             </p>
           ) : (
             <p>

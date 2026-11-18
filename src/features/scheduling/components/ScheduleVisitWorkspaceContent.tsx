@@ -3,6 +3,7 @@ import { isSyncedLate } from '@/shared/lib/synced-late'
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { VisitPreviousNotesSection, VisitPurposeLine } from '@/features/scheduling/components/VisitPreviousNotesSection'
 import {
   CheckCircle2,
   CheckSquare,
@@ -412,23 +413,23 @@ function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
           const plannedStart = allocation.resolvedStartDateTime ?? allocation.scheduledStartDateTime
           const plannedEnd = allocation.resolvedEndDateTime ?? allocation.scheduledEndDateTime
           const presence = allocation.presence
-          const arrivedAt = presence?.arrivedAt
+          const arrivedAtText = presence?.arrivedAt
             ? formatOrganisationIsoTime(presence.arrivedAt)
             : null
-          const leftAt = presence?.leftAt ? formatOrganisationIsoTime(presence.leftAt) : null
+          const leftAtText = presence?.leftAt ? formatOrganisationIsoTime(presence.leftAt) : null
           const marker = presence?.markedByName?.trim()
           // No lead "mark arrived" record: the clock times above already say where
           // the carer is, so only say "Not in yet" when they have not clocked in.
           let presenceLabel: string | null = clockedIn ? null : 'Not in yet'
           let presenceClass = 'text-amber-600 dark:text-amber-500'
           if (presence?.present) {
-            presenceLabel = arrivedAt
-              ? `Arrived ${arrivedAt}${marker ? ` · marked by ${marker}` : ''}`
+            presenceLabel = arrivedAtText
+              ? `Arrived ${arrivedAtText}${marker ? ` · marked by ${marker}` : ''}`
               : `Arrived${marker ? ` · marked by ${marker}` : ''}`
             presenceClass = 'text-emerald-700 dark:text-emerald-300'
           } else if (presence && presence.present === false) {
-            presenceLabel = leftAt
-              ? `Left ${leftAt}${marker ? ` · marked by ${marker}` : ''}`
+            presenceLabel = leftAtText
+              ? `Left ${leftAtText}${marker ? ` · marked by ${marker}` : ''}`
               : `Left${marker ? ` · marked by ${marker}` : ''}`
             presenceClass = 'text-muted-foreground'
           }
@@ -808,6 +809,10 @@ export function ScheduleVisitWorkspaceContent({
             </div>
             ) : null}
           </section>
+
+          <VisitPurposeLine jobId={job.id} />
+
+          <VisitPreviousNotesSection jobId={job.id} className={cardSurface} />
 
           <VisitCareConsentSection
             jobId={job.id}

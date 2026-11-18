@@ -25,6 +25,7 @@ import { PAPER_SECTION_7_ADL_TITLE } from '@/features/service-users/initial-asse
 import { enrichAdlWorksheetFromAnswers } from '@/features/service-users/initial-assessment/utils/section-12-adl-footer'
 import type { DailyLivingAidsMetadata } from '@/features/service-users/initial-assessment/utils/mobility-metadata'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type Props = {
   sections: InitialAssessmentSection[]
   draftAnswers: Record<string, InitialAssessmentAnswerInput>
@@ -79,7 +80,7 @@ export function InitialAssessmentPaperSection7AdlBlock({
         <div className={cn(IA_CALLOUT_TEAL_CLASS, 'text-sm')} data-testid="ia-adl-falls-status">
           <p className="font-medium text-teal-950 dark:text-teal-100">
             {adlDisplay.fallsAssessmentCompleted === true
-              ? `Falls assessment completed${adlDisplay.fallsAssessmentDate ? ` on ${adlDisplay.fallsAssessmentDate}` : ''}.`
+              ? `Falls assessment completed${adlDisplay.fallsAssessmentDate ? ` on ${formatOrganisationDay(adlDisplay.fallsAssessmentDate)}` : ''}.`
               : 'Falls history, concerns and the falls screen are recorded on the Falls Screening tab.'}
           </p>
           {onOpenFallsScreeningTab ? (

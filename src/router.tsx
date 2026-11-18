@@ -75,8 +75,10 @@ import HrDashboardPage from '@/features/hr/pages/HrDashboardPage'
 import HrEmployeeProfilePage from '@/features/hr/pages/HrEmployeeProfilePage'
 import RecruitmentDashboardPage from '@/features/hr/recruitment/pages/RecruitmentDashboardPage'
 import VacanciesPage from '@/features/hr/recruitment/pages/VacanciesPage'
+import VacancyEditorPage from '@/features/hr/recruitment/pages/VacancyEditorPage'
 import CandidatesPipelinePage from '@/features/hr/recruitment/pages/CandidatesPipelinePage'
 import CandidateDetailPage from '@/features/hr/recruitment/pages/CandidateDetailPage'
+import RecruitmentInboxPage from '@/features/hr/recruitment/pages/RecruitmentInboxPage'
 
 // ΓöÇΓöÇ Scheduling pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import ScheduleJobsPage from '@/features/scheduling/pages/ScheduleJobsPage'
@@ -94,6 +96,8 @@ import LoginPage from '@/features/auth/pages/LoginPage'
 import PrivacyPolicyPage from '@/features/legal/pages/PrivacyPolicyPage'
 import ForgotPasswordPage from '@/features/auth/pages/ForgotPasswordPage'
 import ResetPasswordPage from '@/features/auth/pages/ResetPasswordPage'
+import GetAppPage from '@/features/care-app/pages/GetAppPage'
+import CareAppSetPasswordPage from '@/features/care-app/pages/CareAppSetPasswordPage'
 import BlockedIpPage from '@/features/auth/pages/BlockedIpPage'
 
 import PortalLoginPage from '@/features/service-user-portal/pages/PortalLoginPage'
@@ -134,6 +138,8 @@ import SurveyResponsesPage from '@/features/surveys/pages/SurveyResponsesPage'
 import SurveyCallListPage from '@/features/surveys/reminders/SurveyCallListPage'
 import SurveyPreviewPage from '@/features/surveys/pages/SurveyPreviewPage'
 import TakeSurveyPage from '@/features/surveys/pages/TakeSurveyPage'
+import CareersPage from '@/features/careers/pages/CareersPage'
+import CareerVacancyPage from '@/features/careers/pages/CareerVacancyPage'
 import KioskSurveyPage from '@/features/surveys/kiosk/KioskSurveyPage'
 import SurveyUnsubscribePage from '@/features/surveys/pages/SurveyUnsubscribePage'
 import SurveyPaperCopyPage from '@/features/surveys/sharing/SurveyPaperCopyPage'
@@ -252,6 +258,7 @@ import type { GeneralSettingsTabId } from '@/features/settings/pages/GeneralSett
 import CompanyDetailsPage from '@/features/settings/pages/CompanyDetailsPage'
 import LocationManagementPage from '@/features/settings/pages/LocationManagementPage'
 import RolesPermissionsPage from '@/features/settings/pages/RolesPermissionsPage'
+import DeleteRecordsPage, { DELETE_RECORD_TABS, type DeleteRecordTab } from '@/features/settings/pages/DeleteRecordsPage'
 import CarePathwayPage from '@/features/settings/pages/CarePathwayPage'
 import type { SettingsTabId } from '@/features/settings/pages/SettingsPage'
 
@@ -398,7 +405,10 @@ const pageTitles: Record<string, string> = {
   '/hr/recruitment': 'Recruitment',
   '/hr/vacancies': 'Vacancies',
   '/hr/candidates': 'Candidates',
+  '/hr/vacancies/new': 'New vacancy',
+  '/hr/vacancies/$vacancyId/edit': 'Edit vacancy',
   '/hr/candidates/$candidateId': 'Candidate',
+  '/hr/recruitment-inbox': 'Recruitment inbox',
   '/accidents-incidents/view': 'View Accidents & Incidents',
   '/accidents-incidents/raise': 'Raise Accidents & Incidents',
   '/incidents/feedback': 'Complaints & Compliments',
@@ -418,6 +428,7 @@ const pageTitles: Record<string, string> = {
   '/settings/location-management': 'Location Management',
   '/settings/users-access': 'Users & access',
   '/settings/roles-permissions': 'Roles & permissions',
+  '/settings/delete-records': 'Delete records',
   '/settings/care-pathway': 'Care Pathway',
   '/billing': 'Billing Management',
   '/billing/pay-cards/new': 'New pay card',
@@ -756,6 +767,20 @@ const authResetRoute = createRoute({
   component: ResetPasswordPage,
 })
 
+/** Care app: choosing a password from the welcome or reset email (no login). Same API as /auth/reset-password. */
+const careAppSetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/app/set-password',
+  component: CareAppSetPasswordPage,
+})
+
+/** Public: opens the Care app if installed, else the phone's store (links in the welcome emails). */
+const publicGetAppRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/get-app',
+  component: GetAppPage,
+})
+
 const authBlockedRoute = createRoute({
   getParentRoute: () => authLayoutRoute,
   path: 'blocked-ip',
@@ -766,6 +791,19 @@ const legalPrivacyPolicyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/legal/privacy-policy',
   component: PrivacyPolicyPage,
+})
+
+/** Public careers page: open vacancies and the application form (no login). */
+const publicCareersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/careers',
+  component: CareersPage,
+})
+
+const publicCareerVacancyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/careers/$vacancyId',
+  component: CareerVacancyPage,
 })
 
 const publicTakeSurveyRoute = createRoute({
@@ -1800,6 +1838,8 @@ const hrEmployeesRoute = createRoute({
 const hrEmployeeProfileRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/hr/employees/$employeeId',
+  validateSearch: (raw: Record<string, unknown>): { tab?: 'documents' } =>
+    raw.tab === 'documents' ? { tab: 'documents' } : {},
   beforeLoad: requirePermission('hr.read'),
   component: HrEmployeeProfilePage,
 })
@@ -1818,6 +1858,20 @@ const hrVacanciesRoute = createRoute({
   component: VacanciesPage,
 })
 
+const hrVacancyNewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/vacancies/new',
+  beforeLoad: requirePermission('hr.vacancies.create'),
+  component: VacancyEditorPage,
+})
+
+const hrVacancyEditRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/vacancies/$vacancyId/edit',
+  beforeLoad: requirePermission('hr.vacancies.update'),
+  component: VacancyEditorPage,
+})
+
 const hrCandidatesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/hr/candidates',
@@ -1828,6 +1882,13 @@ const hrCandidatesRoute = createRoute({
   },
   beforeLoad: requirePermission('hr.candidates.read'),
   component: CandidatesPipelinePage,
+})
+
+const hrRecruitmentInboxRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/recruitment-inbox',
+  beforeLoad: requirePermission('hr.candidates.read'),
+  component: RecruitmentInboxPage,
 })
 
 const hrCandidateDetailRoute = createRoute({
@@ -2075,6 +2136,9 @@ const feedbackDetailRoute = createRoute({
 const incidentDetailRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/incidents/$incidentId',
+  // Links from Learning open the Corrective measures tab (?tab=actions, 17 Nov 2026).
+  validateSearch: (raw: Record<string, unknown>): { tab?: string } =>
+    typeof raw.tab === 'string' && /^[a-z]{3,20}$/.test(raw.tab) ? { tab: raw.tab } : {},
   beforeLoad: requirePermission('incidents.read'),
   component: IncidentDetailPage,
 })
@@ -2314,6 +2378,17 @@ const usersAccessRoute = createRoute({
       search: { sub: 'office-users' },
     })
   },
+})
+
+const deleteRecordsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/settings/delete-records',
+  validateSearch: (raw: Record<string, unknown>): { tab?: DeleteRecordTab } => {
+    const tab = raw.tab
+    return typeof tab === 'string' && DELETE_RECORD_TABS.some((t) => t.id === tab) ? { tab: tab as DeleteRecordTab } : {}
+  },
+  beforeLoad: requireAnyPermission('service_users.delete', 'employees.delete'),
+  component: DeleteRecordsPage,
 })
 
 const rolesPermissionsRoute = createRoute({
@@ -2732,6 +2807,15 @@ const learningCourseDetailRoute = createRoute({
 const learningAssignmentsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/learning/assignments',
+  // Dashboard links open a tab / quick filter (17 Nov 2026).
+  validateSearch: (
+    raw: Record<string, unknown>,
+  ): { tab?: string; filter?: string; source?: string; open?: string } => ({
+    ...(typeof raw.tab === 'string' ? { tab: raw.tab } : {}),
+    ...(typeof raw.filter === 'string' ? { filter: raw.filter } : {}),
+    ...(raw.source === 'INCIDENT' ? { source: 'INCIDENT' } : {}),
+    ...(typeof raw.open === 'string' && /^[0-9a-f-]{36}$/.test(raw.open) ? { open: raw.open } : {}),
+  }),
   beforeLoad: requirePermission('learning.assignments.read'),
   component: LearningAssignmentsPage,
 })
@@ -3019,9 +3103,13 @@ const routeTree = rootRoute.addChildren([
     authResetRoute,
     authBlockedRoute,
   ]),
+  careAppSetPasswordRoute,
+  publicGetAppRoute,
   legalPrivacyPolicyRoute,
   policyPrintRoute,
   readyMadePolicyPrintRoute,
+  publicCareersRoute,
+  publicCareerVacancyRoute,
   publicTakeSurveyRoute,
   publicKioskSurveyRoute,
   publicSurveyUnsubscribeRoute,
@@ -3114,8 +3202,11 @@ const routeTree = rootRoute.addChildren([
     hrEmployeeProfileRoute,
     hrRecruitmentRoute,
     hrVacanciesRoute,
+    hrVacancyNewRoute,
+    hrVacancyEditRoute,
     hrCandidatesRoute,
     hrCandidateDetailRoute,
+    hrRecruitmentInboxRoute,
     accidentsIncidentsViewRoute,
     accidentsIncidentsRaiseRoute,
     surveysRoute,
@@ -3161,6 +3252,7 @@ const routeTree = rootRoute.addChildren([
     locationManagementRoute,
     usersAccessRoute,
     rolesPermissionsRoute,
+    deleteRecordsRoute,
     carePathwayRoute,
     billingRoute,
     billingPayCardNewRoute,

@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { SIGNED_OUT_MESSAGE_KEY, useAuthStore } from '@/features/auth/store'
+import { INSPECTOR_SIGN_IN_SEARCH } from '@/features/auth/guard'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
@@ -10,10 +11,16 @@ export default function LoginPage() {
   const redirect = useRouterState({
     select: s => (s.location.search as { redirect?: string }).redirect,
   })
+  // Opened from the temporary inspector sign-in link (/auth/login?as=inspector).
+  const inspectorLink = useRouterState({
+    select: s => (s.location.search as { as?: unknown }).as === INSPECTOR_SIGN_IN_SEARCH.as,
+  })
   const login = useAuthStore(s => s.login)
   const loginAsTemporaryInspector = useAuthStore(s => s.loginAsTemporaryInspector)
+  // Someone is already signed in in this browser (only the inspector link shows this page then).
+  const signedInAs = useAuthStore(s => (s.isAuthenticated() ? s.user : null))
   const apiUrl = getApiBaseUrl()
-  const [mode, setMode] = React.useState<'staff' | 'inspector'>(apiUrl ? 'staff' : 'staff')
+  const [mode, setMode] = React.useState<'staff' | 'inspector'>(apiUrl && inspectorLink ? 'inspector' : 'staff')
 
   // Pre-fill the local seed admin only under `npm run dev`. Production builds start empty,
   // and Vite drops the dev-only branch so these credentials never ship in the bundle.
@@ -22,7 +29,7 @@ export default function LoginPage() {
   )
   const [inspectorUsername, setInspectorUsername] = React.useState('')
   const [password, setPassword] = React.useState(
-    import.meta.env.DEV ? (apiUrl ? 'Admin@12345' : 'CareAdmin1!') : '',
+    import.meta.env.DEV && !inspectorLink ? (apiUrl ? 'Admin@12345' : 'CareAdmin1!') : '',
   )
   const [error, setError] = React.useState<string | null>(null)
   // Why this browser was signed out (another device over the limit, password changed...), shown once.
@@ -113,6 +120,21 @@ export default function LoginPage() {
             Temporary inspector
           </button>
         </div>
+      ) : null}
+
+      {signedInAs ? (
+        <p
+          role="status"
+          data-testid="login-already-signed-in"
+          className="mt-6 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200"
+        >
+          You are signed in as {signedInAs.displayName || signedInAs.email}. Signing in here signs you out of CareFlow in this
+          browser. To give an inspector access, send them this page's link to open on their own device, or{' '}
+          <Link to="/" className="font-medium underline underline-offset-4">
+            go back to CareFlow
+          </Link>
+          .
+        </p>
       ) : null}
 
       {signedOutWhy ? (

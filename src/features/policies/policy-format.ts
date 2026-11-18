@@ -7,19 +7,14 @@ import type {
 } from '@/features/policies/types/policy.types'
 import { POLICY_LINK_MODULE_OPTIONS } from '@/features/policies/types/policy.types'
 
+import { formatOrganisationDateTime, formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 export function formatPolicyDate(value: string | null | undefined): string {
-  if (!value) return '—'
-  const iso = value.includes('T') ? value : `${value}T00:00:00`
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  return value ? String(formatOrganisationDay(value)) : '—'
 }
 
 export function formatPolicyDateTime(value: string | null | undefined): string {
   if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return formatPolicyDate(value)
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  return value.includes('T') ? formatOrganisationDateTime(value) : String(formatOrganisationDay(value))
 }
 
 export function summariseApplicability(

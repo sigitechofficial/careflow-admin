@@ -12,6 +12,7 @@ import {
 } from '@/features/service-user-portal/api/portal.api'
 import { serviceUserPortalAdminKeys } from '@/features/service-user-portal/hooks/useServiceUserPortalAdmin'
 
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 export function ServiceUserPortalAccessSection({
   serviceUserId,
   defaultEmail,
@@ -95,7 +96,7 @@ export function ServiceUserPortalAccessSection({
           </label>
           {data?.lastLoginAt && (
             <p className="text-xs text-muted-foreground">
-              Last sign-in: {new Date(data.lastLoginAt).toLocaleString()}
+              Last sign-in: {formatOrganisationDateTime(data.lastLoginAt)}
             </p>
           )}
           {canManage && (

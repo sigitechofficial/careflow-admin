@@ -160,7 +160,7 @@ export function formatTimezoneOffsetVsDefault(
 function buildTimezoneLabel(def: TimezoneDef, at: Date = new Date()): string {
   const vsDefault = formatTimezoneOffsetVsDefault(def.value, at)
   const utc = formatTimezoneUtcOffset(def.value, at)
-  // Karachi (default): show absolute UTC. Others: hours vs Karachi, plus true UTC.
+  // London (default): show absolute UTC. Others: hours vs London, plus true UTC.
   if (def.value === DEFAULT_ORGANISATION_TIMEZONE) {
     return `${def.country} — ${def.city} (${utc} · base)`
   }
@@ -180,7 +180,7 @@ export function isOrganisationTimezone(value: string): value is OrganisationTime
 }
 
 /**
- * Fresh labels with offsets relative to Karachi (default), then true UTC.
+ * Fresh labels with offsets relative to London (default), then true UTC.
  * Default zone is pinned first; remaining sorted west → east.
  */
 export function organisationTimezoneOptions(at: Date = new Date()) {

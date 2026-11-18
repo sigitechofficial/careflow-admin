@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react'
 import type { ScheduleImpactSummary } from '@/features/service-users/visit-plan/types'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type Props = {
   impact: ScheduleImpactSummary | null | undefined
   fromDate?: string
@@ -35,7 +36,7 @@ export function VisitPlanRotaImpactSummary({ impact, fromDate, loading, classNam
   return (
     <div className={`rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 ${className ?? ''}`}>
       <p>
-        {fromDate ? `From ${fromDate}: ` : ''}
+        {fromDate ? `From ${formatOrganisationDay(fromDate)}: ` : ''}
         {parts.join('; ')}.
       </p>
       {impact.truncated ? (

@@ -21,6 +21,7 @@ import {
   type News2AirOrOxygen,
 } from '@/features/service-users/observations/observation-news2-catalog'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 type Props = {
   canSave: boolean
   compositeDraft: CompositeDraft
@@ -253,8 +254,8 @@ export function ObservationNews2Form({
         <span className="font-medium text-foreground">Actioned:</span>
         {editingActioned ? (
           <div className="flex items-center gap-1">
-            <Input
-              type="datetime-local"
+            <DateTimeInput
+             
               value={recordedAtLocal}
               onChange={e => onRecordedAtChange(e.target.value)}
               className="h-8 w-[220px]"

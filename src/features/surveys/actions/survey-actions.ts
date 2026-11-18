@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 /** API: careflow-api src/surveys/survey-actions.service.ts (Phase 2 part 6). */
 
 export type ActionStatus = 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED'
@@ -192,7 +193,5 @@ export function usePortalUpdates(enabled = true) {
 
 /** "1 Dec 2026" from YYYY-MM-DD. */
 export function formatDay(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`)
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  return iso ? String(formatOrganisationDay(iso.slice(0, 10))) : '—'
 }

@@ -18,6 +18,7 @@ import type {
   InitialAssessmentQuestion,
 } from '@/features/service-users/initial-assessment/types'
 
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 const formatTokens = (n: number) => n.toLocaleString('en-GB')
 /** Fills cost fractions of a cent, so small amounts keep 4 decimals. */
 const formatUsd = (n: number) => `$${n < 0.01 ? n.toFixed(4) : n.toFixed(2)}`
@@ -129,7 +130,7 @@ export function InitialAssessmentAiFillReview({ serviceUserId, submissionId, tra
         This fill: {formatModel(lastUsage.usage.model)} · {formatTokens(lastUsage.usage.inputTokens)} in +{' '}
         {formatTokens(lastUsage.usage.outputTokens)} out tokens ≈ {formatUsd(lastUsage.usage.costUsd)}
       </span>
-      <span title={`Since ${new Date(lastUsage.totals.since).toLocaleString()}`}>
+      <span title={`Since ${formatOrganisationDateTime(lastUsage.totals.since)}`}>
         Since the API started: {lastUsage.totals.requests} fill{lastUsage.totals.requests === 1 ? '' : 's'} ·{' '}
         {formatTokens(lastUsage.totals.inputTokens + lastUsage.totals.outputTokens)} tokens ≈{' '}
         {formatUsd(lastUsage.totals.costUsd)}

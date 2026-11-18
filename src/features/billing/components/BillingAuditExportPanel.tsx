@@ -5,6 +5,7 @@ import { Button } from '@/shared/ui/button'
 import { MOCK_AUDIT_EXPORTS } from '@/features/billing/data/billing-mock.data'
 import { BillingStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 export function BillingAuditExportPanel() {
   return (
     <div className="space-y-6">
@@ -36,7 +37,7 @@ export function BillingAuditExportPanel() {
                 <td className="px-3 py-2.5 font-medium">{row.type}</td>
                 <td className="px-3 py-2.5 text-muted-foreground">{row.requestedBy}</td>
                 <td className="px-3 py-2.5">{row.dateRange}</td>
-                <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{row.createdAt}</td>
+                <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{formatOrganisationDay(row.createdAt)}</td>
                 <td className="px-3 py-2.5">
                   <BillingStatusBadge status={row.status} />
                 </td>

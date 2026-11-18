@@ -12,7 +12,7 @@ export const POLICY_LINK_ALLOWED_SCOPES: Record<PolicyLinkModuleType, PolicyLink
   VISIT: ['MODULE', 'RECORD'],
   EMPLOYEE: ['MODULE', 'RECORD'],
   HR: ['MODULE', 'RECORD'],
-  TRAINING: ['MODULE', 'FORM_TEMPLATE', 'RECORD'],
+  TRAINING: ['MODULE', 'SECTION', 'FORM_TEMPLATE', 'RECORD'],
   RISK_ASSESSMENT: ['MODULE'],
   INFECTION_CONTROL: ['MODULE'],
   SAFEGUARDING: ['MODULE'],
@@ -54,3 +54,13 @@ export function scopesForModule(
   const scopes = POLICY_LINK_ALLOWED_SCOPES[moduleType] ?? ['MODULE']
   return scopes.map(scope => ({ value: scope, label: scopeLabel(moduleType, scope) }))
 }
+
+/** Learning screens a training policy can be linked to (16 Nov 2026). Keys match PolicyContextPanel sectionKey. */
+export const TRAINING_POLICY_SECTIONS: Array<{ value: string; label: string }> = [
+  { value: 'courses', label: 'Learning › Courses' },
+  { value: 'course-builder', label: 'Learning › Course builder' },
+  { value: 'assignments', label: 'Learning › Assignments' },
+  { value: 'training-events', label: 'Learning › Training events' },
+  { value: 'outcomes', label: 'Assignment › Manager outcome' },
+  { value: 'overdue-actions', label: 'Assignment › Overdue actions' },
+]

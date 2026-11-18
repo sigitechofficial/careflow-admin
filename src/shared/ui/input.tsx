@@ -1,6 +1,10 @@
 ﻿import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
 import { DictationTextControl, splitLayoutClasses, useDictationEnabled } from '@/shared/ui/dictation'
+import { DateInput, DateTimeInput, MonthInput, TimeInput } from '@/shared/ui/date-time-input'
+
+/** The browser's own date/time boxes follow the browser language (a US Chrome shows 06/15/2026, 2:30 PM). These follow the organisation's settings. */
+const DATE_TIME_FIELDS = { date: DateInput, time: TimeInput, 'datetime-local': DateTimeInput, month: MonthInput } as const
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   leftElement?: React.ReactNode
@@ -10,6 +14,8 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, leftElement, rightElement, error, ...props }, ref) => {
+    const DateTimeField = type ? DATE_TIME_FIELDS[type as keyof typeof DATE_TIME_FIELDS] : undefined
+    if (DateTimeField) return <DateTimeField ref={ref} className={className} error={error} {...props} />
     const dictation =
       useDictationEnabled() && (type == null || type === 'text' || type === 'search') && !props.readOnly
 

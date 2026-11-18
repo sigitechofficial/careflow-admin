@@ -42,6 +42,7 @@ import {
 } from '@/features/billing/utils/pay-card-match.util'
 import { useEmployee, useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Mode = 'personal' | 'existing'
 
 function BackToEmployee({ employeeId }: { employeeId: string }) {
@@ -286,8 +287,8 @@ export default function EmployeePayCardChangePage() {
                 <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                 New rates apply from <span className="text-destructive">*</span>
               </span>
-              <Input
-                type="date"
+              <DateInput
+               
                 value={effectiveFrom}
                 min={earliest ?? undefined}
                 onChange={e => setEffectiveFrom(e.target.value)}

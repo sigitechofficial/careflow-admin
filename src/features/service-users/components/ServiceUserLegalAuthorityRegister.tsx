@@ -39,6 +39,8 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type Form = {
   category: ServiceUserLegalAuthorityCategory
   holderName: string
@@ -224,10 +226,10 @@ export function ServiceUserLegalAuthorityRegister({ serviceUserId, rows, canUpda
                       {LEGAL_AUTHORITY_VERIFICATION_LABEL[row.verificationStatus]}
                     </span>
                     {row.verifiedAt ? (
-                      <div className="mt-1 text-xs text-muted-foreground">{row.verifiedAt.slice(0, 10)}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">{formatOrganisationDay(row.verifiedAt)}</div>
                     ) : null}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 align-top">{row.expiresOn ?? '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2 align-top">{formatOrganisationDay(row.expiresOn) ?? '—'}</td>
                   <td className="px-3 py-2 text-right align-top">
                     <div className="inline-flex gap-1">
                       {canUpdate ? (
@@ -323,11 +325,11 @@ export function ServiceUserLegalAuthorityRegister({ serviceUserId, rows, canUpda
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className={LABEL_CLASS}>Registered / made on</label>
-                <Input type="date" value={form.registeredOn} aria-label="Registered on" onChange={(e) => patch({ registeredOn: e.target.value })} />
+                <DateInput value={form.registeredOn} aria-label="Registered on" onChange={(e) => patch({ registeredOn: e.target.value })} />
               </div>
               <div>
                 <label className={LABEL_CLASS}>Expires on</label>
-                <Input type="date" value={form.expiresOn} aria-label="Expires on" onChange={(e) => patch({ expiresOn: e.target.value })} />
+                <DateInput value={form.expiresOn} aria-label="Expires on" onChange={(e) => patch({ expiresOn: e.target.value })} />
               </div>
               <div>
                 <label className={LABEL_CLASS}>Reference</label>

@@ -44,6 +44,7 @@ const EVENT_TYPE_FILTER_ALL = '__all__'
 
 import { formatDateTime } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function formatWhen(iso: string): string {
   return formatDateTime(iso)
 }
@@ -221,8 +222,8 @@ export default function AuditLogPage() {
             <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground px-0.5">
               From
             </span>
-            <Input
-              type="date"
+            <DateInput
+             
               value={dateFrom}
               onChange={e => {
                 setDateFrom(e.target.value)
@@ -236,8 +237,8 @@ export default function AuditLogPage() {
             <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground px-0.5">
               To
             </span>
-            <Input
-              type="date"
+            <DateInput
+             
               value={dateTo}
               onChange={e => {
                 setDateTo(e.target.value)

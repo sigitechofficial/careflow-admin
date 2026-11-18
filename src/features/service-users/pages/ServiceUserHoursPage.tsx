@@ -42,6 +42,7 @@ import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLoca
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const HOURS_METRIC_TOOLTIPS = {
   serviceUsers: 'Service users matching the current filters for the selected Mon–Sun week.',
   package:
@@ -587,8 +588,8 @@ export default function ServiceUserHoursPage() {
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <input
-            type="date"
+          <DateInput
+           
             className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
             value={weekStart}
             aria-label="Jump to week containing date"

@@ -83,7 +83,7 @@ export function staffListBranchScopeLabel(scope: EmployeeBranchScope): string {
     case 'single':
       return 'Single branch'
     default:
-      return '—'
+      return 'Not assigned'
   }
 }
 

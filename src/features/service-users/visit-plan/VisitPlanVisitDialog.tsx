@@ -41,6 +41,8 @@ import {
   findVisitPlanVisitOverlap,
 } from '@/features/service-users/visit-plan/visit-plan-visit-overlap.util'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -81,7 +83,15 @@ export function VisitPlanVisitDialog({
 
   React.useEffect(() => {
     if (!open) return
-    setDraft(visit)
+    // A new repeating visit starts today (or when the plan starts, if later): visits that would
+    // already have started today are not made (the API skips them), and none are made for past days.
+    if (mode === 'add' && visit && visit.slotKind !== 'ONE_OFF' && !visit.slotEffectiveFrom) {
+      const today = operationalTodayIso()
+      const planStart = planEffectiveFrom?.slice(0, 10)
+      setDraft({ ...visit, slotEffectiveFrom: planStart && planStart > today ? planStart : today })
+    } else {
+      setDraft(visit)
+    }
     setError(null)
     // Snapshot the visit only when the dialog opens (its identity changes on every parent render).
   }, [open])
@@ -157,6 +167,22 @@ export function VisitPlanVisitDialog({
           </DialogHeader>
           <DialogBody className="space-y-5">
             <section>
+              <Label htmlFor="visit-purpose" className="text-xs text-muted-foreground">
+                What is this visit for? (optional)
+              </Label>
+              <Input
+                id="visit-purpose"
+                className="mt-1"
+                maxLength={200}
+                value={draft.notes ?? ''}
+                placeholder="e.g. Weekly shopping trip, or escort to the day centre"
+                onChange={(e) => patch({ notes: e.target.value })}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Shown on every visit this makes (the visit window and the carer app) and on the person&apos;s plan.
+              </p>
+            </section>
+            <section>
               <Label className="text-xs text-muted-foreground">Days of the week</Label>
               <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-2">
                 {MONDAY_FIRST.map((day) => (
@@ -185,17 +211,19 @@ export function VisitPlanVisitDialog({
                 <Label htmlFor="visit-start-date" className="text-xs text-muted-foreground">
                   {isOneOff ? 'Visit date' : 'Start date'}
                 </Label>
-                <Input
+                <DateInput
                   id="visit-start-date"
-                  type="date"
+                 
                   className="mt-1"
                   value={startDateValue}
                   onChange={(e) =>
                     patch(isOneOff ? { oneOffDate: e.target.value || null } : { slotEffectiveFrom: e.target.value || null })
                   }
                 />
-                {!isOneOff && !startDateValue ? (
-                  <p className="mt-1 text-xs text-muted-foreground">Leave empty to start when the visit plan starts.</p>
+                {!isOneOff ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {startDateValue ? 'Visits that would already have started today are not added.' : 'Leave empty to start when the visit plan starts.'}
+                  </p>
                 ) : null}
               </div>
               {!isOneOff ? (
@@ -203,9 +231,9 @@ export function VisitPlanVisitDialog({
                   <Label htmlFor="visit-end-date" className="text-xs text-muted-foreground">
                     End date (optional)
                   </Label>
-                  <Input
+                  <DateInput
                     id="visit-end-date"
-                    type="date"
+                   
                     className="mt-1"
                     value={draft.slotEffectiveTo?.slice(0, 10) ?? ''}
                     onChange={(e) => patch({ slotEffectiveTo: e.target.value || null })}
@@ -219,9 +247,9 @@ export function VisitPlanVisitDialog({
                 <Label htmlFor="visit-start-time" className="text-xs text-muted-foreground">
                   Start time
                 </Label>
-                <Input
+                <TimeInput
                   id="visit-start-time"
-                  type="time"
+                 
                   className="mt-1"
                   value={normalizeTimeForInput(draft.plannedStartTime)}
                   onChange={(e) => {
@@ -264,9 +292,9 @@ export function VisitPlanVisitDialog({
                 <Label htmlFor="visit-end-time" className="text-xs text-muted-foreground">
                   End time
                 </Label>
-                <Input
+                <TimeInput
                   id="visit-end-time"
-                  type="time"
+                 
                   className="mt-1"
                   value={normalizeTimeForInput(draft.plannedEndTime)}
                   onChange={(e) => {

@@ -25,6 +25,7 @@ import type { PaymentType } from '@/features/billing/types/billing.types'
 import type { OutstandingInvoiceRun } from '@/features/billing/api/payments.api'
 import { parseMoney } from '@/features/billing/utils/payment-display.util'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const PAYMENT_TYPE_OPTIONS: { value: PaymentType; label: string }[] = [
   { value: 'BANK_TRANSFER', label: 'Bank transfer' },
   { value: 'COUNCIL_REMITTANCE', label: 'Council remittance' },
@@ -196,9 +197,9 @@ export function RecordPaymentDialog({ open, onOpenChange, prefill }: RecordPayme
                   <label htmlFor="paymentReceived" className="text-sm font-medium">
                     Date received
                   </label>
-                  <Input
+                  <DateInput
                     id="paymentReceived"
-                    type="date"
+                   
                     value={receivedDate}
                     onChange={e => setReceivedDate(e.target.value)}
                     required

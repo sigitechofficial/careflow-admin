@@ -41,7 +41,7 @@ describe('My surveys (web)', () => {
     expect(screen.getByText(/Anonymous: your answers are not linked to your name/)).toBeInTheDocument()
     const answer = screen.getByRole('link', { name: 'Answer' })
     expect(answer.getAttribute('href')).toBe('/my-surveys/sv-1')
-    expect(screen.getByText(/Answered on 2 Nov 2026/)).toBeInTheDocument()
+    expect(screen.getByText(/Answered on 02\/11\/2026/)).toBeInTheDocument()
   })
 
   it('says so when the login is not linked to a staff record', () => {

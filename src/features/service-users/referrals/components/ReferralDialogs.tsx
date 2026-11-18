@@ -23,8 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import { Input } from '@/shared/ui/input'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 /** New referral, or edit an existing one (all fields). */
 export function ReferralFormDialog({
   serviceUserId,
@@ -233,7 +233,7 @@ export function ReferralFollowUpDialog({
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Next follow-up</label>
-            <Input type="datetime-local" value={next} onChange={e => setNext(e.target.value)} />
+            <DateTimeInput value={next} onChange={e => setNext(e.target.value)} />
             <p className="text-[11px] text-muted-foreground">Leave empty if no further follow-up is needed.</p>
           </div>
         </DialogBody>

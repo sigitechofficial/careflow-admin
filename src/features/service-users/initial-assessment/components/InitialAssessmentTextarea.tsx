@@ -153,6 +153,10 @@ export function focusInitialAssessmentTextarea(host: HTMLElement | null | undefi
 export function readInitialAssessmentTextareaValue(host: HTMLElement | null | undefined): string {
   if (!host) return ''
   const pm = host.querySelector('.ProseMirror')
-  if (pm instanceof HTMLElement) return pm.innerHTML
-  return ''
+  if (!(pm instanceof HTMLElement)) return ''
+  // The editor's own HTML, not the DOM's: the DOM also holds view-only markup (placeholder
+  // attributes, a trailing <br>) that loads back as an empty line, one more each save.
+  const editor = (pm as HTMLElement & { editor?: { getHTML(): string } }).editor
+  const html = editor ? editor.getHTML() : pm.innerHTML
+  return isEmptyRichText(html) ? '' : html
 }

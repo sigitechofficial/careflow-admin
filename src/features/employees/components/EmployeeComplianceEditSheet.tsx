@@ -39,6 +39,7 @@ import {
 import { Switch } from '@/shared/ui/toggle-controls'
 import { cn, formatDate } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const ACCEPT =
   'application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
@@ -370,8 +371,8 @@ export function EmployeeComplianceEditSheet({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Start date</label>
-                  <Input
-                    type="date"
+                  <DateInput
+                   
                     value={draft.issueDate}
                     disabled={locked}
                     onChange={e => {
@@ -388,8 +389,8 @@ export function EmployeeComplianceEditSheet({
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Expiry date</label>
-                  <Input
-                    type="date"
+                  <DateInput
+                   
                     value={draft.expiryDate}
                     disabled={locked}
                     onChange={e => setDraft({ ...draft, expiryDate: e.target.value })}

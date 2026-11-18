@@ -37,6 +37,8 @@ import { Badge } from '@/shared/ui/badge'
 import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 
+import { MonthInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDateTime, formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const selectClass = 'flex h-9 rounded-md border border-input bg-background px-2 text-sm'
 
 function pad2(n: number): string {
@@ -48,18 +50,8 @@ function currentMonthKey(): string {
   return `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}`
 }
 
-const DATE_TIME_FMT = new Intl.DateTimeFormat('en-GB', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  timeZone: 'UTC',
-})
-
 function formatDateTime(iso: string): string {
-  return DATE_TIME_FMT.format(new Date(iso))
+  return formatOrganisationDateTime(iso)
 }
 
 function yesNo(v: boolean): string {
@@ -312,8 +304,8 @@ export default function EmployeeAbsencesPage() {
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="month"
+        <MonthInput
+         
           className={selectClass}
           value={month}
           aria-label="Month"
@@ -639,7 +631,7 @@ export default function EmployeeAbsencesPage() {
                     </td>
                     <td className="px-3 py-2.5">{yesNo(row.evidenceHeld)}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">
-                      {row.evidenceReceivedDate ?? '—'}
+                      {formatOrganisationDay(row.evidenceReceivedDate) ?? '—'}
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {row.continuousWorkingDaysAbsent}
@@ -654,7 +646,7 @@ export default function EmployeeAbsencesPage() {
                     <td className="px-3 py-2.5">
                       {row.smsReported == null ? 'N/A' : yesNo(row.smsReported)}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2.5">{row.smsReportDate ?? 'N/A'}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5">{formatOrganisationDay(row.smsReportDate) ?? 'N/A'}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <Badge variant="outline" className={riskBadgeClass(row.riskRating)}>
                         {row.riskRating}
@@ -668,7 +660,7 @@ export default function EmployeeAbsencesPage() {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       {row.responsiblePerson ?? '—'}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2.5">{row.nextReviewDate ?? 'N/A'}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5">{formatOrganisationDay(row.nextReviewDate) ?? 'N/A'}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">
                       {canManage ? (
                         <div className="flex items-center gap-1">

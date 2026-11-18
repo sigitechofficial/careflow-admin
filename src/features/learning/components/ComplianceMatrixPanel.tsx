@@ -13,6 +13,7 @@ import { LearningStatusBadge } from '@/features/learning/components/LearningStat
 import { useAuthStore } from '@/features/auth/store'
 import { ApiError } from '@/shared/api/api-client'
 
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 function ColumnInfo({ label, tooltip }: { label: string; tooltip: string }) {
   return (
     <span className="inline-flex items-center gap-1">
@@ -153,10 +154,10 @@ export function ComplianceMatrixPanel() {
                       <LearningStatusBadge status={row.complianceStatus} />
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {row.dueAt ? new Date(row.dueAt).toLocaleDateString() : '—'}
+                      {row.dueAt ? formatOrganisationDate(row.dueAt) : '—'}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {row.expiresAt ? new Date(row.expiresAt).toLocaleDateString() : '—'}
+                      {row.expiresAt ? formatOrganisationDate(row.expiresAt) : '—'}
                     </td>
                   </tr>
                 ))}

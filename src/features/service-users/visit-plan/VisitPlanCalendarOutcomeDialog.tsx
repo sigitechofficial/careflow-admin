@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { Label, Textarea } from '@/shared/ui/form-field'
 import {
   Select,
@@ -45,6 +44,7 @@ import {
 import { formatOrganisationIsoDateLong, formatOrganisationTimeHm } from '@/shared/lib/organisation-display-format.store'
 import { dayKeyFromInstant, formatOpsHm } from '@/shared/lib/operational-day.util'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 export type VisitPlanCalendarSelection = {
   iso: string
   month: string
@@ -310,9 +310,9 @@ export function VisitPlanCalendarOutcomeDialog({
                     <Label htmlFor="visit-actual-start" className={contentOverlineClass}>
                       Actual start time
                     </Label>
-                    <Input
+                    <TimeInput
                       id="visit-actual-start"
-                      type="time"
+                     
                       className="mt-1"
                       value={actualStartTime}
                       onChange={(e) => setActualStartTime(e.target.value)}
@@ -322,9 +322,9 @@ export function VisitPlanCalendarOutcomeDialog({
                     <Label htmlFor="visit-actual-end" className={contentOverlineClass}>
                       Actual end time
                     </Label>
-                    <Input
+                    <TimeInput
                       id="visit-actual-end"
-                      type="time"
+                     
                       className="mt-1"
                       value={actualEndTime}
                       onChange={(e) => setActualEndTime(e.target.value)}

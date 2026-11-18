@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
+import { DictationProvider } from '@/shared/ui/dictation'
 import { revealInitialAssessmentSecureField } from '@/features/service-users/initial-assessment/api'
 import { SECURE_MASK_PLACEHOLDER } from '@/features/service-users/initial-assessment/utils/secure-field'
 import type { InitialAssessmentAnswerInput } from '@/features/service-users/initial-assessment/types'
@@ -55,26 +56,29 @@ export function InitialAssessmentSecureTextField({
 
   return (
     <div className="flex max-w-md items-center gap-2">
-      <Input
-        id={id}
-        type={revealed || !hasStored ? 'text' : 'password'}
-        // Not a login: "off" is ignored on password fields, and the browser then fills the saved
-        // login email into the header search box.
-        autoComplete="new-password"
-        disabled={disabled || (showMasked && !revealed)}
-        className="font-mono"
-        placeholder={hasStored ? SECURE_MASK_PLACEHOLDER : 'Enter code…'}
-        value={displayValue}
-        onChange={(e) =>
-          onChange({
-            questionId,
-            ...value,
-            textValue: e.target.value,
-            secureMasked: false,
-            hasSecureValue: Boolean(e.target.value.trim()) || hasStored,
-          })
-        }
-      />
+      {/* No mic: browser speech-to-text sends audio to an outside service, not for secure codes. */}
+      <DictationProvider enabled={false}>
+        <Input
+          id={id}
+          type={revealed || !hasStored ? 'text' : 'password'}
+          // Not a login: "off" is ignored on password fields, and the browser then fills the saved
+          // login email into the header search box.
+          autoComplete="new-password"
+          disabled={disabled || (showMasked && !revealed)}
+          className="font-mono"
+          placeholder={hasStored ? SECURE_MASK_PLACEHOLDER : 'Enter code…'}
+          value={displayValue}
+          onChange={(e) =>
+            onChange({
+              questionId,
+              ...value,
+              textValue: e.target.value,
+              secureMasked: false,
+              hasSecureValue: Boolean(e.target.value.trim()) || hasStored,
+            })
+          }
+        />
+      </DictationProvider>
       {hasStored && !revealed ? (
         <Button
           type="button"

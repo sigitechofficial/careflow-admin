@@ -1,3 +1,4 @@
+import { formatOrganisationDateTime, formatOrganisationDateTimeSeconds, formatOrganisationTimeSeconds } from '@/shared/lib/organisation-display-format.store'
 /**
  * Pure en-GB time formatting helpers (UK display time) shared by admin areas such as
  * Azure Pricing and System jobs. No React imports.
@@ -14,46 +15,20 @@ function toDate(value: string | Date | null | undefined): Date | null {
 
 /** `1 Sep 2026, 14:05` (UK time) from an ISO timestamp. */
 export function formatDateTimeGb(value: string | null | undefined): string {
-  if (!value) return '—'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return value
-  return new Intl.DateTimeFormat(LOCALE, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: DISPLAY_TIME_ZONE,
-  }).format(d)
+  return value ? formatOrganisationDateTime(value) : '—'
 }
 
 /** `1 Sep 2026, 14:05:09` (UK time) — for run logs where seconds matter. */
 export function formatDateTimeSecondsGb(value: string | null | undefined): string {
-  const d = toDate(value)
-  if (!d) return value ? String(value) : '—'
-  return new Intl.DateTimeFormat(LOCALE, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZone: DISPLAY_TIME_ZONE,
-  }).format(d)
+  return formatOrganisationDateTimeSeconds(value)
 }
 
 /** `1 Sep, 14:05:09` (UK time, no year) — compact column format for run logs. */
 export function formatShortDateTimeSecondsGb(value: string | Date | null | undefined): string {
   const d = toDate(value)
   if (!d) return '—'
-  return new Intl.DateTimeFormat(LOCALE, {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZone: DISPLAY_TIME_ZONE,
-  }).format(d)
+  const day = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', timeZone: DISPLAY_TIME_ZONE }).format(d)
+  return `${day}, ${formatOrganisationTimeSeconds(d)}`
 }
 
 /** True when both instants fall on the same UK calendar day. */
@@ -61,20 +36,13 @@ export function isSameUkDay(a: string | Date | null | undefined, b: string | Dat
   const da = toDate(a)
   const db = toDate(b)
   if (!da || !db) return false
-  const day = new Intl.DateTimeFormat('en-CA', { timeZone: DISPLAY_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' })
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: DISPLAY_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }) // date-format-ok: comparing days, not shown
   return day.format(da) === day.format(db)
 }
 
 /** `14:05:09` (UK time). */
 export function formatTimeSecondsGb(value: string | Date | null | undefined): string {
-  const d = toDate(value)
-  if (!d) return '—'
-  return new Intl.DateTimeFormat(LOCALE, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZone: DISPLAY_TIME_ZONE,
-  }).format(d)
+  return formatOrganisationTimeSeconds(value)
 }
 
 /**

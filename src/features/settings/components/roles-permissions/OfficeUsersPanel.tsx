@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Pencil, Plus } from 'lucide-react'
+import { Mail, Pencil, Plus, Search, X } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -14,6 +14,7 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import {
   useCreateOfficeUser,
+  useSendOfficeUserLink,
   useOfficeUsers,
   useSetOfficeUserLocations,
   useSetOfficeUserRoles,
@@ -28,10 +29,48 @@ import {
 import { fetchLookupList } from '@/features/settings/api/lookups-admin-api'
 import { settingsKeys } from '@/features/settings/keys'
 import { accessibleBranchIds, isBranchScoped } from '@/features/auth/org-scope'
+import { PasswordChoiceForm, type PasswordChoice } from '@/features/employees/components/PasswordChoiceForm'
 
 function displayName(u: OfficeUserRow): string {
   const name = [u.firstName, u.lastName].filter(Boolean).join(' ').trim()
   return name || u.email
+}
+
+const BRANCH_CHIP_LIMIT = 4
+
+/** A user's branches as small chips; long lists show the first few and "+N more" (all names on hover). */
+function BranchChips({ user }: { user: OfficeUserRow }) {
+  if (!user.locations.length) {
+    return (
+      <span className="text-xs text-muted-foreground">
+        {user.scopeType === 'branch' ? 'No branches' : 'All branches'}
+      </span>
+    )
+  }
+  const names = user.locations.map(l => l.name).sort((a, b) => a.localeCompare(b))
+  const shown = names.slice(0, BRANCH_CHIP_LIMIT)
+  const rest = names.length - shown.length
+  return (
+    <span className="mt-0.5 flex flex-wrap gap-1" data-testid="office-user-branches">
+      {shown.map(name => (
+        <span
+          key={name}
+          className="max-w-full truncate rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[11px] text-foreground/80"
+          title={name}
+        >
+          {name}
+        </span>
+      ))}
+      {rest > 0 ? (
+        <span
+          className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-primary"
+          title={names.slice(BRANCH_CHIP_LIMIT).join('\n')}
+        >
+          +{rest} more
+        </span>
+      ) : null}
+    </span>
+  )
 }
 
 function rolesNeedBranches(roleNames: string[]): boolean {
@@ -46,7 +85,6 @@ const emptyCreateForm = {
   username: '',
   firstName: '',
   lastName: '',
-  password: '',
   roleNames: [] as string[],
   locationIds: [] as string[],
 }
@@ -72,6 +110,7 @@ export function OfficeUsersPanel() {
   const setRoles = useSetOfficeUserRoles()
   const setLocations = useSetOfficeUserLocations()
   const createUser = useCreateOfficeUser()
+  const sendLink = useSendOfficeUserLink()
 
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
   const [draftRoles, setDraftRoles] = React.useState<string[]>([])
@@ -79,6 +118,35 @@ export function OfficeUsersPanel() {
   const [createOpen, setCreateOpen] = React.useState(false)
   const [createForm, setCreateForm] = React.useState(emptyCreateForm)
   const [createError, setCreateError] = React.useState<string | null>(null)
+  const [createChoice, setCreateChoice] = React.useState<PasswordChoice | null>({ mode: 'link' })
+  const [search, setSearch] = React.useState('')
+  const [roleFilter, setRoleFilter] = React.useState('')
+  const [branchFilter, setBranchFilter] = React.useState('')
+
+  const allUsers = React.useMemo(() => usersQuery.data ?? [], [usersQuery.data])
+  const roleFilterOptions = React.useMemo(
+    () => [...new Set(allUsers.flatMap(u => u.roles.map(r => r.name)))].sort((a, b) => a.localeCompare(b)),
+    [allUsers],
+  )
+  const branchFilterOptions = React.useMemo(() => {
+    const byId = new Map<string, string>()
+    for (const u of allUsers) for (const l of u.locations) byId.set(l.id, l.name)
+    return [...byId.entries()].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label))
+  }, [allUsers])
+  const filteredUsers = React.useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return allUsers.filter(u => {
+      if (q && ![displayName(u), u.email, u.username ?? ''].some(v => v.toLowerCase().includes(q))) return false
+      if (roleFilter === '__none') {
+        if (u.roles.length) return false
+      } else if (roleFilter && !u.roles.some(r => r.name === roleFilter)) return false
+      if (branchFilter === '__all') {
+        if (u.locations.length || u.scopeType === 'branch') return false
+      } else if (branchFilter && !u.locations.some(l => l.id === branchFilter)) return false
+      return true
+    })
+  }, [allUsers, search, roleFilter, branchFilter])
+  const filtersActive = Boolean(search.trim() || roleFilter || branchFilter)
 
   const locationOptions = React.useMemo(() => {
     const rows = locationsQuery.data ?? []
@@ -143,8 +211,8 @@ export function OfficeUsersPanel() {
       setCreateError('Email is required.')
       return
     }
-    if (createForm.password.length < 8) {
-      setCreateError('Password must be at least 8 characters.')
+    if (!createChoice) {
+      setCreateError('Check the password: at least 8 characters, typed the same twice.')
       return
     }
     if (createNeedsBranches && createForm.locationIds.length === 0) {
@@ -154,7 +222,7 @@ export function OfficeUsersPanel() {
     try {
       const created = await createUser.mutateAsync({
         email,
-        password: createForm.password,
+        ...(createChoice.mode === 'password' ? { password: createChoice.password } : {}),
         username: createForm.username.trim() || undefined,
         firstName: createForm.firstName.trim() || undefined,
         lastName: createForm.lastName.trim() || undefined,
@@ -185,13 +253,84 @@ export function OfficeUsersPanel() {
               </Button>
             ) : null}
           </div>
+          <div className="space-y-2 border-b border-border px-4 py-3" data-testid="office-users-filters">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name, email or username"
+                aria-label="Search office users"
+                className="pl-8"
+                data-testid="office-users-search"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={roleFilter}
+                onChange={e => setRoleFilter(e.target.value)}
+                aria-label="Filter by role"
+                className="h-9 min-w-[140px] flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                data-testid="office-users-role-filter"
+              >
+                <option value="">All roles</option>
+                {roleFilterOptions.map(r => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+                <option value="__none">No roles</option>
+              </select>
+              <select
+                value={branchFilter}
+                onChange={e => setBranchFilter(e.target.value)}
+                aria-label="Filter by branch"
+                className="h-9 min-w-[140px] flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                data-testid="office-users-branch-filter"
+              >
+                <option value="">All branches</option>
+                {branchFilterOptions.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.label}
+                  </option>
+                ))}
+                <option value="__all">Company-wide (all branches)</option>
+              </select>
+              {filtersActive ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setSearch('')
+                    setRoleFilter('')
+                    setBranchFilter('')
+                  }}
+                >
+                  <X className="mr-1 h-3.5 w-3.5" aria-hidden />
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+            {usersQuery.data ? (
+              <p className="text-xs text-muted-foreground" data-testid="office-users-count">
+                {filtersActive
+                  ? `${filteredUsers.length} of ${allUsers.length} user${allUsers.length === 1 ? '' : 's'}`
+                  : `${allUsers.length} user${allUsers.length === 1 ? '' : 's'}`}
+              </p>
+            ) : null}
+          </div>
           {usersQuery.isLoading ? (
             <p className="p-4 text-sm text-muted-foreground">Loading users…</p>
           ) : usersQuery.isError ? (
             <p className="p-4 text-sm text-destructive">Could not load users.</p>
+          ) : filteredUsers.length === 0 ? (
+            <p className="p-4 text-sm text-muted-foreground">
+              {filtersActive ? 'No users match these filters.' : 'No office users yet.'}
+            </p>
           ) : (
             <ul className="max-h-[70vh] divide-y divide-border overflow-auto">
-              {(usersQuery.data ?? []).map(u => {
+              {filteredUsers.map(u => {
                 const active = u.id === selectedId
                 return (
                   <li key={u.id}>
@@ -200,18 +339,21 @@ export function OfficeUsersPanel() {
                       onClick={() => setSelectedId(u.id)}
                       className={`flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-muted/60 ${active ? 'bg-muted' : ''}`}
                     >
-                      <span className="text-sm font-medium">{displayName(u)}</span>
+                      <span className="flex items-center gap-2 text-sm font-medium">
+                        {displayName(u)}
+                        {u.invitePending ? (
+                          <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-foreground" data-testid="office-user-invite-pending">
+                            Waiting for password
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="text-xs text-muted-foreground">{u.email}</span>
                       <span className="text-xs text-muted-foreground">
                         {u.roles.map(r => r.name).join(', ') || 'No roles'}
                         {' · '}
-                        {u.scopeType}
-                        {u.locations.length
-                          ? ` · ${u.locations.map(l => l.name).join(', ')}`
-                          : u.scopeType === 'branch'
-                            ? ' · no branches'
-                            : ' · all branches'}
+                        <span className="capitalize">{u.scopeType}</span>
                       </span>
+                      <BranchChips user={u} />
                     </button>
                   </li>
                 )
@@ -233,8 +375,25 @@ export function OfficeUsersPanel() {
                 <div className="min-w-0">
                   <h2 className="text-sm font-semibold">{displayName(selected)}</h2>
                   <p className="truncate text-xs text-muted-foreground">{selected.email}</p>
+                  {selected.invitePending ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      We’ve emailed them a link to choose a password. They haven’t used it yet.
+                    </p>
+                  ) : null}
                 </div>
                 {canCreate ? (
+                  <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<Mail className="h-3.5 w-3.5" />}
+                    disabled={sendLink.isPending || !selected.isActive}
+                    onClick={() => sendLink.mutate({ id: selected.id, email: selected.email, invitePending: selected.invitePending, name: displayName(selected) })}
+                    data-testid="office-user-send-link"
+                  >
+                    {selected.invitePending ? 'Send the link again' : 'Email a password reset link'}
+                  </Button>
                   <Button
                     type="button"
                     size="sm"
@@ -245,6 +404,7 @@ export function OfficeUsersPanel() {
                   >
                     Edit details
                   </Button>
+                  </div>
                 ) : null}
               </div>
               <EditOfficeUserDialog
@@ -256,8 +416,12 @@ export function OfficeUsersPanel() {
 
               <fieldset disabled={!canManage || setRoles.isPending} className="space-y-2">
                 <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Identity roles
+                  Roles: what they can do
                 </legend>
+                <p className="text-xs text-muted-foreground">
+                  If this person also has a staff record with the same email, saving the CareFlow access level
+                  on that record updates these roles. Admin roles are never given that way: give them here.
+                </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {assignableRoles.map(role => (
                     <label key={role} className="flex items-center gap-2 text-sm">
@@ -286,7 +450,7 @@ export function OfficeUsersPanel() {
 
               <fieldset disabled={!canManage || setLocations.isPending} className="space-y-2">
                 <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Authorization branches
+                  Branches: whose records they can see
                 </legend>
                 <p className="text-xs text-muted-foreground">
                   {actorBranchScoped
@@ -433,21 +597,17 @@ export function OfficeUsersPanel() {
                     placeholder="Optional"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label htmlFor="ua-password" className="text-sm font-medium">
-                    Temporary password
-                  </label>
-                  <Input
-                    id="ua-password"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    minLength={8}
-                    value={createForm.password}
-                    onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
-                    placeholder="Min. 8 characters"
-                  />
-                </div>
+              </div>
+              <div className="space-y-2 rounded-md bg-muted/50 px-3 py-2" data-testid="office-user-invite-note">
+                <p className="text-xs text-muted-foreground">
+                  We’ll email them once their roles and branches are saved. A link to choose their own password works for 72 hours.
+                </p>
+                <PasswordChoiceForm
+                  key={createOpen ? 'open' : 'closed'}
+                  name={createForm.firstName.trim() || 'them'}
+                  idPrefix="office-user"
+                  onChange={setCreateChoice}
+                />
               </div>
 
               {canManage ? (
@@ -557,7 +717,7 @@ export function OfficeUsersPanel() {
                 Cancel
               </Button>
               <Button type="submit" disabled={createUser.isPending}>
-                {createUser.isPending ? 'Creating…' : 'Create user'}
+                {createUser.isPending ? 'Adding…' : 'Add and email them'}
               </Button>
             </DialogFooter>
           </form>
@@ -567,7 +727,7 @@ export function OfficeUsersPanel() {
   )
 }
 
-/** Admin edit of an office user: name, sign-in email and an optional new password. */
+/** Admin edit of an office user: name, sign-in email and (optionally) a new password the office gives them. */
 function EditOfficeUserDialog({
   user,
   open,
@@ -581,26 +741,19 @@ function EditOfficeUserDialog({
   const [firstName, setFirstName] = React.useState(user.firstName ?? '')
   const [lastName, setLastName] = React.useState(user.lastName ?? '')
   const [email, setEmail] = React.useState(user.email)
-  const [password, setPassword] = React.useState('')
-  const [confirm, setConfirm] = React.useState('')
+  const [setPassword, setSetPassword] = React.useState(false)
+  const [passwordChoice, setPasswordChoice] = React.useState<PasswordChoice | null>(null)
 
   React.useEffect(() => {
     if (!open) return
     setFirstName(user.firstName ?? '')
     setLastName(user.lastName ?? '')
     setEmail(user.email)
-    setPassword('')
-    setConfirm('')
+    setSetPassword(false)
   }, [open, user])
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
-  const passwordError =
-    password && password.length < 8
-      ? 'Use at least 8 characters.'
-      : password && password !== confirm
-        ? 'Passwords do not match.'
-        : null
-  const canSave = emailValid && !passwordError && !update.isPending
+  const canSave = emailValid && !update.isPending && (!setPassword || Boolean(passwordChoice))
 
   const save = () => {
     update.mutate(
@@ -609,7 +762,7 @@ function EditOfficeUserDialog({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         ...(email.trim() !== user.email ? { email: email.trim() } : {}),
-        ...(password ? { password } : {}),
+        ...(setPassword && passwordChoice?.mode === 'password' ? { password: passwordChoice.password } : {}),
       },
       { onSuccess: onClose },
     )
@@ -638,27 +791,17 @@ function EditOfficeUserDialog({
             {!emailValid ? <span className="text-xs text-destructive">Enter a valid email.</span> : null}
           </label>
           <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-            <p className="text-xs font-medium text-foreground">Set a new password (optional)</p>
-            <p className="text-xs text-muted-foreground">
-              Leave blank to keep the current password. A new password signs them out of other sessions.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Input
-                type="password"
-                autoComplete="new-password"
-                placeholder="New password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-              />
-              <Input
-                type="password"
-                autoComplete="new-password"
-                placeholder="Confirm new password"
-                value={confirm}
-                onChange={e => setConfirm(e.target.value)}
-              />
-            </div>
-            {passwordError ? <p className="text-xs text-destructive">{passwordError}</p> : null}
+            <label className="flex items-center gap-2 text-xs font-medium text-foreground">
+              <input type="checkbox" checked={setPassword} onChange={e => setSetPassword(e.target.checked)} data-testid="office-user-edit-set-password" />
+              Set a new password now
+            </label>
+            {setPassword ? (
+              <PasswordChoiceForm name={user.firstName?.trim() || 'them'} idPrefix="office-user-edit" allowLink={false} onChange={setPasswordChoice} />
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Or close this and use “Email a password reset link”, so they choose a new one themselves.
+              </p>
+            )}
           </div>
         </DialogBody>
         <DialogFooter>

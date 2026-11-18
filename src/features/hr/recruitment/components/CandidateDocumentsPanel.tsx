@@ -17,7 +17,9 @@ import {
 } from '@/shared/ui/select'
 import { useAuthStore } from '@/features/auth/store'
 
-const DOC_TYPES: CandidateDocumentType[] = ['CV', 'CERTIFICATE', 'ID_DOCUMENT', 'OTHER']
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
+// Check evidence is uploaded from the check itself (Pre-employment checks step).
+const DOC_TYPES: CandidateDocumentType[] = ['CV', 'CERTIFICATE', 'ID_DOCUMENT', 'OFFER_LETTER', 'OTHER']
 
 export function CandidateDocumentsPanel({ candidateId }: { candidateId: string }) {
   const canUpload = useAuthStore.getState().can('hr.candidates.update')
@@ -98,7 +100,7 @@ export function CandidateDocumentsPanel({ candidateId }: { candidateId: string }
                   <p className="truncate font-medium">{doc.fileName}</p>
                   <p className="text-xs text-muted-foreground">
                     {candidateDocumentTypeLabel(doc.documentType)} ·{' '}
-                    {new Date(doc.createdAt).toLocaleDateString()}
+                    {formatOrganisationDate(doc.createdAt)}
                   </p>
                 </div>
               </div>

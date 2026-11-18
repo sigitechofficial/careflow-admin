@@ -18,7 +18,7 @@ export function InitialAssessmentSchedulePanel({ submission, sections, draftAnsw
   const freqQ = findQuestionByFieldKey(sections, 'reviewFrequency')
   const reasonQ = findQuestionByFieldKey(sections, 'assessmentReason')
 
-  const nextDate = nextReviewQ ? formatAnswerForDisplay(draftAnswers[nextReviewQ.id], nextReviewQ) : '—'
+  const nextDateText = nextReviewQ ? formatAnswerForDisplay(draftAnswers[nextReviewQ.id], nextReviewQ) : '—'
   const frequency = freqQ ? formatAnswerForDisplay(draftAnswers[freqQ.id], freqQ) : '—'
   const reason = reasonQ ? formatAnswerForDisplay(draftAnswers[reasonQ.id], reasonQ) : '—'
 
@@ -40,7 +40,7 @@ export function InitialAssessmentSchedulePanel({ submission, sections, draftAnsw
         </div>
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-muted-foreground">Next review</p>
-          <p className="mt-1 text-lg font-semibold text-teal-800 dark:text-teal-300">{nextDate}</p>
+          <p className="mt-1 text-lg font-semibold text-teal-800 dark:text-teal-300">{nextDateText}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-muted-foreground">Frequency</p>

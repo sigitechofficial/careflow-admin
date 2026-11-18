@@ -29,6 +29,7 @@ import { policySourceBadge } from '@/features/policies/policy-content'
 import { canPermanentlyDeletePolicy, POLICY_PUBLISH_CONFIRM, policyDeleteConfirmCopy } from '@/features/policies/policy-actions'
 import { toastError, toastSuccess } from '@/shared/lib/toast'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 export function PolicyLibraryPanel() {
   const canCreate = useAuthStore(s => s.can('policies.create'))
   const canArchive = useAuthStore(s => s.can('policies.archive'))
@@ -429,7 +430,7 @@ function FormDate({
   return (
     <label className="flex items-center gap-2 text-sm text-muted-foreground">
       <span className="whitespace-nowrap">{label}</span>
-      <Input id={id} type="date" value={value} onChange={e => onChange(e.target.value)} className="w-40" />
+      <DateInput id={id} value={value} onChange={e => onChange(e.target.value)} className="w-40" />
     </label>
   )
 }

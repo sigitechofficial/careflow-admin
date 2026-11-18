@@ -5,7 +5,7 @@ export default function LearningDashboardPage() {
   return (
     <LearningSectionLayout
       title="Dashboard"
-      description="Complete Learning module flow, organisation KPIs, and activity overview."
+      description="Who is not up to date, and what needs doing today."
       testId="learning-dashboard-page"
     >
       <LearningDashboardPanel />

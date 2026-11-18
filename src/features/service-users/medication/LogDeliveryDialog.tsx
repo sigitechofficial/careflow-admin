@@ -28,6 +28,7 @@ import { formatMarSupplyDate } from '@/features/service-users/medication/mar-sup
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function todayIsoDate(): string {
   return operationalTodayIso()
 }
@@ -232,8 +233,8 @@ export function LogDeliveryDialog({
               <label className="text-sm font-medium">
                 Received from pharmacy <span className="text-destructive">*</span>
               </label>
-              <Input
-                type="date"
+              <DateInput
+               
                 max={todayIsoDate()}
                 value={deliveredAt}
                 onChange={e => {
@@ -291,8 +292,8 @@ export function LogDeliveryDialog({
             {model === 'BLISTER_CYCLE' && (
               <div className="space-y-1">
                 <label className="text-sm font-medium">Cycle ends</label>
-                <Input
-                  type="date"
+                <DateInput
+                 
                   value={cycleEndManual ? cycleEndDate : autoCycleEnd}
                   onChange={e => {
                     setCycleEndManual(true)
@@ -310,8 +311,8 @@ export function LogDeliveryDialog({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Opened</label>
-                  <Input
-                    type="date"
+                  <DateInput
+                   
                     value={openedAt}
                     onChange={e => {
                       setCycleEndManual(true)
@@ -322,8 +323,8 @@ export function LogDeliveryDialog({
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Discard by (28-day rule)</label>
-                  <Input
-                    type="date"
+                  <DateInput
+                   
                     value={expiresAt}
                     onChange={e => {
                       setCycleEndManual(true)
@@ -343,8 +344,8 @@ export function LogDeliveryDialog({
             {model === 'PRESCRIPTION_QTY' && (
               <div className="space-y-1">
                 <label className="text-sm font-medium">Runs out</label>
-                <Input
-                  type="date"
+                <DateInput
+                 
                   value={cycleEndManual ? runsOutDate : autoCycleEnd}
                   onChange={e => {
                     setCycleEndManual(true)

@@ -337,7 +337,7 @@ describe('prefill source', () => {
       ['dateOfBirth', '1986-12-19'],
     ])
     expect(prefillHintForQuestion(gender, map)).toBe('Profile: Male')
-    expect(prefillHintForQuestion(dob, map)).toBe('Profile: 19 Dec 1986')
+    expect(prefillHintForQuestion(dob, map)).toBe('Profile: 19/12/1986')
   })
 
   it('never shows the key-safe code itself in the hint', () => {

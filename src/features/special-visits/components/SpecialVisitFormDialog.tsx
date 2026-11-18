@@ -23,6 +23,7 @@ import { Label, Textarea } from '@/shared/ui/form-field'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { formatMinutes } from '@/features/timebank/timebank-format'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 /** datetime-local value (treated as UTC) → ISO string. */
 function localInputToIso(value: string): string | null {
   return value ? `${value}:00.000Z` : null
@@ -213,8 +214,8 @@ export function SpecialVisitFormDialog({
 
             <div className="flex flex-col gap-1.5">
               <Label required>Start date/time</Label>
-              <Input
-                type="datetime-local"
+              <DateTimeInput
+               
                 value={draft.start}
                 onChange={e => set('start', e.target.value)}
                 data-testid="special-visit-start"
@@ -222,8 +223,8 @@ export function SpecialVisitFormDialog({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label required>End date/time</Label>
-              <Input
-                type="datetime-local"
+              <DateTimeInput
+               
                 value={draft.end}
                 onChange={e => set('end', e.target.value)}
                 data-testid="special-visit-end"

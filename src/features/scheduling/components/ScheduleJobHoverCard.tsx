@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { fetchVisitPurpose } from '@/features/scheduling/components/VisitPreviousNotesSection'
 import {
   AlertTriangle,
   Building2,
@@ -356,6 +358,13 @@ export function JobHoverPanel({
 
   const rota = jobRotaTimeRange(job)
   const visitSlot = resolveVisitPlanSlotForJob(job, visitPlanSlotsByServiceUser)
+  // What the visit is for (the plan's note, or an extra visit's reason): same source as the visit window.
+  const purpose = useQuery({
+    queryKey: ['visit-purpose', job.id],
+    queryFn: () => fetchVisitPurpose(job.id),
+    staleTime: 60_000,
+    retry: false,
+  }).data
   const callPattern = visitSlot ? callPatternTimeRange(visitSlot) : null
   const timingChanged = visitSlot ? rotaTimingDiffersFromCallPattern(job, visitSlot) : false
   const rescheduleShift =
@@ -522,6 +531,12 @@ export function JobHoverPanel({
             />
             {metaLine ? (
               <p className="text-[13px] font-medium text-slate-500 dark:text-zinc-400">{metaLine}</p>
+            ) : null}
+            {purpose ? (
+              <p className="mt-1 text-[13px] text-slate-700 dark:text-zinc-200" data-testid="schedule-job-hover-purpose">
+                <span className="font-semibold">{purpose.source === 'extra' ? 'Extra visit: ' : 'Visit for: '}</span>
+                {purpose.text}
+              </p>
             ) : null}
             {addressLine || branchLine ? (
               <div className="mt-1.5 space-y-1">

@@ -17,6 +17,7 @@ import type {
   HoursHistoryKind,
 } from '@/features/hours-approvals/types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const GROUP_TABS: { id: HoursHistoryGroupBy; label: string }[] = [
   { id: 'carer', label: 'Carers' },
   { id: 'service_user', label: 'Service users' },
@@ -232,13 +233,13 @@ export default function HoursHistoryPage() {
           <Label htmlFor="hours-history-from" className="text-xs">
             From
           </Label>
-          <Input id="hours-history-from" type="date" className="h-9 w-40" value={from} max={to} onChange={e => setFrom(e.target.value)} />
+          <DateInput id="hours-history-from" className="h-9 w-40" value={from} max={to} onChange={e => setFrom(e.target.value)} />
         </div>
         <div className="space-y-1">
           <Label htmlFor="hours-history-to" className="text-xs">
             To
           </Label>
-          <Input id="hours-history-to" type="date" className="h-9 w-40" value={to} min={from} onChange={e => setTo(e.target.value)} />
+          <DateInput id="hours-history-to" className="h-9 w-40" value={to} min={from} onChange={e => setTo(e.target.value)} />
         </div>
         <div className="space-y-1">
           <Label htmlFor="hours-history-kind" className="text-xs">

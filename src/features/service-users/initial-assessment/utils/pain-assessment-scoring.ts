@@ -1,3 +1,4 @@
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 export type AbbeyScore = 0 | 1 | 2 | 3
 
 export type PainSeverityBand = 'none' | 'mild' | 'moderate' | 'severe'
@@ -253,10 +254,7 @@ export function formatPainAssessmentHistorySummary(
 }
 
 function formatHistoryDate(iso: string): string | undefined {
-  const day = iso.slice(0, 10)
-  const d = new Date(`${day}T00:00:00`)
-  if (Number.isNaN(d.getTime())) return undefined
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  return iso ? String(formatOrganisationDay(iso.slice(0, 10))) : undefined
 }
 
 /** Care Plan suggestion copy. Suggestion-only — never written as NRS 0–10. */

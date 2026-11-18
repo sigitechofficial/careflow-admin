@@ -8,6 +8,7 @@ import { useMedicationLookups } from '@/features/service-users/hooks/useServiceU
 import { useScriptTaskOptions } from '@/features/scripts/hooks'
 import { MEDICINE_DATASET, datasetMedicineLabel } from '@/features/scripts/medicine-dataset'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 export type TaskPriority = 'routine' | 'important' | 'critical'
 /** A task from the task list, done on this visit. */
 export type VisitTaskDraft = { name: string; priority: TaskPriority; instructions: string }
@@ -275,8 +276,8 @@ export function VisitExtrasEditor({
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2">
                     <span className="text-xs text-muted-foreground">Time</span>
-                    <Input
-                      type="time"
+                    <TimeInput
+                     
                       aria-label={`${n} time`}
                       aria-invalid={outside || undefined}
                       className={outside ? 'border-destructive' : undefined}

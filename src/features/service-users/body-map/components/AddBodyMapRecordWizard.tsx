@@ -45,6 +45,7 @@ import { cn } from '@/shared/lib/utils'
 import type { PlaceMarkerPayload } from '@/features/service-users/body-map/components/BodyMapCanvas'
 import { BodyMapMarkerPreview } from '@/features/service-users/body-map/components/BodyMapMarkerPreview'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 export type PendingMarker = PrototypeMarkerCoords
 
 export type WizardSubmitValues = {
@@ -352,9 +353,9 @@ export function AddBodyMapRecordWizard({
               </label>
               <label className="block text-sm font-medium">
                 Date & time noticed
-                <Input
+                <DateTimeInput
                   className="mt-1"
-                  type="datetime-local"
+                 
                   value={firstNoticedAt}
                   onChange={e => setFirstNoticedAt(e.target.value)}
                 />
@@ -656,9 +657,9 @@ export function AddBodyMapRecordWizard({
               {reviewRequired === 'yes' ? (
                 <label className="block text-sm font-medium sm:col-span-2">
                   Next review date
-                  <Input
+                  <DateTimeInput
                     className="mt-1"
-                    type="datetime-local"
+                   
                     value={nextReviewAt}
                     onChange={e => setNextReviewAt(e.target.value)}
                   />

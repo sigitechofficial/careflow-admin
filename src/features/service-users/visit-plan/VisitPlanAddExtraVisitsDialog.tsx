@@ -43,6 +43,7 @@ import {
   type VisitPlanDateChange,
 } from '@/features/service-users/visit-plan/visit-plan-date-changes.api'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -411,8 +412,8 @@ export function VisitPlanAddExtraVisitsDialog({
                 ))}
               </div>
               {mode === 'single' ? (
-                <Input
-                  type="date"
+                <DateInput
+                 
                   className="w-44"
                   min={today}
                   value={singleDate}
@@ -423,8 +424,8 @@ export function VisitPlanAddExtraVisitsDialog({
                 <div className="flex flex-wrap items-end gap-3">
                   <div>
                     <Label className="text-xs text-muted-foreground">From</Label>
-                    <Input
-                      type="date"
+                    <DateInput
+                     
                       className="mt-1 w-44"
                       min={today}
                       value={rangeFrom}
@@ -433,8 +434,8 @@ export function VisitPlanAddExtraVisitsDialog({
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground">To</Label>
-                    <Input
-                      type="date"
+                    <DateInput
+                     
                       className="mt-1 w-44"
                       min={rangeFrom || today}
                       value={rangeTo}
@@ -448,8 +449,8 @@ export function VisitPlanAddExtraVisitsDialog({
               ) : (
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-end gap-2">
-                    <Input
-                      type="date"
+                    <DateInput
+                     
                       className="w-44"
                       min={today}
                       value={pendingDate}
@@ -538,9 +539,9 @@ export function VisitPlanAddExtraVisitsDialog({
                   <Label htmlFor="extra-visit-start" className="text-xs text-muted-foreground">
                     Start time <span className="text-red-600">*</span>
                   </Label>
-                  <Input
+                  <TimeInput
                     id="extra-visit-start"
-                    type="time"
+                   
                     className="mt-1"
                     value={startTime}
                     disabled={!round}
@@ -578,9 +579,9 @@ export function VisitPlanAddExtraVisitsDialog({
                   <Label htmlFor="extra-visit-end" className="text-xs text-muted-foreground">
                     End time
                   </Label>
-                  <Input
+                  <TimeInput
                     id="extra-visit-end"
-                    type="time"
+                   
                     className="mt-1"
                     value={endTime ?? ''}
                     disabled={!round || !/^\d{2}:\d{2}$/.test(startTime)}

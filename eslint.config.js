@@ -67,6 +67,23 @@ const featureSurfaceApiImportRule = {
       message:
         'Avoid manual loading state — prefer useQuery isLoading from feature hooks.',
     },
+    // Dates and times follow Settings › General › Time zone & formats (enforced by src/test/date-display.guard.test.ts).
+    {
+      selector: "CallExpression[callee.property.name='toLocaleDateString'][arguments.length=0]",
+      message: 'Use formatOrganisationDay / formatOrganisationDate from @/shared/lib/organisation-display-format.store.',
+    },
+    {
+      selector: "CallExpression[callee.property.name='toLocaleTimeString']",
+      message: 'Use formatOrganisationTime from @/shared/lib/organisation-display-format.store (24-hour, organisation time zone).',
+    },
+    {
+      selector: "Property[key.name='hour12'][value.value=true]",
+      message: 'Times are 24-hour across CareFlow.',
+    },
+    {
+      selector: "JSXOpeningElement[name.name=/^(input|Input)$/] > JSXAttribute[name.name='type'][value.value=/^(date|time|datetime-local|month)$/]",
+      message: 'Use DateInput / TimeInput / DateTimeInput / MonthInput from @/shared/ui/date-time-input (organisation format).',
+    },
   ],
 }
 

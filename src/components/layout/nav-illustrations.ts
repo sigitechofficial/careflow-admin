@@ -78,7 +78,7 @@ export const PAGE_ILLUSTRATION: Record<string, string> = {
   'Medication time slots': 'alarm-clock',
 
   // Workforce
-  'All Employee': 'woman-health-worker',
+  'All employees': 'woman-health-worker',
   'Add Employee': 'man-health-worker',
   'Compliance board': 'identification-card',
   'General Employee Documents': 'file-folder',

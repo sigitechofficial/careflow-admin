@@ -1,3 +1,4 @@
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 /** Shared board column grouping (mirrors API BOARD_COLUMN_DEFS groups). */
 export const COMPLIANCE_BOARD_GROUPS: Array<{ id: string; label: string; codes: string[] }> = [
   {
@@ -23,13 +24,7 @@ export const COMPLIANCE_BOARD_GROUPS: Array<{ id: string; label: string; codes: 
 ]
 
 export function formatBoardDate(iso: string | null | undefined): string | null {
-  if (!iso) return null
-  const d = new Date(`${iso}T12:00:00.000Z`)
-  if (Number.isNaN(d.getTime())) return iso
-  const dd = String(d.getUTCDate()).padStart(2, '0')
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const yyyy = d.getUTCFullYear()
-  return `${dd}/${mm}/${yyyy}`
+  return iso ? String(formatOrganisationDay(iso)) : null
 }
 
 export type CellPresentation = {

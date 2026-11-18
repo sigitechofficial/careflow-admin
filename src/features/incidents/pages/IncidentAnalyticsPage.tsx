@@ -27,6 +27,7 @@ import {
   weekRowsMondayFirst,
 } from "@/features/incidents/utils/incident-analytics-export";
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const SEVERITIES: IncidentSeverity[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 /** Workflow order; REOPENED is legacy and only shown when present. */
 const STATUSES: IncidentStatus[] = [
@@ -229,8 +230,8 @@ export default function IncidentAnalyticsPage() {
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
           From
-          <Input
-            type="date"
+          <DateInput
+           
             value={filters.dateFrom ?? ""}
             max={filters.dateTo || undefined}
             onChange={(e) => set({ dateFrom: e.target.value || undefined })}
@@ -239,8 +240,8 @@ export default function IncidentAnalyticsPage() {
         </label>
         <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
           To
-          <Input
-            type="date"
+          <DateInput
+           
             value={filters.dateTo ?? ""}
             min={filters.dateFrom || undefined}
             onChange={(e) => set({ dateTo: e.target.value || undefined })}

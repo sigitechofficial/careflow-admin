@@ -4,6 +4,7 @@
  */
 export const PAGE_WORDS: Record<string, string> = {
   '/settings/location-management': 'branches branch offices office sites site areas zones',
+  '/settings/delete-records': 'delete remove erase service user client employee staff carer duplicate mistake record',
   '/settings/roles-permissions': 'users office users access permissions roles logins accounts',
   '/settings/company': 'company organisation logo name address branding cqc provider',
   '/settings/general': 'settings options preferences configuration',
@@ -13,7 +14,7 @@ export const PAGE_WORDS: Record<string, string> = {
   '/employee/absences': 'holiday holidays annual leave sickness sick time off absence',
   '/employee/compliance': 'dbs right to work visa checks expiry expiring',
   '/employee/add': 'new carer new staff hire starter onboard',
-  '/employee/staff-list': 'carers staff employees team workers',
+  '/employee/staff-list': 'carers staff list employees team workers all staff',
   '/employee/timesheets': 'timesheet hours',
   '/service-users/add': 'new client new service user admit register',
   '/service-users/all': 'clients people residents',

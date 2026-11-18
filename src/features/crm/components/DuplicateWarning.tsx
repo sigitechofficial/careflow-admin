@@ -4,6 +4,7 @@ import { AlertTriangle } from 'lucide-react'
 import { useEnquiryDuplicates } from '@/features/crm/hooks/useCrm'
 import { STAGE_LABELS } from '@/features/crm/crm-labels'
 
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 type Props = {
   firstName: string
   lastName: string
@@ -80,7 +81,7 @@ export function DuplicateWarning({ firstName, lastName, dateOfBirth, phone, excl
                     {s.name}
                   </Link>
                   {s.dateOfBirth && (
-                    <span className="opacity-80"> · born {new Date(s.dateOfBirth).toLocaleDateString()}</span>
+                    <span className="opacity-80"> · born {formatOrganisationDate(s.dateOfBirth)}</span>
                   )}
                 </li>
               ))}

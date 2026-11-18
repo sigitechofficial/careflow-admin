@@ -17,6 +17,7 @@ import {
   type UrinalysisDipstick,
 } from '@/features/service-users/observations/observation-urinalysis-catalog'
 
+import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 const SELECT_NONE = '__none__'
 
 type Props = {
@@ -54,8 +55,8 @@ export function ObservationUrinalysisForm({
         <span className="font-medium text-foreground">Actioned:</span>
         {editingActioned ? (
           <div className="flex items-center gap-1">
-            <Input
-              type="datetime-local"
+            <DateTimeInput
+             
               value={recordedAtLocal}
               onChange={e => onRecordedAtChange(e.target.value)}
               className="h-8 w-[220px]"
@@ -172,8 +173,8 @@ export function ObservationUrinalysisForm({
         <div className="space-y-2">
           <label className="text-sm font-medium">Date / Time</label>
           <div className="flex max-w-md">
-            <Input
-              type="date"
+            <DateInput
+             
               value={compositeDraft.furtherTestingDate ?? ''}
               onChange={e => onCompositeChange('furtherTestingDate', e.target.value)}
               className="rounded-r-none"

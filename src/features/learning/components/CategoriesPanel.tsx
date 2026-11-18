@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Info, Loader2, Pencil, Plus } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -13,15 +13,14 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
   useCreateLearningCategory,
-  useDeleteLearningCategory,
   useLearningCategories,
   useUpdateLearningCategory,
 } from '@/features/learning/hooks/useLearning'
 import type { LearningCategory, LearningCategoryInput } from '@/features/learning/types/learning.types'
-import { LearningStatusBadge } from '@/features/learning/components/LearningStatusBadge'
 import { useAuthStore } from '@/features/auth/store'
 
 function CategoryFormDialog({
@@ -115,33 +114,49 @@ function CategoryFormDialog({
   )
 }
 
+/** Hover / focus hint: what kind of courses belong in this category (its description). */
+function CategoryInfoHint({ name, description }: { name: string; description?: string | null }) {
+  const text = description?.trim()
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+            aria-label={`Courses that belong in ${name}`}
+          >
+            <Info className="h-3 w-3" aria-hidden />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-sm whitespace-pre-line text-xs leading-relaxed">
+          <span className="font-semibold">Courses that belong here</span>
+          {'\n'}
+          {text || 'No description yet. Add one with Edit.'}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
 export function CategoriesPanel() {
   const canManage = useAuthStore(s => s.can('learning.categories.manage'))
   const [page, setPage] = React.useState(1)
   const [search, setSearch] = React.useState('')
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editCategory, setEditCategory] = React.useState<LearningCategory | null>(null)
-  const deleteMut = useDeleteLearningCategory()
 
-  const query = useLearningCategories({ page, limit: 20, search: search || undefined })
+  // Only active categories are shown: every listed category can take courses.
+  // Categories are edited, never deleted here (courses keep pointing at them).
+  const query = useLearningCategories({ page, limit: 20, search: search || undefined, isActive: true })
   const rows = query.data?.rows ?? []
   const meta = query.data?.meta
-
-  const onDelete = async (category: LearningCategory) => {
-    if (!window.confirm(`Delete category "${category.name}"?`)) return
-    try {
-      await deleteMut.mutateAsync(category.id)
-      toastSuccess('Category deleted')
-    } catch (err) {
-      toastApiError(err instanceof ApiError ? err : new Error('Delete failed'))
-    }
-  }
 
   return (
     <div className="space-y-4" data-testid="learning-categories-panel">
       <ContentSectionHeader
-        title="Categories"
-        description="Organise courses into categories for reporting and browsing."
+        title="Course categories"
+        description="Organise courses by topic for reporting and browsing. Hover the info icon to see which courses belong in each category."
         action={
           canManage ? (
             <Button
@@ -181,41 +196,32 @@ export function CategoriesPanel() {
               <tr>
                 <th className="px-3 py-2">Name</th>
                 <th className="px-3 py-2">Code</th>
-                <th className="px-3 py-2">Status</th>
                 {canManage ? <th className="px-3 py-2 text-right">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
               {rows.map(row => (
                 <tr key={row.id} className="border-t border-border">
-                  <td className="px-3 py-2 font-medium">{row.name}</td>
-                  <td className="px-3 py-2 font-mono text-xs">{row.code}</td>
-                  <td className="px-3 py-2">
-                    <LearningStatusBadge status={row.isActive === false ? 'ARCHIVED' : 'ACTIVE'} />
+                  <td className="px-3 py-2 font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      {row.name}
+                      <CategoryInfoHint name={row.name} description={row.description} />
+                    </span>
                   </td>
+                  <td className="px-3 py-2 font-mono text-xs">{row.code}</td>
                   {canManage ? (
                     <td className="px-3 py-2 text-right">
-                      <div className="inline-flex gap-1">
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          aria-label="Edit"
-                          onClick={() => {
-                            setEditCategory(row)
-                            setDialogOpen(true)
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          aria-label="Delete"
-                          onClick={() => void onDelete(row)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="Edit"
+                        onClick={() => {
+                          setEditCategory(row)
+                          setDialogOpen(true)
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </td>
                   ) : null}
                 </tr>

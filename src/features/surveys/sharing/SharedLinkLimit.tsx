@@ -4,6 +4,7 @@ import { Input } from '@/shared/ui/input'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useSharedLinkLimit, type ShareLinks } from '@/features/surveys/sharing/survey-sharing.api'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
 /** A time as a datetime-local input takes it (local time, to the minute). */
 const localInput = (ms: number) => {
@@ -99,9 +100,9 @@ export function SharedLinkLimit({ surveyId, limit }: { surveyId: string; limit: 
               <label htmlFor="link-limit-until" className="block">
                 Until (at most {limit.maxDays} days ahead)
               </label>
-              <Input
+              <DateTimeInput
                 id="link-limit-until"
-                type="datetime-local"
+               
                 min={localInput(now)}
                 max={localInput(latest)}
                 value={until}

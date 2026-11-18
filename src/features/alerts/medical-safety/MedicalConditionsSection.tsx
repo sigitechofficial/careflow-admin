@@ -49,9 +49,10 @@ import {
 } from '@/features/alerts/hooks/useMedicalClinical'
 import { cn } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 function formatDate(d: string | null | undefined) {
-  if (!d) return '—'
-  return d.slice(0, 10)
+  return d ? String(formatOrganisationDay(d)) : '—'
 }
 
 export function MedicalConditionsSection({ serviceUserId }: { serviceUserId: string }) {
@@ -263,9 +264,9 @@ export function MedicalConditionsSection({ serviceUserId }: { serviceUserId: str
                   <label className="text-sm font-medium" htmlFor="onset-date">
                     Onset date
                   </label>
-                  <Input
+                  <DateInput
                     id="onset-date"
-                    type="date"
+                   
                     value={onsetDate}
                     onChange={(e) => setOnsetDate(e.target.value)}
                   />
@@ -274,9 +275,9 @@ export function MedicalConditionsSection({ serviceUserId }: { serviceUserId: str
                   <label className="text-sm font-medium" htmlFor="review-date">
                     Review date
                   </label>
-                  <Input
+                  <DateInput
                     id="review-date"
-                    type="date"
+                   
                     value={reviewDate}
                     onChange={(e) => setReviewDate(e.target.value)}
                   />

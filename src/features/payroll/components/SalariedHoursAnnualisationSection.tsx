@@ -7,6 +7,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { useSalariedHoursMethodActions, useSalariedHoursMethods } from '@/features/payroll/hooks/usePayroll'
 import type { SalariedHoursMethod } from '@/features/payroll/types/payroll.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const STATUS_LABELS: Record<SalariedHoursMethod['status'], string> = {
   DRAFT: 'Draft',
   APPROVED: 'Approved',
@@ -243,7 +244,7 @@ export function SalariedHoursAnnualisationSection() {
                 </label>
                 <label className="space-y-1 text-sm">
                   <span className="text-xs font-medium text-foreground/90">Effective from</span>
-                  <input className={inputClass} type="date" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} />
+                  <DateInput className={inputClass} value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} />
                 </label>
               </div>
               <label className="block space-y-1 text-sm">

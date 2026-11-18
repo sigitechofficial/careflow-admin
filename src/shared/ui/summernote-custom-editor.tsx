@@ -14,8 +14,7 @@ import TableRow from "@tiptap/extension-table-row"
 import TableCell from "@tiptap/extension-table-cell"
 import TableHeader from "@tiptap/extension-table-header"
 import { Extension, Mark, mergeAttributes } from "@tiptap/core"
-import { Plugin, PluginKey } from "@tiptap/pm/state"
-import { Decoration, DecorationSet } from "@tiptap/pm/view"
+import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state"
 import {
   Bold, Italic, UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -31,55 +30,34 @@ import {
 import { cn } from "@/shared/lib/utils"
 import { DictationButton, dictationChunk } from "@/shared/ui/dictation"
 
-// ── Link mark ────────────────────────────────────────────
-const dictationPreviewKey = new PluginKey<string>("dictationPreview")
+// ── Dictation ────────────────────────────────────────────
+/** Words of the phrase still being dictated, already written into the document. */
+type DictatedRange = { from: number; text: string }
 
-/**
- * Shows the words being dictated, before the phrase is finished, in grey at the caret. It is a
- * decoration, not content: it never reaches the HTML, onChange or the undo history.
- */
-const DictationPreview = Extension.create({
-  name: "dictationPreview",
+const dictationKey = new PluginKey<DictatedRange | null>("dictation")
+
+/** Tracks where the words being dictated were written, as the document changes around them. */
+const DictationRange = Extension.create({
+  name: "dictationRange",
   addProseMirrorPlugins() {
     return [
-      new Plugin<string>({
-        key: dictationPreviewKey,
+      new Plugin<DictatedRange | null>({
+        key: dictationKey,
         state: {
-          init: () => "",
+          init: () => null,
           apply: (tr, previous) => {
-            const next: unknown = tr.getMeta(dictationPreviewKey)
-            return typeof next === "string" ? next : previous
-          },
-        },
-        props: {
-          // Hides the placeholder while dictated words are shown (it would sit on top of them).
-          attributes: (state): Record<string, string> =>
-            dictationPreviewKey.getState(state) ? { class: "dictating" } : {},
-          decorations(state) {
-            const text = dictationPreviewKey.getState(state)
-            if (!text) return null
-            const pos = state.selection.to
-            const shown = dictationChunk(state.doc.textBetween(Math.max(0, pos - 1), pos, "\n", " "), text, "")
-            if (!shown) return null
-            return DecorationSet.create(state.doc, [
-              Decoration.widget(
-                pos,
-                () => {
-                  const span = document.createElement("span")
-                  span.className = "text-muted-foreground italic"
-                  span.dataset.dictationInterim = ""
-                  span.textContent = shown
-                  return span
-                },
-                { side: 1, key: `dictation:${shown}` },
-              ),
-            ])
+            const next = tr.getMeta(dictationKey) as DictatedRange | null | undefined
+            if (next !== undefined) return next
+            if (!previous || !tr.docChanged) return previous
+            return { from: tr.mapping.map(previous.from, 1), text: previous.text }
           },
         },
       }),
     ]
   },
 })
+
+// ── Link mark ────────────────────────────────────────────
 
 const LinkMark = Mark.create({
   name: "link",
@@ -291,7 +269,7 @@ export function SummernoteCustomEditor({
       TableRow,
       TableCell,
       TableHeader,
-      DictationPreview,
+      DictationRange,
     ],
     content: value ?? "",
     editable: !disabled,
@@ -348,21 +326,49 @@ export function SummernoteCustomEditor({
     editor.chain().focus().clearNodes().unsetAllMarks().run()
   }
 
-  // Insert after the selection (selected text is kept), spacing it from its neighbours.
-  const insertDictation = (text: string) => {
-    const pos = editor.state.selection.to
-    const { doc } = editor.state
+  /**
+   * Write dictated words: they replace the words written so far for the phrase being spoken, or go
+   * after the selection (selected text is kept), spaced from their neighbours. Words still being
+   * spoken (`final` false) stay out of the undo history; the finished phrase is one undo step.
+   */
+  const writeDictation = (text: string, final: boolean) => {
+    if (editor.isDestroyed) return
+    const { view } = editor
+    const range = dictationKey.getState(view.state)
+    let pos = view.state.selection.to
+    // Only replace words still there as written (the user may have edited them meanwhile).
+    if (range) {
+      const end = range.from + range.text.length
+      const { doc } = view.state
+      if (end <= doc.content.size && doc.textBetween(range.from, end, "\n", " ") === range.text) {
+        pos = range.from
+        const removal = view.state.tr.delete(range.from, end).setMeta("addToHistory", false)
+        if (final) view.dispatch(removal.setMeta(dictationKey, null))
+        else view.dispatch(removal)
+      }
+    }
+    const { doc } = view.state
     const chunk = dictationChunk(
       doc.textBetween(Math.max(0, pos - 1), pos, "\n", " "),
       text,
       doc.textBetween(pos, Math.min(doc.content.size, pos + 1), "\n", " "),
     )
-    if (chunk) editor.chain().insertContentAt(pos, { type: "text", text: chunk }).run()
+    if (!chunk) {
+      view.dispatch(view.state.tr.setMeta(dictationKey, null))
+      return
+    }
+    const tr = view.state.tr.insertText(chunk, pos)
+    tr.setSelection(TextSelection.create(tr.doc, pos + chunk.length))
+    if (final) tr.setMeta(dictationKey, null)
+    else tr.setMeta("addToHistory", false).setMeta(dictationKey, { from: pos, text: chunk })
+    view.dispatch(tr)
   }
 
-  const showDictationPreview = (text: string) => {
+  const showDictationInterim = (text: string) => {
     if (editor.isDestroyed) return
-    editor.view.dispatch(editor.state.tr.setMeta(dictationPreviewKey, text))
+    // '' once the phrase is finished or listening ended: the words shown stay as they are.
+    if (!text) editor.view.dispatch(editor.state.tr.setMeta(dictationKey, null))
+    else writeDictation(text, false)
   }
 
   const currentColor = (editor.getAttributes("textStyle").color as string) || "#000000"
@@ -449,8 +455,8 @@ export function SummernoteCustomEditor({
             onStart={() => {
               if (!editor.isFocused) editor.commands.focus("end")
             }}
-            onText={insertDictation}
-            onInterim={showDictationPreview}
+            onText={(text) => writeDictation(text, true)}
+            onInterim={showDictationInterim}
           />
         )}
       </div>
@@ -622,7 +628,6 @@ export function SummernoteCustomEditor({
               "[&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left",
               "[&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none",
               "[&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0",
-              "[&_.ProseMirror.dictating_p.is-editor-empty:first-child::before]:hidden",
               "[&_.ProseMirror_blockquote]:border-l-4 [&_.ProseMirror_blockquote]:border-primary/30 [&_.ProseMirror_blockquote]:pl-3 [&_.ProseMirror_blockquote]:text-muted-foreground",
               "[&_.ProseMirror_a]:text-primary [&_.ProseMirror_a]:underline",
               "[&_.ProseMirror_img]:max-w-full [&_.ProseMirror_img]:rounded-lg [&_.ProseMirror_img]:my-2",

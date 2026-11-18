@@ -53,6 +53,7 @@ import {
   salaryWeekDateRange,
 } from '@/features/billing/utils/salary-period.util'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const BANDS: { id: EmployeeHourBand | 'all'; label: string }[] = [
   { id: 'all', label: 'All hours' },
   { id: 'under_10', label: 'Under 10h' },
@@ -640,8 +641,8 @@ export default function EmployeeHoursPage() {
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <input
-            type="date"
+          <DateInput
+           
             className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
             value={weekStart}
             aria-label="Jump to week containing date"

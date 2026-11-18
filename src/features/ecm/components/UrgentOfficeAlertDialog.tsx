@@ -40,6 +40,7 @@ import {
   type UrgentOfficeDialogVisit,
 } from '@/features/ecm/utils/ecm-urgent-dialog.util'
 
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 function mapsHref(lat?: number | null, lng?: number | null, unavailable?: boolean): string | null {
   if (unavailable || lat == null || lng == null) return null
   return `https://maps.google.com/?q=${lat},${lng}`
@@ -115,7 +116,7 @@ function SosSection({
       <ul className="space-y-3">
         {items.map(item => (
           <li key={item.exceptionId} className="space-y-1">
-            <p className="text-xs text-muted-foreground">Sent at {item.sentAt}</p>
+            <p className="text-xs text-muted-foreground">Sent at {formatOrganisationDateTime(item.sentAt)}</p>
             <div>
               <p className="text-xs font-medium text-muted-foreground">Message from carer</p>
               <p className="mt-0.5 text-sm text-foreground">{item.message}</p>

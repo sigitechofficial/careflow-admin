@@ -19,6 +19,7 @@ import type { MedicationStatusCodeLookupRow } from '@/features/service-users/typ
 
 import { formatGbDateTime } from '@/features/service-users/medication/medication-event-display'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function formatWhen(iso: string | null): string {
   return formatGbDateTime(iso)
 }
@@ -80,8 +81,8 @@ export function MedicationEventsListTab({ serviceUserId }: { serviceUserId: stri
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-3">
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">From</label>
-          <Input
-            type="date"
+          <DateInput
+           
             value={dateFrom}
             onChange={e => {
               setDateFrom(e.target.value)
@@ -92,8 +93,8 @@ export function MedicationEventsListTab({ serviceUserId }: { serviceUserId: stri
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">To</label>
-          <Input
-            type="date"
+          <DateInput
+           
             value={dateTo}
             onChange={e => {
               setDateTo(e.target.value)

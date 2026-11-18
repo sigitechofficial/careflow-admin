@@ -2067,7 +2067,18 @@ export type CreateServiceUserContactPayload = {
   notes?: string
 }
 
-export type UpdateServiceUserContactPayload = Partial<CreateServiceUserContactPayload>
+/** null clears a field (an emptied email, mobile…); a field left out is kept as it is. */
+export type UpdateServiceUserContactPayload = Partial<
+  Omit<CreateServiceUserContactPayload, 'lastName' | 'relationshipTypeId' | 'phone' | 'mobile' | 'email' | 'address' | 'notes'>
+> & {
+  lastName?: string | null
+  relationshipTypeId?: string | null
+  phone?: string | null
+  mobile?: string | null
+  email?: string | null
+  address?: string | null
+  notes?: string | null
+}
 
 export async function createServiceUserContact(
   serviceUserId: string,

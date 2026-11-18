@@ -22,6 +22,7 @@ import {
 import { listAllEmployees } from '@/features/employees/api/employees.api'
 import { employeeListRowDisplayName } from '@/features/employees/lib/employee-display-name'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -129,8 +130,8 @@ export function IssueCertificateDialog({ open, onOpenChange }: Props) {
               />
             </FormField>
             <FormField label="Expires on" hint="Leave blank to use the course or organisation default validity.">
-              <Input
-                type="date"
+              <DateInput
+               
                 value={expiresAt}
                 onChange={e => setExpiresAt(e.target.value)}
                 disabled={busy}

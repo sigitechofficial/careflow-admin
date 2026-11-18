@@ -6,6 +6,11 @@ import { DayPicker, type DateRange } from "react-day-picker"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "./button"
 import { Textarea } from "./form-field"
+import { getOrganisationDisplayFormats } from "@/shared/lib/organisation-display-format.store"
+import { formatDisplayDateFromDate } from "@/shared/lib/display-format.util"
+
+/** A picked calendar day in the organisation date format (local day, no timezone shift). */
+const showDay = (d: Date) => formatDisplayDateFromDate(d, getOrganisationDisplayFormats().dateDisplayFormat)
 
 // â”€â”€â”€ Calendar Primitive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function Calendar({ className, classNames, ...props }: React.ComponentProps<typeof DayPicker>) {
@@ -66,9 +71,9 @@ interface DatePickerProps {
   minDate?: Date
   maxDate?: Date
   className?: string
-  /** date-fns format for the chosen date (default "PPP"); e.g. "dd/MM/yyyy" for a UK numeric date. */
+  /** date-fns format for the chosen date. Default: the organisation date format (Settings › General › Time zone & formats). */
   displayFormat?: string
-  /** First day of the week in the calendar (default: the calendar's own, Sunday). */
+  /** First day of the week in the calendar (default Monday). */
   weekStartsOn?: 0 | 1
   /** Month the calendar opens on (default: the calendar's own, the current month). */
   defaultMonth?: Date
@@ -84,8 +89,8 @@ export function DatePicker({
   minDate,
   maxDate,
   className,
-  displayFormat = "PPP",
-  weekStartsOn,
+  displayFormat,
+  weekStartsOn = 1,
   defaultMonth,
   id,
   "aria-label": ariaLabel,
@@ -110,7 +115,7 @@ export function DatePicker({
           >
             <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="flex-1 text-left">
-              {value ? format(value, displayFormat) : placeholder}
+              {value ? (displayFormat ? format(value, displayFormat) : showDay(value)) : placeholder}
             </span>
           </button>
         </PopoverPrimitive.Trigger>
@@ -180,8 +185,8 @@ export function DateRangePicker({ value, onChange, placeholder = "Pick a date ra
             <span className="flex-1 text-left">
               {value?.from
                 ? value.to
-                  ? `${format(value.from, "MMM d")} – ${format(value.to, "MMM d, yyyy")}`
-                  : format(value.from, "PPP")
+                  ? `${showDay(value.from)} – ${showDay(value.to)}`
+                  : showDay(value.from)
                 : placeholder}
             </span>
           </button>

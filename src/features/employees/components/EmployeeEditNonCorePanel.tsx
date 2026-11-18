@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const REASON_NONE = '__none__'
 
 /** DD-MM-YYYY HH:mm in the organisation timezone (not the device's). */
@@ -319,11 +320,11 @@ export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string })
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground">Date from</label>
-                <Input type="datetime-local" value={formDateFrom} onChange={e => setFormDateFrom(e.target.value)} onClick={openNativePicker} className="cursor-pointer" />
+                <DateTimeInput value={formDateFrom} onChange={e => setFormDateFrom(e.target.value)} onClick={openNativePicker} className="cursor-pointer" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground">Date to</label>
-                <Input type="datetime-local" value={formDateTo} onChange={e => setFormDateTo(e.target.value)} onClick={openNativePicker} className="cursor-pointer" />
+                <DateTimeInput value={formDateTo} onChange={e => setFormDateTo(e.target.value)} onClick={openNativePicker} className="cursor-pointer" />
               </div>
             </div>
             <div className="space-y-1.5">

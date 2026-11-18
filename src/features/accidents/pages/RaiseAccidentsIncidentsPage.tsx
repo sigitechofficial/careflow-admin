@@ -3,6 +3,8 @@ import { AlertTriangle, Calendar, Lock } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { PageHeader } from '@/shared/ui/page-elements'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 const CORAL = '#e8645a'
 
 const recentColumns = [
@@ -55,12 +57,7 @@ function InfoDot({ label }: { label: string }) {
 }
 
 function formatUkDateTime(d: Date) {
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const yyyy = d.getFullYear()
-  const hh = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  return `${dd}/${mm}/${yyyy} ${hh}:${min}`
+  return formatOrganisationDateTime(d)
 }
 
 function toDatetimeLocalValue(d: Date) {
@@ -70,7 +67,7 @@ function toDatetimeLocalValue(d: Date) {
 
 export default function RaiseAccidentsIncidentsPage() {
   const now = React.useMemo(() => new Date(), [])
-  const [reportedAt] = React.useState(() => formatUkDateTime(now))
+  const [reportedAtText] = React.useState(() => formatUkDateTime(now))
   const [reportType, setReportType] = React.useState('Accident')
   const [incidentAt, setIncidentAt] = React.useState(() => toDatetimeLocalValue(now))
   const [keepPrivate, setKeepPrivate] = React.useState(false)
@@ -99,7 +96,7 @@ export default function RaiseAccidentsIncidentsPage() {
           <div className="h-9 min-w-[2.25rem]" aria-hidden />
           <div className="text-right text-sm text-muted-foreground">
             Date and time reported{' '}
-            <span className="font-medium text-foreground">{reportedAt}</span>
+            <span className="font-medium text-foreground">{reportedAtText}</span>
           </div>
         </div>
 
@@ -145,9 +142,9 @@ export default function RaiseAccidentsIncidentsPage() {
                 <div className="space-y-1.5 lg:col-span-5">
                   <label className="text-sm font-medium text-muted-foreground">Date and time of Incident</label>
                   <div className="flex gap-2">
-                    <input
+                    <DateTimeInput
                       ref={incidentInputRef}
-                      type="datetime-local"
+                     
                       value={incidentAt}
                       onChange={e => setIncidentAt(e.target.value)}
                       className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"

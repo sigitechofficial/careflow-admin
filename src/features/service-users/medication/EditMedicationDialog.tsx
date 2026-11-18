@@ -63,6 +63,7 @@ import { medicationRequiresBodyMapFromRow } from '@/features/service-users/medic
 import { MedicationBodyMapSiteBadge } from '@/features/service-users/medication/MedicationBodyMapSiteBadge'
 import { useMedicationBodyMapSiteIndex } from '@/features/service-users/body-map/hooks/useMedicationBodyMapSiteIndex'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 function dateInputValue(iso: string | null | undefined): string {
   if (!iso) return ''
   return iso.slice(0, 10)
@@ -363,8 +364,8 @@ export function EditMedicationDialog({
               <label className="text-sm font-medium">
                 Start date on system <span className="text-destructive">*</span>
               </label>
-              <Input
-                type="date"
+              <DateInput
+               
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
                 disabled={disabled}
@@ -372,8 +373,8 @@ export function EditMedicationDialog({
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">End date</label>
-              <Input
-                type="date"
+              <DateInput
+               
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
                 disabled={disabled}
@@ -487,8 +488,8 @@ export function EditMedicationDialog({
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Expiry date</label>
-              <Input
-                type="date"
+              <DateInput
+               
                 value={expiryDate}
                 onChange={e => setExpiryDate(e.target.value)}
                 disabled={disabled}
@@ -595,8 +596,8 @@ export function EditMedicationDialog({
                   <ul className="space-y-2">
                     {times.map((t, idx) => (
                       <li key={idx} className="flex items-center gap-2">
-                        <Input
-                          type="time"
+                        <TimeInput
+                         
                           value={t}
                           onChange={e =>
                             setTimes(prev => prev.map((v, i) => (i === idx ? e.target.value : v)))

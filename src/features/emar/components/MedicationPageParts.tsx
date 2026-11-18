@@ -5,6 +5,7 @@ import { cn } from '@/shared/lib/utils'
 import { getSyncedOperationalTimeZone, operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { illustrationSrc } from '@/components/layout/nav-illustrations'
 
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 /* Shared pieces for the Medication (eMAR) module pages. */
 
 export type RangePreset = 'today' | '7' | '30' | 'month'
@@ -109,16 +110,7 @@ export function FilterChip({
 }
 
 export function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  // Organisation wall clock, matching the date ranges.
-  return d.toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: getSyncedOperationalTimeZone(),
-  })
+  return iso ? formatOrganisationDateTime(iso) : '—'
 }
 
 export function personName(p?: { personalDetail?: { firstName?: string | null; lastName?: string | null } | null } | null): string {

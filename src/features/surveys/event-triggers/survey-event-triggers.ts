@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 /** API: careflow-api src/surveys/survey-event-triggers.{service,util}.ts and prisma/seed-lib/survey-event-triggers.ts. */
 export type TriggerAudience = 'SERVICE_USER' | 'EMPLOYEE' | 'FAMILY'
 export type TriggerOptions = {
@@ -134,6 +135,5 @@ export function describeTrigger(t: Pick<EventTrigger, 'delayDays' | 'windowDays'
 
 /** "2 Dec 2026" from YYYY-MM-DD. */
 export function formatDay(iso: string): string {
-  const d = new Date(`${iso}T12:00:00Z`)
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  return String(formatOrganisationDay(iso.slice(0, 10)))
 }

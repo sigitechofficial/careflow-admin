@@ -43,6 +43,7 @@ import {
   slotDefaultDurationMinutes,
 } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 const DAY_OPTIONS = [
   { value: ALL_WEEKDAYS_SELECT_VALUE, label: ALL_WEEKDAYS_SELECT_LABEL },
   ...VISIT_PLAN_DAY_LABELS.map((label, dayOfWeek) => ({
@@ -382,8 +383,8 @@ function CarerRow({
 
       <div className="min-w-0 space-y-1.5">
         <Label className={contentOverlineClass}>Start time</Label>
-        <Input
-          type="time"
+        <TimeInput
+         
           disabled={disabled}
           className="w-full"
           value={normalizeTimeForInput(carer.plannedStartTime ?? '') || slotStartHm}
@@ -401,8 +402,8 @@ function CarerRow({
 
       <div className="min-w-0 space-y-1.5">
         <Label className={contentOverlineClass}>End time</Label>
-        <Input
-          type="time"
+        <TimeInput
+         
           disabled={disabled}
           className="w-full"
           value={normalizeTimeForInput(carer.plannedEndTime ?? '') || slotEndHm}

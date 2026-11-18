@@ -26,6 +26,7 @@ import { Label } from '@/shared/ui/form-field'
 import { Input } from '@/shared/ui/input'
 import { cn, formatDate } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const GIVER_FIELD_LABELS: Record<Exclude<ConsentGiver, 'service_user'>, { name: string; relationship: string }> = {
   lpa: { name: 'Attorney name', relationship: 'Their relationship to me' },
   deputy: { name: 'Deputy name', relationship: 'Their relationship to me, or their role' },
@@ -268,9 +269,9 @@ export function InitialAssessmentConsentPhotographyPanel({
               <Label htmlFor="ia-photo-date" className={IA_QUESTION_LABEL_CLASS}>
                 Date
               </Label>
-              <Input
+              <DateInput
                 id="ia-photo-date"
-                type="date"
+               
                 className="h-9 bg-background"
                 disabled={disabled}
                 value={value.consentDate?.slice(0, 10) ?? ''}
