@@ -80,7 +80,7 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
         <div>
           <Label className={cn('flex items-center gap-1', contentOverlineClass)}>
             Start date
-            <FieldHelp text="First day this slot generates visits. Defaults to today when first saved." />
+            <FieldHelp text="First day this slot makes visits. Defaults to today, from the time you save: visits earlier today are not added (use Backfill past visits for those)." />
           </Label>
           <DateInput
            
