@@ -17,6 +17,7 @@ import { Label } from '@/shared/ui/form-field'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 /** Monday (local) of the week containing today, as 'YYYY-MM-DD'. */
 function currentWeekStart(): string {
   const now = new Date()
@@ -178,9 +179,9 @@ export default function SpecialVisitsPage() {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="special-visits-week">Week starting</Label>
-          <input
+          <DateInput
             id="special-visits-week"
-            type="date"
+           
             className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
             value={weekStart}
             onChange={e => setWeekStart(e.target.value)}

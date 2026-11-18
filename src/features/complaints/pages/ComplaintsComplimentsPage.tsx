@@ -23,6 +23,7 @@ import {
 } from '@/features/complaints/feedback-labels'
 import { FeedbackFormDialog, feedbackSelectClass } from '@/features/complaints/components/FeedbackFormDialog'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Tab = 'complaints' | 'compliments'
 
 function SummaryCard({
@@ -245,8 +246,8 @@ export default function ComplaintsComplimentsPage() {
                 </option>
               ))}
             </select>
-            <Input type="date" value={from} onChange={e => setFrom(e.target.value)} aria-label="Received from" />
-            <Input type="date" value={to} onChange={e => setTo(e.target.value)} aria-label="Received to" />
+            <DateInput value={from} onChange={e => setFrom(e.target.value)} aria-label="Received from" />
+            <DateInput value={to} onChange={e => setTo(e.target.value)} aria-label="Received to" />
           </div>
           {isComplaints ? (
             <label className="flex items-center gap-2 text-sm text-muted-foreground">

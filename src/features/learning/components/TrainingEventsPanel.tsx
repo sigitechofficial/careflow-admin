@@ -30,6 +30,7 @@ import { trainingEventDisplayStatus } from '@/features/learning/lib/training-eve
 import { useAuthStore } from '@/features/auth/store'
 import { ApiError } from '@/shared/api/api-client'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const EMPTY_FORM: LearningTrainingEventInput = {
   title: '',
   startAt: '',
@@ -270,8 +271,8 @@ export function TrainingEventsPanel() {
                 />
               </FormField>
               <FormField label="Start" required>
-                <Input
-                  type="datetime-local"
+                <DateTimeInput
+                 
                   value={form.startAt}
                   onChange={e => setForm(p => ({ ...p, startAt: e.target.value }))}
                   required
@@ -279,8 +280,8 @@ export function TrainingEventsPanel() {
                 />
               </FormField>
               <FormField label="End" required>
-                <Input
-                  type="datetime-local"
+                <DateTimeInput
+                 
                   value={form.endAt}
                   onChange={e => setForm(p => ({ ...p, endAt: e.target.value }))}
                   required

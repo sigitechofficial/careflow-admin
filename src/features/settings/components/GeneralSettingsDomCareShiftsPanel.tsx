@@ -20,6 +20,7 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import { cn } from '@/shared/lib/utils'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 function normalizeShifts(shifts: DomCareShiftDefinition[]): DomCareShiftDefinition[] {
   return shifts.map((s, index) => {
     const fromTime = s.fromTime || '00:00'
@@ -67,8 +68,8 @@ function ShiftTimeField({
 }) {
   return (
     <div className="relative h-9 min-w-0 w-full">
-      <Input
-        type="time"
+      <TimeInput
+       
         value={value}
         disabled={disabled}
         onChange={e => onChange(e.target.value)}

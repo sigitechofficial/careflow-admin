@@ -37,6 +37,7 @@ import {
 } from '@/features/service-users/documents/service-user-document-store.api'
 
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
   const normalized = iso.includes('T') ? iso : `${iso}T12:00:00`
@@ -627,9 +628,9 @@ export function ServiceUserDocumentStorePanel({ serviceUserId }: { serviceUserId
                 <label className="text-xs font-medium text-muted-foreground" htmlFor="doc-date">
                   Date of document
                 </label>
-                <Input
+                <DateInput
                   id="doc-date"
-                  type="date"
+                 
                   value={uploadForm.documentDate}
                   onChange={(e) => setUploadForm((f) => ({ ...f, documentDate: e.target.value }))}
                 />
@@ -639,9 +640,9 @@ export function ServiceUserDocumentStorePanel({ serviceUserId }: { serviceUserId
                   <label className="text-xs font-medium text-muted-foreground" htmlFor="doc-expiry">
                     Expiry date
                   </label>
-                  <Input
+                  <DateInput
                     id="doc-expiry"
-                    type="date"
+                   
                     value={uploadForm.expiryDate}
                     onChange={(e) => setUploadForm((f) => ({ ...f, expiryDate: e.target.value }))}
                   />

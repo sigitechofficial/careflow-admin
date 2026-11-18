@@ -88,6 +88,7 @@ import { ActivityFeed } from '@/shared/ui/activity-feed'
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandSeparator, CommandShortcut, useCommandPalette } from '@/shared/ui/command'
 import { Users, Home, Settings, HelpCircle, FileText, Bell } from 'lucide-react'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 /* -- Section Wrapper -- */
 function ShowSection({
   title,
@@ -299,11 +300,11 @@ export default function ComponentShowcase() {
             </FormField>
 
             <FormField label="Date of Birth" htmlFor="dob">
-              <Input id="dob" type="date" leftElement={<Calendar className="h-3.5 w-3.5" />} />
+              <DateInput id="dob" leftElement={<Calendar className="h-3.5 w-3.5" />} />
             </FormField>
 
             <FormField label="Shift Time" htmlFor="time">
-              <Input id="time" type="time" leftElement={<Clock className="h-3.5 w-3.5" />} />
+              <TimeInput id="time" leftElement={<Clock className="h-3.5 w-3.5" />} />
             </FormField>
 
             <FormField label="Address" htmlFor="addr" error="This field is required" className="md:col-span-2">
@@ -770,7 +771,7 @@ export default function ComponentShowcase() {
                   </FormField>
                   <div className="grid grid-cols-2 gap-3">
                     <FormField label="Date of Birth">
-                      <Input type="date" />
+                      <DateInput />
                     </FormField>
                     <FormField label="NHS Number">
                       <Input placeholder="000 000 0000" />
@@ -807,10 +808,10 @@ export default function ComponentShowcase() {
                 <DialogBody className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <FormField label="Incident Date" required>
-                      <Input type="date" leftElement={<Calendar className="h-3.5 w-3.5" />} />
+                      <DateInput leftElement={<Calendar className="h-3.5 w-3.5" />} />
                     </FormField>
                     <FormField label="Incident Time" required>
-                      <Input type="time" leftElement={<Clock className="h-3.5 w-3.5" />} />
+                      <TimeInput leftElement={<Clock className="h-3.5 w-3.5" />} />
                     </FormField>
                   </div>
                   <FormField label="Location" required>

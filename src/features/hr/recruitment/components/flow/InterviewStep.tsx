@@ -39,6 +39,7 @@ import { cn } from "@/shared/lib/utils";
 import { toastApiError, toastSuccess } from "@/shared/lib/toast";
 import { Field, Textarea } from "./flow-ui";
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 function toLocalInput(iso: string | null | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -119,9 +120,9 @@ export function ArrangeInterviewDialog({
         >
           <DialogBody className="space-y-4">
             <Field label="Date and time" htmlFor="iv-when">
-              <Input
+              <DateTimeInput
                 id="iv-when"
-                type="datetime-local"
+               
                 value={when}
                 onChange={(e) => setWhen(e.target.value)}
                 required

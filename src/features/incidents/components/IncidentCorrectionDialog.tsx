@@ -50,6 +50,7 @@ import {
   type IncidentVisitOption,
 } from '@/features/incidents/types'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 type Person = { id: string; name: string }
 
 const selectClass =
@@ -282,9 +283,9 @@ export function IncidentCorrectionDialog({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="When did it happen?" htmlFor="corr-when" required error={errors.occurredAt}>
-              <Input
+              <DateTimeInput
                 id="corr-when"
-                type="datetime-local"
+               
                 value={form.occurredLocal}
                 onChange={(e) => {
                   set('occurredLocal', e.target.value)

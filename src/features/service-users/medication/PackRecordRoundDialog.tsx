@@ -14,6 +14,7 @@ import { MarStatusCodePicker } from '@/features/service-users/medication/MarStat
 import type { StatusPickRow } from '@/features/service-users/medication/mar-record-utils'
 import type { MarChartCell, MarChartMedicationRow } from '@/features/service-users/api/medication-mar.api'
 import { operationalTodayIso } from '@/shared/lib/operational-day.util'
+import { DateInput } from '@/shared/ui/date-time-input'
 import './mar-record.css'
 
 /** Same recordable set as standalone MAR record dialog (excludes Pending / PR display-only). */
@@ -461,8 +462,8 @@ export function PackRecordRoundDialog({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Date</label>
-              <Input
-                type="date"
+              <DateInput
+               
                 value={date}
                 max={todayInput()}
                 onChange={e => setDate(e.target.value)}

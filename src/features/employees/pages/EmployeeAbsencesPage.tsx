@@ -37,6 +37,7 @@ import { Badge } from '@/shared/ui/badge'
 import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 
+import { MonthInput } from '@/shared/ui/date-time-input'
 const selectClass = 'flex h-9 rounded-md border border-input bg-background px-2 text-sm'
 
 function pad2(n: number): string {
@@ -312,8 +313,8 @@ export default function EmployeeAbsencesPage() {
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="month"
+        <MonthInput
+         
           className={selectClass}
           value={month}
           aria-label="Month"

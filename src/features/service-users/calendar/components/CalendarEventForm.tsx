@@ -14,6 +14,7 @@ import {
 import type { CalendarEventTypeRow, ServiceUserCalendarEvent } from '../types/service-user-calendar.types'
 import type { ServiceUserPickerOption } from '../hooks/useServiceUsersForCalendar'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 export type CalendarEventFormValues = {
   title: string
   eventTypeId: string
@@ -196,9 +197,9 @@ export function CalendarEventForm({
 
       <div className="space-y-2">
         <Label htmlFor="cal-start-date">Start date *</Label>
-        <Input
+        <DateInput
           id="cal-start-date"
-          type="date"
+         
           value={values.startDate}
           disabled={readOnly}
           onChange={e => set({ startDate: e.target.value })}
@@ -208,9 +209,9 @@ export function CalendarEventForm({
       {!values.allDay ? (
         <div className="space-y-2">
           <Label htmlFor="cal-start-time">Start time</Label>
-          <Input
+          <TimeInput
             id="cal-start-time"
-            type="time"
+           
             value={values.startTime}
             disabled={readOnly}
             onChange={e => set({ startTime: e.target.value })}
@@ -220,9 +221,9 @@ export function CalendarEventForm({
 
       <div className="space-y-2">
         <Label htmlFor="cal-end-date">End date</Label>
-        <Input
+        <DateInput
           id="cal-end-date"
-          type="date"
+         
           value={values.endDate}
           disabled={readOnly}
           onChange={e => set({ endDate: e.target.value })}
@@ -231,9 +232,9 @@ export function CalendarEventForm({
       {!values.allDay ? (
         <div className="space-y-2">
           <Label htmlFor="cal-end-time">End time</Label>
-          <Input
+          <TimeInput
             id="cal-end-time"
-            type="time"
+           
             value={values.endTime}
             disabled={readOnly}
             onChange={e => set({ endTime: e.target.value })}

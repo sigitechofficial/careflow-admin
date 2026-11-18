@@ -28,6 +28,8 @@ import { LearningStatusBadge } from '@/features/learning/components/LearningStat
 import { useAuthStore } from '@/features/auth/store'
 import { ApiError } from '@/shared/api/api-client'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 export function ExternalTrainingPanel() {
   const canManage = useAuthStore(s => s.can('learning.external_training.manage'))
   const [page, setPage] = React.useState(1)
@@ -96,7 +98,7 @@ export function ExternalTrainingPanel() {
                 <tr key={row.id} className="border-t border-border">
                   <td className="px-3 py-2 font-medium">{row.courseName}</td>
                   <td className="px-3 py-2 font-mono text-xs">{row.employeeId}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{new Date(row.completedAt).toLocaleDateString()}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{formatOrganisationDate(row.completedAt)}</td>
                   <td className="px-3 py-2"><LearningStatusBadge status={row.verificationStatus} /></td>
                   {canManage && row.verificationStatus === 'PENDING' ? (
                     <td className="px-3 py-2 text-right">
@@ -144,7 +146,7 @@ export function ExternalTrainingPanel() {
               </FormField>
               <FormField label="Course name" required><Input value={form.courseName} onChange={e => setForm(p => ({ ...p, courseName: e.target.value }))} required /></FormField>
               <FormField label="Provider"><Input value={form.trainingProvider ?? ''} onChange={e => setForm(p => ({ ...p, trainingProvider: e.target.value }))} /></FormField>
-              <FormField label="Completed" required><Input type="date" value={form.completedAt.slice(0, 10)} onChange={e => setForm(p => ({ ...p, completedAt: e.target.value }))} required /></FormField>
+              <FormField label="Completed" required><DateInput value={form.completedAt.slice(0, 10)} onChange={e => setForm(p => ({ ...p, completedAt: e.target.value }))} required /></FormField>
             </DialogBody>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>

@@ -28,18 +28,19 @@ import type {
   EnquiryWriteInput,
 } from '@/features/crm/types/crm.types'
 
+import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 /* ─── value helpers ───────────────────────────────────────────────────── */
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
-/** ISO → value for <input type="datetime-local"> in the browser's local time. */
+/** ISO → value for <DateTimeInput /> in the browser's local time. */
 function toLocalDateTime(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-/** ISO → value for <input type="date">. */
+/** ISO → value for <DateInput />. */
 const toDateInput = (iso: string | null) => (iso ? iso.slice(0, 10) : '')
 
 const textOrNull = (v: string) => (v.trim() ? v.trim() : null)
@@ -355,7 +356,7 @@ export function EnquiryForm({
           <Input value={f.lastName} onChange={set('lastName')} />
         </Field>
         <Field label="Date of birth">
-          <Input type="date" value={f.dateOfBirth} onChange={set('dateOfBirth')} />
+          <DateInput value={f.dateOfBirth} onChange={set('dateOfBirth')} />
         </Field>
         <Field label="Receiving branch" required hint="The branch that received the enquiry. Its staff will see and manage it.">
           {branchOptions.length > 6 ? (
@@ -454,7 +455,7 @@ export function EnquiryForm({
             <Input value={f.referralReference} onChange={set('referralReference')} />
           </Field>
           <Field label="Referral date" hint="The date on the referral">
-            <Input type="date" value={f.referralDate} onChange={set('referralDate')} />
+            <DateInput value={f.referralDate} onChange={set('referralDate')} />
           </Field>
         </Section>
       )}
@@ -507,7 +508,7 @@ export function EnquiryForm({
           </select>
         </Field>
         <Field label="Received at">
-          <Input type="datetime-local" value={f.receivedAt} onChange={set('receivedAt')} />
+          <DateTimeInput value={f.receivedAt} onChange={set('receivedAt')} />
         </Field>
         <Field label="Urgency">
           <select className={selectClass} value={f.urgency} onChange={set('urgency')}>
@@ -528,7 +529,7 @@ export function EnquiryForm({
           <Input type="number" min={0} max={24} step={1} value={f.visitsPerDay} onChange={set('visitsPerDay')} />
         </Field>
         <Field label="Requested start date">
-          <Input type="date" value={f.requestedStartDate} onChange={set('requestedStartDate')} />
+          <DateInput value={f.requestedStartDate} onChange={set('requestedStartDate')} />
         </Field>
         <Field
           label="Funding type"
@@ -551,7 +552,7 @@ export function EnquiryForm({
       {initial && (
         <Section title="Assessment" description="Book the assessment visit. The quote itself is made under Quote on the enquiry.">
           <Field label="Assessment date & time">
-            <Input type="datetime-local" value={f.assessmentAt} onChange={set('assessmentAt')} />
+            <DateTimeInput value={f.assessmentAt} onChange={set('assessmentAt')} />
           </Field>
           <Field label="Assessor">
             <Combobox
@@ -595,7 +596,7 @@ export function EnquiryForm({
           />
         </Field>
         <Field label="Next follow-up">
-          <Input type="datetime-local" value={f.nextFollowUpAt} onChange={set('nextFollowUpAt')} />
+          <DateTimeInput value={f.nextFollowUpAt} onChange={set('nextFollowUpAt')} />
         </Field>
         <Field label="Next action" wide hint="e.g. Call daughter to book assessment">
           <Input value={f.nextAction} onChange={set('nextAction')} />

@@ -30,6 +30,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function sectionClass() {
   return 'rounded-xl border border-border bg-card p-6 shadow-sm'
 }
@@ -572,8 +573,8 @@ export function ServiceUserLiveInProfileTab({
           </div>
           <div className="grid gap-2 md:grid-cols-[160px_1fr] md:items-center">
             <span className="text-sm text-muted-foreground">Start date</span>
-            <Input
-              type="date"
+            <DateInput
+             
               className="max-w-xs"
               disabled={!canUpdate}
               value={isoDateInput(profile.startDate)}
@@ -584,8 +585,8 @@ export function ServiceUserLiveInProfileTab({
           </div>
           <div className="grid gap-2 md:grid-cols-[160px_1fr] md:items-center">
             <span className="text-sm text-muted-foreground">End date</span>
-            <Input
-              type="date"
+            <DateInput
+             
               className="max-w-xs"
               disabled={!canUpdate}
               value={isoDateInput(profile.endDate)}
@@ -596,8 +597,8 @@ export function ServiceUserLiveInProfileTab({
           </div>
           <div className="grid gap-2 md:grid-cols-[160px_1fr] md:items-center">
             <span className="text-sm text-muted-foreground">Review date</span>
-            <Input
-              type="date"
+            <DateInput
+             
               className="max-w-xs"
               disabled={!canUpdate}
               value={isoDateInput(profile.reviewDate)}

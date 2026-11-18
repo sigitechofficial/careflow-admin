@@ -57,6 +57,7 @@ import {
   shiftSalaryMonth,
 } from '@/features/billing/utils/salary-period.util'
 
+import { MonthInput } from '@/shared/ui/date-time-input'
 const STATUS_META: Record<
   EmployeeComplianceStatus,
   { label: string; className: string }
@@ -330,8 +331,8 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <input
-            type="month"
+          <MonthInput
+           
             className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
             value={month}
             aria-label="Jump to month"

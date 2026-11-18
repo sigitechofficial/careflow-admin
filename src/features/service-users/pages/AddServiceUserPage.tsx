@@ -85,6 +85,7 @@ import {
   type ContactPhoneRow,
 } from '@/features/service-users/components/ServiceUserContactRows'
 
+import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 /** Fixed Standard / Complex care-level options. */
 const CARE_LEVEL_OPTIONS = [
   { id: 'STANDARD', name: 'Standard Care' },
@@ -1026,9 +1027,9 @@ export default function AddServiceUserPage() {
                 Date of Birth
               </LabelWithTip>
               <div className="flex flex-wrap items-center gap-2">
-                <Input
+                <DateInput
                   data-testid="service-user-date-of-birth"
-                  type="date"
+                 
                   value={form.dateOfBirth}
                   onChange={(e) => set('dateOfBirth')(e.target.value)}
                   className="max-w-[11rem]"
@@ -1271,9 +1272,9 @@ export default function AddServiceUserPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <LabelWithTip tip="Date and time service started.">Service Start Date/Time</LabelWithTip>
-              <Input
+              <DateTimeInput
                 data-testid="service-user-service-start"
-                type="datetime-local"
+               
                 value={form.serviceStartDate}
                 onChange={(e) => set('serviceStartDate')(e.target.value)}
               />
@@ -1282,8 +1283,8 @@ export default function AddServiceUserPage() {
               <LabelWithTip tip="Last day and time of service, or Ongoing if there is no end date yet.">
                 Service End Date/Time
               </LabelWithTip>
-              <Input
-                type="datetime-local"
+              <DateTimeInput
+               
                 value={form.serviceOngoing ? '' : form.serviceEndDate}
                 disabled={form.serviceOngoing}
                 onChange={(e) => set('serviceEndDate')(e.target.value)}
@@ -1306,8 +1307,8 @@ export default function AddServiceUserPage() {
             </div>
             <div>
               <LabelWithTip tip="Only when verified.">Date of Death</LabelWithTip>
-              <Input
-                type="date"
+              <DateInput
+               
                 value={form.dateOfDeath}
                 onChange={(e) => set('dateOfDeath')(e.target.value)}
               />

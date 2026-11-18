@@ -5,6 +5,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { Shield } from 'lucide-react'
 import type { IpRule } from '@/features/auth/types'
 
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 export default function SecurityAdminPage() {
   const ipAllowlistEnabled = useAuthStore(s => s.ipAllowlistEnabled)
   const setIpAllowlistEnabled = useAuthStore(s => s.setIpAllowlistEnabled)
@@ -141,7 +142,7 @@ export default function SecurityAdminPage() {
                     <td className="px-3 py-2">{l.email}</td>
                     <td className="px-3 py-2">{l.failedAttempts}</td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {l.lockedUntil ? new Date(l.lockedUntil).toLocaleString() : '—'}
+                      {l.lockedUntil ? formatOrganisationDateTime(new Date(l.lockedUntil)) : '—'}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <Button size="sm" variant="outline" onClick={() => unlockAccount(l.userId)}>Unlock</Button>

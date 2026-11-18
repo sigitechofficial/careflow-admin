@@ -1,4 +1,3 @@
-import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
 import { useMedicationLookups } from '@/features/service-users/hooks/useServiceUserMedicationMutations'
@@ -24,6 +23,7 @@ import {
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 import { iaQuestionDisplayLabelOverride } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 type Props = {
   question: InitialAssessmentQuestion
   value: InitialAssessmentAnswerInput | undefined
@@ -159,9 +159,9 @@ export function InitialAssessmentPreferredVisitTimesField({
                         {opt.label} visit window start
                       </Label>
                       <span className="text-xs text-muted-foreground">From</span>
-                      <Input
+                      <TimeInput
                         id={`${qid}-${opt.value}-from`}
-                        type="time"
+                       
                         className="h-9 w-[7.25rem] text-sm"
                         disabled={disabled || !slot.selected}
                         value={slot.from ?? ''}
@@ -173,9 +173,9 @@ export function InitialAssessmentPreferredVisitTimesField({
                         {opt.label} visit window end
                       </Label>
                       <span className="text-xs text-muted-foreground">To</span>
-                      <Input
+                      <TimeInput
                         id={`${qid}-${opt.value}-to`}
-                        type="time"
+                       
                         className="h-9 w-[7.25rem] text-sm"
                         disabled={disabled || !slot.selected}
                         value={slot.to ?? ''}

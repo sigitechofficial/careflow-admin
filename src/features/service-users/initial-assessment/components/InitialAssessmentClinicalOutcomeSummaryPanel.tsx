@@ -17,6 +17,7 @@ import {
 } from '@/features/service-users/initial-assessment/utils/clinical-assessment-outcome-summary'
 import { IA_SECTION_BODY_CLASS } from '@/features/service-users/initial-assessment/utils/form-typography'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   value: ClinicalAssessmentOutcomeSummaryMetadata
   disabled?: boolean
@@ -47,9 +48,9 @@ function ColumnHeaderFields({
         <Label htmlFor={dateId} className="text-xs text-muted-foreground">
           Date
         </Label>
-        <Input
+        <DateInput
           id={dateId}
-          type="date"
+         
           className="h-9 w-full min-w-[8.5rem] text-sm"
           disabled={disabled}
           value={column.assessmentDate?.slice(0, 10) ?? ''}

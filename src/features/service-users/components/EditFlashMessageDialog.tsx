@@ -12,7 +12,6 @@ import {
 } from '@/features/service-users/hooks/useServiceUserMutations'
 import { useServiceUserFlashMessage } from '@/features/service-users/hooks/useServiceUserTabs'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import {
   Dialog,
   DialogBody,
@@ -22,6 +21,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const MAX_MESSAGE_LENGTH = 150
 
 function displayName(row: ServiceUserListRow): string {
@@ -211,10 +211,10 @@ export function EditFlashMessageDialog({ user, open, onOpenChange }: Props) {
                   Message Display Until
                 </label>
                 <div className="flex gap-2">
-                  <Input
+                  <DateInput
                     id="flash-message-display-until"
                     ref={dateInputRef}
-                    type="date"
+                   
                     value={displayUntil}
                     min={minDate}
                     onChange={(e) => setDisplayUntil(e.target.value)}

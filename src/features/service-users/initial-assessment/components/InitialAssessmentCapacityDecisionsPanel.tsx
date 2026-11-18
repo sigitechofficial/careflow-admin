@@ -32,6 +32,7 @@ import {
   type YesNo,
 } from '@/features/service-users/initial-assessment/utils/capacity-decisions'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   records: CapacityDecisionRecord[]
   needs: CapacityDecisionNeed[]
@@ -317,8 +318,8 @@ function DecisionCard({
           </div>
           <div className="space-y-1">
             <Label className={IA_QUESTION_LABEL_CLASS}>Date assessed</Label>
-            <Input
-              type="date"
+            <DateInput
+             
               value={r.assessedOn ?? ''}
               disabled={disabled}
               aria-label="Date assessed"
@@ -327,8 +328,8 @@ function DecisionCard({
           </div>
           <div className="space-y-1">
             <Label className={IA_QUESTION_LABEL_CLASS}>Review by</Label>
-            <Input
-              type="date"
+            <DateInput
+             
               value={r.reviewDate ?? ''}
               disabled={disabled}
               aria-label="Review by"

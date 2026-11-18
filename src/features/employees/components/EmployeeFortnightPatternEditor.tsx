@@ -15,7 +15,6 @@ import {
 } from '@/features/employees/constants/working-pattern'
 import { useReplaceWorkingPatternsBulk, useWorkingPatterns } from '@/features/employees/hooks/useEmployeeProfileExtras'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { Checkbox, RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
 import { Label } from '@/shared/ui/form-field'
 import { toastSuccess } from '@/shared/lib/toast'
@@ -33,6 +32,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 const DAY_LABEL: Record<WorkingPatternDay, string> = {
   MONDAY: 'Monday',
   TUESDAY: 'Tuesday',
@@ -299,8 +299,8 @@ function WeekGrid({
                     />
                   </td>
                   <td className="px-3 py-2.5">
-                    <Input
-                      type="time"
+                    <TimeInput
+                     
                       className="h-9 w-[8.5rem]"
                       disabled={disabled}
                       value={row.startTime}
@@ -308,8 +308,8 @@ function WeekGrid({
                     />
                   </td>
                   <td className="px-3 py-2.5">
-                    <Input
-                      type="time"
+                    <TimeInput
+                     
                       className="h-9 w-[8.5rem]"
                       disabled={disabled}
                       value={row.endTime}
@@ -510,9 +510,9 @@ export function EmployeeFortnightPatternEditor({
           <label htmlFor="cycle-anchor" className="text-sm font-medium text-foreground">
             Cycle anchor (Week 1 starts)
           </label>
-          <Input
+          <DateInput
             id="cycle-anchor"
-            type="date"
+           
             className="h-9 w-[11rem]"
             value={state.cycleAnchorDate}
             onChange={e => setState(prev => ({ ...prev, cycleAnchorDate: e.target.value }))}

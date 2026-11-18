@@ -3,6 +3,7 @@ import { Button } from '@/shared/ui/button'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { mondayOf, shiftWeek } from '@/features/timebank/timebank-format'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 /** Previous / next week, a date picker and "This week" — the week lives in the URL (`?week=`). */
 export function TimebankWeekNav({
   shownWeek,
@@ -47,8 +48,8 @@ export function TimebankWeekNav({
       >
         <ChevronRight className="h-4 w-4" />
       </Button>
-      <input
-        type="date"
+      <DateInput
+       
         className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
         value={shownWeek ?? ''}
         aria-label="Jump to the week of a date"

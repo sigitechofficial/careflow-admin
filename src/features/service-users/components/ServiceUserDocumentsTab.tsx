@@ -44,6 +44,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function formatDisplayDate(iso: string | null): string {
   if (!iso) return '—'
   return iso
@@ -365,8 +366,8 @@ export function ServiceUserDocumentsTab({ serviceUserId }: { serviceUserId: stri
                   </div>
                   <div className="flex flex-col gap-1 sm:w-56">
                     <span className="text-xs font-medium text-muted-foreground">DNACPR start date</span>
-                    <Input
-                      type="date"
+                    <DateInput
+                     
                       disabled={!canUpdate || legalSaving}
                       value={legal.dnacprStartDate ?? ''}
                       onChange={(e) => {
@@ -570,20 +571,20 @@ export function ServiceUserDocumentsTab({ serviceUserId }: { serviceUserId: stri
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">DoLS Application Date</label>
-                <Input
-                  type="date"
+                <DateInput
+                 
                   value={dolsForm.applicationDate}
                   onChange={(e) => setDolsForm((f) => ({ ...f, applicationDate: e.target.value }))}
                 />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">DoLS Issue Date</label>
-                <Input type="date" value={dolsForm.issueDate} onChange={(e) => setDolsForm((f) => ({ ...f, issueDate: e.target.value }))} />
+                <DateInput value={dolsForm.issueDate} onChange={(e) => setDolsForm((f) => ({ ...f, issueDate: e.target.value }))} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">DoLS Renewal Date</label>
-                <Input
-                  type="date"
+                <DateInput
+                 
                   value={dolsForm.renewalDate}
                   onChange={(e) => setDolsForm((f) => ({ ...f, renewalDate: e.target.value }))}
                 />

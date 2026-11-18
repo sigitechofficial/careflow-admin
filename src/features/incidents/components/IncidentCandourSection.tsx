@@ -20,6 +20,7 @@ import {
   type IncidentCandourPanel,
 } from '@/features/incidents/types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const inputClass =
   'mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
 const labelClass = 'text-xs uppercase tracking-wide text-muted-foreground'
@@ -351,7 +352,7 @@ function ToldForm({ incidentId, entry, onDone }: { incidentId: string; entry: Ca
             Told on
             <Req />
           </label>
-          <input id={`told-on-${id}`} type="date" className={inputClass} max={today} value={toldOn} onChange={(e) => setToldOn(e.target.value)} />
+          <DateInput id={`told-on-${id}`} className={inputClass} max={today} value={toldOn} onChange={(e) => setToldOn(e.target.value)} />
         </div>
         <div>
           <p className={labelClass}>
@@ -505,7 +506,7 @@ function LetterForm({
                 {kind === 'written' ? 'Sent on' : 'Shared on'}
                 <Req />
               </label>
-              <input id={`d-${id}`} type="date" className={inputClass} min={minDate} max={today} value={date} onChange={(e) => setDate(e.target.value)} />
+              <DateInput id={`d-${id}`} className={inputClass} min={minDate} max={today} value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div>
               <label className={labelClass} htmlFor={`m-${id}`}>
@@ -628,7 +629,7 @@ function UnablePanel({ incidentId, entry, canEdit }: { incidentId: string; entry
       </div>
       {canEdit && r.unableToNotify && (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[9rem_9rem_minmax(0,1fr)]">
-          <input type="date" aria-label="Attempt date" className={inputClass} max={today} value={attemptOn} onChange={(e) => setAttemptOn(e.target.value)} />
+          <DateInput aria-label="Attempt date" className={inputClass} max={today} value={attemptOn} onChange={(e) => setAttemptOn(e.target.value)} />
           <select aria-label="How" className={inputClass} value={attemptMethod} onChange={(e) => setAttemptMethod(e.target.value)}>
             <option value="">How…</option>
             {CANDOUR_ATTEMPT_METHOD_OPTIONS.map((o) => (

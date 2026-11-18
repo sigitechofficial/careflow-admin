@@ -130,6 +130,7 @@ import {
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function VisitPlanCarePackageInfoIcon() {
   return (
     <TooltipProvider delayDuration={200}>
@@ -1624,11 +1625,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
           <div hidden={!regenerateOpen} className="space-y-4">
               <div className="flex flex-wrap items-end gap-3">
                 <FormField label="From" className="min-w-[10rem]">
-                  <Input type="date" value={generateFrom} onChange={(e) => setGenerateFrom(e.target.value)} />
+                  <DateInput value={generateFrom} onChange={(e) => setGenerateFrom(e.target.value)} />
                 </FormField>
                 <FormField label="To (optional)" className="min-w-[10rem]">
-                  <Input
-                    type="date"
+                  <DateInput
+                   
                     value={generateTo}
                     placeholder={`Next ${generateRotaHorizonLabel(rotaHorizonOptions)}`}
                     onChange={(e) => setGenerateTo(e.target.value)}

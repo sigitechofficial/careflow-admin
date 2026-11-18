@@ -20,6 +20,7 @@ import { fetchSurveyRecordCandidates } from '@/features/surveys/api/surveys.api'
 import { RecordSurveyResponseDialog } from '@/features/surveys/components/RecordSurveyResponseDialog'
 import type { SurveyQuestion, SurveyRecordCandidate, SurveyTargetKind } from '@/features/surveys/types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 /**
  * Independent reviewer accounts (SUR-CQC-001/002). The reviewer has their own CareFlow account whose
  * only role is "Independent reviewer" (no other access, no branch, never a staff account). Survey
@@ -614,13 +615,13 @@ export function GrantReviewerDialog({
               <label htmlFor="reviewer-from" className="block text-sm font-medium">
                 From
               </label>
-              <Input id="reviewer-from" type="date" value={from} onChange={e => setFrom(e.target.value)} />
+              <DateInput id="reviewer-from" value={from} onChange={e => setFrom(e.target.value)} />
             </div>
             <div className="space-y-1">
               <label htmlFor="reviewer-to" className="block text-sm font-medium">
                 To (at most 90 days)
               </label>
-              <Input id="reviewer-to" type="date" value={to} onChange={e => setTo(e.target.value)} />
+              <DateInput id="reviewer-to" value={to} onChange={e => setTo(e.target.value)} />
             </div>
           </div>
           {!data.anonymousOnly ? (

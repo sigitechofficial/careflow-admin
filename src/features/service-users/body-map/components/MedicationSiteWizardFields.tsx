@@ -14,6 +14,7 @@ import { orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/form-field'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 export type MedicationSiteWizardState = {
   serviceUserMedicationId: string
   consentGiven: boolean
@@ -301,9 +302,9 @@ export function MedicationSiteWizardFields({
               </label>
               <label className="block text-sm font-medium">
                 Removal date & time
-                <Input
+                <DateTimeInput
                   className="mt-1"
-                  type="datetime-local"
+                 
                   value={state.oldPatchRemovalAt}
                   onChange={e => onStateChange({ oldPatchRemovalAt: e.target.value })}
                 />
@@ -342,9 +343,9 @@ export function MedicationSiteWizardFields({
           ) : null}
           <label className="block text-sm font-medium">
             Next patch change due
-            <Input
+            <DateTimeInput
               className="mt-1"
-              type="datetime-local"
+             
               value={state.nextChangeDue}
               onChange={e => onStateChange({ nextChangeDue: e.target.value })}
               required

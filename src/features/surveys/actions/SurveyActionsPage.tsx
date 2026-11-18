@@ -27,6 +27,7 @@ import {
   type YswdItem,
 } from './survey-actions'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const card = 'rounded-xl border border-border bg-card p-4'
 const area = 'min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
 const field = 'h-9 w-full rounded-md border border-input bg-background px-2 text-sm'
@@ -144,7 +145,7 @@ function NewActionDialog({ data, onClose, preset }: { data: ActingOnResults; onC
             ))}
           </select>
           <Label htmlFor="act-due">Due</Label>
-          <Input id="act-due" type="date" value={dueOn} min={today()} onChange={e => setDueOn(e.target.value)} />
+          <DateInput id="act-due" value={dueOn} min={today()} onChange={e => setDueOn(e.target.value)} />
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
@@ -213,7 +214,7 @@ function DiscussionDialog({ data, onClose }: { data: ActingOnResults; onClose: (
         </DialogHeader>
         <DialogBody>
           <Label htmlFor="disc-day">Day</Label>
-          <Input id="disc-day" type="date" value={heldOn} max={today()} onChange={e => setHeldOn(e.target.value)} />
+          <DateInput id="disc-day" value={heldOn} max={today()} onChange={e => setHeldOn(e.target.value)} />
           <Label htmlFor="disc-kind">Meeting</Label>
           <select id="disc-kind" className={field} value={kind} onChange={e => setKind(e.target.value)}>
             {data.discussionKinds.map(k => (

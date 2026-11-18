@@ -5,9 +5,9 @@ import { PayrollFieldLabel } from '@/features/payroll/components/PayrollFieldLab
 import { useUpsertEmployeePayrollProfile } from '@/features/payroll/hooks/usePayroll'
 import type { EmployeePayrollProfile } from '@/features/payroll/types/payroll.types'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { TooltipProvider } from '@/shared/ui/tooltip'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Fields = Pick<
   EmployeePayrollProfile,
   | 'loanDeclarationStatus'
@@ -209,7 +209,7 @@ export function LoanDeclarationSection({
               </label>
               <label className="block space-y-1 text-sm">
                 <span>Date on that document</span>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Loan declaration date" />
+                <DateInput value={date} onChange={(e) => setDate(e.target.value)} aria-label="Loan declaration date" />
               </label>
             </div>
           ) : null}

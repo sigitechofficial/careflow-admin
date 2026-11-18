@@ -49,6 +49,7 @@ import { cn } from "@/shared/lib/utils";
 import { toastApiError, toastSuccess } from "@/shared/lib/toast";
 import { Field, Textarea, scrollToAndFlash } from "./flow-ui";
 
+import { DateInput } from '@/shared/ui/date-time-input'
 /** What to record for each check: the reference field, the "who / how" field, and whether it has dates. */
 const CHECK_FIELDS: Record<
   CandidateCheckType,
@@ -251,17 +252,17 @@ function CheckDialog({
             {fields.dates ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Issue date" htmlFor="ck-issue">
-                  <Input
+                  <DateInput
                     id="ck-issue"
-                    type="date"
+                   
                     value={issueDate}
                     onChange={(e) => setIssueDate(e.target.value)}
                   />
                 </Field>
                 <Field label="Expiry date" htmlFor="ck-expiry">
-                  <Input
+                  <DateInput
                     id="ck-expiry"
-                    type="date"
+                   
                     value={expiryDate}
                     onChange={(e) => setExpiryDate(e.target.value)}
                   />

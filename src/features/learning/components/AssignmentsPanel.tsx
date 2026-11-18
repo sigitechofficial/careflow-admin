@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Loader2, UserPlus } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
-import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+import { formatOrganisationDate, formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 import { Input } from '@/shared/ui/input'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { useLearningAssignmentStatusCounts, useLearningAssignments } from '@/features/learning/hooks/useLearning'
@@ -250,7 +250,7 @@ export function AssignmentsPanel() {
                     </div>
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
-                    {row.dueAt ? new Date(row.dueAt).toLocaleDateString() : '—'}
+                    {row.dueAt ? formatOrganisationDate(row.dueAt) : '—'}
                   </td>
                   <td className="px-3 py-2">
                     {row.completedAt ? (
@@ -272,7 +272,7 @@ export function AssignmentsPanel() {
                     </td>
                   ) : null}
                   <td className="px-3 py-2 text-muted-foreground">
-                    {new Date(row.assignedAt).toLocaleDateString()}
+                    {formatOrganisationDate(row.assignedAt)}
                   </td>
                 </tr>
               ))}

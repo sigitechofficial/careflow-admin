@@ -45,6 +45,7 @@ import {
   roundLabelFromCodes,
 } from '@/features/service-users/medication/blister-pack-wizard.utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type MemberTab = 'existing' | 'new'
 
 export function AddBlisterPackWizard({
@@ -488,7 +489,7 @@ function StepAbout({
           <Input value={details.nhsNumber} onChange={e => set({ nhsNumber: e.target.value })} />
         </Labelled>
         <Labelled label="Pack start date" required>
-          <Input type="date" value={details.startDate} onChange={e => set({ startDate: e.target.value })} />
+          <DateInput value={details.startDate} onChange={e => set({ startDate: e.target.value })} />
         </Labelled>
         <Labelled label="Cycle duration (days)" required>
           <Input
@@ -506,7 +507,7 @@ function StepAbout({
           </span>
         </Labelled>
         <Labelled label="Medication review date">
-          <Input type="date" value={details.reviewDate} onChange={e => set({ reviewDate: e.target.value })} />
+          <DateInput value={details.reviewDate} onChange={e => set({ reviewDate: e.target.value })} />
         </Labelled>
       </div>
       <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-200">
@@ -546,8 +547,8 @@ function StepAbout({
             />
           </Labelled>
           <Labelled label="Checked date">
-            <Input
-              type="date"
+            <DateInput
+             
               value={details.prescriptionCheckedAt}
               onChange={e => set({ prescriptionCheckedAt: e.target.value })}
               disabled={!details.prescriptionChecked}

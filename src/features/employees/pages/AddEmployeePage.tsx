@@ -109,6 +109,7 @@ import {
   ensureEmployeeAddressCoordinates,
 } from '@/features/employees/utils/ensure-employee-address-coordinates.util'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 type TabId = 'personal' | 'employment' | 'working-pattern'
 
 type FormValues = EmployeeFormValues
@@ -304,11 +305,11 @@ function TimeWithClock({
   const ref = React.useRef<HTMLInputElement>(null)
   return (
     <div className="flex min-w-0 gap-1.5">
-      <Input
+      <TimeInput
         ref={ref}
         id={id}
         className="h-8 min-w-0 flex-1 font-mono text-[13px] tabular-nums"
-        type="time"
+       
         step={60}
         disabled={disabled}
         value={value ?? ''}
@@ -1305,9 +1306,9 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
                   <FormField label="Date of birth" htmlFor="dateOfBirth" error={errors.dateOfBirth?.message}>
                     <div className="flex gap-2">
-                      <Input
+                      <DateInput
                         id="dateOfBirth"
-                        type="date"
+                       
                         error={!!errors.dateOfBirth}
                         {...register('dateOfBirth')}
                       />
@@ -1784,7 +1785,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
                   <FormField label="Start date" htmlFor="startDate" error={errors.startDate?.message}>
                     <div className="flex gap-2">
-                      <Input id="startDate" type="date" error={!!errors.startDate} {...register('startDate')} />
+                      <DateInput id="startDate" error={!!errors.startDate} {...register('startDate')} />
                       <span className="inline-flex h-9 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
                         <Calendar className="h-4 w-4" aria-hidden />
                       </span>
@@ -1793,7 +1794,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
                   <FormField label="End date" htmlFor="endDate" error={errors.endDate?.message}>
                     <div className="flex gap-2">
-                      <Input id="endDate" type="date" error={!!errors.endDate} {...register('endDate')} />
+                      <DateInput id="endDate" error={!!errors.endDate} {...register('endDate')} />
                       <span className="inline-flex h-9 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
                         <Calendar className="h-4 w-4" aria-hidden />
                       </span>
@@ -2063,9 +2064,9 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                             htmlFor="weeklyHoursCapOverrideExpiresAt"
                             error={errors.weeklyHoursCapOverrideExpiresAt?.message}
                           >
-                            <Input
+                            <DateInput
                               id="weeklyHoursCapOverrideExpiresAt"
-                              type="date"
+                             
                               error={!!errors.weeklyHoursCapOverrideExpiresAt}
                               {...register('weeklyHoursCapOverrideExpiresAt')}
                             />

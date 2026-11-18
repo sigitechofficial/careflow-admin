@@ -24,7 +24,8 @@ import {
 import type { Enquiry, EnquiryStage } from '@/features/crm/types/crm.types'
 import type { QuotationListItem, QuoteStatus, QuoteVersion } from '@/features/crm/types/quotation.types'
 
-const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : '—')
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
+const fmtDate = (iso: string | null) => (iso ? formatOrganisationDate(iso) : '—')
 
 type QuoteActionKey = 'view' | 'edit' | 'preview' | 'download' | 'send' | 'revise' | 'response' | 'serviceUser'
 

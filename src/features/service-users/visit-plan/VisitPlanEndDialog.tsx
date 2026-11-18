@@ -7,7 +7,6 @@ import { previewVisitPlanEndScheduleImpact } from '@/features/service-users/visi
 import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/toggle-controls'
-import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import {
   Dialog,
@@ -18,6 +17,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function todayIso(): string {
   return operationalTodayIso()
 }
@@ -133,8 +133,8 @@ export function VisitPlanEndDialog({
         <div className="space-y-4 overflow-y-auto px-6 py-4">
           <div>
             <Label className={contentOverlineClass}>Last day of visits (effective end date)</Label>
-            <Input
-              type="date"
+            <DateInput
+             
               className="mt-1"
               value={effectiveTo}
               onChange={(e) => setEffectiveTo(e.target.value)}

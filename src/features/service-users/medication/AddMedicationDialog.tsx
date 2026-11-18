@@ -80,6 +80,7 @@ import {
   type WeekdayValue,
 } from '@/features/service-users/medication/medication-schedule-pattern'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 export type BlisterPackItemDraft = {
   id: string
   medicationName: string
@@ -854,11 +855,11 @@ export function AddMedicationDialog({
               <label className="text-sm font-medium">
                 Start date on system <span className="text-destructive">*</span>
               </label>
-              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} disabled={disabled} />
+              <DateInput value={startDate} onChange={e => setStartDate(e.target.value)} disabled={disabled} />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">End date</label>
-              <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={disabled} />
+              <DateInput value={endDate} onChange={e => setEndDate(e.target.value)} disabled={disabled} />
             </div>
 
             <div className="space-y-1">
@@ -950,7 +951,7 @@ export function AddMedicationDialog({
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Expiry date</label>
-              <Input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} disabled={disabled} />
+              <DateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)} disabled={disabled} />
             </div>
 
             <div className="space-y-1 sm:col-span-2">

@@ -23,6 +23,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { cn, formatDate } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const ACCEPT =
   'application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
@@ -132,7 +133,7 @@ export function HrDocumentsTab({ employeeId }: { employeeId: string }) {
             </label>
             <label className="space-y-1 text-sm">
               <span className="text-muted-foreground">Expiry date</span>
-              <Input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
+              <DateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
             </label>
             <label className="space-y-1 text-sm">
               <span className="text-muted-foreground">Status</span>

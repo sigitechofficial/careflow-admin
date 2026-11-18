@@ -34,6 +34,7 @@ import {
 } from '@/shared/ui/dialog'
 import { GoogleBranchAddressField } from '@/shared/ui/google-branch-address-field'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const SELECT_CLASS =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-60'
 
@@ -258,9 +259,9 @@ export function LocationBranchEditDialog({
                   </select>
                 </Field>
                 <Field id="lm-edit-branch-cqc-date" label="CQC registration date">
-                  <Input
+                  <DateInput
                     id="lm-edit-branch-cqc-date"
-                    type="date"
+                   
                     value={form.cqcRegistrationDate}
                     onChange={e => set('cqcRegistrationDate', e.target.value)}
                   />

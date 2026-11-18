@@ -6,6 +6,7 @@ import type {
   SpecialistPathwayType,
 } from '@/features/specialist-pathways/types/specialist-pathway.types'
 
+import { formatOrganisationDate, formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 export const CASE_STATUS_LABELS: Record<SpecialistPathwayStatus, string> = {
   OPEN: 'Open',
   ACTIVE: 'Active',
@@ -114,7 +115,7 @@ export const NEED_AREAS = [
   'End of life wishes',
 ] as const
 
-export const fmtDate = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString() : '—')
+export const fmtDate = (iso: string | null | undefined) => (iso ? formatOrganisationDate(iso) : '—')
 export const fmtFileSize = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
-export const fmtDateTime =(iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString() : '—')
+export const fmtDateTime =(iso: string | null | undefined) => (iso ? formatOrganisationDateTime(iso) : '—')

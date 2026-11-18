@@ -1,6 +1,7 @@
 import type { CarePlanPublishedVersionSummary } from '@/features/service-users/care-plans/types'
 import type { CarePlanDraftValues } from '@/features/service-users/care-plan/care-plan-draft-storage'
 
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 export type CarePlanHistoryStatus = 'Current' | 'Superseded'
 
 export type CarePlanVersionHistoryDisplay = {
@@ -18,13 +19,7 @@ export type CarePlanVersionHistoryDisplay = {
 export function formatCarePlanHistoryPublishedAt(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatOrganisationDateTime(d)
 }
 
 export function formatCarePlanHistoryPublishedBy(publishedById?: string | null): string {

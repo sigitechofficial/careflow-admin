@@ -25,6 +25,7 @@ import {
   type SurveyReminderRun,
 } from './survey-reminders'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 const fieldClass =
   'mt-1 w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
 
@@ -289,11 +290,11 @@ function ContactPlanDialog({ surveyId, data, onClose }: { surveyId: string; data
             <div className="mt-1 flex flex-wrap items-end gap-3">
               <label className="block text-sm">
                 <span>Nothing sent from</span>
-                <input type="time" className={`${fieldClass} w-32`} value={plan.quietStart} onChange={(e) => set({ quietStart: e.target.value })} />
+                <TimeInput className={`${fieldClass} w-32`} value={plan.quietStart} onChange={(e) => set({ quietStart: e.target.value })} />
               </label>
               <label className="block text-sm">
                 <span>until</span>
-                <input type="time" className={`${fieldClass} w-32`} value={plan.quietEnd} onChange={(e) => set({ quietEnd: e.target.value })} />
+                <TimeInput className={`${fieldClass} w-32`} value={plan.quietEnd} onChange={(e) => set({ quietEnd: e.target.value })} />
               </label>
               <label className="flex items-center gap-2 pb-2 text-sm">
                 <input type="checkbox" className="h-4 w-4" checked={plan.weekdaysOnly} onChange={(e) => set({ weekdaysOnly: e.target.checked })} />

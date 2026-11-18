@@ -9,6 +9,16 @@ vi.mock('@/shared/lib/toast', () => ({ toastWarning: vi.fn() }))
 
 import { BillingCardRulesEditor } from './BillingCardRulesEditor'
 
+
+/** The time box people see (the field also keeps a hidden copy of the value for the form). */
+const shownTimeOrNull = (v: string) =>
+  screen.queryAllByDisplayValue(v).find(el => el.hasAttribute('data-date-time-field')) ?? null
+const shownTime = (v: string) => {
+  const el = shownTimeOrNull(v)
+  if (!el) throw new Error(`No time box shows ${v}`)
+  return el
+}
+
 /** A band that matches none of the named periods: weekdays 18:30 to 21:45. */
 const customBand: PayCardRule = {
   label: 'Twilight',
@@ -51,15 +61,15 @@ describe('pay card rules: custom period (PC-02)', () => {
     expect(select.required).toBe(true)
     expect(select.checkValidity()).toBe(true)
 
-    expect(screen.getByDisplayValue('18:30')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('21:45')).toBeInTheDocument()
+    expect(shownTime('18:30')).toBeInTheDocument()
+    expect(shownTime('21:45')).toBeInTheDocument()
   })
 
   it('editing the times of a custom band keeps it custom and reports the new times', () => {
     const onRules = vi.fn()
     render(<Harness initial={[customBand]} onRules={onRules} />)
 
-    fireEvent.change(screen.getByDisplayValue('18:30'), { target: { value: '19:15' } })
+    fireEvent.change(shownTime('18:30'), { target: { value: '19:15' } })
 
     const latest = onRules.mock.calls.at(-1)![0] as PayCardRule[]
     expect(latest[0]).toMatchObject({ startTime: '19:15', endTime: '21:45', dayType: 'WEEKDAY' })
@@ -98,12 +108,12 @@ describe('pay card rules: custom period (PC-02)', () => {
 
     const summary = screen.getByTestId('pay-rule-period-summary')
     expect(summary).toHaveTextContent(`${afterNamed[0].startTime}–${afterNamed[0].endTime}`)
-    expect(screen.queryByDisplayValue(afterNamed[0].startTime!)).toBeNull() // no From / Until inputs
+    expect(shownTimeOrNull(afterNamed[0].startTime!)).toBeNull() // no From / Until inputs
 
     const calls = onRules.mock.calls.length
     fireEvent.click(screen.getByRole('button', { name: 'Change days or times' }))
     expect(onRules.mock.calls.length).toBe(calls) // nothing changed by opening the times
-    expect(screen.getByDisplayValue(afterNamed[0].startTime!)).toBeInTheDocument()
+    expect(shownTime(afterNamed[0].startTime!)).toBeInTheDocument()
     expect(screen.queryByTestId('pay-rule-period-summary')).toBeNull()
   })
 })

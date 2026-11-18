@@ -36,6 +36,7 @@ import {
 } from '@/features/alerts/hooks/useMedicalClinical'
 import { cn } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 export function MedicalHistorySection({ serviceUserId }: { serviceUserId: string }) {
   const perms = useMedicalClinicalPermissions().history
   const query = useMedicalHistory(serviceUserId, perms.read)
@@ -229,9 +230,9 @@ export function MedicalHistorySection({ serviceUserId }: { serviceUserId: string
                   <label className="text-sm font-medium" htmlFor="hist-date">
                     Event date
                   </label>
-                  <Input
+                  <DateInput
                     id="hist-date"
-                    type="date"
+                   
                     value={eventDate}
                     onChange={(e) => setEventDate(e.target.value)}
                   />

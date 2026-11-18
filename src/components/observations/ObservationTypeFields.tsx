@@ -31,6 +31,7 @@ import {
 import { ObservationAlignedForm } from '@/components/observations/ObservationAlignedForm'
 import { ALIGN_FORMS } from '@/features/service-users/observations/observation-align-catalog'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 type Props = {
   activeType: ObservationTypeRow
   variant: ObservationFormVariant
@@ -66,8 +67,8 @@ function DateTimeField({
   <div className="space-y-4">
     <label className="text-sm font-medium">Date / Time</label>
     <div className="flex max-w-md">
-      <Input
-        type="datetime-local"
+      <DateTimeInput
+       
         value={value}
         onChange={e => onChange(e.target.value)}
         className="rounded-r-none"

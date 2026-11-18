@@ -8,6 +8,7 @@ import {
 } from '@/features/specialist-pathways/pathway-labels'
 import type { PathwayCase, PathwayPlanContent } from '@/features/specialist-pathways/types/specialist-pathway.types'
 
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 function esc(v: string | null | undefined): string {
   return (v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 }
@@ -122,7 +123,7 @@ ${section('Care plan', planHtml)}
 ${section('Open risks', risksHtml)}
 ${section('Professionals involved', teamHtml)}
 ${section('Last review', reviewHtml)}
-<p class="foot">Printed ${esc(new Date().toLocaleString())}. Confidential — contains personal and health information.</p>
+<p class="foot">Printed ${esc(formatOrganisationDateTime(new Date()))}. Confidential — contains personal and health information.</p>
 <script>window.onload=function(){window.print()}</script></body></html>`)
   win.document.close()
   return true

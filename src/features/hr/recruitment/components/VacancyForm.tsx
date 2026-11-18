@@ -67,6 +67,7 @@ import {
   SelectValue,
 } from "@/shared/ui/select";
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const EMPLOYMENT_TYPES: RecruitmentEmploymentType[] = [
   "PERMANENT",
   "FIXED_TERM",
@@ -671,12 +672,12 @@ export function VacancyForm({
                       <input type="checkbox" checked={form.startAsap} onChange={(e) => set("startAsap", e.target.checked)} /> As soon as possible
                     </label>
                     {!form.startAsap ? (
-                      <Input type="date" min={today} value={form.startDate} onChange={(e) => set("startDate", e.target.value)} aria-label="Start date" />
+                      <DateInput min={today} value={form.startDate} onChange={(e) => set("startDate", e.target.value)} aria-label="Start date" />
                     ) : null}
                   </div>
                   <div className={fieldClass}>
                     <label htmlFor="vacancy-closing" className={labelClass}>Closing date{optional}</label>
-                    <Input id="vacancy-closing" type="date" min={editing ? undefined : today} value={form.closingDate} onChange={(e) => set("closingDate", e.target.value)} />
+                    <DateInput id="vacancy-closing" min={editing ? undefined : today} value={form.closingDate} onChange={(e) => set("closingDate", e.target.value)} />
                     <p className={hintClass}>
                       {form.closingDate ? `Applications close at the end of ${formatClosingDate(form.closingDate)}.` : "Empty = open until you close it."}
                     </p>

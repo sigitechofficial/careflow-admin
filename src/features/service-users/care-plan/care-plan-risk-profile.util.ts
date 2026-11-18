@@ -11,6 +11,7 @@ import {
 } from '@/features/service-users/care-plan/care-plan-form-meta'
 import type { CarePlanDraftValues } from '@/features/service-users/care-plan/care-plan-draft-storage'
 
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 /** Shared labels — keep in sync with InitialAssessmentRiskRecordsPanel. */
 export const CARE_PLAN_RISK_TYPE_LABELS: Record<InitialAssessmentRiskType, string> = {
   FALLS: 'Falls',
@@ -193,11 +194,7 @@ export function formatIaAssessmentSourceLine(submittedAt?: string | null): strin
   if (!submittedAt) return 'Source: Initial Assessment'
   const d = new Date(submittedAt)
   if (Number.isNaN(d.getTime())) return 'Source: Initial Assessment'
-  const formatted = d.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  const formatted = formatOrganisationDate(d)
   return `Source: Initial Assessment · ${formatted}`
 }
 

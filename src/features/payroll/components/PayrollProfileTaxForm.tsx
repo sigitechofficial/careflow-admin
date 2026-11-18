@@ -35,6 +35,7 @@ import { Input } from '@/shared/ui/input'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { TooltipProvider } from '@/shared/ui/tooltip'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const NI_OPTIONS = buildNiCategoryComboboxOptions()
 
 /**
@@ -496,8 +497,8 @@ export function PayrollProfileTaxForm({ row, canManage }: { row: EmployeePayroll
               </label>
               <label className="block space-y-1 text-sm sm:col-span-2">
                 <span>Apprenticeship start date (apprentices only)</span>
-                <Input
-                  type="date"
+                <DateInput
+                 
                   value={apprenticeshipStartDate}
                   onChange={(e) => setApprenticeshipStartDate(e.target.value)}
                   aria-label="Apprenticeship start date"

@@ -35,6 +35,7 @@ import {
 import { toastApiError, toastSuccess } from "@/shared/lib/toast";
 import { Detail, Field, Textarea } from "./flow-ui";
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const PAY_PERIOD_WORDS: Record<string, SalaryPeriod> = {
   hour: "HOUR", hr: "HOUR", day: "DAY", week: "WEEK", wk: "WEEK",
   month: "MONTH", year: "YEAR", yr: "YEAR", annum: "YEAR",
@@ -126,9 +127,9 @@ export function OfferDialog({
         >
           <DialogBody className="space-y-4">
             <Field label="Proposed start date" htmlFor="of-start">
-              <Input
+              <DateInput
                 id="of-start"
-                type="date"
+               
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 required

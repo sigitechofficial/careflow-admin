@@ -55,6 +55,7 @@ import {
   type WeekdayValue,
 } from '@/features/service-users/medication/medication-schedule-pattern'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const SELECT_NONE = '__none__'
 
 const HOW_ASSISTED_OPTIONS = [
@@ -463,8 +464,8 @@ export function AddIndividualMedicationForm({
           <label className="text-sm font-medium">
             Start date on system <span className="text-destructive">*</span>
           </label>
-          <Input
-            type="date"
+          <DateInput
+           
             value={startDate}
             onChange={e => setStartDate(e.target.value)}
             disabled={disabled}
@@ -472,7 +473,7 @@ export function AddIndividualMedicationForm({
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium">End date</label>
-          <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={disabled} />
+          <DateInput value={endDate} onChange={e => setEndDate(e.target.value)} disabled={disabled} />
         </div>
 
         <div className="space-y-1">
@@ -566,7 +567,7 @@ export function AddIndividualMedicationForm({
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium">Expiry date</label>
-          <Input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} disabled={disabled} />
+          <DateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)} disabled={disabled} />
         </div>
 
         <div className="space-y-1 sm:col-span-2">

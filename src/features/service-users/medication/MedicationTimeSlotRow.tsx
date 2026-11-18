@@ -20,6 +20,7 @@ import {
   type MedicationTimeSlot,
 } from '@/features/service-users/medication/medication-time-slots'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 type Props = {
   slot: MedicationTimeSlot
   index: number
@@ -100,8 +101,8 @@ export function MedicationTimeSlotRow({
       </div>
       <div className="min-w-[8rem] flex-1 space-y-1">
         {index === 0 && <label className="text-xs text-muted-foreground">Due time</label>}
-        <Input
-          type="time"
+        <TimeInput
+         
           value={slot.dueTime}
           onChange={e => onDueTimeChange(e.target.value)}
           disabled={disabled}

@@ -18,6 +18,7 @@ import {
 } from '@/features/service-users/observations/observation-abc-catalog'
 import type { CompositeDraft } from '@/features/service-users/observations/observation-payload'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const SELECT_NONE = '__none__'
 
 type Props = {
@@ -75,8 +76,8 @@ export function ObservationAbcPatternsForm({
         <span className="font-medium text-foreground">Actioned:</span>
         {editingActioned ? (
           <div className="flex items-center gap-1">
-            <Input
-              type="datetime-local"
+            <DateTimeInput
+             
               value={recordedAtLocal}
               onChange={e => onRecordedAtChange(e.target.value)}
               className="h-8 w-[220px]"

@@ -2,7 +2,6 @@ import { HolisticSectionHeader } from '@/features/service-users/initial-assessme
 import { InitialAssessmentYesNoCardField } from '@/features/service-users/initial-assessment/components/InitialAssessmentYesNoCardField'
 import { Label } from '@/shared/ui/form-field'
 import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
-import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import {
@@ -14,6 +13,7 @@ import {
 import type { TherapyAideMemoireMetadata } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
 import { THERAPY_AIDE_MEMOIRE_SCREENING_ITEMS } from '@/features/service-users/initial-assessment/utils/therapy-aide-memoire'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   value: TherapyAideMemoireMetadata
   disabled?: boolean
@@ -119,9 +119,9 @@ export function InitialAssessmentTherapyAideMemoirePanel({ value, disabled, onCh
               <Label htmlFor="therapy-referral-date" className={IA_QUESTION_LABEL_CLASS}>
                 Date my referral was made
               </Label>
-              <Input
+              <DateInput
                 id="therapy-referral-date"
-                type="date"
+               
                 className="mt-1 h-10 max-w-xs"
                 disabled={disabled || value.referralCompleted !== true}
                 value={value.referralDate?.slice(0, 10) ?? ''}

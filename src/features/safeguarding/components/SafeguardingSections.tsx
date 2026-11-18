@@ -33,6 +33,7 @@ import type {
   UpdateSafeguardingInput,
 } from '@/features/safeguarding/types/safeguarding.types'
 
+import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 const fieldClass = 'h-9 rounded-md border border-input bg-background px-3 text-sm'
 const areaClass = 'min-h-[64px] rounded-md border border-input bg-background px-3 py-2 text-sm'
 
@@ -328,7 +329,7 @@ export function LeadReviewCard({ caseData }: { caseData: SafeguardingCase }) {
             />
           </Field>
           <Field label="Next review date">
-            <Input type="date" value={f.reviewDate} onChange={e => set({ reviewDate: e.target.value })} />
+            <DateInput value={f.reviewDate} onChange={e => set({ reviewDate: e.target.value })} />
           </Field>
         </>
       )}
@@ -378,8 +379,8 @@ export function ImmediateSafetyCard({ caseData }: { caseData: SafeguardingCase }
       form={(f, set) => (
         <>
           <Field label="Reported to manager (date & time)">
-            <Input
-              type="datetime-local"
+            <DateTimeInput
+             
               value={f.reportedToManagerAt}
               onChange={e => set({ reportedToManagerAt: e.target.value })}
             />
@@ -483,7 +484,7 @@ export function MultiAgencyCard({ caseData }: { caseData: SafeguardingCase }) {
             </select>
           </Field>
           <Field label="Meeting date">
-            <Input type="date" value={f.meetingDate} onChange={e => set({ meetingDate: e.target.value })} />
+            <DateInput value={f.meetingDate} onChange={e => set({ meetingDate: e.target.value })} />
           </Field>
           <Field label="Protection plan & agreed actions" wide>
             <textarea className={areaClass} value={f.protectionPlan} onChange={e => set({ protectionPlan: e.target.value })} />

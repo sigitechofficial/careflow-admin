@@ -62,6 +62,7 @@ import { cn, formatDate } from '@/shared/lib/utils'
 import { Combobox } from '@/shared/ui/combobox'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function FundingFieldLabel({
   label,
   tooltip,
@@ -1852,11 +1853,11 @@ export function ServiceUserFundingTab({
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <FundingFieldLabel className="mb-1" label="Start" tooltip={FUNDING_FIELD_TOOLTIPS.startDate} />
-                <Input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
+                <DateInput value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
               </div>
               <div>
                 <FundingFieldLabel className="mb-1" label="End" tooltip={FUNDING_FIELD_TOOLTIPS.endDate} />
-                <Input type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
+                <DateInput value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -1903,8 +1904,8 @@ export function ServiceUserFundingTab({
                 </div>
                 <div>
                   <FundingFieldLabel className="mb-1" label="PO expires" tooltip={FUNDING_FIELD_TOOLTIPS.purchaseOrderExpiresAt} />
-                  <Input
-                    type="date"
+                  <DateInput
+                   
                     value={form.purchaseOrderExpiresAt}
                     onChange={(e) => setForm((f) => ({ ...f, purchaseOrderExpiresAt: e.target.value }))}
                   />
@@ -2150,7 +2151,7 @@ export function ServiceUserFundingTab({
               <h4 className="text-sm font-semibold text-foreground">Other</h4>
             <div>
               <FundingFieldLabel className="mb-1" label="Review date" tooltip={FUNDING_FIELD_TOOLTIPS.reviewDate} />
-              <Input type="date" value={form.reviewDate} onChange={(e) => setForm((f) => ({ ...f, reviewDate: e.target.value }))} />
+              <DateInput value={form.reviewDate} onChange={(e) => setForm((f) => ({ ...f, reviewDate: e.target.value }))} />
             </div>
             <div>
               <FundingFieldLabel className="mb-1" label="Notes" tooltip={FUNDING_FIELD_TOOLTIPS.notes} />
@@ -2201,7 +2202,7 @@ export function ServiceUserFundingTab({
           <DialogBody className="space-y-3">
             <div>
               <p className="mb-1 text-sm font-medium">End date *</p>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DateInput value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
             <div>
               <p className="mb-1 text-sm font-medium">Reason</p>

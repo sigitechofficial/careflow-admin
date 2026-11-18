@@ -15,6 +15,7 @@ import type { EnterpriseFunderRow } from '@/features/service-users/types'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { ChargeCardPicker } from '@/features/billing/components/ChargeCardPicker'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 /** Inline funding + charge-rate capture on the Add Service User page. Optional. */
 /**
  * Where the new person's rates come from:
@@ -205,8 +206,8 @@ export function AddServiceUserFundingSection({
           <div className="mb-1.5 text-sm font-medium text-slate-700 dark:text-muted-foreground">
             Rates effective from
           </div>
-          <Input
-            type="date"
+          <DateInput
+           
             value={value.effectiveFrom}
             onChange={(e) => set('effectiveFrom')(e.target.value)}
           />

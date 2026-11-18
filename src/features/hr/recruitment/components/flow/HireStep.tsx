@@ -13,6 +13,7 @@ import { Input } from "@/shared/ui/input";
 import { toastApiError, toastSuccess, toastWarning } from "@/shared/lib/toast";
 import { Detail, Field } from "./flow-ui";
 
+import { DateInput } from '@/shared/ui/date-time-input'
 export function HireStep({
   candidate,
   canConvert,
@@ -145,9 +146,9 @@ export function HireStep({
               htmlFor="hire-start"
               className="w-48"
             >
-              <Input
+              <DateInput
                 id="hire-start"
-                type="date"
+               
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
               />

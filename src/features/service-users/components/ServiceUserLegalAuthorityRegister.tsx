@@ -39,6 +39,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Form = {
   category: ServiceUserLegalAuthorityCategory
   holderName: string
@@ -323,11 +324,11 @@ export function ServiceUserLegalAuthorityRegister({ serviceUserId, rows, canUpda
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className={LABEL_CLASS}>Registered / made on</label>
-                <Input type="date" value={form.registeredOn} aria-label="Registered on" onChange={(e) => patch({ registeredOn: e.target.value })} />
+                <DateInput value={form.registeredOn} aria-label="Registered on" onChange={(e) => patch({ registeredOn: e.target.value })} />
               </div>
               <div>
                 <label className={LABEL_CLASS}>Expires on</label>
-                <Input type="date" value={form.expiresOn} aria-label="Expires on" onChange={(e) => patch({ expiresOn: e.target.value })} />
+                <DateInput value={form.expiresOn} aria-label="Expires on" onChange={(e) => patch({ expiresOn: e.target.value })} />
               </div>
               <div>
                 <label className={LABEL_CLASS}>Reference</label>

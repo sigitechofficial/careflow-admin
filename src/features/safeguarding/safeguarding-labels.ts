@@ -9,6 +9,7 @@ import type {
   SafeguardingStatus,
 } from '@/features/safeguarding/types/safeguarding.types'
 
+import { formatOrganisationDate, formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 export const STATUS_LABELS: Record<SafeguardingStatus, string> = {
   RAISED: 'Raised',
   SCREENING: 'Screening',
@@ -128,5 +129,5 @@ export const AGENCIES = [
   'Commissioner',
 ] as const
 
-export const fmtDate = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString() : '—')
-export const fmtDateTime = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString() : '—')
+export const fmtDate = (iso: string | null | undefined) => (iso ? formatOrganisationDate(iso) : '—')
+export const fmtDateTime = (iso: string | null | undefined) => (iso ? formatOrganisationDateTime(iso) : '—')

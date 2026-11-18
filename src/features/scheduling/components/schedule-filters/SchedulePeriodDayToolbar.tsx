@@ -18,8 +18,8 @@ import {
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Calendar } from '@/shared/ui/date-picker'
-import { Input } from '@/shared/ui/input'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const PERIOD_PRESETS: EcmOperationalPeriodPreset[] = [
   'today',
   'yesterday',
@@ -236,8 +236,8 @@ export function SchedulePeriodDayToolbar({
           <>
             {preset === 'custom' ? (
               <div className="flex flex-wrap items-center gap-1.5">
-                <Input
-                  type="date"
+                <DateInput
+                 
                   className="h-8 w-[9.75rem]"
                   value={dateFrom}
                   max={dateTo}
@@ -246,8 +246,8 @@ export function SchedulePeriodDayToolbar({
                   onChange={(e) => onDateFromChange(e.target.value)}
                 />
                 <span className="text-xs text-muted-foreground">to</span>
-                <Input
-                  type="date"
+                <DateInput
+                 
                   className="h-8 w-[9.75rem]"
                   value={dateTo}
                   min={dateFrom}

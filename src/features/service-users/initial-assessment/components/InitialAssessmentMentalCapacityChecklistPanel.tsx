@@ -30,6 +30,7 @@ import {
   IA_SUBSECTION_PANEL_HEADER_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   value: MentalCapacityChecklistMetadata
   disabled?: boolean
@@ -322,9 +323,9 @@ export function InitialAssessmentMentalCapacityChecklistPanel({
                 <Label htmlFor="mca-checklist-assessor-date" className={IA_QUESTION_LABEL_CLASS}>
                   Date
                 </Label>
-                <Input
+                <DateInput
                   id="mca-checklist-assessor-date"
-                  type="date"
+                 
                   className="h-9 bg-background"
                   disabled={disabled}
                   value={value.assessorDate?.slice(0, 10) ?? ''}
@@ -386,9 +387,9 @@ export function InitialAssessmentMentalCapacityChecklistPanel({
                 <Label htmlFor="mca-checklist-rep-date" className={IA_QUESTION_LABEL_CLASS}>
                   Date
                 </Label>
-                <Input
+                <DateInput
                   id="mca-checklist-rep-date"
-                  type="date"
+                 
                   className="h-9 bg-background"
                   disabled={disabled}
                   value={value.representativeDate?.slice(0, 10) ?? ''}

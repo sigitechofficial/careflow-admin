@@ -23,6 +23,7 @@ import {
   IA_SUBSECTION_PANEL_HEADER_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   value: AdvanceCarePlanningMetadata
   disabled?: boolean
@@ -187,9 +188,9 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <FieldLabel htmlFor="acp-dob">My date of birth</FieldLabel>
-                  <Input
+                  <DateInput
                     id="acp-dob"
-                    type="date"
+                   
                     className="mt-1 h-10"
                     disabled={disabled}
                     value={dateValue(value.dateOfBirth)}
@@ -212,9 +213,9 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
             <div className="space-y-4">
               <div>
                 <FieldLabel htmlFor="acp-date-completed">Date completed</FieldLabel>
-                <Input
+                <DateInput
                   id="acp-date-completed"
-                  type="date"
+                 
                   className="mt-1 h-10"
                   disabled={disabled}
                   value={dateValue(value.dateCompleted)}
@@ -345,9 +346,9 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
                     </td>
                     <td className="w-1/2 p-3 align-top">
                       <FieldLabel htmlFor={`acp-${row.dateKey}`}>Date</FieldLabel>
-                      <Input
+                      <DateInput
                         id={`acp-${row.dateKey}`}
-                        type="date"
+                       
                         className="mt-1 h-10 max-w-xs"
                         disabled={disabled}
                         value={dateValue(value[row.dateKey])}
@@ -362,9 +363,9 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <div>
             <FieldLabel htmlFor="acp-review-date">Review date</FieldLabel>
-            <Input
+            <DateInput
               id="acp-review-date"
-              type="date"
+             
               className="mt-1 h-10 max-w-xs"
               disabled={disabled}
               value={dateValue(value.reviewDate)}
