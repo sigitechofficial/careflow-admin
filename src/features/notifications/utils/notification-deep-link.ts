@@ -56,6 +56,7 @@ export function notificationDeepLink(item: NotificationDeepLinkInput): string | 
   ) {
     return ecmExceptionQueueHref(jobId)
   }
+  if (item.recordType === 'Incident') return '/incidents/view'
   return null
 }
 

@@ -248,7 +248,8 @@ export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
     languageName: prefillLookupAnswerName(languageStored, lookups?.languages),
     careInstructions: domCare?.careInstructions?.trim() ?? '',
     plannedCarers: domCare?.numberOfCarers != null ? String(domCare.numberOfCarers) : '',
-    accessInstruction: domCare?.accessInstruction?.trim() ?? '',
+    // Home & access (address) is the one access-instructions field; the old DOM Care box is a fallback.
+    accessInstruction: detail.address?.accessInstructions?.trim() || domCare?.accessInstruction?.trim() || '',
     // Home & access key-safe code is the master carers see; the legacy DOM Care door code is a fallback.
     doorCode: detail.address?.keySafeNumber?.trim() || domCare?.doorCode ? '•••• (hidden)' : '',
     fundingType: mapFundingTypeCode(detail.fundingType?.code),
@@ -307,7 +308,7 @@ const PREFILL_SOURCE_BY_KEY: Readonly<Record<string, string>> = {
   gpContact: 'Contacts (GP)',
   careInstructions: 'DOM Care',
   plannedCarers: 'DOM Care',
-  accessInstruction: 'DOM Care',
+  accessInstruction: 'Home & access',
   doorCode: 'Home & access',
   allergies: 'Allergies',
   aboutMeRoutine: 'About Me',
