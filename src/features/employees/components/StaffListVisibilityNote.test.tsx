@@ -16,14 +16,12 @@ const base: StaffListVisibilityNoteProps = {
 }
 
 describe('StaffListVisibilityNote: says why someone is not listed', () => {
-  it('says everyone is shown when nothing limits the list', () => {
+  it('shows nothing when rows are listed and no filter is on (the header already names the branch)', () => {
     render(<StaffListVisibilityNote {...base} />)
-    expect(screen.getByTestId('staff-list-visibility-note')).toHaveTextContent(
-      'Showing all 7 employees at every branch, of every status.',
-    )
+    expect(screen.queryByTestId('staff-list-visibility-note')).toBeNull()
   })
 
-  it("a branch-limited manager sees one short line naming their branch; the reasons are on hover", () => {
+  it('a branch-limited manager with rows listed sees no extra text', () => {
     render(
       <StaffListVisibilityNote
         {...base}
@@ -32,11 +30,7 @@ describe('StaffListVisibilityNote: says why someone is not listed', () => {
         canShowAllBranches={false}
       />,
     )
-    const note = screen.getByTestId('staff-list-visibility-note')
-    expect(note).toHaveTextContent('Showing staff at Croydon')
-    // No block of explanation on screen: it sits behind the info icon.
-    expect(note).not.toHaveTextContent('Your access covers')
-    expect(screen.getByRole('button', { name: 'Why some staff may not be listed' })).toBeInTheDocument()
+    expect(screen.queryByTestId('staff-list-visibility-note')).toBeNull()
     expect(screen.queryByTestId('staff-list-show-all-branches')).toBeNull()
   })
 
