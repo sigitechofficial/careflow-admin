@@ -16,6 +16,7 @@ import {
   IA_SUBSECTION_PANEL_HEADER_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   value: PhotographyConsentMetadata
   disabled?: boolean
@@ -117,9 +118,9 @@ export function InitialAssessmentPhotographyConsentPanel({ value, disabled, onCh
                   <Label htmlFor="photo-consent-dob" className={IA_QUESTION_LABEL_CLASS}>
                     Date of birth
                   </Label>
-                  <Input
+                  <DateInput
                     id="photo-consent-dob"
-                    type="date"
+                   
                     className="h-9 bg-background"
                     disabled={disabled}
                     value={dateValue(value.dateOfBirth)}
@@ -222,9 +223,9 @@ export function InitialAssessmentPhotographyConsentPanel({ value, disabled, onCh
                 <Label htmlFor="photo-consent-date" className={IA_QUESTION_LABEL_CLASS}>
                   Date
                 </Label>
-                <Input
+                <DateInput
                   id="photo-consent-date"
-                  type="date"
+                 
                   className="h-9 bg-background"
                   disabled={disabled}
                   value={dateValue(value.consentDate)}
@@ -291,9 +292,9 @@ export function InitialAssessmentPhotographyConsentPanel({ value, disabled, onCh
                   <Label htmlFor="photo-consent-su-date" className={IA_QUESTION_LABEL_CLASS}>
                     Date
                   </Label>
-                  <Input
+                  <DateInput
                     id="photo-consent-su-date"
-                    type="date"
+                   
                     className="h-9 bg-background"
                     disabled={disabled}
                     value={dateValue(value.serviceUserDate)}
@@ -333,9 +334,9 @@ export function InitialAssessmentPhotographyConsentPanel({ value, disabled, onCh
                   <Label htmlFor="photo-consent-lpoa-date" className={IA_QUESTION_LABEL_CLASS}>
                     Date
                   </Label>
-                  <Input
+                  <DateInput
                     id="photo-consent-lpoa-date"
-                    type="date"
+                   
                     className="h-9 bg-background"
                     disabled={disabled}
                     value={dateValue(value.lpoaDate)}

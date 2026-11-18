@@ -24,6 +24,7 @@ import {
   todayIso,
 } from '@/features/scheduling/utils/scheduling-format'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type TabId = 'jobs-not-started' | 'jobs-needing-attention' | 'day-jobs'
 
 function TableFooter({ meta }: { meta?: PaginationMeta }) {
@@ -314,8 +315,8 @@ export default function ManageScheduleJobsPage() {
                   Select Date <span className="text-destructive">*</span>
                 </label>
                 <div className="relative">
-                  <input
-                    type="date"
+                  <DateInput
+                   
                     value={dayDate}
                     onChange={e => setDayDate(e.target.value)}
                     className="h-10 w-[180px] border border-input rounded-md px-3 pr-10 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"

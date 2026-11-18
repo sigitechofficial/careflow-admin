@@ -1,17 +1,25 @@
 import * as React from 'react'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { ArrowLeft, Loader2, Pencil } from 'lucide-react'
-import { LearningSectionLayout } from '@/features/learning/components/LearningSectionLayout'
+import { useNavigate, useParams } from '@tanstack/react-router'
+import { Archive as ArchiveIcon, ArchiveRestore, Loader2, MoreVertical, PauseCircle, PlayCircle } from 'lucide-react'
 import { CourseBuilderPanel } from '@/features/learning/components/CourseBuilderPanel'
-import { CourseFormDialog } from '@/features/learning/components/CourseFormDialog'
 import {
   useArchiveLearningCourse,
-  useCreateLearningCourseVersion,
   useLearningCourse,
-  useUnpublishLearningCourse,
+  useReactivateLearningCourse,
+  useUnarchiveLearningCourse,
+  useWithdrawLearningCourse,
 } from '@/features/learning/hooks/useLearning'
-import { LearningStatusBadge } from '@/features/learning/components/LearningStatusBadge'
 import { Button } from '@/shared/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/shared/ui/dropdown-menu'
+import { FormField, Textarea } from '@/shared/ui/form-field'
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog'
 import { LEARNING_PATHS } from '@/features/learning/learning-routes'
 import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -23,34 +31,57 @@ export default function LearningCourseDetailPage() {
   const navigate = useNavigate()
   const canManage = useAuthStore(s => s.can('learning.courses.manage'))
   const courseQuery = useLearningCourse(courseId)
-  const createVersionMut = useCreateLearningCourseVersion()
-  const unpublishMut = useUnpublishLearningCourse()
+  const withdrawMut = useWithdrawLearningCourse()
+  const reactivateMut = useReactivateLearningCourse()
   const archiveMut = useArchiveLearningCourse()
-  const [editOpen, setEditOpen] = React.useState(false)
+  const unarchiveMut = useUnarchiveLearningCourse()
+  const [withdrawOpen, setWithdrawOpen] = React.useState(false)
+  const [withdrawReason, setWithdrawReason] = React.useState('')
+  const [withdrawError, setWithdrawError] = React.useState<string | null>(null)
 
   const course = courseQuery.data
 
-  const onNewVersion = async () => {
+  const onWithdraw = async () => {
+    const reason = withdrawReason.trim()
+    if (!reason) {
+      setWithdrawError('Write why the course is withdrawn')
+      return
+    }
     try {
-      await createVersionMut.mutateAsync({ id: courseId })
-      toastSuccess('Draft version created')
+      await withdrawMut.mutateAsync({ id: courseId, reason })
+      toastSuccess('Course withdrawn from new assignments')
+      setWithdrawOpen(false)
+      setWithdrawReason('')
       void courseQuery.refetch()
     } catch (err) {
       toastApiError(err instanceof ApiError ? err : new Error('Failed'))
     }
   }
 
-  const onUnpublish = async () => {
+  const onReactivate = async () => {
+    if (!window.confirm('Re-activate this course? It can be assigned to carers again.')) return
+    try {
+      await reactivateMut.mutateAsync(courseId)
+      toastSuccess('Course re-activated')
+      void courseQuery.refetch()
+    } catch (err) {
+      toastApiError(err instanceof ApiError ? err : new Error('Failed'))
+    }
+  }
+
+  const onUnarchive = async () => {
+    const backTo = course?.currentVersionId ? 'Published' : 'Draft'
     if (
       !window.confirm(
-        'Unpublish this course to Draft? It will no longer be available for new assignments until republished. Existing assignments and certificates are kept.',
+        backTo === 'Published'
+          ? 'Bring this course back? It becomes Published again and can be assigned to carers.'
+          : 'Bring this course back? It was never published, so it goes back to Draft.',
       )
-    ) {
+    )
       return
-    }
     try {
-      await unpublishMut.mutateAsync(courseId)
-      toastSuccess('Course unpublished to Draft')
+      const row = await unarchiveMut.mutateAsync(courseId)
+      toastSuccess(row.status === 'PUBLISHED' ? 'Course is published again' : 'Course is back in Drafts')
       void courseQuery.refetch()
     } catch (err) {
       toastApiError(err instanceof ApiError ? err : new Error('Failed'))
@@ -80,58 +111,79 @@ export default function LearningCourseDetailPage() {
     return <p className="p-6 text-sm text-muted-foreground">Course not found.</p>
   }
 
-  return (
-    <LearningSectionLayout
-      title={course.title}
-      description={course.shortDescription ?? 'Course builder and version management.'}
-      testId="learning-course-detail-page"
-    >
-      <PolicyContextPanel className="mb-6" moduleType="TRAINING" recordId={courseId} />
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <Button size="sm" variant="outline" asChild>
-          <Link to={LEARNING_PATHS.courses}>
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back to courses
-          </Link>
+  const menuItems = canManage
+    ? [
+        course.status === 'PUBLISHED'
+          ? { label: 'Withdraw', icon: PauseCircle, onSelect: () => { setWithdrawError(null); setWithdrawOpen(true) } }
+          : null,
+        course.status === 'WITHDRAWN' ? { label: 'Re-activate', icon: PlayCircle, onSelect: () => void onReactivate() } : null,
+        course.status !== 'ARCHIVED'
+          ? { label: 'Archive', icon: ArchiveIcon, onSelect: () => void onArchive() }
+          : { label: 'Un-archive', icon: ArchiveRestore, onSelect: () => void onUnarchive() },
+      ].filter((x): x is { label: string; icon: typeof ArchiveIcon; onSelect: () => void } => !!x)
+    : []
+
+  const menu = menuItems.length ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="icon-sm" variant="outline" aria-label="More course actions" data-testid="course-more-menu">
+          <MoreVertical className="h-4 w-4" />
         </Button>
-        <LearningStatusBadge status={course.status} />
-        <span className="font-mono text-xs text-muted-foreground">{course.code}</span>
-        {canManage ? (
-          <>
-            <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
-              <Pencil className="mr-1 h-4 w-4" />
-              Edit details
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => void onNewVersion()}>
-              New version
-            </Button>
-            {course.status === 'PUBLISHED' ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => void onUnpublish()}
-                disabled={unpublishMut.isPending}
-              >
-                Unpublish to Draft
-              </Button>
-            ) : null}
-            {course.status !== 'ARCHIVED' ? (
-              <Button size="sm" variant="outline" onClick={() => void onArchive()}>
-                Archive
-              </Button>
-            ) : null}
-          </>
-        ) : null}
-      </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {menuItems.map(item => (
+          <DropdownMenuItem key={item.label} onSelect={item.onSelect}>
+            <item.icon className="mr-2 h-4 w-4" aria-hidden />
+            {item.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null
 
-      <CourseBuilderPanel course={course} onCourseUpdated={() => void courseQuery.refetch()} />
-
-      <CourseFormDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
+  return (
+    <div className="flex min-w-0 flex-col gap-4" data-testid="learning-course-detail-page">
+      <CourseBuilderPanel
         course={course}
-        onCreated={() => void courseQuery.refetch()}
+        onCourseUpdated={() => void courseQuery.refetch()}
+        menu={menu}
+        beforeTabs={<PolicyContextPanel className="mb-4" moduleType="TRAINING" recordId={courseId} sectionKey="course-builder" />}
       />
-    </LearningSectionLayout>
+
+      <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
+        <DialogContent size="md">
+          <DialogHeader>
+            <DialogTitle>Withdraw from new assignments</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Carers can no longer be assigned this course. Carers already doing it can finish, and all
+              records and certificates are kept. You can re-activate it later.
+            </p>
+            <FormField label="Reason" required error={withdrawError ?? undefined}>
+              <Textarea
+                value={withdrawReason}
+                onChange={e => {
+                  setWithdrawReason(e.target.value)
+                  if (withdrawError) setWithdrawError(null)
+                }}
+                placeholder="Content is being updated for the new fire procedure"
+                maxLength={500}
+              />
+            </FormField>
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setWithdrawOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void onWithdraw()} disabled={withdrawMut.isPending}>
+              Withdraw course
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+    </div>
   )
 }

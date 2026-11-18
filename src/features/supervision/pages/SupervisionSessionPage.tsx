@@ -39,6 +39,7 @@ import { Input } from '@/shared/ui/input'
 import { SignaturePad } from '@/shared/ui/signature-pad'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const TEXTAREA =
   'w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60'
 
@@ -669,7 +670,7 @@ function ActionsCard({ session, canManage }: { session: SupervisionSessionDetail
               ))}
             </SelectContent>
           </Select>
-          <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-40" aria-label="Due date" />
+          <DateInput value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-40" aria-label="Due date" />
           <Button onClick={onAdd} disabled={description.trim().length < 2 || add.isPending}>
             <Plus className="mr-1 h-4 w-4" />
             Add

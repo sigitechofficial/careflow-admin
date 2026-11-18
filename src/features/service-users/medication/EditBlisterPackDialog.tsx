@@ -25,6 +25,7 @@ import {
 import { ADMINISTRATION_ROUNDS } from '@/features/service-users/medication/blister-pack-wizard.constants'
 import { medMatchesCompartmentDueTime } from '@/features/service-users/medication/blister-pack-wizard.utils'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 export function EditBlisterPackDialog({
   open,
   onOpenChange,
@@ -195,15 +196,15 @@ function EditPackTimes({
           </div>
           <div className="w-24">
             <label className="mb-1 block text-xs font-medium text-muted-foreground">Due</label>
-            <Input type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} />
+            <TimeInput value={dueTime} onChange={e => setDueTime(e.target.value)} />
           </div>
           <div className="w-24">
             <label className="mb-1 block text-xs font-medium text-muted-foreground">From</label>
-            <Input type="time" value={windowStart} onChange={e => setWindowStart(e.target.value)} />
+            <TimeInput value={windowStart} onChange={e => setWindowStart(e.target.value)} />
           </div>
           <div className="w-24">
             <label className="mb-1 block text-xs font-medium text-muted-foreground">To</label>
-            <Input type="time" value={windowEnd} onChange={e => setWindowEnd(e.target.value)} />
+            <TimeInput value={windowEnd} onChange={e => setWindowEnd(e.target.value)} />
           </div>
           <Button
             size="sm"

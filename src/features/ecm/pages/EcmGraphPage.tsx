@@ -71,9 +71,6 @@ export default function EcmGraphPage() {
                 {dateFrom === dateTo
                   ? formatPeriodDayShort(dateFrom)
                   : `${formatPeriodDayShort(dateFrom)} – ${formatPeriodDayShort(dateTo)}`}
-                {' · '}
-                ISO {dateFrom}
-                {dateFrom !== dateTo ? ` → ${dateTo}` : ''}
               </>
             }
           >

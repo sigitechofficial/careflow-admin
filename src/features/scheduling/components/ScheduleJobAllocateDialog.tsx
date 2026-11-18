@@ -96,6 +96,7 @@ import {
 } from '@/features/scheduling/utils/allocation-carer-timing.util'
 import { isScheduleJobReadOnly } from '@/features/scheduling/types/schedule-job-context-actions.types'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -199,7 +200,7 @@ export function ScheduleJobAllocateDialog({
   const applyVisitWindowHm = React.useCallback(
     (patch: { startHm?: string; endHm?: string }) => {
       setStartTime(prevStart => {
-        // Ignore empty/partial `<input type="time" />` mid-edit values so inherited
+        // Ignore empty/partial `<TimeInput />` mid-edit values so inherited
         // carer drafts are never wiped to `--:--`.
         const nextStart =
           patch.startHm === undefined
@@ -309,7 +310,7 @@ export function ScheduleJobAllocateDialog({
     const timer = window.setTimeout(() => {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' })
       if (initialPanel === 'time') {
-        target.querySelector<HTMLInputElement>('input[type="time"]')?.focus()
+        target.querySelector<HTMLInputElement>('input[data-date-time-field="time"]')?.focus()
       }
     }, 80)
     return () => window.clearTimeout(timer)
@@ -948,9 +949,9 @@ export function ScheduleJobAllocateDialog({
                 <Label htmlFor="job-start-time" className="text-xs text-muted-foreground">
                   Start time
                 </Label>
-                <Input
+                <TimeInput
                   id="job-start-time"
-                  type="time"
+                 
                   className="mt-1"
                   value={startTime}
                   onChange={(e) => applyVisitWindowHm({ startHm: e.target.value })}
@@ -961,9 +962,9 @@ export function ScheduleJobAllocateDialog({
                 <Label htmlFor="job-end-time" className="text-xs text-muted-foreground">
                   End time
                 </Label>
-                <Input
+                <TimeInput
                   id="job-end-time"
-                  type="time"
+                 
                   className="mt-1"
                   value={endTime}
                   onChange={(e) => applyVisitWindowHm({ endHm: e.target.value })}
@@ -1170,8 +1171,8 @@ export function ScheduleJobAllocateDialog({
                       <div className="mt-2 grid gap-2 border-t border-border/60 pt-2 sm:grid-cols-[1fr_1fr_auto]">
                         <div>
                           <Label className="text-xs text-muted-foreground">Start time</Label>
-                          <Input
-                            type="time"
+                          <TimeInput
+                           
                             className="mt-1"
                             value={timing.startHm}
                             disabled={readOnly}
@@ -1189,8 +1190,8 @@ export function ScheduleJobAllocateDialog({
                         </div>
                         <div>
                           <Label className="text-xs text-muted-foreground">End time</Label>
-                          <Input
-                            type="time"
+                          <TimeInput
+                           
                             className="mt-1"
                             value={timing.endHm}
                             disabled={readOnly}

@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { Calendar } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
-import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/form-field'
 import { Switch } from '@/shared/ui/toggle-controls'
 import {
@@ -14,6 +13,7 @@ import {
 import type { CompositeDraft } from '@/features/service-users/observations/observation-payload'
 import { INFECTION_TYPES } from '@/features/service-users/observations/observation-infection-catalog'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const SELECT_NONE = '__none__'
 
 type Props = {
@@ -112,8 +112,8 @@ export function ObservationInfectionForm({
 
       <FieldRow label="Start Date" required>
         <div className="flex max-w-md">
-          <Input
-            type="datetime-local"
+          <DateTimeInput
+           
             value={recordedAtLocal}
             onChange={e => onRecordedAtChange(e.target.value)}
             className="rounded-r-none"

@@ -376,10 +376,24 @@ export const CATALOG_PAGES: CatalogPage[] = [
     ]
   },
   {
+    "path": "/hr/recruitment-inbox",
+    "title": "Recruitment inbox",
+    "permissions": [
+      "hr.candidates.read"
+    ]
+  },
+  {
     "path": "/hr/vacancies",
     "title": "Vacancies",
     "permissions": [
       "hr.vacancies.read"
+    ]
+  },
+  {
+    "path": "/hr/vacancies/new",
+    "title": "New vacancy",
+    "permissions": [
+      "hr.vacancies.create"
     ]
   },
   {
@@ -850,6 +864,14 @@ export const CATALOG_PAGES: CatalogPage[] = [
     "permissions": [
       "settings.company.read",
       "lookups.read"
+    ]
+  },
+  {
+    "path": "/settings/delete-records",
+    "title": "Delete records",
+    "permissions": [
+      "service_users.delete",
+      "employees.delete"
     ]
   },
   {
@@ -1544,6 +1566,30 @@ export const CATALOG_TABS: CatalogTab[] = [
       "users.read",
       "roles.manage",
       "permissions.manage"
+    ]
+  },
+  {
+    "label": "Delete service user",
+    "pageTitle": "Delete records",
+    "path": "/settings/delete-records",
+    "search": {
+      "tab": "service-user"
+    },
+    "permissions": [
+      "service_users.delete",
+      "employees.delete"
+    ]
+  },
+  {
+    "label": "Delete employee",
+    "pageTitle": "Delete records",
+    "path": "/settings/delete-records",
+    "search": {
+      "tab": "employee"
+    },
+    "permissions": [
+      "service_users.delete",
+      "employees.delete"
     ]
   },
   {

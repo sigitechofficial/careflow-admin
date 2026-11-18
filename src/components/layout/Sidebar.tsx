@@ -9,7 +9,7 @@ import {
   Settings2,
   ScrollText,
   UserCheck,
-  // UserPlus, // TODO(later): restore with HR sidebar tab
+  UserPlus,
 
   BarChart3,
   BookOpen,
@@ -93,8 +93,7 @@ import {
   Sparkles,
   PhoneCall,
   PhoneIncoming,
-  Hourglass,
-} from 'lucide-react'
+  Hourglass, Trash2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
 // import { UserAvatar } from '@/shared/ui/avatar' // TODO(later): restore with sidebar Super Admin / account card
@@ -447,7 +446,7 @@ const navItems: NavItem[] = [
     icon: <UserCheck className="h-5 w-5" />,
     href: '/employee',
     children: [
-      { section: 'Staff', label: 'All Employee', icon: <Users className="h-4 w-4" />, href: '/employee/staff-list', permission: 'employees.read', navTestId: 'nav-employee-staff-list' },
+      { section: 'Staff', label: 'All employees', icon: <Users className="h-4 w-4" />, href: '/employee/staff-list', permission: 'employees.read', navTestId: 'nav-employee-staff-list' },
       { section: 'Staff', label: 'Add Employee', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/add', permission: 'employees.create', navTestId: 'nav-employee-add' },
       {
         section: 'Staff',
@@ -512,14 +511,13 @@ const navItems: NavItem[] = [
         anyPermission: ['ecm.read', 'ecm.monitor'],
         navTestId: 'nav-employee-timesheets',
       },
-      planned("Recruitment", "Recruitment", <Briefcase className="h-4 w-4" />, "Vacancies, candidates, interviews and offers."),
+      { section: 'Recruitment', label: 'HR Dashboard', icon: <Users className="h-4 w-4" />, href: '/hr/employees', permission: 'hr.read', navTestId: 'nav-hr-employees' },
+      { section: 'Recruitment', label: 'Recruitment', icon: <Briefcase className="h-4 w-4" />, href: '/hr/recruitment', anyPermission: ['hr.vacancies.read', 'hr.candidates.read'], navTestId: 'nav-hr-recruitment' },
+      { section: 'Recruitment', label: 'Vacancies', icon: <FileText className="h-4 w-4" />, href: '/hr/vacancies', permission: 'hr.vacancies.read', navTestId: 'nav-hr-vacancies' },
+      { section: 'Recruitment', label: 'Candidates', icon: <UserPlus className="h-4 w-4" />, href: '/hr/candidates', permission: 'hr.candidates.read', navTestId: 'nav-hr-candidates' },
+      { section: 'Recruitment', label: 'Recruitment inbox', icon: <Inbox className="h-4 w-4" />, href: '/hr/recruitment-inbox', permission: 'hr.candidates.read', navTestId: 'nav-hr-recruitment-inbox' },
       planned("Development", "Supervision & appraisals", <MessagesSquare className="h-4 w-4" />, "One-to-one and group supervision records, appraisals and follow-up actions."),
       // Parental leave is recorded via the employee Absence tracker (Maternity / Paternity types).
-      // TODO(later): restore the HR Recruitment pages here (HR dashboard, vacancies, candidates) when HR is ready:
-      //   { section: 'Recruitment', label: 'HR Dashboard', href: '/hr/employees', permission: 'hr.read', navTestId: 'nav-hr-employees' },
-      //   { section: 'Recruitment', label: 'Recruitment', href: '/hr/recruitment', anyPermission: ['hr.vacancies.read', 'hr.candidates.read'], navTestId: 'nav-hr-recruitment' },
-      //   { section: 'Recruitment', label: 'Vacancies', href: '/hr/vacancies', permission: 'hr.vacancies.read', navTestId: 'nav-hr-vacancies' },
-      //   { section: 'Recruitment', label: 'Candidates', href: '/hr/candidates', permission: 'hr.candidates.read', navTestId: 'nav-hr-candidates' },
     ],
   },
   // Specialist Pathways is hidden from the sidebar for now; the pages and routes still work.
@@ -1025,6 +1023,14 @@ const navItems: NavItem[] = [
         search: { sub: 'office-users' },
         anyPermission: ['users.read', 'roles.manage', 'permissions.manage', 'lookups.read'],
         navTestId: 'nav-settings-roles-permissions',
+      },
+      {
+        section: 'Organisation',
+        label: 'Delete records',
+        icon: <Trash2 className="h-4 w-4" />,
+        href: '/settings/delete-records',
+        anyPermission: ['service_users.delete', 'employees.delete'],
+        navTestId: 'nav-settings-delete-records',
       },
       {
         section: 'Configuration',

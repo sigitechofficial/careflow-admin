@@ -17,6 +17,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const TABS = [
   { id: 'tax', label: 'Tax & NI' },
   { id: 'pay', label: 'Pay agreement' },
@@ -85,7 +86,7 @@ export default function PayrollEmployeeDetailPage() {
                 <p className="font-semibold text-foreground">{row.displayName}</p>
                 <p className="text-xs text-muted-foreground">
                   Payroll no. {row.payrollNumber ?? '—'} · NI number {row.nationalInsuranceNo ?? '—'}
-                  {row.employmentEndDate ? ` · leaving ${row.employmentEndDate}` : ''}
+                  {row.employmentEndDate ? ` · leaving ${formatOrganisationDay(row.employmentEndDate)}` : ''}
                 </p>
               </div>
               <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">

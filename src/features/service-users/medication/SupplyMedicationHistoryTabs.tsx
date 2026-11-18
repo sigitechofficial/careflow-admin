@@ -137,7 +137,7 @@ function DeliveryHistoryTable({
                 const isActive = index === 0
                 const receivedBy = d.receivedBy?.name ?? '—'
                 const witness = d.witnessBy?.name ?? '—'
-                const loggedAt = formatMarSupplyDateTime(d.createdAt)
+                const loggedAtText = formatMarSupplyDateTime(d.createdAt)
                 const statusCell = (
                   <span
                     className={cn(
@@ -174,7 +174,7 @@ function DeliveryHistoryTable({
                             '—'}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs tabular-nums text-muted-foreground">
-                          {loggedAt}
+                          {loggedAtText}
                         </td>
                       </>
                     )}
@@ -196,7 +196,7 @@ function DeliveryHistoryTable({
                             '—'}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs tabular-nums text-muted-foreground">
-                          {loggedAt}
+                          {loggedAtText}
                         </td>
                       </>
                     )}
@@ -216,7 +216,7 @@ function DeliveryHistoryTable({
                           <td className="px-3 py-2 text-muted-foreground">{witness}</td>
                         )}
                         <td className="px-3 py-2 font-mono text-xs tabular-nums text-muted-foreground">
-                          {loggedAt}
+                          {loggedAtText}
                         </td>
                       </>
                     )}

@@ -10,6 +10,7 @@ import {
   formatOrganisationTime,
 } from '@/shared/lib/organisation-display-format.store'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 /** No visit chosen yet (''), explicitly "not during a visit", or a scheduled job id. */
 export const NOT_DURING_VISIT = 'NONE'
 
@@ -117,8 +118,8 @@ export function IncidentVisitPicker({
         <Button type="button" variant="ghost" size="sm" aria-label="Previous day" onClick={() => setDay((d) => shiftDay(d, -1))}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <input
-          type="date"
+        <DateInput
+         
           value={day}
           max={today}
           onChange={(e) => e.target.value && setDay(e.target.value > today ? today : e.target.value)}

@@ -29,6 +29,7 @@ import {
 import { cn } from '@/shared/lib/utils'
 import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 function MetricCell({
   label,
   value,
@@ -309,8 +310,8 @@ export default function EcmReportsPage() {
                 <dd className="font-medium">
                   {rangeLabel}
                   <span className="ml-1 font-normal text-muted-foreground">
-                    ({period.dateFrom}
-                    {period.dateFrom !== period.dateTo ? ` → ${period.dateTo}` : ''})
+                    ({formatOrganisationDay(period.dateFrom)}
+                    {period.dateFrom !== period.dateTo ? ` → ${formatOrganisationDay(period.dateTo)}` : ''})
                   </span>
                 </dd>
               </div>

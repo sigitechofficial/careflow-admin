@@ -19,6 +19,7 @@ import {
   type AlignFormDef,
 } from '@/features/service-users/observations/observation-align-catalog'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 type Props = {
   variant: string
   canSave: boolean
@@ -141,8 +142,8 @@ export function ObservationAlignedForm({
       <Textarea value={notes} onChange={e => onNotesChange(e.target.value)} rows={4} disabled={!canSave} />
       <label className="text-sm font-medium">Date / Time</label>
       <div className="flex max-w-md">
-        <Input
-          type="datetime-local"
+        <DateTimeInput
+         
           value={recordedAtLocal}
           onChange={e => onRecordedAtChange(e.target.value)}
           className="rounded-r-none"

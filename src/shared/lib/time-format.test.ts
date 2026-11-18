@@ -45,8 +45,8 @@ describe('formatDurationMs', () => {
 
 describe('UK date-time formatting', () => {
   it('shows UK local time (BST in October)', () => {
-    expect(formatDateTimeGb('2026-10-02T12:05:00Z')).toBe('2 Oct 2026, 13:05')
-    expect(formatDateTimeSecondsGb('2026-10-02T12:05:09Z')).toBe('2 Oct 2026, 13:05:09')
+    expect(formatDateTimeGb('2026-10-02T12:05:00Z')).toBe('02/10/2026 13:05')
+    expect(formatDateTimeSecondsGb('2026-10-02T12:05:09Z')).toBe('02/10/2026 13:05:09')
     expect(formatTimeSecondsGb('2026-10-02T12:05:09Z')).toBe('13:05:09')
     expect(formatShortDateTimeSecondsGb('2026-10-02T12:05:09Z')).toBe('2 Oct, 13:05:09')
   })

@@ -6,6 +6,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { useRecordMileageCorrection, useVisitMileageCorrections } from '@/features/billing/hooks/usePayItems'
 import { PAY_ITEM_STATUS_LABELS } from '@/features/billing/types/pay-items.types'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const MIN_REASON_LENGTH = 5
 const gbp = (value: string | number) =>
   new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(value))
@@ -64,7 +65,7 @@ export function VisitMileageCorrectionCard({ visitReconciliationId }: { visitRec
               </p>
               <p className="text-muted-foreground">{item.reason}</p>
               <p className="text-muted-foreground">
-                {item.createdAt.slice(0, 10)}
+                {formatOrganisationDay(item.createdAt)}
                 {item.createdByName ? ` · entered by ${item.createdByName}` : ''}
                 {item.approvedByName ? ` · approved by ${item.approvedByName}` : ''}
               </p>

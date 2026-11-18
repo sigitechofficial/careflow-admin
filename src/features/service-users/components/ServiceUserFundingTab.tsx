@@ -62,6 +62,8 @@ import { cn, formatDate } from '@/shared/lib/utils'
 import { Combobox } from '@/shared/ui/combobox'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { AddressFinder } from '@/shared/ui/address-finder'
 function FundingFieldLabel({
   label,
   tooltip,
@@ -619,7 +621,9 @@ type FundingRouteOption = { id: string; name: string; billingFundingTypeId?: str
 function routeFits(routes: FundingRouteOption[], routeId: string, billingTypeId: string | null | undefined): boolean {
   if (!routeId) return true
   const r = routes.find((x) => x.id === routeId)
-  return !r?.billingFundingTypeId || !billingTypeId || r.billingFundingTypeId === billingTypeId
+  if (!r?.billingFundingTypeId || !billingTypeId || r.billingFundingTypeId === billingTypeId) return true
+  // The funder's type has no routes of its own, so any route was offered.
+  return !routes.some((x) => x.billingFundingTypeId === billingTypeId)
 }
 
 /** Funding route picker, offering only the routes under the funder's billing type. */
@@ -637,8 +641,10 @@ function FundingRouteSelect({
   label: string
 }) {
   if (!billingTypeId) return null
-  const options = routes
-    .filter((r) => r.billingFundingTypeId === billingTypeId || r.id === value)
+  const own = routes.filter((r) => r.billingFundingTypeId === billingTypeId || r.id === value)
+  // A funder type with no routes of its own (e.g. Private, Mixed, Family) is offered them all.
+  const options = (own.some((r) => r.billingFundingTypeId === billingTypeId) ? own : routes)
+    .slice()
     .sort((a, b) => a.name.localeCompare(b.name))
   return (
     <div className="mt-2 space-y-1">
@@ -1596,6 +1602,17 @@ export function ServiceUserFundingTab({
                                     </Button>
                                   ) : null}
                                 </div>
+                                <AddressFinder
+                                  id={`billing-address-${funder.id}`}
+                                  title="Find the billing address"
+                                  initialPostcode={share.billingPostcode}
+                                  onPick={(a) =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      mixedShares: patchMixedShare(f.mixedShares, funder.id, { billingAddressLine1: a.addressLine1, billingAddressLine2: a.addressLine2, billingTown: a.town, billingCounty: a.county, billingPostcode: a.postcode, billingCountry: a.country }),
+                                    }))
+                                  }
+                                />
                                 <div className="grid gap-2 sm:grid-cols-2">
                                   <div className="sm:col-span-2">
                                     <FundingFieldLabel
@@ -1852,11 +1869,11 @@ export function ServiceUserFundingTab({
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <FundingFieldLabel className="mb-1" label="Start" tooltip={FUNDING_FIELD_TOOLTIPS.startDate} />
-                <Input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
+                <DateInput value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
               </div>
               <div>
                 <FundingFieldLabel className="mb-1" label="End" tooltip={FUNDING_FIELD_TOOLTIPS.endDate} />
-                <Input type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
+                <DateInput value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -1903,8 +1920,8 @@ export function ServiceUserFundingTab({
                 </div>
                 <div>
                   <FundingFieldLabel className="mb-1" label="PO expires" tooltip={FUNDING_FIELD_TOOLTIPS.purchaseOrderExpiresAt} />
-                  <Input
-                    type="date"
+                  <DateInput
+                   
                     value={form.purchaseOrderExpiresAt}
                     onChange={(e) => setForm((f) => ({ ...f, purchaseOrderExpiresAt: e.target.value }))}
                   />
@@ -2066,6 +2083,12 @@ export function ServiceUserFundingTab({
                     </Button>
                   ) : null}
                 </div>
+                <AddressFinder
+                  id="billing-address"
+                  title="Find the billing address"
+                  initialPostcode={form.billingPostcode}
+                  onPick={(a) => setForm((f) => ({ ...f, ...{ billingAddressLine1: a.addressLine1, billingAddressLine2: a.addressLine2, billingTown: a.town, billingCounty: a.county, billingPostcode: a.postcode, billingCountry: a.country } }))}
+                />
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <FundingFieldLabel
@@ -2150,7 +2173,7 @@ export function ServiceUserFundingTab({
               <h4 className="text-sm font-semibold text-foreground">Other</h4>
             <div>
               <FundingFieldLabel className="mb-1" label="Review date" tooltip={FUNDING_FIELD_TOOLTIPS.reviewDate} />
-              <Input type="date" value={form.reviewDate} onChange={(e) => setForm((f) => ({ ...f, reviewDate: e.target.value }))} />
+              <DateInput value={form.reviewDate} onChange={(e) => setForm((f) => ({ ...f, reviewDate: e.target.value }))} />
             </div>
             <div>
               <FundingFieldLabel className="mb-1" label="Notes" tooltip={FUNDING_FIELD_TOOLTIPS.notes} />
@@ -2201,7 +2224,7 @@ export function ServiceUserFundingTab({
           <DialogBody className="space-y-3">
             <div>
               <p className="mb-1 text-sm font-medium">End date *</p>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DateInput value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
             <div>
               <p className="mb-1 text-sm font-medium">Reason</p>

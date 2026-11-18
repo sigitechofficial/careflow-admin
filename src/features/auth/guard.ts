@@ -7,6 +7,9 @@ const STAFF_PUBLIC_PATHS = new Set([
   '/auth/forgot-password',
   '/auth/reset-password',
   '/legal/privacy-policy',
+  // Care app: set-password page and "get the app" (links in the welcome and reset emails).
+  '/app/set-password',
+  '/get-app',
 ])
 
 function isPublicLegalPath(path: string): boolean {
@@ -23,11 +26,19 @@ function isPublicSurveyPath(path: string): boolean {
   )
 }
 
+/** Careers page and job applications (no login). */
+function isPublicCareersPath(path: string): boolean {
+  return path === '/careers' || path.startsWith('/careers/')
+}
+
 function isPortalPath(path: string) {
   return path === '/portal' || path.startsWith('/portal/')
 }
 
-export async function rootAuthBeforeLoad({ location }: { location: { pathname: string } }) {
+/** The temporary inspector sign-in link (Employee → Temporary Inspector Login): /auth/login?as=inspector. */
+export const INSPECTOR_SIGN_IN_SEARCH = { as: 'inspector' } as const
+
+export async function rootAuthBeforeLoad({ location }: { location: { pathname: string; search?: unknown } }) {
   await ensureAuthHydrated()
   const path = location.pathname
   const { isAuthenticated, ipAllowedForCurrent, isServiceUser } = useAuthStore.getState()
@@ -63,8 +74,16 @@ export async function rootAuthBeforeLoad({ location }: { location: { pathname: s
     return
   }
 
-  if (STAFF_PUBLIC_PATHS.has(path) || isPublicLegalPath(path) || isPublicSurveyPath(path)) {
-    if (path === '/auth/login' && isAuthenticated()) {
+  if (
+    STAFF_PUBLIC_PATHS.has(path) ||
+    isPublicLegalPath(path) ||
+    isPublicSurveyPath(path) ||
+    isPublicCareersPath(path)
+  ) {
+    // The inspector sign-in link still opens for someone signed in (the office opening it to check
+    // or hand over); the page warns that signing in there signs them out in this browser.
+    const asInspector = (location.search as { as?: unknown } | undefined)?.as === INSPECTOR_SIGN_IN_SEARCH.as
+    if (path === '/auth/login' && isAuthenticated() && !asInspector) {
       throw redirect({ to: isServiceUser() ? '/portal' : '/' })
     }
     return

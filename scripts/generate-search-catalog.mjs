@@ -20,8 +20,8 @@ const SRC = resolve(ROOT, 'src')
 const OUT = resolve(SRC, 'features/search/catalog.generated.ts')
 const read = rel => readFileSync(resolve(SRC, rel), 'utf8')
 
-/** Pages that are not for searching (sign-in, portal, internal tools). */
-const EXCLUDED_PAGES = [/^\/auth/, /^\/portal/, /^\/in-progress$/, /^\/showcase$/, /^\/test-office-alerts$/, /^\/legal\//]
+/** Pages that are not for searching (sign-in, portal, the public careers and Care app pages, internal tools). */
+const EXCLUDED_PAGES = [/^\/auth/, /^\/portal/, /^\/careers/, /^\/get-app$/, /^\/app\//, /^\/in-progress$/, /^\/showcase$/, /^\/test-office-alerts$/, /^\/legal\//]
 
 // ─── Pages ──────────────────────────────────────────────────────────────────
 function parsePages() {
@@ -54,6 +54,7 @@ const TABBED_PAGES = [
   { file: 'features/settings/pages/GeneralSettingsPage.tsx', array: 'GENERAL_SETTINGS_TABS', path: '/settings/general', param: 'tab' },
   { file: 'features/settings/pages/SettingsPage.tsx', array: 'SETTINGS_TABS', path: '/settings', param: 'tab' },
   { file: 'features/settings/components/RolesPermissionsPanel.tsx', array: 'SUB_TABS', path: '/settings/roles-permissions', param: 'sub' },
+  { file: 'features/settings/pages/DeleteRecordsPage.tsx', array: 'DELETE_RECORD_TABS', path: '/settings/delete-records', param: 'tab' },
   { file: 'features/billing/pages/BillingManagementPage.tsx', array: 'BILLING_TABS', path: '/billing', param: 'tab' },
   { file: 'features/surveys/pages/SurveyFollowUpsPage.tsx', path: '/surveys/follow-ups', param: 'view', valueKey: 'value' },
   { file: 'features/azure-pricing/pages/AzurePricingPage.tsx', path: '/azure-pricing', param: 'tab', triggers: true },

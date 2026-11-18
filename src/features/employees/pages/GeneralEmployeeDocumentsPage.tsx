@@ -11,6 +11,7 @@ import { Input } from '@/shared/ui/input'
 import { Card, CardContent } from '@/shared/ui/card'
 import { cn } from '@/shared/lib/utils'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
@@ -150,7 +151,7 @@ export default function GeneralEmployeeDocumentsPage() {
                   <td className="px-4 py-3 tabular-nums text-muted-foreground">
                     {formatBytes(row.fileSize)}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{row.uploadedDate}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatOrganisationDay(row.uploadedDate)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       {row.tags.map((tag) => (

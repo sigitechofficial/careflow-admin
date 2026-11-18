@@ -24,6 +24,7 @@ import {
 } from '@/features/incidents/types'
 import type { SafeguardingInvestigation } from '@/features/safeguarding/types/safeguarding.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 /**
  * Investigation set-up for a safeguarding case — the same fields and rules as the incident
  * investigation set-up (level, lead investigator, involvement, target date, terms of reference, status).
@@ -244,9 +245,9 @@ function InvestigationStatusControl({
               Next review date
               <Req />
             </label>
-            <input
+            <DateInput
               id="sg-pause-review"
-              type="date"
+             
               className={inputClass}
               min={today}
               value={nextReviewDate}
@@ -468,9 +469,9 @@ export function InvestigationSetupForm({
             </span>
             {investigation?.overdue && <OverdueBadge />}
           </label>
-          <input
+          <DateInput
             id="sg-inv-target"
-            type="date"
+           
             className={inputClass}
             min={startedOn ?? today}
             value={values.targetDate}

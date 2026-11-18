@@ -17,6 +17,8 @@ import { Label } from '@/shared/ui/form-field'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDateTime, formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 /** Monday (local) of the week containing today, as 'YYYY-MM-DD'. */
 function currentWeekStart(): string {
   const now = new Date()
@@ -28,27 +30,10 @@ function currentWeekStart(): string {
   return `${y}-${m}-${d}`
 }
 
-const DATE_FMT = new Intl.DateTimeFormat('en-GB', {
-  weekday: 'short',
-  day: '2-digit',
-  month: 'short',
-  timeZone: 'UTC',
-})
-
-const TIME_FMT = new Intl.DateTimeFormat('en-GB', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  timeZone: 'UTC',
-})
-
 /** e.g. "Mon 12 Oct, 09:00–10:00" (end omitted when not set). */
 function formatVisitTime(startIso: string, endIso: string | null): string {
-  const start = new Date(startIso)
-  const datePart = DATE_FMT.format(start)
-  const startTime = TIME_FMT.format(start)
-  if (!endIso) return `${datePart}, ${startTime}`
-  return `${datePart}, ${startTime}–${TIME_FMT.format(new Date(endIso))}`
+  const start = formatOrganisationDateTime(startIso)
+  return endIso ? `${start}–${formatOrganisationTime(endIso)}` : start
 }
 
 export default function SpecialVisitsPage() {
@@ -178,9 +163,9 @@ export default function SpecialVisitsPage() {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="special-visits-week">Week starting</Label>
-          <input
+          <DateInput
             id="special-visits-week"
-            type="date"
+           
             className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
             value={weekStart}
             onChange={e => setWeekStart(e.target.value)}

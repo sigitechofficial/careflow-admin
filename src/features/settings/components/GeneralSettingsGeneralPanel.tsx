@@ -197,10 +197,9 @@ export function GeneralSettingsGeneralPanel() {
           <div className="space-y-2">
             <p className="text-sm font-medium text-foreground">Organisation time zone</p>
             <p className="text-xs text-muted-foreground">
-              Pakistan (Karachi) is the default base. Other zones show hours relative to
-              Karachi, then the true UTC offset (for example London −4h · UTC+1). Used for
-              operational calendar days — schedules, visit “today”, ECM reporting, and rota
-              horizons. Does not convert stored UTC timestamps.
+              UK (London) is the default. Other zones show the hours ahead of or behind London,
+              then the UTC offset. Decides what “today” means for schedules, visits, ECM reports
+              and rotas, and the times shown across CareFlow.
             </p>
             <Combobox
               options={timezoneOptions}

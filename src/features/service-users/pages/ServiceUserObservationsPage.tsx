@@ -12,7 +12,6 @@ import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { toastApiError, toastError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/form-field'
 import type {
   CreateServiceUserObservationPayload,
@@ -69,6 +68,7 @@ import {
 } from '@/features/service-users/hooks/useServiceUserObservations'
 import { serviceUserKeys } from '@/features/service-users/keys'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 // Observation times are entered and shown in the organisation timezone, not the device's.
 function toDatetimeLocalValue(d: Date): string {
   if (Number.isNaN(d.getTime())) return ''
@@ -497,8 +497,8 @@ export default function ServiceUserObservationsPage() {
                 <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} disabled={!canSave} />
                 <label className="text-sm font-medium">Date / Time</label>
                 <div className="flex max-w-md">
-                  <Input
-                    type="datetime-local"
+                  <DateTimeInput
+                   
                     value={recordedAtLocal}
                     onChange={e => setRecordedAtLocal(e.target.value)}
                     className="rounded-r-none"

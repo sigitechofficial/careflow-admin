@@ -1,12 +1,12 @@
 import * as React from 'react'
 import { Calendar } from 'lucide-react'
-import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 import {
   IA_DATE_INPUT_CLASS,
   IA_SIMPLE_INPUT_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'value'> & {
   value?: string
   simple?: boolean
@@ -32,11 +32,11 @@ export function InitialAssessmentDateInput({
 
   return (
     <div className="relative w-full min-w-0">
-      <Input
+      <DateInput
         {...rest}
         ref={inputRef}
         id={id}
-        type="date"
+       
         value={value}
         disabled={disabled}
         onChange={onChange}

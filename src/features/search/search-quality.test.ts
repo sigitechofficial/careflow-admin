@@ -29,6 +29,10 @@ const TOP_RESULT: Array<[string, string]> = [
   ['add carer', 'Add Employee'],
   ['how do i add a service user', 'Add Service User'],
   ['mileage', 'Travel payment'],
+  ['staff list', 'All employees'],
+  ['all employees', 'All employees'],
+  ['access level', 'What controls what a staff member can do in CareFlow?'],
+  ['missing staff', "Why can't I see a member of staff in the list?"],
 ]
 
 describe('Find anything: everyday searches put the right thing first', () => {

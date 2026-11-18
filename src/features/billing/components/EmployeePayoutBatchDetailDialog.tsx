@@ -27,6 +27,7 @@ import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -224,9 +225,9 @@ export function EmployeePayoutBatchDetailDialog({
                       <Label htmlFor="payout-settled-on" required>
                         Date paid
                       </Label>
-                      <Input
+                      <DateInput
                         id="payout-settled-on"
-                        type="date"
+                       
                         value={settledOn}
                         max={today}
                         onChange={e => setSettledOn(e.target.value)}

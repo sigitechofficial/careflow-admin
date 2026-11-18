@@ -30,6 +30,7 @@ import {
   type UpsertIncidentOutcomeInput,
 } from '@/features/incidents/types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const selectClass =
   'h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
 
@@ -494,8 +495,8 @@ export function IncidentOutcomeSection({
               )}
               {r.shared && (
                 <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <input
-                    type="date"
+                  <DateInput
+                   
                     className={selectClass}
                     max={today}
                     value={r.sharedOn ?? ''}
@@ -552,8 +553,8 @@ export function IncidentOutcomeSection({
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Learning shared with the team</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <input
-            type="date"
+          <DateInput
+           
             className={selectClass}
             max={today}
             value={learnedOn}

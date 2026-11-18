@@ -15,6 +15,7 @@ import {
 } from '@/features/service-users/care-plan/care-plan-consent-meta'
 import type { CarePlanDraftValues } from '@/features/service-users/care-plan/care-plan-draft-storage'
 
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 export type CarePlanIaConsentInfoItem = {
   label: string
   value: string
@@ -160,11 +161,7 @@ function formatAssessmentDate(iso?: string | null): string | null {
   if (!iso) return null
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  return formatOrganisationDate(d)
 }
 
 /**

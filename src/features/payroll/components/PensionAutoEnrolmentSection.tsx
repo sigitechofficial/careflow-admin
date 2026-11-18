@@ -8,6 +8,8 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { TooltipProvider } from '@/shared/ui/tooltip'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const EVENTS: Array<[PensionAeEventInput['type'], string]> = [
   ['ENROLMENT_NOTICE_SENT', 'Pension letter given to the carer (enrolment information)'],
   ['OPT_IN_REQUEST', 'Carer asked to join (opt-in request)'],
@@ -59,9 +61,9 @@ export function PensionAutoEnrolmentSection({
     row('Automatic enrolment date', ae?.automaticEnrolmentDate),
     row('Enrolment deadline', ae?.enrolmentDeadline),
     row('Pension letter given', ae?.enrolmentNoticeSentOn),
-    row('Postponed', ae?.postponementFrom ? `${ae.postponementFrom} to ${ae.postponementEndsOn} (notice ${ae.postponementNoticeSentOn ?? '—'})` : null),
+    row('Postponed', ae?.postponementFrom ? `${formatOrganisationDay(ae.postponementFrom)} to ${formatOrganisationDay(ae.postponementEndsOn)} (notice ${formatOrganisationDay(ae.postponementNoticeSentOn) ?? '—'})` : null),
     row('Asked to join', ae?.optInRequestedOn ?? ae?.joiningRequestedOn),
-    row('Opted out', ae?.optOutReceivedOn ? `${ae.optOutReceivedOn} (${ae.optOutEvidenceRef ?? '—'})` : null),
+    row('Opted out', ae?.optOutReceivedOn ? `${formatOrganisationDay(ae.optOutReceivedOn)} (${ae.optOutEvidenceRef ?? '—'})` : null),
     row('Left the pension', ae?.ceasedOn),
     row('Re-enrolment date', ae?.reEnrolmentDueOn),
   ].filter(Boolean)
@@ -77,7 +79,7 @@ export function PensionAutoEnrolmentSection({
           Latest check:{' '}
           <span className="font-medium text-foreground">
             {ae?.lastCategory
-              ? `${ae.lastCategory.replace(/_/g, ' ').toLowerCase()} (${ae.lastAssessedOn})`
+              ? `${ae.lastCategory.replace(/_/g, ' ').toLowerCase()} (${formatOrganisationDay(ae.lastAssessedOn)})`
               : 'not checked yet (checked when tax and NI are calculated)'}
           </span>
         </p>
@@ -111,7 +113,7 @@ export function PensionAutoEnrolmentSection({
                   info="Leave empty: it is worked out from the date of birth. Fill it in only when it cannot be worked out."
                   className="font-normal"
                 />
-                <Input type="date" value={spa} onChange={(e) => setSpa(e.target.value)} aria-label="State Pension age date" />
+                <DateInput value={spa} onChange={(e) => setSpa(e.target.value)} aria-label="State Pension age date" />
               </label>
               <div className="flex items-end">
                 <Button
@@ -151,17 +153,17 @@ export function PensionAutoEnrolmentSection({
                   </label>
                   <label className="block space-y-1 text-sm">
                     <span>{type === 'POSTPONEMENT' ? 'Postponed from' : 'Date'}</span>
-                    <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Event date" />
+                    <DateInput value={date} onChange={(e) => setDate(e.target.value)} aria-label="Event date" />
                   </label>
                   {type === 'POSTPONEMENT' ? (
                     <>
                       <label className="block space-y-1 text-sm">
                         <span>Postponement ends</span>
-                        <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} aria-label="Postponement end date" />
+                        <DateInput value={endDate} onChange={(e) => setEndDate(e.target.value)} aria-label="Postponement end date" />
                       </label>
                       <label className="block space-y-1 text-sm">
                         <span>Postponement letter given</span>
-                        <Input type="date" value={noticeSentOn} onChange={(e) => setNoticeSentOn(e.target.value)} aria-label="Postponement notice date" />
+                        <DateInput value={noticeSentOn} onChange={(e) => setNoticeSentOn(e.target.value)} aria-label="Postponement notice date" />
                       </label>
                     </>
                   ) : null}

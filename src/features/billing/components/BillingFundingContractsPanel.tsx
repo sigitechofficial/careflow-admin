@@ -23,6 +23,7 @@ import { SectionInfoTip } from '@/features/billing/components/SectionInfoTip'
 import { useAuthStore } from '@/features/auth/store'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const READINESS_OPTIONS: Array<{ value: FundingContractReadiness | 'ALL'; label: string }> = [
   { value: 'ALL', label: 'All statuses' },
   { value: 'READY', label: 'Ready for billing' },
@@ -213,7 +214,7 @@ export function BillingFundingContractsPanel() {
                   <td className="px-4 py-3 align-top font-mono text-xs">
                     {row.poNumber ?? '—'}
                     {row.poExpiresAt ? (
-                      <div className="mt-0.5 text-[11px] text-muted-foreground">Exp {row.poExpiresAt}</div>
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">Exp {formatOrganisationDay(row.poExpiresAt)}</div>
                     ) : null}
                   </td>
                   <td className="px-4 py-3 align-top">{row.authorisedHours ?? '—'}</td>

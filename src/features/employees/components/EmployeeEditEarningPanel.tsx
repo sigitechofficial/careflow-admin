@@ -34,7 +34,6 @@ import {
 } from '@/features/employees/utils/employee-earnings-period.util'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
@@ -56,6 +55,7 @@ import {
   AlertDialogTrigger,
 } from '@/shared/ui/dialog'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function PaymentStateIcon({ row }: { row: EmployeeEarningVisitRow }) {
   const tone = earningTone(row)
   if (tone === 'recorded' || tone === 'processed' || tone === 'earned')
@@ -317,8 +317,8 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                 <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                 From
               </span>
-              <Input
-                type="date"
+              <DateInput
+               
                 value={customFrom}
                 onChange={e => setCustomFrom(e.target.value)}
                 className="h-9 w-44"
@@ -329,8 +329,8 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                 <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                 To
               </span>
-              <Input
-                type="date"
+              <DateInput
+               
                 value={customTo}
                 onChange={e => setCustomTo(e.target.value)}
                 className="h-9 w-44"

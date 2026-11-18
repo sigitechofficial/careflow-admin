@@ -31,6 +31,7 @@ import {
   type MarExportPackFilterGroup,
 } from '@/features/service-users/medication/medication-filter-dedupe'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type RangeMode = 'month' | 'custom' | 'multi'
 
 function firstDayOfMonth(month: string): string {
@@ -305,8 +306,8 @@ export function MedicationMarExportTab({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs text-muted-foreground">From</label>
-                <input
-                  type="date"
+                <DateInput
+                 
                   className="mt-1 w-full rounded-md border border-input px-2 py-1 text-sm"
                   value={dateFrom}
                   onChange={e => setDateFrom(e.target.value)}
@@ -314,8 +315,8 @@ export function MedicationMarExportTab({
               </div>
               <div>
                 <label className="text-xs text-muted-foreground">To</label>
-                <input
-                  type="date"
+                <DateInput
+                 
                   className="mt-1 w-full rounded-md border border-input px-2 py-1 text-sm"
                   value={dateTo}
                   onChange={e => setDateTo(e.target.value)}

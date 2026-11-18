@@ -38,5 +38,14 @@ export function StaffListBranchesCell({ scope }: Props) {
     return <span className="text-xs leading-snug whitespace-nowrap">{scope.branches[0]}</span>
   }
 
-  return <span className="text-muted-foreground">—</span>
+  return (
+    <div className="flex min-w-[9rem] max-w-[18rem] flex-col items-start gap-1" data-testid="staff-branch-not-assigned">
+      <Badge variant="warning" size="sm" className="font-normal">
+        Not assigned to a branch yet
+      </Badge>
+      <span className="text-[11px] leading-snug text-muted-foreground">
+        Set their branch in Employment so the right office can see them
+      </span>
+    </div>
+  )
 }

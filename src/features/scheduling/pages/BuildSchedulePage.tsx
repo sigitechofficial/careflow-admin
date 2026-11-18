@@ -9,6 +9,7 @@ import { useScheduleAreas, useScheduleStatus } from '@/features/scheduling/hooks
 import { useBuildSchedule } from '@/features/scheduling/hooks/useSchedulingMutations'
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 export default function BuildSchedulePage() {
   const hasApi = !!getApiBaseUrl()
   const [date, setDate] = React.useState(todayIso())
@@ -65,8 +66,8 @@ export default function BuildSchedulePage() {
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Schedule date</label>
-          <input
-            type="date"
+          <DateInput
+           
             value={date}
             onChange={e => setDate(e.target.value)}
             className="h-10 w-full max-w-xs border border-input rounded-md px-3 text-sm bg-background"

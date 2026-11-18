@@ -48,8 +48,9 @@ import {
 } from '@/features/crm/crm-labels'
 import type { Enquiry, EnquiryLostReason, EnquiryStage } from '@/features/crm/types/crm.types'
 
-const fmtDateTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '—')
-const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : '—')
+import { formatOrganisationDate, formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+const fmtDateTime = (iso: string | null) => (iso ? formatOrganisationDateTime(iso) : '—')
+const fmtDate = (iso: string | null) => (iso ? formatOrganisationDate(iso) : '—')
 
 function initialsOf(e: Enquiry): string {
   return `${e.firstName?.[0] ?? ''}${e.lastName?.[0] ?? ''}`.toUpperCase() || '?'

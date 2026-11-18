@@ -2,6 +2,7 @@
 
 import { formatDateTimeGb, formatDurationMs, formatRelativeTime } from '@/shared/lib/time-format'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const LOCALE = 'en-GB'
 
 const moneyFormatters = new Map<string, Intl.NumberFormat>()
@@ -119,15 +120,7 @@ export function parseIsoDate(value: string): Date | null {
 
 /** `1 Sep 2026` from `2026-09-01`. */
 export function formatDateGb(value: string | null | undefined): string {
-  if (!value) return '—'
-  const d = parseIsoDate(value.slice(0, 10))
-  if (!d) return value
-  return new Intl.DateTimeFormat(LOCALE, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d)
+  return value ? String(formatOrganisationDay(value)) : '—'
 }
 
 /** `1 Sep` from `2026-09-01` (chart axes). */

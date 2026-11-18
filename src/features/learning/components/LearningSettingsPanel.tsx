@@ -53,7 +53,7 @@ export function LearningSettingsPanel() {
   return (
     <div className="space-y-6 max-w-2xl" data-testid="learning-settings-panel">
       <ContentSectionHeader
-        title="Settings"
+        title="Learning defaults"
         description="Organisation defaults for assignments, certificates, and compliance calculation."
       />
 

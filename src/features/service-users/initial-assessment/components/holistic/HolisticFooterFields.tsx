@@ -3,6 +3,7 @@ import { Label } from '@/shared/ui/form-field'
 import { HOLISTIC_FOOTER_GRID_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import type { ServiceUserDetail } from '@/features/service-users/api'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   /** Kept for existing callers; the name is no longer shown. */
   clientName?: string
@@ -29,9 +30,9 @@ export function HolisticFooterFields({
         <Label htmlFor="ia-holistic-footer-date" className="text-xs font-medium text-muted-foreground">
           Date completed
         </Label>
-        <Input
+        <DateInput
           id="ia-holistic-footer-date"
-          type="date"
+         
           className="h-9 bg-background"
           disabled={disabled}
           value={dateCompleted?.slice(0, 10) ?? ''}

@@ -17,6 +17,7 @@ import {
   fetchPolicyVersion,
   fetchPolicyVersions,
   fetchApplicablePolicies,
+  fetchPolicyAudienceRoles,
   publishPolicy,
   removePolicyVersionDocument,
   requestPolicyChanges,
@@ -60,6 +61,15 @@ export function usePolicy(id: string | undefined) {
     queryKey: policyKeys.detail(id ?? ''),
     queryFn: () => fetchPolicy(id!),
     enabled: Boolean(id),
+  })
+}
+
+/** Sign-in roles for a policy's audience (Admin → Roles & permissions), the ones saving and acknowledgement use. */
+export function usePolicyAudienceRoles() {
+  return useQuery({
+    queryKey: [...policyKeys.all, 'audience-roles'],
+    queryFn: fetchPolicyAudienceRoles,
+    staleTime: 10 * 60 * 1000,
   })
 }
 

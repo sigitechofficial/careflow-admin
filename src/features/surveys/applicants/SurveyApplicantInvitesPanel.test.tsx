@@ -41,7 +41,7 @@ describe('Invite job applicants', () => {
     expect(await screen.findByText(/Applicants are invited to “Last quarter” now/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Invite job applicants' }))
     await waitFor(() => expect(apiJson).toHaveBeenCalledWith('/surveys/s1/applicant-invites', { method: 'PUT', body: JSON.stringify({ on: true }) }))
-    expect(await screen.findByText('On since 7 November 2026')).toBeInTheDocument()
+    expect(await screen.findByText('On since 07/11/2026')).toBeInTheDocument()
     expect(screen.getByTestId('applicant-invites-counts')).toHaveTextContent('0 invited so far · 2 waiting (they go once 3 are waiting)')
     expect(screen.getByRole('button', { name: 'Stop inviting' })).toBeInTheDocument()
   })

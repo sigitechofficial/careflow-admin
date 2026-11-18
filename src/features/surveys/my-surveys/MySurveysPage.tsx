@@ -8,11 +8,10 @@ import { SurveyRespondentForm } from '@/features/surveys/components/SurveyRespon
 import type { SubmitSurveyResponseInput } from '@/features/surveys/types'
 import { useMySurveyForm, useMySurveys, useSubmitMySurvey, type MySurveyItem } from './my-surveys'
 
-/** "20 Nov 2026" (UK). */
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
+/** A day in the organisation date format. */
 function day(iso: string | null): string | null {
-  if (!iso) return null
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/London' })
+  return iso ? String(formatOrganisationDay(iso)) : null
 }
 
 function stateLine(s: MySurveyItem): string {

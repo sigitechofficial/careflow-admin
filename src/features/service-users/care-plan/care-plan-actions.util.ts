@@ -6,6 +6,7 @@ import type {
 import { formatIaAssessmentSourceLine } from '@/features/service-users/care-plan/care-plan-risk-profile.util'
 import type { CarePlanDraftValues } from '@/features/service-users/care-plan/care-plan-draft-storage'
 
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 export type CarePlanIaActionDisplay = {
   id: string
   title: string
@@ -107,11 +108,7 @@ export function formatActionDueDate(dueDate: string | null | undefined): string 
   if (!dueDate) return null
   const d = new Date(dueDate)
   if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  return formatOrganisationDate(d)
 }
 
 export function formatActionPriorityLabel(priority: InitialAssessmentActionPriority): string {

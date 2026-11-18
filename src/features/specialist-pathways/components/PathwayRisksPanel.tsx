@@ -17,6 +17,7 @@ import {
 } from '@/features/specialist-pathways/pathway-labels'
 import type { PathwayCase, PathwayRisk, RiskInput } from '@/features/specialist-pathways/types/specialist-pathway.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-2 text-sm'
 const areaClass = 'min-h-[64px] w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm'
 
@@ -142,7 +143,7 @@ function RiskForm({
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Review by</span>
-          <Input type="date" value={f.reviewDate} onChange={e => set('reviewDate', e.target.value)} />
+          <DateInput value={f.reviewDate} onChange={e => set('reviewDate', e.target.value)} />
         </label>
         <div className="flex items-end gap-2 text-sm">
           <span className="text-muted-foreground">Score:</span>

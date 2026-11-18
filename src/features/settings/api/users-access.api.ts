@@ -11,6 +11,8 @@ export type OfficeUserRow = {
   lastName: string | null
   isActive: boolean
   createdAt: string
+  /** Invited, and has not chosen a password yet. */
+  invitePending?: boolean
   roles: OfficeUserRole[]
   locations: OfficeUserLocation[]
   scopeType: 'platform' | 'company' | 'branch'
@@ -21,9 +23,11 @@ export async function fetchOfficeUsers(signal?: AbortSignal): Promise<OfficeUser
   return res.data ?? []
 }
 
+/** A new office user: no password, they choose it from the welcome email ({@link sendOfficeUserInvite}). */
 export type CreateOfficeUserInput = {
   email: string
-  password: string
+  /** Set by the office now (they give it to the person); without it the person chooses their own from the email. */
+  password?: string
   username?: string
   firstName?: string
   lastName?: string
@@ -36,7 +40,7 @@ export async function createOfficeUser(
     method: 'POST',
     body: JSON.stringify({
       email: input.email.trim(),
-      password: input.password,
+      ...(input.password ? { password: input.password } : {}),
       username: input.username?.trim() || undefined,
       firstName: input.firstName?.trim() || undefined,
       lastName: input.lastName?.trim() || undefined,
@@ -44,6 +48,15 @@ export async function createOfficeUser(
   })
   if (!res.data?.id) throw new Error('User created but no id returned')
   return res.data
+}
+
+/** Email the welcome (website login) with a link to choose their password. Returns the message to show. */
+export async function sendOfficeUserInvite(userId: string, opts: { passwordGiven?: boolean } = {}): Promise<string> {
+  const res = await apiJson<ApiEnvelope<{ emailed: string }>>(`/users/${userId}/send-invite`, {
+    method: 'POST',
+    body: JSON.stringify({ passwordGiven: Boolean(opts.passwordGiven) }),
+  })
+  return res.message
 }
 
 export async function setOfficeUserRoles(
@@ -61,7 +74,7 @@ export type UpdateOfficeUserInput = {
   firstName?: string
   lastName?: string
   email?: string
-  /** New password — signs the user out of other sessions. */
+  /** New password set by the office (also their Care app password when linked); signs them out everywhere. */
   password?: string
 }
 

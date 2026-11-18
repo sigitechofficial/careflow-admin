@@ -19,6 +19,8 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 function ukTaxYearFromStartYear(startYear: number) {
   const endYear = startYear + 1
   const code = `${startYear}-${String(endYear).slice(-2)}`
@@ -100,7 +102,7 @@ export default function PayrollTaxYearsPage() {
                     ) : null}
                   </td>
                   <td className="py-2.5 pr-3 tabular-nums">
-                    {row.startDate} – {row.endDate}
+                    {formatOrganisationDay(row.startDate)} – {formatOrganisationDay(row.endDate)}
                   </td>
                   <td className="py-2.5 pr-3">
                     <PayrollStatusBadge status={row.status} />
@@ -150,11 +152,11 @@ export default function PayrollTaxYearsPage() {
             </label>
             <label className="block space-y-1 text-sm">
               <span>Start date</span>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <DateInput value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </label>
             <label className="block space-y-1 text-sm">
               <span>End date</span>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DateInput value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </label>
           </DialogBody>
           <DialogFooter>

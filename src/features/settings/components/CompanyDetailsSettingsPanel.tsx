@@ -23,6 +23,8 @@ import {
   type CompanyLegalDraft,
 } from '@/features/settings/company/company-legal.util'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { AddressFinder } from '@/shared/ui/address-finder'
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
     <label className="text-sm font-medium text-foreground">
@@ -463,8 +465,8 @@ export function CompanyDetailsSettingsPanel() {
                 />
               </FieldRow>
               <FieldRow label="Incorporation Date">
-                <Input
-                  type="date"
+                <DateInput
+                 
                   value={legal.incorporationDate}
                   onChange={e => setLegalField('incorporationDate', e.target.value)}
                   disabled={!canUpdate}
@@ -481,6 +483,28 @@ export function CompanyDetailsSettingsPanel() {
               </FieldRow>
             </div>
             <div className="space-y-4">
+              {canUpdate ? (
+                <AddressFinder
+                  id="company-registered-address"
+                  title="Find the registered address"
+                  initialPostcode={legal.registeredPostcode}
+                  onPick={a =>
+                    setLegal(prev =>
+                      prev
+                        ? {
+                            ...prev,
+                            registeredAddressLine1: a.addressLine1,
+                            registeredAddressLine2: a.addressLine2,
+                            registeredTown: a.town,
+                            registeredCounty: a.county,
+                            registeredPostcode: a.postcode,
+                            registeredCountry: a.country || prev.registeredCountry,
+                          }
+                        : prev,
+                    )
+                  }
+                />
+              ) : null}
               <FieldRow label="Registered Address Line 1">
                 <Input
                   value={legal.registeredAddressLine1}

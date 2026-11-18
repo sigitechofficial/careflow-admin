@@ -26,6 +26,7 @@ import {
   type CommunicationNoteShareTarget,
 } from '@/features/service-users/comms/types'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const SHARE_TARGETS: { id: CommunicationNoteShareTarget; label: string; icon: React.ElementType }[] = [
   { id: 'handover', label: 'Handover', icon: ClipboardList },
   { id: 'manager', label: 'Manager', icon: UserCircle },
@@ -188,10 +189,10 @@ export function AddCommunicationNoteDialog({ serviceUserId, open, onOpenChange }
 
           <FormField label="Date / Time" htmlFor="comm-note-recorded-at">
             <div className="flex w-full">
-              <Input
+              <DateTimeInput
                 ref={dateInputRef}
                 id="comm-note-recorded-at"
-                type="datetime-local"
+               
                 value={form.recordedAtLocal}
                 onChange={e => setForm(f => ({ ...f, recordedAtLocal: e.target.value }))}
                 className="min-w-0 flex-1 rounded-r-none"

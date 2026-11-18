@@ -92,7 +92,7 @@ describe('wage recoveries screen (Sprint B4A, Task 1)', () => {
     expect(row).toHaveTextContent('£2000.00')
     expect(row).toHaveTextContent('£200.00')
     expect(row).toHaveTextContent('Awaiting decision')
-    expect(row).toHaveTextContent('2026-12-03')
+    expect(row).toHaveTextContent('03/12/2026')
     expect(row).toHaveTextContent('Pat Preparer')
     // The other statuses are a click away.
     fireEvent.click(screen.getByRole('tab', { name: 'Deducted' }))

@@ -15,6 +15,7 @@ import {
   type DashboardView,
 } from './survey-insight'
 
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 const card = 'rounded-xl border border-border bg-card p-4'
 
 function Header({ title, back = '/surveys', children }: { title: string; back?: string; children?: React.ReactNode }) {
@@ -150,7 +151,7 @@ export default function SurveyInsightPage() {
                           {s.title}
                         </Link>
                       </th>
-                      <td className="px-2 py-2">{s.closesAt ? new Date(s.closesAt).toLocaleDateString('en-GB') : '—'}</td>
+                      <td className="px-2 py-2">{s.closesAt ? formatOrganisationDate(s.closesAt) : '—'}</td>
                       <td className="px-2 py-2 text-right tabular-nums">
                         {s.countsRestricted ? 'Limited' : s.responseRate === null ? 'Shared link' : `${s.responseRate}% of ${s.sentTo}`}
                       </td>

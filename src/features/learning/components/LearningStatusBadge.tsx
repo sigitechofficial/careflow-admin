@@ -8,7 +8,8 @@ export function formatLearningLabel(value: string): string {
   return trimmed
     .toLowerCase()
     .replace(/_/g, ' ')
-    .replace(/\b\w/g, char => char.toUpperCase())
+    // Sentence case to match the tab names: "Not passed", "In progress" (17 Nov 2026).
+    .replace(/^\w/, char => char.toUpperCase())
 }
 
 const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
@@ -19,6 +20,15 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   APPROVED: 'success',
   VERIFIED: 'success',
   ATTENDED: 'success',
+  // Training session whose end time has passed (display only).
+  ENDED: 'muted',
+  // Overdue course closed by the office (stored as EXPIRED).
+  NOT_COMPLETED: 'destructive',
+  // Assignment tags (17 Nov 2026).
+  PASSED: 'success',
+  NOT_PASSED: 'destructive',
+  INCOMPLETE: 'warning',
+  FAILED: 'destructive',
   CONFIRMED: 'success',
 
   DRAFT: 'warning',
@@ -39,6 +49,7 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   REJECTED: 'destructive',
   CANCELLED: 'muted',
   ARCHIVED: 'muted',
+  WITHDRAWN: 'warning',
   EXEMPT: 'muted',
   NOT_ASSIGNED: 'secondary',
 }

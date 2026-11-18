@@ -43,6 +43,7 @@ import {
 } from '@/features/crm/api/referral-inbox.api'
 
 
+import { formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 /** Kinds of email staff act on themselves (see the API's referral-rules.util). */
 const STAFF_KINDS: string[] = ['FOLLOW_UP', 'REFERRAL_WITHDRAWN', 'EXISTING_CLIENT', 'COMPLAINT', 'SAFEGUARDING_CONCERN']
 const STAFF_KIND_ADVICE: Record<string, string> = {
@@ -68,7 +69,7 @@ const fmt = (iso: string | null | undefined) =>
 function shortWhen(iso: string) {
   const d = new Date(iso)
   return d.toDateString() === new Date().toDateString()
-    ? d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    ? formatOrganisationTime(d)
     : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 

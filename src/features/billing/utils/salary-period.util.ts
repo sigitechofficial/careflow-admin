@@ -8,7 +8,7 @@ function ymdInTimeZone(
   at: Date,
   timeZone: string,
 ): { y: number; m: number; d: number } {
-  const parts = new Intl.DateTimeFormat('en-CA', {
+  const parts = new Intl.DateTimeFormat('en-CA', { // date-format-ok: year/month/day numbers for maths, not shown
     timeZone,
     year: 'numeric',
     month: '2-digit',

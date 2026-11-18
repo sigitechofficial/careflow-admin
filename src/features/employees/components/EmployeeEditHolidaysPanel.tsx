@@ -31,17 +31,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDateTime, formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
 function formatHolidayDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return `${pad2(d.getUTCDate())}-${pad2(d.getUTCMonth() + 1)}-${d.getUTCFullYear()}`
+  return String(formatOrganisationDay(iso)) || '—'
 }
 
 function toDateInputValue(iso: string): string {
@@ -53,16 +52,6 @@ function toDateInputValue(iso: string): string {
 function calendarDateToIso(date: string): string {
   return new Date(`${date}T12:00:00.000Z`).toISOString()
 }
-
-const ABSENCE_DATE_TIME_FMT = new Intl.DateTimeFormat('en-GB', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  timeZone: 'UTC',
-})
 
 function riskBadgeClass(risk: string): string {
   if (risk.startsWith('HIGH')) return 'border-destructive/40 bg-destructive/10 text-destructive'
@@ -285,10 +274,10 @@ function EmployeeAbsenceRecordsSection({
                         ) : null}
                       </td>
                   <td className="whitespace-nowrap px-3 py-2 tabular-nums">
-                    {ABSENCE_DATE_TIME_FMT.format(new Date(row.fromDateTime))}
+                    {formatOrganisationDateTime(row.fromDateTime)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 tabular-nums">
-                    {ABSENCE_DATE_TIME_FMT.format(new Date(row.toDateTime))}
+                    {formatOrganisationDateTime(row.toDateTime)}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{row.durationDays}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
@@ -319,7 +308,7 @@ function EmployeeAbsenceRecordsSection({
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
                     {row.evidenceHeld
-                      ? `Held${row.evidenceReceivedDate ? ` · ${row.evidenceReceivedDate}` : ''}`
+                      ? `Held${row.evidenceReceivedDate ? ` · ${formatOrganisationDay(row.evidenceReceivedDate)}` : ''}`
                       : 'Not held'}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">
@@ -610,11 +599,11 @@ export function EmployeeEditHolidaysPanel({ employeeId }: { employeeId: string }
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Start date</label>
-                <Input type="date" value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} />
+                <DateInput value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">End date</label>
-                <Input type="date" value={formEndDate} onChange={(e) => setFormEndDate(e.target.value)} />
+                <DateInput value={formEndDate} onChange={(e) => setFormEndDate(e.target.value)} />
               </div>
             </div>
             <div>

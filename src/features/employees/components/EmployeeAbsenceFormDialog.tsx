@@ -26,9 +26,10 @@ import {
 } from '@/shared/ui/dialog'
 import { Label } from '@/shared/ui/form-field'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const selectClass = 'flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm'
 
-/** ISO string → value for <input type="datetime-local"> (interpreted as UTC). */
+/** ISO string → value for <DateTimeInput /> (interpreted as UTC). */
 function isoToLocalInput(iso: string | null | undefined): string {
   return iso ? iso.slice(0, 16) : ''
 }
@@ -354,8 +355,8 @@ export function EmployeeAbsenceFormDialog({
 
           <div className="flex flex-col gap-1.5">
             <Label>From date/time</Label>
-            <Input
-              type="datetime-local"
+            <DateTimeInput
+             
               value={draft.from}
               disabled={spanLocked}
               onChange={e => set('from', e.target.value)}
@@ -363,8 +364,8 @@ export function EmployeeAbsenceFormDialog({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>To date/time</Label>
-            <Input
-              type="datetime-local"
+            <DateTimeInput
+             
               value={draft.to}
               disabled={spanLocked}
               onChange={e => set('to', e.target.value)}

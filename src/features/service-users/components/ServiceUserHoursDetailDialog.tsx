@@ -27,6 +27,7 @@ import {
 } from '@/shared/ui/dialog'
 import { cn } from '@/shared/lib/utils'
 
+import { MonthInput } from '@/shared/ui/date-time-input'
 const SOURCE_LABEL: Record<ServiceUserContractedSource, string> = {
   visit_plan: 'Visit plan',
   dom_care: 'DOM care',
@@ -159,8 +160,8 @@ export function ServiceUserHoursDetailDialog({
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
-            <input
-              type="month"
+            <MonthInput
+             
               className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
               value={month}
               aria-label="Select month"

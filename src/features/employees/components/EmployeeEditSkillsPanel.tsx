@@ -23,6 +23,7 @@ import {
   uploadSkillEvidence,
 } from '@/features/employees/components/EmployeeSkillDocumentCell'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function formatSkillExpiry(iso: string | null | undefined): string {
   return formatDate(iso)
 }
@@ -248,7 +249,7 @@ export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) 
             </div>
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Expiry (optional)</label>
-              <Input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="h-9" />
+              <DateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="h-9" />
               {refreshMonths ? (
                 <p className="text-[11px] text-muted-foreground">{validityHint(refreshMonths, 'today')}</p>
               ) : null}

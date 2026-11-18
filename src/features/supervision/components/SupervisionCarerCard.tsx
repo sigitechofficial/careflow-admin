@@ -38,6 +38,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const NO_SUPERVISOR = '__none__'
 
 /**
@@ -415,7 +416,7 @@ function ScheduleSupervisionDialog({
           </label>
           <label className="block space-y-1 text-sm">
             <span className="text-xs text-muted-foreground">Date and time</span>
-            <Input type="datetime-local" value={when} onChange={e => setWhen(e.target.value)} aria-label="Date and time" />
+            <DateTimeInput value={when} onChange={e => setWhen(e.target.value)} aria-label="Date and time" />
           </label>
           <label className="block space-y-1 text-sm">
             <span className="text-xs text-muted-foreground">Location (optional)</span>

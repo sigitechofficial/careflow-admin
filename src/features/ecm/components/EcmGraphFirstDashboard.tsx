@@ -393,9 +393,6 @@ export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProp
           {effectiveFrom === effectiveTo
             ? formatPeriodDayShort(effectiveFrom)
             : `${formatPeriodDayShort(effectiveFrom)} – ${formatPeriodDayShort(effectiveTo)}`}
-          {' · '}
-          ISO {effectiveFrom}
-          {effectiveFrom !== effectiveTo ? ` → ${effectiveTo}` : ''}
         </p>
       </div>
 

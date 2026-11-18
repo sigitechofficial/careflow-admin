@@ -40,6 +40,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 export const feedbackSelectClass =
   'h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 export const feedbackTextareaClass =
@@ -194,8 +195,8 @@ export function FeedbackFormDialog({
             <h3 className="text-sm font-semibold text-foreground">Received</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               <FeedbackField label="Date & time received *">
-                <Input
-                  type="datetime-local"
+                <DateTimeInput
+                 
                   value={receivedAt}
                   onChange={e => setReceivedAt(e.target.value)}
                   data-testid="feedback-received-at"

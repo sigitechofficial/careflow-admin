@@ -38,6 +38,7 @@ import {
   type SharingStatus,
 } from './service-user-privacy.api'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const SELECT_CLASS = 'flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm'
 const LABEL_CLASS = 'mb-1 block text-xs font-medium text-muted-foreground'
 const day = (iso: string | null) => (iso ? formatDisplayDate(iso) : '')
@@ -285,7 +286,7 @@ function ConsentDialog({ serviceUserId, today, initial, onClose }: {
           </div>
           <div>
             <label className={LABEL_CLASS} htmlFor="consent-date">Date</label>
-            <Input id="consent-date" type="date" max={today} value={f.decidedOn} onChange={e => patch({ decidedOn: e.target.value })} />
+            <DateInput id="consent-date" max={today} value={f.decidedOn} onChange={e => patch({ decidedOn: e.target.value })} />
           </div>
           <div className="sm:col-span-2">
             <label className={LABEL_CLASS} htmlFor="consent-by">{f.answer === 'BEST_INTERESTS' ? 'Decided by (name and role)' : 'Given by (leave empty if the person themselves)'}</label>
@@ -813,15 +814,15 @@ function SharingDialog({ serviceUserId, data, id, initial, onClose, openContacts
             ) : null}
             <div>
               <label className={LABEL_CLASS} htmlFor="sharing-from">From</label>
-              <Input id="sharing-from" type="date" value={f.startsOn} onChange={e => patch({ startsOn: e.target.value })} />
+              <DateInput id="sharing-from" value={f.startsOn} onChange={e => patch({ startsOn: e.target.value })} />
             </div>
             <div>
               <label className={LABEL_CLASS} htmlFor="sharing-until">Until (optional)</label>
-              <Input id="sharing-until" type="date" value={f.endsOn ?? ''} onChange={e => patch({ endsOn: e.target.value || null })} />
+              <DateInput id="sharing-until" value={f.endsOn ?? ''} onChange={e => patch({ endsOn: e.target.value || null })} />
             </div>
             <div>
               <label className={LABEL_CLASS} htmlFor="sharing-review">Review on (optional)</label>
-              <Input id="sharing-review" type="date" value={f.reviewOn ?? ''} onChange={e => patch({ reviewOn: e.target.value || null })} />
+              <DateInput id="sharing-review" value={f.reviewOn ?? ''} onChange={e => patch({ reviewOn: e.target.value || null })} />
             </div>
             <div className="sm:col-span-2">
               <label className={LABEL_CLASS} htmlFor="sharing-conditions">Conditions or limits (optional)</label>
@@ -944,7 +945,7 @@ function ExceptionDialog({ serviceUserId, today, onClose }: { serviceUserId: str
         <DialogBody className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className={LABEL_CLASS} htmlFor="exc-date">Date shared</label>
-            <Input id="exc-date" type="date" value={f.sharedOn} onChange={e => patch({ sharedOn: e.target.value })} />
+            <DateInput id="exc-date" value={f.sharedOn} onChange={e => patch({ sharedOn: e.target.value })} />
           </div>
           <div>
             <label className={LABEL_CLASS} htmlFor="exc-with">Shared with</label>

@@ -6,7 +6,8 @@ import { toastApiError } from '@/shared/lib/toast'
 import { useStartEnquiryInitialAssessment } from '@/features/crm/hooks/useCrm'
 import type { Enquiry } from '@/features/crm/types/crm.types'
 
-const fmtDateTime = (iso: string) => new Date(iso).toLocaleString()
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+const fmtDateTime = (iso: string) => formatOrganisationDateTime(iso)
 
 const IA_STATUS: Record<NonNullable<Enquiry['initialAssessment']>['status'], { label: string; className: string }> = {
   DRAFT: { label: 'Draft', className: 'bg-muted text-muted-foreground' },

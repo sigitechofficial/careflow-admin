@@ -17,6 +17,7 @@ import { Input } from '@/shared/ui/input'
 import { Combobox } from '@/shared/ui/combobox'
 import { formatDate } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const CERT_ACCEPT =
   'application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
@@ -274,8 +275,8 @@ export function EmployeeEditCertificationsPanel({
             </div>
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Issue date (optional)</label>
-              <Input
-                type="date"
+              <DateInput
+               
                 value={issueDate}
                 onChange={e => {
                   setIssueDate(e.target.value)
@@ -286,7 +287,7 @@ export function EmployeeEditCertificationsPanel({
             </div>
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Expiry date (optional)</label>
-              <Input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="h-9" />
+              <DateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="h-9" />
               {validityMonths ? (
                 <p className="text-[11px] text-muted-foreground">{validityHint(validityMonths, 'the issue date')}</p>
               ) : null}

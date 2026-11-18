@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/shared/lib/utils'
-import { Input } from '@/shared/ui/input'
 import {
   IA_OPTION_LABEL_CLASS,
   IA_PAPER_ROW_LABEL_CLASS,
   IA_RADIO_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   label?: ReactNode
   value: boolean | null
@@ -91,8 +91,8 @@ export function InitialAssessmentPaperYesNoRow({
         {dateLabel && onDateChange ? (
           <label className={cn('flex items-center gap-2', IA_OPTION_LABEL_CLASS)}>
             <span className="text-muted-foreground">{dateLabel}</span>
-            <Input
-              type="date"
+            <DateInput
+             
               className="h-10 w-[148px] text-base"
               disabled={disabled || dateDisabled}
               value={dateValue?.slice(0, 10) ?? ''}

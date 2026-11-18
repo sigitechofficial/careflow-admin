@@ -81,6 +81,7 @@ function useFindResults(query: string) {
 /** The results list (desktop drop-down and mobile dialog). Arrow keys move, Enter opens. */
 function FindResults({ query, onPick }: { query: string; onPick: (t: FindTarget) => void }) {
   const userId = useAuthStore(s => s.user?.id)
+  const branchLimited = useAuthStore(s => s.user?.assignedLocationIds != null)
   const { groups, mentions, inside, records, empty } = useFindResults(query)
   const [recent, setRecent] = React.useState(() => readRecent(userId))
   const recordTarget = (hit: RecordSearchHit): FindTarget => ({
@@ -137,7 +138,20 @@ function FindResults({ query, onPick }: { query: string; onPick: (t: FindTarget)
 
   return (
     <CommandList className="max-h-[70vh] p-1">
-      <CommandEmpty>{records.pending ? 'Searching…' : 'Nothing found. Try another word, or fewer words.'}</CommandEmpty>
+      <CommandEmpty>
+        {records.pending ? (
+          'Searching…'
+        ) : (
+          <>
+            Nothing found. Try another word, or fewer words.
+            {branchLimited ? (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                People and records at branches your access does not cover are not shown.
+              </span>
+            ) : null}
+          </>
+        )}
+      </CommandEmpty>
       {inside.length ? (
         <CommandGroup heading={<GroupHeading look={KIND_LOOK.inside} label="Go straight to" count={inside.length} />}>
           {inside.map(h => (

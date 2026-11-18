@@ -73,6 +73,13 @@ export async function updatePolicy(id: string, body: Partial<PolicyWriteInput>):
   })
 }
 
+/** Sign-in roles a policy audience can target. staff: false for Super Admin, Independent reviewer, CQC Inspector. */
+export type PolicyAudienceRole = { id: string; name: string; staff: boolean }
+
+export async function fetchPolicyAudienceRoles(): Promise<PolicyAudienceRole[]> {
+  return fetchData<PolicyAudienceRole[]>('/policies/audience-roles')
+}
+
 export async function fetchPolicyVersions(id: string): Promise<PolicyVersion[]> {
   return fetchData<PolicyVersion[]>(`/policies/${id}/versions`)
 }

@@ -12,9 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/form-field'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 export type PendingMarker = {
   x: number
   y: number
@@ -175,9 +175,9 @@ export function AddBodyMapRecordDialog({
             </label>
             <label className="block text-sm font-medium">
               Next review
-              <Input
+              <DateTimeInput
                 className="mt-1"
-                type="datetime-local"
+               
                 value={nextReviewAt}
                 onChange={e => setNextReviewAt(e.target.value)}
               />

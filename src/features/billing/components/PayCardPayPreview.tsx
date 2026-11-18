@@ -3,12 +3,12 @@ import { AlertTriangle, Calculator, Loader2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { CollapsibleCard } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { usePayPreview } from '@/features/billing/hooks/useWageTypes'
 import { serializePayCardRulesForApi } from '@/features/billing/utils/billing-card-payload.util'
 import type { PayCardRule, PayStackingPolicy } from '@/features/billing/types/billing-cards.types'
 import type { BankHolidayRegion, PayPreviewResult } from '@/features/billing/types/wage-types.types'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 type Props = {
   rules: PayCardRule[]
   stackingPolicy: PayStackingPolicy
@@ -65,15 +65,15 @@ export function PayCardPayPreview({ rules, stackingPolicy, bankHolidayRegion }: 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <label className="space-y-1 text-sm">
           <span className="text-xs font-medium text-foreground/90">Visit date</span>
-          <Input type="date" value={date} onChange={e => setDate(e.target.value)} data-testid="pay-preview-date" />
+          <DateInput value={date} onChange={e => setDate(e.target.value)} data-testid="pay-preview-date" />
         </label>
         <label className="space-y-1 text-sm">
           <span className="text-xs font-medium text-foreground/90">Start</span>
-          <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} data-testid="pay-preview-start" />
+          <TimeInput value={startTime} onChange={e => setStartTime(e.target.value)} data-testid="pay-preview-start" />
         </label>
         <label className="space-y-1 text-sm">
           <span className="text-xs font-medium text-foreground/90">End (earlier = next day)</span>
-          <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} data-testid="pay-preview-end" />
+          <TimeInput value={endTime} onChange={e => setEndTime(e.target.value)} data-testid="pay-preview-end" />
         </label>
         <label className="space-y-1 text-sm">
           <span className="text-xs font-medium text-foreground/90">Visit type</span>

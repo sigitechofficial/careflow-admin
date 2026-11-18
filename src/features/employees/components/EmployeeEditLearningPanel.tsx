@@ -12,6 +12,7 @@ import { LearningStatusBadge } from '@/features/learning/components/LearningStat
 import { LEARNING_PATHS } from '@/features/learning/learning-routes'
 import { useAuthStore } from '@/features/auth/store'
 
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 export function EmployeeEditLearningPanel({ employeeId }: { employeeId: string }) {
   const canRead = useAuthStore(s =>
     s.can('learning.compliance.read') || s.can('learning.assignments.read') || s.can('learning.certificates.read'),
@@ -141,7 +142,7 @@ export function EmployeeEditLearningPanel({ employeeId }: { employeeId: string }
                       <LearningStatusBadge status={row.status} size="sm" />
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {row.dueAt ? new Date(row.dueAt).toLocaleDateString() : '—'}
+                      {row.dueAt ? formatOrganisationDate(row.dueAt) : '—'}
                     </td>
                   </tr>
                 ))}
@@ -173,7 +174,7 @@ export function EmployeeEditLearningPanel({ employeeId }: { employeeId: string }
                   <tr key={row.id} className="border-t border-border">
                     <td className="px-3 py-2 font-mono text-xs">{row.courseId.slice(0, 8)}…</td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {new Date(row.issuedAt).toLocaleDateString()}
+                      {formatOrganisationDate(row.issuedAt)}
                     </td>
                     <td className="px-3 py-2">
                       <LearningStatusBadge status={row.status} size="sm" />

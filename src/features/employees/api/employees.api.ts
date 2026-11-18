@@ -65,6 +65,8 @@ export type EmployeeListRow = {
   location?: { id: string; name: string } | null
   baseLocationIds?: string[]
   accessAllZones?: boolean
+  /** False when the person has no branch at all yet (new starter, employment not filled in). */
+  branchAssigned?: boolean
   employmentEndDate?: string | Date | null
   leavingReason?: { id: string; name: string } | null
   onHolidayToday?: boolean

@@ -1,3 +1,4 @@
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 export type BillingCardStatus =
   | 'DRAFT'
   | 'PENDING_APPROVAL'
@@ -674,8 +675,7 @@ export function slugBillingCode(name: string): string {
 }
 
 export function formatBillingDate(value?: string | null): string {
-  if (!value) return '—'
-  return value.slice(0, 10)
+  return value ? String(formatOrganisationDay(value)) : '—'
 }
 
 export function formatPayCardAssignmentDisplay(card: Pick<

@@ -36,6 +36,7 @@ import {
 import { PAYER_TYPE_LABELS, money } from "@/features/crm/quote-labels";
 import { useServiceUser } from "@/features/service-users/hooks/useServiceUser";
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type ServiceUserDetailContact = NonNullable<
   ReturnType<typeof useServiceUser>["data"]
 >["contacts"][number];
@@ -55,13 +56,7 @@ const contactName = (c: ServiceUserDetailContact) =>
   [c.firstName, c.lastName].filter(Boolean).join(" ");
 
 const fmtDate = (iso: string | null | undefined) =>
-  iso
-    ? new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : null;
+  iso ? String(formatOrganisationDay(iso.slice(0, 10))) : null;
 
 type Check = {
   key: string;

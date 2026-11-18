@@ -9,6 +9,7 @@ import {
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 import type { PeepSnapshot } from '@/features/service-users/initial-assessment/utils/peep-snapshot'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   value: PeepSnapshot
   disabled?: boolean
@@ -142,9 +143,9 @@ export function InitialAssessmentPeepStandalonePanel({ value, disabled, onChange
               <Label htmlFor="peep-review-date" className={IA_QUESTION_LABEL_CLASS}>
                 PEEP review date
               </Label>
-              <Input
+              <DateInput
                 id="peep-review-date"
-                type="date"
+               
                 className="h-9 bg-background"
                 disabled={disabled}
                 value={value.peepReviewDate?.slice(0, 10) ?? ''}

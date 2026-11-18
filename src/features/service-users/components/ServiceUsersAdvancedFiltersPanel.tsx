@@ -54,6 +54,7 @@ import { useCareForms } from '@/features/care-pathway/hooks/useCarePathwayTabs'
 import { useAuthStore } from '@/features/auth/store'
 import type { ServiceUserLookupsBundle } from '@/features/service-users/types'
 
+import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 const SELECT_ANY = '__any__'
 
 const CARE_PLAN_OPTIONS: { value: CarePlanListStatus | 'any'; label: string }[] = [
@@ -555,8 +556,8 @@ export function ServiceUsersAdvancedFiltersPanel({
                   <FieldSection title="Service start date">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">From date</label>
-                      <Input
-                        type="date"
+                      <DateInput
+                       
                         disabled={disabled}
                         max={draft.serviceStartDateTo}
                         value={draft.serviceStartDateFrom ?? ''}
@@ -574,8 +575,8 @@ export function ServiceUsersAdvancedFiltersPanel({
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">To date</label>
-                      <Input
-                        type="date"
+                      <DateInput
+                       
                         disabled={disabled}
                         min={draft.serviceStartDateFrom}
                         value={draft.serviceStartDateTo ?? ''}
@@ -604,8 +605,8 @@ export function ServiceUsersAdvancedFiltersPanel({
                   <FieldSection title="Date & time of death">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">From</label>
-                      <Input
-                        type="datetime-local"
+                      <DateTimeInput
+                       
                         disabled={disabled}
                         max={toDateOfDeathInputValue(draft.dateOfDeathTo) || undefined}
                         value={toDateOfDeathInputValue(draft.dateOfDeathFrom)}
@@ -623,8 +624,8 @@ export function ServiceUsersAdvancedFiltersPanel({
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">To</label>
-                      <Input
-                        type="datetime-local"
+                      <DateTimeInput
+                       
                         disabled={disabled}
                         min={toDateOfDeathInputValue(draft.dateOfDeathFrom) || undefined}
                         value={toDateOfDeathInputValue(draft.dateOfDeathTo)}
@@ -818,8 +819,8 @@ export function ServiceUsersAdvancedFiltersPanel({
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">From date</label>
-                      <Input
-                        type="date"
+                      <DateInput
+                       
                         disabled={disabled}
                         max={draft.missedVisitsTo}
                         value={draft.missedVisitsFrom ?? ''}
@@ -834,8 +835,8 @@ export function ServiceUsersAdvancedFiltersPanel({
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">To date</label>
-                      <Input
-                        type="date"
+                      <DateInput
+                       
                         disabled={disabled}
                         min={draft.missedVisitsFrom}
                         value={draft.missedVisitsTo ?? ''}

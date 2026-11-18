@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { isoToOrgDatetimeLocal, nowOrgDatetimeLocal, orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 type Draft = {
   receivedAt: string
   callerType: OnCallCallerType
@@ -167,8 +168,8 @@ export function OnCallCallDialog({
           <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label required>Call received</Label>
-              <Input
-                type="datetime-local"
+              <DateTimeInput
+               
                 value={draft.receivedAt}
                 onChange={e => set('receivedAt', e.target.value)}
                 data-testid="on-call-call-received"

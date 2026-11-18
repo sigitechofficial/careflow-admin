@@ -15,6 +15,7 @@ import type { EnterpriseFunderRow } from '@/features/service-users/types'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { ChargeCardPicker } from '@/features/billing/components/ChargeCardPicker'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 /** Inline funding + charge-rate capture on the Add Service User page. Optional. */
 /**
  * Where the new person's rates come from:
@@ -116,9 +117,12 @@ export function AddServiceUserFundingSection({
     onChange({ ...value, [k]: v })
 
   const selectedFunder = funders.find((f) => f.id === value.funderId)
-  const routes = (useServiceUserLookups().data?.fundingTypes ?? [])
-    .filter((r) => selectedFunder?.fundingType?.id && r.billingFundingTypeId === selectedFunder.fundingType.id)
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const allRoutes = useServiceUserLookups().data?.fundingTypes ?? []
+  const ownRoutes = allRoutes.filter(
+    (r) => selectedFunder?.fundingType?.id && r.billingFundingTypeId === selectedFunder.fundingType.id,
+  )
+  // A funder type with no routes of its own (e.g. Private, Mixed, Family) is offered them all.
+  const routes = (ownRoutes.length ? ownRoutes : allRoutes).slice().sort((a, b) => a.name.localeCompare(b.name))
   const fundingTypeName = selectedFunder?.fundingType?.name ?? null
   const namePlaceholder = selectedFunder
     ? defaultChargeCardName(selectedFunder.name, suName)
@@ -205,8 +209,8 @@ export function AddServiceUserFundingSection({
           <div className="mb-1.5 text-sm font-medium text-slate-700 dark:text-muted-foreground">
             Rates effective from
           </div>
-          <Input
-            type="date"
+          <DateInput
+           
             value={value.effectiveFrom}
             onChange={(e) => set('effectiveFrom')(e.target.value)}
           />

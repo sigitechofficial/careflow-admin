@@ -83,7 +83,7 @@ const BRANCH_SCOPE_OPTIONS: { value: EmployeeBranchScopeKind; label: string }[] 
   { value: 'all-zones', label: 'All branches' },
   { value: 'single', label: 'Single branch' },
   { value: 'multiple', label: 'Multiple branches' },
-  { value: 'none', label: 'Not assigned' },
+  { value: 'none', label: 'Not assigned to a branch yet' },
 ]
 
 const FILTER_GROUPS: {

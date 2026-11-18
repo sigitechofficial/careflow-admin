@@ -19,6 +19,7 @@ import {
   SEIZURE_TRIGGERS,
 } from '@/features/service-users/observations/observation-seizure-catalog'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const SELECT_NONE = '__none__'
 
 type Props = {
@@ -221,8 +222,8 @@ export function ObservationSeizureChartForm({
       <div className="space-y-1.5 lg:col-span-2">
         <label className="text-sm font-medium">Date / Time</label>
         <div className="flex max-w-md">
-          <Input
-            type="datetime-local"
+          <DateTimeInput
+           
             value={recordedAtLocal}
             onChange={e => onRecordedAtChange(e.target.value)}
             className="rounded-r-none"

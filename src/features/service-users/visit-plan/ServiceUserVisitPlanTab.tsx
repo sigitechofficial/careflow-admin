@@ -130,6 +130,8 @@ import {
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 function VisitPlanCarePackageInfoIcon() {
   return (
     <TooltipProvider delayDuration={200}>
@@ -1437,6 +1439,21 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
             />
           ) : null}
 
+      <ContentCard className="space-y-2" data-testid="visit-plan-family-notes">
+        <FormField label="Notes for the person and family (optional)">
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g. Morning visits are a little later on Sundays so Mum can go to church."
+            aria-describedby="visit-plan-family-notes-help"
+          />
+        </FormField>
+        <p id="visit-plan-family-notes-help" className={contentHelperClass}>
+          Shown on the plan and in the person&apos;s portal, so their family can read it. Keep internal notes out of
+          here. Saved with the plan in the next step.
+        </p>
+      </ContentCard>
+
       <ContentCard
         className={cn(
           'space-y-4',
@@ -1471,9 +1488,6 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
           action={<VisitPlanSectionToggle open={saveStepOpen} onToggle={toggleSaveStep} label="save and amend" />}
         />
         <div hidden={!saveStepOpen} className="space-y-4">
-        <FormField label="Plan notes (optional)">
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </FormField>
         {workingPlan ? (
           <FormField
             label={
@@ -1624,11 +1638,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
           <div hidden={!regenerateOpen} className="space-y-4">
               <div className="flex flex-wrap items-end gap-3">
                 <FormField label="From" className="min-w-[10rem]">
-                  <Input type="date" value={generateFrom} onChange={(e) => setGenerateFrom(e.target.value)} />
+                  <DateInput value={generateFrom} onChange={(e) => setGenerateFrom(e.target.value)} />
                 </FormField>
                 <FormField label="To (optional)" className="min-w-[10rem]">
-                  <Input
-                    type="date"
+                  <DateInput
+                   
                     value={generateTo}
                     placeholder={`Next ${generateRotaHorizonLabel(rotaHorizonOptions)}`}
                     onChange={(e) => setGenerateTo(e.target.value)}
@@ -1754,7 +1768,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
             </p>
           ) : (
             <p className={contentHelperClass}>
-              Rota start: {rotaStartDate}. Will create: {backfillWindowStart} → {backfillWindowEnd} (up to{' '}
+              Rota start: {formatOrganisationDay(rotaStartDate)}. Will create: {formatOrganisationDay(backfillWindowStart)} → {formatOrganisationDay(backfillWindowEnd)} (up to{' '}
               {maxSlotBackfillDays} day{maxSlotBackfillDays === 1 ? '' : 's'} back).
             </p>
           )}

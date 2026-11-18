@@ -42,6 +42,7 @@ import {
 import { catalogueFeedsBodyMap } from '@/features/service-users/visit-tasks/visit-task-body-map.util'
 import type { TaskCatalogueGroup } from '@/features/service-users/visit-tasks/types'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 const GROUP_LABELS: Record<string, string> = {
   personal_care: 'Personal care',
   observations_monitoring: 'Observations & monitoring',
@@ -455,9 +456,9 @@ export function VisitTasksAddDialog({
                         <Clock className="h-3.5 w-3.5 text-primary" aria-hidden />
                         Due time
                       </label>
-                      <input
+                      <TimeInput
                         id={`add-due-time-${draft.taskId}`}
-                        type="time"
+                       
                         required
                         value={draft.dueTime}
                         onChange={(event) => updateReviewDueTime(draft.taskId, event.target.value)}

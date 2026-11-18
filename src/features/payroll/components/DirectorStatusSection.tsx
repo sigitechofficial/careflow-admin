@@ -3,8 +3,9 @@ import * as React from 'react'
 import { useUpsertEmployeePayrollProfile } from '@/features/payroll/hooks/usePayroll'
 import type { EmployeePayrollProfile } from '@/features/payroll/types/payroll.types'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type DirectorChoice = 'UNCLASSIFIED' | 'NOT_DIRECTOR' | 'DIRECTOR'
 
 type DirectorFields = Pick<EmployeePayrollProfile, 'isDirector' | 'directorAppointedOn' | 'directorNicMethod'>
@@ -16,7 +17,7 @@ const choiceFrom = (isDirector: boolean | null | undefined): DirectorChoice =>
 export function directorStatusLabel(profile: DirectorFields | null | undefined): string {
   if (profile?.isDirector == null) return 'Not yet classified'
   if (!profile.isDirector) return 'Not a director'
-  return profile.directorAppointedOn ? `Director since ${profile.directorAppointedOn}` : 'Director (no appointment date)'
+  return profile.directorAppointedOn ? `Director since ${formatOrganisationDay(profile.directorAppointedOn)}` : 'Director (no appointment date)'
 }
 
 /**
@@ -90,8 +91,8 @@ export function DirectorStatusSection({
         <div className="space-y-1">
           <label className="block space-y-1 text-sm">
             <span>Date appointed director</span>
-            <Input
-              type="date"
+            <DateInput
+             
               value={appointedOn}
               onChange={(e) => setAppointedOn(e.target.value)}
               aria-label="Date appointed director"

@@ -45,6 +45,7 @@ import { NAV_MODULES, moduleLandingPath } from '@/components/layout/nav-modules'
 import { ModuleIllustration } from '@/components/layout/NavIllustration'
 import { ModuleSnapshot, hasModuleDashboard } from '@/features/home/module-dashboards'
 
+import { formatOrganisationDay, formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 /*
  * Home overview: everything that needs attention, ordered by urgency rather than by module.
  *   1. Right now          live, refreshed every minute
@@ -278,7 +279,7 @@ function RowList({ children }: { children: React.ReactNode }) {
 }
 
 const dateLabel = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  String(formatOrganisationDay(iso))
 
 function upcomingItems(cat: UpcomingCategory | undefined): RowItem[] {
   return (cat?.items ?? []).map((i) => ({
@@ -481,7 +482,7 @@ function MedicationExceptionList({ locationId }: { locationId: string | null }) 
             </Link>
             <span className="text-xs text-muted-foreground">
               {m.medicationName} · <span className="font-medium text-rose-700 dark:text-rose-300">{STATUS[m.status] ?? m.status}</span>
-              {m.dueAt ? ` · ${new Date(m.dueAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
+              {m.dueAt ? ` · ${formatOrganisationTime(m.dueAt)}` : ''}
             </span>
           </li>
         ))}
@@ -725,7 +726,7 @@ function AppointmentsTodayRow({ locationId }: { locationId: string | null }) {
       items={items.map((a) => ({
         id: a.id,
         primary: a.serviceUserName,
-        secondary: `${a.type} · ${a.allDay ? 'all day' : new Date(a.start).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`,
+        secondary: `${a.type} · ${a.allDay ? 'all day' : formatOrganisationTime(a.start)}`,
         to: '/service-users/$serviceUserId/profile',
         params: { serviceUserId: a.serviceUserId },
       }))}

@@ -28,6 +28,7 @@ import {
   formatOpsHm,
 } from '@/shared/lib/operational-day.util'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 type Step = 'details' | 'reconcile' | 'countersign'
 
 /** Wall-clock datetime-local value in the organisation operational timezone. */
@@ -148,7 +149,7 @@ export function PackDeliveryDialog({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2">
                 <label className="text-sm font-medium">Date / time received *</label>
-                <Input type="datetime-local" value={receivedAt} onChange={e => setReceivedAt(e.target.value)} />
+                <DateTimeInput value={receivedAt} onChange={e => setReceivedAt(e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Delivered by</label>

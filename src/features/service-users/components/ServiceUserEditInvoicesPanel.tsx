@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type InvoiceCadence = 'WEEKLY' | 'MONTHLY'
 
 type InvoiceRunRow = NonNullable<
@@ -157,15 +158,7 @@ function TransactionStatusBadge({ status }: { status: DisplayPaymentStatus }) {
 }
 
 function formatDisplayDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso.includes('T') ? iso : `${iso}T00:00:00Z`)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
+  return iso ? String(formatOrganisationDay(iso)) : '—'
 }
 
 /** Placeholder avatar when the service user has no profile photo. */

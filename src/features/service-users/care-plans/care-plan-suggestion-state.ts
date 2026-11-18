@@ -4,6 +4,7 @@ import type {
   CarePlanFieldSuggestion,
 } from '@/features/service-users/care-plans/types'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 export type CarePlanDraftComposedFrom = Record<string, unknown> & {
   fieldProvenance?: Record<string, CarePlanFieldProvenance>
   ignoredSuggestionIds?: string[]
@@ -153,10 +154,7 @@ export function visibleFieldSuggestion(
 }
 
 export function formatSuggestionSourceDate(iso: string | null | undefined): string | null {
-  if (!iso) return null
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso.slice(0, 10)
-  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  return iso ? String(formatOrganisationDay(iso)) : null
 }
 
 export function displayCarePlanValue(value: string | boolean | null | undefined): string {

@@ -16,6 +16,7 @@ import {
   type AssessmentConsentMetadata,
 } from '@/features/service-users/assessments/utils/assessment-consent'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   assessmentTitle: string
   value: AssessmentConsentMetadata
@@ -140,9 +141,9 @@ export function AssessmentConsentCaptureSection({
           </FormField>
 
           <FormField label="Consent date" htmlFor="assessment-consent-date" required>
-            <Input
+            <DateInput
               id="assessment-consent-date"
-              type="date"
+             
               value={value.consentDate ?? ''}
               disabled={disabled}
               onChange={(e) => patch({ consentDate: e.target.value })}

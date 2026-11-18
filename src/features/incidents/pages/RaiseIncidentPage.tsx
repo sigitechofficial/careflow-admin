@@ -83,6 +83,7 @@ type PendingPhoto = {
 
 import { createClientUuid } from '@/shared/lib/create-client-uuid'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const INJURY_SEVERITY_BADGE: Record<IncidentInjurySeverity, 'info' | 'warning' | 'destructive'> = {
   MINOR: 'info',
   MODERATE: 'warning',
@@ -681,9 +682,9 @@ export default function RaiseIncidentPage() {
             )}
 
             <FormField label="When did it happen?" htmlFor="inc-when" required error={errors.occurredAt}>
-              <Input
+              <DateTimeInput
                 id="inc-when"
-                type="datetime-local"
+               
                 value={occurredAtLocal}
                 onChange={(e) => {
                   setOccurredAtLocal(e.target.value)

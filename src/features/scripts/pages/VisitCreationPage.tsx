@@ -2,7 +2,6 @@ import * as React from 'react'
 import { CalendarPlus, FlaskConical, Loader2, Play, Plus, Trash2, Users, Wand2 } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { MultiSelect } from '@/shared/ui/multi-select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -35,6 +34,8 @@ import {
 } from '@/features/scripts/components/VisitExtrasEditor'
 import type { CreateVisitsInput, RunMeta, VisitInput } from '@/features/scripts/create-visits.runner'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type Mode = RunMeta['mode']
 
 /** What Run will do, shown before anything is saved. */
@@ -133,7 +134,7 @@ export default function VisitCreationPage() {
               <dd className="text-foreground">
                 After the run you choose Generate rota or Not now. Generate rota covers{' '}
                 {rota.data
-                  ? `${rota.data.fromDate} → ${rota.data.toDate} (${rota.data.how})`
+                  ? `${formatOrganisationDay(rota.data.fromDate)} → ${formatOrganisationDay(rota.data.toDate)} (${rota.data.how})`
                   : rota.isError
                     ? 'today → the rota horizon (Settings → Dom Rules)'
                     : '…'}
@@ -667,11 +668,11 @@ function CustomSection({
                 </div>
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <span className="text-xs font-medium text-muted-foreground">Start</span>
-                  <Input type="time" aria-label={`Visit ${i + 1} start`} value={r.start} disabled={running} onChange={(e) => setRow(r.id, { start: e.target.value })} />
+                  <TimeInput aria-label={`Visit ${i + 1} start`} value={r.start} disabled={running} onChange={(e) => setRow(r.id, { start: e.target.value })} />
                 </div>
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <span className="text-xs font-medium text-muted-foreground">End</span>
-                  <Input type="time" aria-label={`Visit ${i + 1} end`} value={r.end} disabled={running} onChange={(e) => setRow(r.id, { end: e.target.value })} />
+                  <TimeInput aria-label={`Visit ${i + 1} end`} value={r.end} disabled={running} onChange={(e) => setRow(r.id, { end: e.target.value })} />
                 </div>
                 <div className="flex flex-col gap-1 md:col-span-4">
                   <span className="text-xs font-medium text-muted-foreground">Days</span>

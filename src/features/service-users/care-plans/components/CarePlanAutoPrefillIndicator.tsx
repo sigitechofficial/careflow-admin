@@ -14,7 +14,7 @@ export function CarePlanAutoPrefillIndicator({
   const provenance = readFieldProvenance(composedFrom)[fieldKey]
   if (!provenance?.autoPrefilled || provenance.userEdited) return null
 
-  const sourceDate = formatSuggestionSourceDate(provenance.sourceDate)
+  const sourceDateText = formatSuggestionSourceDate(provenance.sourceDate)
 
   return (
     <p
@@ -24,7 +24,7 @@ export function CarePlanAutoPrefillIndicator({
       <ClipboardCheck className="h-3.5 w-3.5 shrink-0 text-[#0f766e]" aria-hidden />
       <span>
         Prefilled from Initial Assessment
-        {sourceDate ? ` · ${sourceDate}` : null}
+        {sourceDateText ? ` · ${sourceDateText}` : null}
       </span>
     </p>
   )

@@ -19,8 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import { Input } from '@/shared/ui/input'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 export const FEEDBACK_ACTION_LABEL: Record<FeedbackAction, string> = {
   ACKNOWLEDGE: 'Acknowledge',
   START_INVESTIGATION: 'Start investigation',
@@ -106,7 +106,7 @@ export function FeedbackActionDialog({
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           {DATED.includes(action) ? (
             <FeedbackField label="Date & time">
-              <Input type="datetime-local" value={at} onChange={e => setAt(e.target.value)} />
+              <DateTimeInput value={at} onChange={e => setAt(e.target.value)} />
             </FeedbackField>
           ) : null}
           {needsOutcome ? (

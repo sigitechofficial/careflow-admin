@@ -19,6 +19,7 @@ import type {
   ServiceUserInvoiceMonthRow,
 } from '@/features/billing/types/service-user-invoices.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const PAYMENT_TYPES: { value: PaymentType; label: string }[] = [
   { value: 'BANK_TRANSFER', label: 'Bank transfer' },
   { value: 'COUNCIL_REMITTANCE', label: 'Council remittance' },
@@ -276,9 +277,9 @@ export function RecordFunderPaymentDialog({
             </div>
             <div className="space-y-1">
               <Label htmlFor="pay-date">Received date</Label>
-              <Input
+              <DateInput
                 id="pay-date"
-                type="date"
+               
                 value={receivedDate}
                 onChange={(e) => setReceivedDate(e.target.value)}
               />

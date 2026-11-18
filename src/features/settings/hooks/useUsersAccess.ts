@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createOfficeUser,
   fetchOfficeUsers,
+  sendOfficeUserInvite,
   setOfficeUserLocations,
   setOfficeUserRoles,
   updateOfficeUser,
@@ -13,6 +14,7 @@ import {
 import { settingsKeys } from '@/features/settings/keys'
 import { apiErrorMessage } from '@/shared/lib/api-error-message'
 import { useToastStore } from '@/store/toast.store'
+import { backendForgotPassword } from '@/features/auth/api'
 
 export function useOfficeUsers(enabled = true) {
   return useQuery({
@@ -38,7 +40,15 @@ export function useCreateOfficeUser() {
       if (locationIds.length > 0) {
         await setOfficeUserLocations(created.id, locationIds)
       }
-      return { id: created.id, roleNames, locationIds }
+      // Roles and branches first, so the welcome email shows their access. Nobody types a password.
+      let invited: string | null = null
+      let inviteError: string | null = null
+      try {
+        invited = await sendOfficeUserInvite(created.id, { passwordGiven: Boolean(profile.password) })
+      } catch (err) {
+        inviteError = apiErrorMessage(err)
+      }
+      return { id: created.id, roleNames, locationIds, invited, inviteError }
     },
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: settingsKeys.officeUsers() })
@@ -47,11 +57,12 @@ export function useCreateOfficeUser() {
         && !data.roleNames.some(r => COMPANY_WIDE_ROLE_NAMES.has(r))
         && data.locationIds.length === 0
       useToastStore.getState().push({
-        title: 'Office user created',
-        description: needsBranch
-          ? 'Assign at least one branch for this branch-scoped role.'
-          : undefined,
-        variant: needsBranch ? 'warning' : 'success',
+        title: 'Office user added',
+        description: [
+          data.invited ?? `The welcome email didn’t go (${data.inviteError}). Use “Send the link again”.`,
+          needsBranch ? 'Assign at least one branch for this branch-scoped role.' : null,
+        ].filter(Boolean).join(' '),
+        variant: needsBranch || data.inviteError ? 'warning' : 'success',
       })
     },
     onError: (err) => {
@@ -73,7 +84,10 @@ export function useUpdateOfficeUser() {
       void qc.invalidateQueries({ queryKey: settingsKeys.officeUsers() })
       useToastStore.getState().push({
         title: 'Office user updated',
-        description: vars.password ? 'The new password works from their next sign-in.' : undefined,
+        description: [
+          vars.email ? 'They sign in with the new email from now on.' : null,
+          vars.password ? 'New password set. Give it to them yourself: it isn’t emailed.' : null,
+        ].filter(Boolean).join(' ') || undefined,
         variant: 'success',
       })
     },
@@ -83,6 +97,26 @@ export function useUpdateOfficeUser() {
         description: apiErrorMessage(err),
         variant: 'destructive',
       })
+    },
+  })
+}
+
+/** "Send the link again": the welcome email while they haven't chosen a password, else a reset link. */
+export function useSendOfficeUserLink() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (user: { id: string; email: string; invitePending?: boolean; name: string }) => {
+      if (user.invitePending) return sendOfficeUserInvite(user.id)
+      // The public "Forgot password" flow: same link, same 60 minutes, and their current password keeps working.
+      await backendForgotPassword(user.email)
+      return `We’ve emailed ${user.name} a link to choose a new password. It works for 60 minutes.`
+    },
+    onSuccess: (message) => {
+      void qc.invalidateQueries({ queryKey: settingsKeys.officeUsers() })
+      useToastStore.getState().push({ title: 'Link sent', description: message, variant: 'success' })
+    },
+    onError: (err) => {
+      useToastStore.getState().push({ title: 'Link not sent', description: apiErrorMessage(err), variant: 'destructive' })
     },
   })
 }

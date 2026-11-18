@@ -36,6 +36,7 @@ import {
   formatOpsHm,
 } from '@/shared/lib/operational-day.util'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 function formatWhen(iso: string): string {
   return formatOpsDateTimeNumeric(iso)
 }
@@ -156,8 +157,8 @@ export function EcmManualAttendanceDialog({
           </label>
           <label className="block space-y-1 text-xs">
             <span className="text-muted-foreground">Occurred at (org timezone)</span>
-            <Input
-              type="datetime-local"
+            <DateTimeInput
+             
               value={occurredAt}
               onChange={e => setOccurredAt(e.target.value)}
             />

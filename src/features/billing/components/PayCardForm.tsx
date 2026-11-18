@@ -41,6 +41,7 @@ import { serializePayCardRulesForApi, normalizePayCardRulesForEditor } from '@/f
 import { validatePayCardRules } from '@/features/billing/utils/billing-card-rule.util'
 import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type PayCardFormProps = {
   card?: PayCard | null
   /** Called after a successful save. */
@@ -523,8 +524,8 @@ export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProp
             <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />} required>
               Starts from
             </FieldLabel>
-            <Input
-              type="date"
+            <DateInput
+             
               value={form.effectiveFrom}
               onChange={e => patch({ effectiveFrom: e.target.value })}
               disabled={saving}
@@ -569,8 +570,8 @@ export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProp
             <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />} required>
               Ends on
             </FieldLabel>
-            <Input
-              type="date"
+            <DateInput
+             
               value={form.effectiveTo ?? ''}
               onChange={e => patch({ effectiveTo: e.target.value })}
               disabled={saving}
@@ -628,8 +629,8 @@ export function PayCardForm({ card, onSaved, onCancel, formId }: PayCardFormProp
                 <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />} required>
                   New rates apply from
                 </FieldLabel>
-                <Input
-                  type="date"
+                <DateInput
+                 
                   value={versionEffectiveFrom}
                   onChange={e => setVersionEffectiveFrom(e.target.value)}
                   disabled={saving}

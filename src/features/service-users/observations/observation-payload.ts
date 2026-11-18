@@ -40,6 +40,7 @@ import {
   parseAlignCsv,
 } from '@/features/service-users/observations/observation-align-catalog'
 
+import { formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 export type InfectionPayload = {
   infectionType: string
   infectionCleared?: boolean
@@ -683,11 +684,7 @@ function formatDmyLocal(iso: string): string {
 }
 
 function formatTimeLocal(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  const hh = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  return `${hh}:${min}`
+  return formatOrganisationTime(iso)
 }
 
 /** Daily fluid balance (ml in − ml out) for records on the given calendar day. */
