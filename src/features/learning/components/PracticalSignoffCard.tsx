@@ -2,6 +2,7 @@ import * as React from 'react'
 import { CheckCircle2, ClipboardCheck, XCircle } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 import { FormField, Textarea } from '@/shared/ui/form-field'
 import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -109,7 +110,7 @@ export function PracticalSignoffCard({ r, onChanged }: { r: LearningAssignmentRe
           <div className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <FormField label="Date you watched the carer" required>
-                <Input type="date" value={date} max={todayKey()} onChange={e => setDate(e.target.value)} />
+                <DateInput value={date} max={todayKey()} onChange={e => setDate(e.target.value)} />
               </FormField>
               <FormField label="Where / how (optional)">
                 <Input
@@ -214,7 +215,7 @@ export function PracticalSignoffCard({ r, onChanged }: { r: LearningAssignmentRe
                 </label>
                 {giveAgain ? (
                   <FormField label="New due date" required>
-                    <Input type="datetime-local" value={againDue} onChange={e => setAgainDue(e.target.value)} />
+                    <DateTimeInput value={againDue} onChange={e => setAgainDue(e.target.value)} />
                   </FormField>
                 ) : null}
               </div>
