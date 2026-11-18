@@ -123,7 +123,7 @@ describe('ResetPasswordPage', () => {
 
     await userEvent.type(screen.getByLabelText('New password'), 'Password123')
     await userEvent.type(screen.getByLabelText('Confirm new password'), 'Password124')
-    await userEvent.click(screen.getByRole('button', { name: 'Reset password' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save password' }))
 
     expect(screen.getByTestId('reset-error')).toHaveTextContent('Passwords do not match.')
     expect(fetchMock).not.toHaveBeenCalled()
@@ -135,7 +135,7 @@ describe('ResetPasswordPage', () => {
 
     await userEvent.type(screen.getByLabelText('New password'), 'short')
     await userEvent.type(screen.getByLabelText('Confirm new password'), 'short')
-    await userEvent.click(screen.getByRole('button', { name: 'Reset password' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save password' }))
 
     expect(screen.getByTestId('reset-error')).toHaveTextContent('Password must be at least 8 characters.')
     expect(fetchMock).not.toHaveBeenCalled()
@@ -150,7 +150,7 @@ describe('ResetPasswordPage', () => {
 
     await userEvent.type(screen.getByLabelText('New password'), 'Password123')
     await userEvent.type(screen.getByLabelText('Confirm new password'), 'Password123')
-    await userEvent.click(screen.getByRole('button', { name: 'Reset password' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save password' }))
 
     expect(await screen.findByTestId('reset-error')).toHaveTextContent('This reset link is invalid or has expired.')
     expect(screen.getByRole('link', { name: 'Request a new reset link' })).toBeInTheDocument()
@@ -163,10 +163,10 @@ describe('ResetPasswordPage', () => {
 
     await userEvent.type(screen.getByLabelText('New password'), 'Password123')
     await userEvent.type(screen.getByLabelText('Confirm new password'), 'Password123')
-    await userEvent.click(screen.getByRole('button', { name: 'Reset password' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save password' }))
 
     expect(await screen.findByTestId('reset-success')).toHaveTextContent(
-      'Your password has been reset. You can now sign in.',
+      'Your password is set. You can now sign in.',
     )
     expect(screen.getByRole('link', { name: 'Go to sign in' })).toHaveAttribute('href', '/auth/login')
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
@@ -176,5 +176,37 @@ describe('ResetPasswordPage', () => {
       newPassword: 'Password123',
     })
     expect(url).not.toContain('Password123')
+  })
+
+  it('says one password works for both when the link covered the website and the Care app', async () => {
+    routerState.searchStr = '?token=abc'
+    fetchMock.mockResolvedValue(jsonResponse(200, { success: true, message: 'OK', data: { accounts: ['website', 'app'] } }))
+    render(withQuery(<ResetPasswordPage />))
+
+    await userEvent.type(screen.getByLabelText('New password'), 'Password123')
+    await userEvent.type(screen.getByLabelText('Confirm new password'), 'Password123')
+    await userEvent.click(screen.getByRole('button', { name: 'Save password' }))
+
+    expect(await screen.findByTestId('reset-success')).toHaveTextContent(
+      'Your password is set. Use it to sign in to CareFlow and the Care app.',
+    )
+    expect(screen.getByRole('link', { name: 'Go to sign in' })).toBeInTheDocument()
+  })
+
+  it('Care app page: sends carers to the app, and to the app for a new link', async () => {
+    routerState.searchStr = '?token=abc'
+    fetchMock.mockResolvedValue(jsonResponse(200, { success: true, message: 'OK', data: { accounts: ['app'] } }))
+    render(withQuery(<ResetPasswordPage variant="app" />))
+
+    expect(screen.getByRole('heading', { name: 'Choose your Care app password' })).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('New password'), 'Password123')
+    await userEvent.type(screen.getByLabelText('Confirm new password'), 'Password123')
+    await userEvent.click(screen.getByRole('button', { name: 'Save password' }))
+
+    expect(await screen.findByTestId('reset-success')).toHaveTextContent(
+      'Your password is set. Open the Care app and sign in with your email and this password.',
+    )
+    expect(screen.getByRole('link', { name: 'Open the Care app' })).toHaveAttribute('href', '/get-app')
+    expect(screen.queryByRole('link', { name: 'Go to sign in' })).toBeNull()
   })
 })

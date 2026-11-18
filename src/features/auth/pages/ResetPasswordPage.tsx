@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { useResetPassword } from '@/features/auth/hooks/usePasswordReset'
+import type { PasswordSetFor } from '@/features/auth/api'
 import { useAuthStore } from '@/features/auth/store'
 import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
@@ -9,11 +10,24 @@ import { Button } from '@/shared/ui/button'
 const INVALID_LINK_MESSAGE = 'This reset link is invalid or has expired.'
 const TOO_MANY_REQUESTS_MESSAGE = 'Too many requests. Please wait a few minutes and try again.'
 const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.'
-const SUCCESS_MESSAGE = 'Your password has been reset. You can now sign in.'
 /** Same rule as change-password / the API's MinLength(8). */
 const MIN_PASSWORD_LENGTH = 8
 
-export default function ResetPasswordPage() {
+/** What the person can do now, by which sign-ins the link covered. */
+export function passwordSetMessage(accounts: PasswordSetFor): string {
+  const website = accounts.includes('website')
+  const app = accounts.includes('app')
+  if (website && app) return 'Your password is set. Use it to sign in to CareFlow and the Care app.'
+  if (app) return 'Your password is set. Open the Care app and sign in with your email and this password.'
+  return 'Your password is set. You can now sign in.'
+}
+
+/**
+ * Choosing a password from an emailed link: a welcome email's "Choose my password" or a reset. One page for the
+ * website (/auth/reset-password) and the Care app (/app/set-password, variant "app"); the API sets every sign-in
+ * the link covers, so someone with both gets one password for both.
+ */
+export default function ResetPasswordPage({ variant = 'website' }: { variant?: 'website' | 'app' }) {
   const resetPasswordDemo = useAuthStore(s => s.resetPassword)
   const resetPassword = useResetPassword()
   const apiUrl = getApiBaseUrl()
@@ -25,7 +39,8 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = React.useState('')
   const [confirm, setConfirm] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
-  const [done, setDone] = React.useState(false)
+  const [done, setDone] = React.useState<PasswordSetFor | null>(null)
+  const isApp = variant === 'app'
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,14 +60,14 @@ export default function ResetPasswordPage() {
         setError(r.error ?? GENERIC_ERROR_MESSAGE)
         return
       }
-      setDone(true)
+      setDone(['website'])
       return
     }
     try {
-      await resetPassword.mutateAsync({ token, newPassword: password })
+      const accounts = await resetPassword.mutateAsync({ token, newPassword: password })
       setPassword('')
       setConfirm('')
-      setDone(true)
+      setDone(accounts)
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) setError(err.message || INVALID_LINK_MESSAGE)
       else if (err instanceof ApiError && err.status === 429) setError(TOO_MANY_REQUESTS_MESSAGE)
@@ -60,7 +75,11 @@ export default function ResetPasswordPage() {
     }
   }
 
-  const requestNewLink = (
+  const requestNewLink = isApp ? (
+    <span className="text-muted-foreground">
+      Get a new link from the Care app: tap <strong className="text-foreground">Forgot password</strong>.
+    </span>
+  ) : (
     <Link to="/auth/forgot-password" className="text-primary hover:underline">
       Request a new reset link
     </Link>
@@ -77,26 +96,33 @@ export default function ResetPasswordPage() {
       </div>
     )
   } else if (done) {
+    const appOnly = done.includes('app') && !done.includes('website')
     content = (
       <div className="mt-4 space-y-4">
         <p role="status" data-testid="reset-success" className="text-sm text-foreground">
-          {SUCCESS_MESSAGE}
+          {passwordSetMessage(done)}
         </p>
         {!apiUrl ? (
           <p className="text-xs text-muted-foreground">
             Demo mode: no password was changed. Set VITE_API_BASE_URL to reset passwords through the CareAdmin API.
           </p>
         ) : null}
-        <Button className="w-full" asChild data-testid="reset-go-to-login">
-          <Link to="/auth/login">Go to sign in</Link>
-        </Button>
+        {appOnly ? (
+          <Button className="w-full" asChild data-testid="reset-get-app">
+            <a href="/get-app">Open the Care app</a>
+          </Button>
+        ) : (
+          <Button className="w-full" asChild data-testid="reset-go-to-login">
+            <Link to="/auth/login">Go to sign in</Link>
+          </Button>
+        )}
       </div>
     )
   } else {
     content = (
       <>
         <p className="mt-1 text-sm text-muted-foreground">
-          Choose a new password of at least {MIN_PASSWORD_LENGTH} characters.
+          Choose a password of at least {MIN_PASSWORD_LENGTH} characters. Only you will know it.
         </p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div className="space-y-1.5">
@@ -138,7 +164,7 @@ export default function ResetPasswordPage() {
             </div>
           )}
           <Button type="submit" className="w-full" disabled={resetPassword.isPending} data-testid="reset-submit">
-            {resetPassword.isPending ? 'Resetting…' : 'Reset password'}
+            {resetPassword.isPending ? 'Saving…' : 'Save password'}
           </Button>
         </form>
       </>
@@ -147,12 +173,18 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm">
-      <h1 className="text-lg font-semibold text-foreground">Reset password</h1>
+      <h1 className="text-lg font-semibold text-foreground">{isApp ? 'Choose your Care app password' : 'Choose your password'}</h1>
       {content}
       <p className="mt-6 text-center text-sm">
-        <Link to="/auth/login" className="text-primary hover:underline">
-          Back to sign in
-        </Link>
+        {isApp ? (
+          <a href="/get-app" className="text-primary hover:underline">
+            Get the Care app
+          </a>
+        ) : (
+          <Link to="/auth/login" className="text-primary hover:underline">
+            Back to sign in
+          </Link>
+        )}
       </p>
     </div>
   )

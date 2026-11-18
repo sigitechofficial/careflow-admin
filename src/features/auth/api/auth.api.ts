@@ -249,9 +249,29 @@ export async function backendForgotPassword(email: string): Promise<void> {
   await postPublicAuth('/auth/forgot-password', { email: email.trim() })
 }
 
-/** Public POST /auth/reset-password with the one-time token from the emailed link. */
-export async function backendResetPassword(token: string, newPassword: string): Promise<void> {
-  await postPublicAuth('/auth/reset-password', { token, newPassword })
+/** Which sign-ins a set-password link covered: the office website, the Care app, or both (one password). */
+export type PasswordSetFor = Array<'website' | 'app'>
+
+/**
+ * Public POST /auth/reset-password with the one-time token from the emailed link (a reset, or a welcome email's
+ * "Choose my password"). Returns which sign-ins now use the new password.
+ */
+export async function backendResetPassword(token: string, newPassword: string): Promise<PasswordSetFor> {
+  const base = getApiBaseUrl()
+  if (!base) throw new Error('VITE_API_BASE_URL is not set')
+  const res = await fetchWithResilience(
+    `${base}/auth/reset-password`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ token, newPassword }),
+    },
+    { retry: { maxRetries: 0 } },
+  )
+  const body: unknown = await readJsonResponse(res)
+  if (!res.ok) throw new ApiError(formatApiErrorMessage(body, res.statusText || 'Request failed'), res.status, body)
+  const accounts = (body as { data?: { accounts?: unknown } } | null)?.data?.accounts
+  return Array.isArray(accounts) ? accounts.filter((a): a is 'website' | 'app' => a === 'website' || a === 'app') : ['website']
 }
 
 /** PATCH /auth/me */
