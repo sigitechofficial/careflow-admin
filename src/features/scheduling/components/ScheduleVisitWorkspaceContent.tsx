@@ -3,6 +3,7 @@ import { isSyncedLate } from '@/shared/lib/synced-late'
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { VisitPreviousNotesSection } from '@/features/scheduling/components/VisitPreviousNotesSection'
 import {
   CheckCircle2,
   CheckSquare,
@@ -808,6 +809,8 @@ export function ScheduleVisitWorkspaceContent({
             </div>
             ) : null}
           </section>
+
+          <VisitPreviousNotesSection jobId={job.id} className={cardSurface} />
 
           <VisitCareConsentSection
             jobId={job.id}
