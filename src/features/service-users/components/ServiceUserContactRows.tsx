@@ -140,6 +140,14 @@ export function formatContactAddress(a: ContactAddress): string {
     .join(', ')
 }
 
+/** The address as people read it (no map coordinates). */
+export function displayContactAddress(a: ContactAddress): string {
+  return [a.addressLine1, a.addressLine2, a.town, a.postcode, a.county, a.country]
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .join(', ')
+}
+
 function mapsHref(a: ContactAddress): string {
   const lat = a.latitude.trim()
   const lng = a.longitude.trim()
@@ -149,8 +157,10 @@ function mapsHref(a: ContactAddress): string {
 
 /* ------------------------------------------------------------------ */
 
-const ROW_LABEL = 'w-36 shrink-0 text-sm font-semibold text-foreground'
-const INLINE_LABEL = 'w-28 shrink-0 text-sm text-muted-foreground'
+const ROW_LABEL = 'text-sm font-semibold text-foreground'
+const FIELD_LABEL = 'mb-1 block text-xs font-medium text-muted-foreground'
+/** Number or email · type · order to try · remove: the same columns on every row. */
+const ROW_GRID = 'grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(12rem,1fr)_13rem_10rem_2rem]'
 
 function IconButton({
   label,
@@ -176,29 +186,27 @@ function IconButton({
   )
 }
 
-function RowActions({
-  canDelete,
-  canAdd,
-  onDelete,
-  onAdd,
-  what,
-}: {
-  canDelete: boolean
-  canAdd: boolean
-  onDelete: () => void
-  onAdd: () => void
-  what: string
-}) {
+/** "+ Add phone number" under a list, instead of a floating icon. */
+function AddRowLink({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <div className="flex w-20 shrink-0 items-center justify-end gap-1">
-      {canDelete ? (
-        <IconButton label={`Remove ${what}`} onClick={onDelete} className="text-red-400">
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+    >
+      <PlusCircle className="h-4 w-4" aria-hidden />
+      {label}
+    </button>
+  )
+}
+
+/** Remove button in its own column (an empty cell keeps the columns lined up when there is nothing to remove). */
+function RemoveCell({ show, label, onRemove }: { show: boolean; label: string; onRemove: () => void }) {
+  return (
+    <div className="flex h-10 items-center justify-end">
+      {show ? (
+        <IconButton label={label} onClick={onRemove} className="text-red-400">
           <Trash2 className="h-4 w-4" />
-        </IconButton>
-      ) : null}
-      {canAdd ? (
-        <IconButton label={`Add ${what}`} onClick={onAdd} className="text-primary">
-          <PlusCircle className="h-5 w-5" />
         </IconButton>
       ) : null}
     </div>
@@ -210,16 +218,18 @@ function TypeSelect({
   onChange,
   options,
   placeholder,
+  ariaLabel,
 }: {
   value: string
   onChange: (v: string) => void
   options: string[]
   placeholder: string
+  ariaLabel: string
 }) {
   const opts = value && !options.includes(value) ? [value, ...options] : options
   return (
     <Select value={value || '__none__'} onValueChange={(v) => onChange(v === '__none__' ? '' : v)}>
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="w-full" aria-label={ariaLabel}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
@@ -234,14 +244,30 @@ function TypeSelect({
   )
 }
 
-function PreferenceBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+const ORDER_LABEL: Record<string, string> = { '1': '1st choice', '2': '2nd choice', '3': '3rd choice', '4': '4th choice' }
+
+/** Which to try first when contacting them (stored as "1", "2"…; an older free-text note still shows and is kept). */
+function OrderSelect({ value, onChange, ariaLabel }: { value: string; onChange: (v: string) => void; ariaLabel: string }) {
+  const known = Object.keys(ORDER_LABEL)
+  const opts = value && !known.includes(value) ? [value, ...known] : known
   return (
-    <label className="flex shrink-0 items-center gap-3 text-sm text-muted-foreground">
-      Preference
-      <Input className="w-20" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Preference" />
-    </label>
+    <Select value={value || '__none__'} onValueChange={(v) => onChange(v === '__none__' ? '' : v)}>
+      <SelectTrigger className="w-full" aria-label={ariaLabel}>
+        <SelectValue placeholder="Not set" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none__">Not set</SelectItem>
+        {opts.map((o) => (
+          <SelectItem key={o} value={o}>
+            {ORDER_LABEL[o] ?? o}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
+
+const ORDER_HINT = 'Which to try first when contacting them.'
 
 export function ContactPhoneRows({
   rows,
@@ -254,38 +280,51 @@ export function ContactPhoneRows({
   const patch = (i: number, p: Partial<ContactPhoneRow>) =>
     onChange(list.map((r, idx) => (idx === i ? { ...r, ...p } : r)))
   return (
-    <div className="space-y-3">
+    <fieldset className="space-y-2">
+      <legend className={cn(ROW_LABEL, 'mb-2')}>Phone numbers</legend>
       {list.map((row, i) => (
-        <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className={ROW_LABEL}>Phone Number</span>
-          <Input
-            className="min-w-[12rem] flex-1"
-            value={row.number}
-            onChange={(e) => patch(i, { number: e.target.value })}
-            data-testid={i === 0 ? 'service-user-phone' : undefined}
-          />
-          <div className="flex items-center gap-3">
-            <span className={INLINE_LABEL}>Phone Type</span>
-            <div className="w-56">
-              <TypeSelect
-                value={row.type}
-                onChange={(type) => patch(i, { type })}
-                options={CONTACT_PHONE_TYPE_OPTIONS}
-                placeholder="Please select phone type."
-              />
-            </div>
+        <div key={i} className={ROW_GRID}>
+          <div>
+            {i === 0 ? <span className={FIELD_LABEL}>Number</span> : null}
+            <Input
+              value={row.number}
+              onChange={(e) => patch(i, { number: e.target.value })}
+              aria-label={`Phone number ${i + 1}`}
+              inputMode="tel"
+              data-testid={i === 0 ? 'service-user-phone' : undefined}
+            />
           </div>
-          <PreferenceBox value={row.preference} onChange={(preference) => patch(i, { preference })} />
-          <RowActions
-            what="phone number"
-            canDelete={i > 0}
-            canAdd={i === list.length - 1}
-            onDelete={() => onChange(list.filter((_, idx) => idx !== i))}
-            onAdd={() => onChange([...list, emptyPhoneRow()])}
+          <div>
+            {i === 0 ? <span className={FIELD_LABEL}>Type</span> : null}
+            <TypeSelect
+              value={row.type}
+              onChange={(type) => patch(i, { type })}
+              options={CONTACT_PHONE_TYPE_OPTIONS}
+              placeholder="Choose a type"
+              ariaLabel={`Phone type ${i + 1}`}
+            />
+          </div>
+          <div>
+            {i === 0 ? (
+              <span className={FIELD_LABEL} title={ORDER_HINT}>
+                Order to try
+              </span>
+            ) : null}
+            <OrderSelect
+              value={row.preference}
+              onChange={(preference) => patch(i, { preference })}
+              ariaLabel={`Order to try phone ${i + 1}`}
+            />
+          </div>
+          <RemoveCell
+            show={list.length > 1}
+            label="Remove phone number"
+            onRemove={() => onChange(list.filter((_, idx) => idx !== i))}
           />
         </div>
       ))}
-    </div>
+      <AddRowLink label="Add phone number" onClick={() => onChange([...list, emptyPhoneRow()])} />
+    </fieldset>
   )
 }
 
@@ -300,39 +339,51 @@ export function ContactEmailRows({
   const patch = (i: number, p: Partial<ContactEmailRow>) =>
     onChange(list.map((r, idx) => (idx === i ? { ...r, ...p } : r)))
   return (
-    <div className="space-y-3">
+    <fieldset className="space-y-2">
+      <legend className={cn(ROW_LABEL, 'mb-2')}>Email addresses</legend>
       {list.map((row, i) => (
-        <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className={ROW_LABEL}>Email</span>
-          <Input
-            className="min-w-[12rem] flex-1"
-            type="email"
-            value={row.email}
-            onChange={(e) => patch(i, { email: e.target.value })}
-            data-testid={i === 0 ? 'service-user-email' : undefined}
-          />
-          <div className="flex items-center gap-3">
-            <span className={INLINE_LABEL}>Email Type</span>
-            <div className="w-56">
-              <TypeSelect
-                value={row.type}
-                onChange={(type) => patch(i, { type })}
-                options={CONTACT_EMAIL_TYPE_OPTIONS}
-                placeholder="Please select email type."
-              />
-            </div>
+        <div key={i} className={ROW_GRID}>
+          <div>
+            {i === 0 ? <span className={FIELD_LABEL}>Email</span> : null}
+            <Input
+              type="email"
+              value={row.email}
+              onChange={(e) => patch(i, { email: e.target.value })}
+              aria-label={`Email ${i + 1}`}
+              data-testid={i === 0 ? 'service-user-email' : undefined}
+            />
           </div>
-          <PreferenceBox value={row.preference} onChange={(preference) => patch(i, { preference })} />
-          <RowActions
-            what="email"
-            canDelete={i > 0}
-            canAdd={i === list.length - 1}
-            onDelete={() => onChange(list.filter((_, idx) => idx !== i))}
-            onAdd={() => onChange([...list, emptyEmailRow()])}
+          <div>
+            {i === 0 ? <span className={FIELD_LABEL}>Type</span> : null}
+            <TypeSelect
+              value={row.type}
+              onChange={(type) => patch(i, { type })}
+              options={CONTACT_EMAIL_TYPE_OPTIONS}
+              placeholder="Choose a type"
+              ariaLabel={`Email type ${i + 1}`}
+            />
+          </div>
+          <div>
+            {i === 0 ? (
+              <span className={FIELD_LABEL} title={ORDER_HINT}>
+                Order to try
+              </span>
+            ) : null}
+            <OrderSelect
+              value={row.preference}
+              onChange={(preference) => patch(i, { preference })}
+              ariaLabel={`Order to try email ${i + 1}`}
+            />
+          </div>
+          <RemoveCell
+            show={list.length > 1}
+            label="Remove email"
+            onRemove={() => onChange(list.filter((_, idx) => idx !== i))}
           />
         </div>
       ))}
-    </div>
+      <AddRowLink label="Add email" onClick={() => onChange([...list, emptyEmailRow()])} />
+    </fieldset>
   )
 }
 
@@ -345,26 +396,25 @@ export function ContactOtherMethodRows({
 }) {
   const list = rows.length ? rows : ['']
   return (
-    <div className="space-y-3">
+    <fieldset className="space-y-2">
+      <legend className={cn(ROW_LABEL, 'mb-2')}>Other ways to contact them</legend>
       {list.map((row, i) => (
-        <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className={ROW_LABEL}>Other Contact Method</span>
+        <div key={i} className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(12rem,1fr)_2rem]">
           <Input
-            className="min-w-[12rem] max-w-xl flex-1"
             value={row}
             onChange={(e) => onChange(list.map((r, idx) => (idx === i ? e.target.value : r)))}
             placeholder="e.g. WhatsApp, relay service, via family member"
+            aria-label={`Other contact method ${i + 1}`}
           />
-          <RowActions
-            what="contact method"
-            canDelete={i > 0}
-            canAdd={i === list.length - 1}
-            onDelete={() => onChange(list.filter((_, idx) => idx !== i))}
-            onAdd={() => onChange([...list, ''])}
+          <RemoveCell
+            show={list.length > 1}
+            label="Remove contact method"
+            onRemove={() => onChange(list.filter((_, idx) => idx !== i))}
           />
         </div>
       ))}
-    </div>
+      <AddRowLink label="Add another way" onClick={() => onChange([...list, ''])} />
+    </fieldset>
   )
 }
 
@@ -372,18 +422,16 @@ function AddressSummary({
   address,
   onEdit,
   onDelete,
-  onAdd,
   editHint,
 }: {
   address: ContactAddress
   onEdit?: () => void
   onDelete?: () => void
-  onAdd?: () => void
   editHint?: string
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <p className="min-w-0 flex-1 text-sm text-foreground">{formatContactAddress(address)}</p>
+      <p className="min-w-0 flex-1 text-sm text-foreground">{displayContactAddress(address)}</p>
       <div className="flex items-center gap-1">
         <a
           href={mapsHref(address)}
@@ -403,11 +451,6 @@ function AddressSummary({
         {onDelete ? (
           <IconButton label="Remove address" onClick={onDelete} className="text-red-400">
             <Trash2 className="h-4 w-4" />
-          </IconButton>
-        ) : null}
-        {onAdd ? (
-          <IconButton label="Add address" onClick={onAdd} className="text-primary">
-            <PlusCircle className="h-5 w-5" />
           </IconButton>
         ) : null}
       </div>
@@ -461,11 +504,11 @@ export function ContactAddressList({
   )
 
   return (
-    <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-3">
-      <span className={cn(ROW_LABEL, 'lg:pt-1.5')}>
+    <div className="space-y-2">
+      <span className={ROW_LABEL}>
         Address{required ? <span className="text-destructive"> *</span> : null}
       </span>
-      <div className="min-w-0 flex-1 space-y-3">
+      <div className="min-w-0 space-y-3">
         {editing === 'primary' && onPrimaryChange ? (
           editor(primary, onPrimaryChange)
         ) : hasAddressText(primary) ? (
@@ -473,7 +516,6 @@ export function ContactAddressList({
             address={primary}
             onEdit={primaryEditable ? () => setEditing('primary') : undefined}
             onDelete={onPrimaryClear}
-            onAdd={extras.length === 0 ? addExtra : undefined}
             editHint={primaryReadOnlyHint}
           />
         ) : (
@@ -484,11 +526,6 @@ export function ContactAddressList({
             {primaryEditable ? (
               <IconButton label="Edit address" onClick={() => setEditing('primary')}>
                 <Pencil className="h-4 w-4" />
-              </IconButton>
-            ) : null}
-            {extras.length === 0 ? (
-              <IconButton label="Add address" onClick={addExtra} className="text-primary">
-                <PlusCircle className="h-5 w-5" />
               </IconButton>
             ) : null}
           </div>
@@ -510,10 +547,10 @@ export function ContactAddressList({
                 onExtrasChange(extras.filter((_, idx) => idx !== i))
                 setEditing(null)
               }}
-              onAdd={i === extras.length - 1 ? addExtra : undefined}
             />
           ),
         )}
+        <AddRowLink label="Add another address" onClick={addExtra} />
       </div>
     </div>
   )
