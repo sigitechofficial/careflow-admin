@@ -55,7 +55,10 @@ import {
   staffListSearchToFilters,
   staffListSearchToSort,
   hasStaffListFilters,
+  countActiveStaffListFilters,
+  DEFAULT_STAFF_LIST_FILTERS,
 } from '@/features/employees/utils/staff-list-filter.util'
+import { StaffListVisibilityNote } from '@/features/employees/components/StaffListVisibilityNote'
 import { pruneStaffListFiltersToFacets } from '@/features/employees/utils/staff-list-facet.util'
 import { Switch } from '@/shared/ui/toggle-controls'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -528,8 +531,15 @@ function StaffListTab() {
   const filters = React.useMemo(() => staffListSearchToFilters(urlSearch), [urlSearch])
   const sort = React.useMemo(() => staffListSearchToSort(urlSearch), [urlSearch])
   const [searchInput, setSearchInput] = React.useState(filters.search)
-  const { locationIds: globalLocationIds, isScoped: globalLocationScoped } =
-    useGlobalLocationScope()
+  const {
+    locationIds: globalLocationIds,
+    isScoped: globalLocationScoped,
+    locationId: globalLocationId,
+    isLocked: globalLocationLocked,
+    setSelectedLocationId,
+  } = useGlobalLocationScope()
+  const assignedLocations = useAuthStore((s) => s.user?.assignedLocations)
+  const assignedLocationIds = useAuthStore((s) => s.user?.assignedLocationIds)
 
   React.useEffect(() => {
     setSearchInput(filters.search)
@@ -734,10 +744,47 @@ function StaffListTab() {
         <p className="mb-3 text-sm text-destructive">{statusUpdateError}</p>
       ) : null}
       {!loading && !error ? (
-        <p className="mb-3 mt-3 text-xs text-muted-foreground">
-          Showing {rows.length} of {meta.total} employee{meta.total === 1 ? '' : 's'} (up to 100 per page).
-          {filtersActive ? ' Filters applied.' : ''}
-        </p>
+        <>
+          <StaffListVisibilityNote
+            assignedLocations={
+              assignedLocationIds == null
+                ? null
+                : (assignedLocations ??
+                    assignedLocationIds.map((id) => ({ id, name: locationNames.get(id) ?? 'Unnamed branch' })))
+            }
+            selectedBranchName={
+              globalLocationId ? (locationNames.get(globalLocationId) ?? 'one branch') : null
+            }
+            canShowAllBranches={assignedLocationIds == null && !globalLocationLocked}
+            onShowAllBranches={() => {
+              setSelectedLocationId(null)
+              applyFilters({ ...filters, locationIds: [] })
+            }}
+            activeFilterCount={countActiveStaffListFilters(
+              { ...filters, search: '' },
+              { omitLocation: globalLocationScoped },
+            )}
+            searchText={filters.search}
+            onClearFilters={() => {
+              setSearchInput('')
+              applyFiltersWithScope({ ...DEFAULT_STAFF_LIST_FILTERS })
+            }}
+            total={meta.total}
+            empty={rows.length === 0}
+          />
+          {rows.length > 0 && !canUpdateEmployee ? (
+            <p className="mb-2 text-xs text-muted-foreground" data-testid="staff-list-read-only-note">
+              You can see this list, but your role does not let you open or change staff records (the pencil is
+              greyed out). Ask an administrator if you need to.
+            </p>
+          ) : null}
+          {rows.length > 0 ? (
+            <p className="mb-3 text-xs text-muted-foreground">
+              Showing {rows.length} of {meta.total} employee{meta.total === 1 ? '' : 's'} (up to 100 per page).
+              {filtersActive ? ' Filters applied.' : ''}
+            </p>
+          ) : null}
+        </>
       ) : null}
 
       <div className="overflow-x-auto rounded-lg border border-border">
@@ -786,9 +833,9 @@ function StaffListTab() {
                 <td colSpan={tableColumnCount} className="px-3 py-10 text-center text-muted-foreground">
                   {error
                     ? 'Could not load employees.'
-                    : filtersActive
-                      ? 'No employees match these filters.'
-                      : 'No employees match this filter.'}
+                    : filtersActive || globalLocationScoped
+                      ? 'No employees match what is selected. See the note above for why, and how to widen the list.'
+                      : 'No employees yet. Use the + button next to Employee Management to add someone.'}
                 </td>
               </tr>
             ) : (
@@ -879,7 +926,7 @@ function StaffListTab() {
                           variant="ghost"
                           size="sm"
                           data-testid={`employee-edit-${emp.id}`}
-                          title="Edit employee"
+                          title={canUpdateEmployee ? 'Edit employee' : 'Your role cannot open staff records'}
                           aria-label={`Edit ${name}`}
                           disabled={!canUpdateEmployee}
                           onClick={() =>
