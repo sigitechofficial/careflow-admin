@@ -31,9 +31,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
@@ -610,11 +610,11 @@ export function EmployeeEditHolidaysPanel({ employeeId }: { employeeId: string }
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Start date</label>
-                <Input type="date" value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} />
+                <DateInput value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">End date</label>
-                <Input type="date" value={formEndDate} onChange={(e) => setFormEndDate(e.target.value)} />
+                <DateInput value={formEndDate} onChange={(e) => setFormEndDate(e.target.value)} />
               </div>
             </div>
             <div>

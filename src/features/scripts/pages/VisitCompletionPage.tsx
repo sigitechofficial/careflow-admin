@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, ClipboardCheck, FlaskConical, Loader2, Play, XCircle } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { Badge } from '@/shared/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -31,6 +30,7 @@ import {
   type VisitCompletionResult,
 } from '@/features/scripts/complete-visits.runner'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const hm = (iso: string) =>
   new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: getSyncedOperationalTimeZone() })
 
@@ -136,7 +136,7 @@ export default function VisitCompletionPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Day</Label>
-              <Input type="date" aria-label="Day" value={date} disabled={running} onChange={(e) => setDate(e.target.value)} />
+              <DateInput aria-label="Day" value={date} disabled={running} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label>How the visits went</Label>

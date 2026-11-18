@@ -2,7 +2,6 @@ import * as React from 'react'
 import { CalendarCheck, Plus } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
-import { Input } from '@/shared/ui/input'
 import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAddPathwayReview } from '@/features/specialist-pathways/hooks/useSpecialistPathways'
@@ -13,6 +12,7 @@ import {
 } from '@/features/specialist-pathways/pathway-labels'
 import type { PathwayCase, ReviewOutcome } from '@/features/specialist-pathways/types/specialist-pathway.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const today = () => new Date().toISOString().slice(0, 10)
 const inMonths = (n: number) => {
   const d = new Date()
@@ -95,7 +95,7 @@ export function PathwayReviewsPanel({ caseData }: { caseData: PathwayCase }) {
           <CardContent className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Review date</span>
-              <Input type="date" value={reviewedAt} onChange={e => setReviewedAt(e.target.value)} />
+              <DateInput value={reviewedAt} onChange={e => setReviewedAt(e.target.value)} />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Outcome</span>
@@ -123,7 +123,7 @@ export function PathwayReviewsPanel({ caseData }: { caseData: PathwayCase }) {
             {!closing && (
               <label className="flex flex-col gap-1 text-sm">
                 <span className="font-medium">Next review date</span>
-                <Input type="date" value={nextReviewDate} onChange={e => setNextReviewDate(e.target.value)} />
+                <DateInput value={nextReviewDate} onChange={e => setNextReviewDate(e.target.value)} />
               </label>
             )}
             <div className="flex items-end gap-2 sm:col-span-2">

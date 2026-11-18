@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { CalendarDays, MapPin } from 'lucide-react'
 import { ContentCard } from '@/shared/ui/content-section'
-import { Input } from '@/shared/ui/input'
 import { useAuthStore } from '@/features/auth/store'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { flattenLocationOptionsFromTree } from '@/features/locations/utils/flatten-location-options.util'
@@ -16,6 +15,7 @@ import {
   getSyncedOperationalTimeZone,
 } from '@/shared/lib/operational-day.util'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const PERIOD_PRESETS: EcmOperationalPeriodPreset[] = [
   'today',
   'yesterday',
@@ -160,8 +160,8 @@ export function EcmOperationalPeriodCard({
           <>
             <label className="space-y-1 text-xs">
               <span className="text-muted-foreground">From</span>
-              <Input
-                type="date"
+              <DateInput
+               
                 value={dateFrom}
                 max={dateTo}
                 onChange={(e) => onDateFromChange(e.target.value)}
@@ -171,8 +171,8 @@ export function EcmOperationalPeriodCard({
             </label>
             <label className="space-y-1 text-xs">
               <span className="text-muted-foreground">To</span>
-              <Input
-                type="date"
+              <DateInput
+               
                 value={dateTo}
                 min={dateFrom}
                 onChange={(e) => onDateToChange(e.target.value)}

@@ -45,6 +45,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shar
 import { MultiSelect } from '@/shared/ui/multi-select'
 import { operationalTodayIso, orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const PAGE_SIZE = 5
 
 const RESIDENT_SCOPE_TOOLTIP =
@@ -354,8 +355,8 @@ export default function TempInspectorPage() {
 
                 <FormRow label="Valid from" required>
                   <div className="flex gap-2">
-                    <Input
-                      type="datetime-local"
+                    <DateTimeInput
+                     
                       value={dateWindow.from}
                       onChange={e => setDateWindow(w => ({ ...w, from: e.target.value }))}
                       className="min-w-0 flex-1"
@@ -368,8 +369,8 @@ export default function TempInspectorPage() {
 
                 <FormRow label="Valid to" required>
                   <div className="flex gap-2">
-                    <Input
-                      type="datetime-local"
+                    <DateTimeInput
+                     
                       value={dateWindow.to}
                       onChange={e => setDateWindow(w => ({ ...w, to: e.target.value }))}
                       className="min-w-0 flex-1"

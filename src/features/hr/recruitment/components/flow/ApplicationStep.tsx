@@ -28,6 +28,7 @@ import {
 import { toastApiError, toastError, toastSuccess } from "@/shared/lib/toast";
 import { Detail, Field, Textarea } from "./flow-ui";
 
+import { DateInput, MonthInput } from '@/shared/ui/date-time-input'
 function EditDetailsDialog({
   candidate,
   open,
@@ -133,9 +134,9 @@ function EditDetailsDialog({
                 />
               </Field>
               <Field label="Date of birth" htmlFor="cd-dob">
-                <Input
+                <DateInput
                   id="cd-dob"
-                  type="date"
+                 
                   value={form.dateOfBirth}
                   onChange={set("dateOfBirth")}
                 />
@@ -389,17 +390,17 @@ function EmploymentHistoryEditor({
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <Field label="From" htmlFor={`eh-from-${i}`}>
-                  <Input
+                  <MonthInput
                     id={`eh-from-${i}`}
-                    type="month"
+                   
                     value={r.from}
                     onChange={(e) => update(i, { from: e.target.value })}
                   />
                 </Field>
                 <Field label="To" htmlFor={`eh-to-${i}`}>
-                  <Input
+                  <MonthInput
                     id={`eh-to-${i}`}
-                    type="month"
+                   
                     value={r.to ?? ""}
                     disabled={r.to === null}
                     onChange={(e) => update(i, { to: e.target.value })}

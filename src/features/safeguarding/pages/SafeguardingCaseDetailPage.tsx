@@ -51,6 +51,7 @@ import type {
   SafeguardingRisk,
 } from '@/features/safeguarding/types/safeguarding.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const areaClass = 'min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
 
 function Stepper({ status }: { status: SafeguardingCase['status'] }) {
@@ -371,8 +372,8 @@ function ReferralsCard({ caseData }: { caseData: SafeguardingCase }) {
           </label>
           <label className="flex flex-col gap-1">
             Date referred to LA
-            <input
-              type="date"
+            <DateInput
+             
               className="h-9 rounded-md border border-input bg-background px-3"
               value={laReferredAt}
               onChange={e => setLaReferredAt(e.target.value)}

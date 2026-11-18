@@ -43,6 +43,7 @@ import {
   waterlowNextReviewHint,
 } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   value: WaterlowMetadata
   disabled?: boolean
@@ -453,9 +454,9 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
                   <Label htmlFor="wl-recommendation-date" className={IA_HINT_CLASS}>
                     Date
                   </Label>
-                  <Input
+                  <DateInput
                     id="wl-recommendation-date"
-                    type="date"
+                   
                     className="mt-1"
                     disabled={disabled}
                     value={value.recommendationDate?.slice(0, 10) ?? ''}
@@ -530,9 +531,9 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
               <Label htmlFor="wl-next-review" className={IA_QUESTION_LABEL_CLASS}>
                 Next Waterlow review date
               </Label>
-              <Input
+              <DateInput
                 id="wl-next-review"
-                type="date"
+               
                 className="mt-1 max-w-xs"
                 disabled={disabled}
                 value={value.nextReviewDate?.slice(0, 10) ?? ''}

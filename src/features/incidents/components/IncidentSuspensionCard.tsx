@@ -15,6 +15,7 @@ import {
 } from '@/features/incidents/hooks/useIncidents'
 import type { IncidentCarerSuspension } from '@/features/incidents/types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const inputClass =
   'mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
 
@@ -134,9 +135,9 @@ function SuspensionRow({
                 {mode === 'continue' ? 'Continue until (review / end date)' : 'New end date'}
                 <span className="ml-0.5 text-destructive dark:text-red-400">*</span>
               </label>
-              <input
+              <DateInput
                 id={`extend-${s.id}`}
-                type="date"
+               
                 className={inputClass}
                 min={minNewTo}
                 value={newTo}
@@ -364,9 +365,9 @@ export function IncidentSuspensionCard({
                 Suspended from
                 <Req />
               </label>
-              <input
+              <DateInput
                 id="suspend-from"
-                type="date"
+               
                 className={inputClass}
                 min={today}
                 value={from}
@@ -380,9 +381,9 @@ export function IncidentSuspensionCard({
                 Suspended to
                 <Req />
               </label>
-              <input
+              <DateInput
                 id="suspend-to"
-                type="date"
+               
                 className={inputClass}
                 value={to}
                 min={from || today}

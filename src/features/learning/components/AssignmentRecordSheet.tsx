@@ -3,7 +3,6 @@ import { Link } from '@tanstack/react-router'
 import { AlertTriangle, Award, BookOpen, CalendarClock, CheckCircle2, ClipboardCheck, Loader2, Play, RotateCcw, UserCheck, XCircle } from 'lucide-react'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { FormField, Textarea } from '@/shared/ui/form-field'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
@@ -28,6 +27,7 @@ import type { LearningAssignmentRecord } from '@/features/learning/types/learnin
 import { LearningStatusBadge } from '@/features/learning/components/LearningStatusBadge'
 import { CertificateViewDialog } from '@/features/learning/components/CertificateViewDialog'
 
+import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 type Props = { assignmentId: string | null; onOpenChange: (open: boolean) => void }
 type Mode = 'extend' | 'reason' | 'not-completed' | null
 
@@ -514,7 +514,7 @@ function ExtendForm({
     <div className="space-y-3 rounded-md border border-border p-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField label="New due date" required>
-          <Input type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)} />
+          <DateTimeInput value={dueAt} onChange={e => setDueAt(e.target.value)} />
         </FormField>
       </div>
       <FormField label="Why is it extended?" required>
@@ -616,12 +616,12 @@ function ReviewForm({
       ) : null}
       {closing && reassign ? (
         <FormField label="Due date for the re-assigned course" required>
-          <Input type="datetime-local" value={reassignDueAt} onChange={e => setReassignDueAt(e.target.value)} />
+          <DateTimeInput value={reassignDueAt} onChange={e => setReassignDueAt(e.target.value)} />
         </FormField>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField label="Follow-up date (optional)">
-          <Input type="date" value={followUpAt} onChange={e => setFollowUpAt(e.target.value)} />
+          <DateInput value={followUpAt} onChange={e => setFollowUpAt(e.target.value)} />
         </FormField>
       </div>
       <FormField label="Note">
@@ -829,7 +829,7 @@ function NotPassedDialog({
           </label>
           {again ? (
             <FormField label="New due date" required>
-              <Input type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)} />
+              <DateTimeInput value={dueAt} onChange={e => setDueAt(e.target.value)} />
             </FormField>
           ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -885,7 +885,7 @@ function AssignAgain({ r, onChanged }: { r: LearningAssignmentRecord; onChanged:
       ) : (
         <div className="space-y-3 rounded-md border border-border p-3">
           <FormField label="New due date" required>
-            <Input type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)} />
+            <DateTimeInput value={dueAt} onChange={e => setDueAt(e.target.value)} />
           </FormField>
           <FormField label="Note (optional)">
             <Textarea rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="More practice with the hoist first" />

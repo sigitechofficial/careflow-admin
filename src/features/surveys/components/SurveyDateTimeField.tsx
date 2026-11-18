@@ -4,6 +4,7 @@ import { DatePicker } from '@/shared/ui/date-picker'
 import { TimePicker } from '@/shared/ui/time-picker'
 import { cn } from '@/shared/lib/utils'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 /** UK numeric date shown on the date button, whatever the browser's locale. */
 const UK_DATE = 'dd/MM/yyyy'
 
@@ -35,7 +36,7 @@ type Props = {
 
 /**
  * Survey date and time: CareFlow's shared date picker (shown dd/mm/yyyy, weeks from Monday) plus
- * the shared 24-hour time picker. Unlike `<input type="datetime-local">`, it never shows a US
+ * the shared 24-hour time picker. Unlike `<DateTimeInput />`, it never shows a US
  * mm/dd/yyyy date or a 12-hour clock because of the browser's locale.
  */
 export function SurveyDateTimeField({

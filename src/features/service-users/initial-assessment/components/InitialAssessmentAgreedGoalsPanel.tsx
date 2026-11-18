@@ -17,6 +17,7 @@ import {
   IA_QUESTION_LABEL_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   value: AgreedGoalsMetadata
   disabled?: boolean
@@ -103,9 +104,9 @@ export function InitialAssessmentAgreedGoalsPanel({ value, disabled, onChange }:
               <Label htmlFor={`ia-goal-${index}-date`} className={IA_QUESTION_LABEL_CLASS}>
                 Target / review date
               </Label>
-              <Input
+              <DateInput
                 id={`ia-goal-${index}-date`}
-                type="date"
+               
                 className="h-9 bg-background"
                 disabled={disabled}
                 value={goal.targetDate?.slice(0, 10) ?? ''}

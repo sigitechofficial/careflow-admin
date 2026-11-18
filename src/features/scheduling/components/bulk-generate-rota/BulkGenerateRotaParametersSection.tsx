@@ -11,6 +11,7 @@ import {
 import type { RotaHorizonMode } from '@/features/settings/types'
 import type { ScheduleAreaRow } from '@/features/scheduling/types/scheduling.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 export const BULK_GENERATE_ROTA_SCHEDULE_AREA_NONE = '__none__'
 
 type Props = {
@@ -97,8 +98,8 @@ export function BulkGenerateRotaParametersSection({
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">From date</Label>
           <div className="flex gap-2">
-            <Input
-              type="date"
+            <DateInput
+             
               value={generateFrom}
               onChange={(e) => onGenerateFromChange(e.target.value)}
               className="min-w-0 flex-1"
@@ -116,8 +117,8 @@ export function BulkGenerateRotaParametersSection({
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">To date (optional)</Label>
-          <Input
-            type="date"
+          <DateInput
+           
             value={generateTo}
             placeholder={generateToPlaceholder}
             onChange={(e) => onGenerateToChange(e.target.value)}

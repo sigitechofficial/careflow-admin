@@ -21,6 +21,7 @@ import { operationalTodayIso, addDaysToOperationalIso } from '@/shared/lib/opera
 import { getJobsDayTimeline } from '@/features/scheduling/api/scheduling.api'
 import { schedulingKeys } from '@/features/scheduling/keys'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type SortBy = HandoverReportSortBy
 
 function countActiveServiceUsersByZone(
@@ -194,8 +195,8 @@ export default function HomePage() {
                     <div className="rounded-md border border-border bg-muted/20 p-4 space-y-3">
                       <div className="flex items-center gap-3 flex-wrap">
                         <label className="text-sm font-medium w-36 shrink-0">From</label>
-                        <input
-                          type="date"
+                        <DateInput
+                         
                           value={fromDate}
                           onChange={e => setFromDate(e.target.value)}
                           className="flex-1 min-w-[220px] border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
@@ -203,8 +204,8 @@ export default function HomePage() {
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
                         <label className="text-sm font-medium w-36 shrink-0">To</label>
-                        <input
-                          type="date"
+                        <DateInput
+                         
                           value={toDate}
                           onChange={e => setToDate(e.target.value)}
                           className="flex-1 min-w-[220px] border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"

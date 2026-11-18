@@ -32,6 +32,7 @@ import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 import { useEnterpriseFunders } from '@/features/service-users/hooks/useServiceUserTabs'
 import { listServiceUsers } from '@/features/service-users/api/service-users.api'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type ChargeCardFormProps = {
   card?: ChargeCard | null
   /** Called after a successful save. */
@@ -363,8 +364,8 @@ export function ChargeCardForm({ card, onSaved, onCancel, formId }: ChargeCardFo
             <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />} required>
               Starts from
             </FieldLabel>
-            <Input
-              type="date"
+            <DateInput
+             
               value={form.effectiveFrom}
               onChange={e => patch({ effectiveFrom: e.target.value })}
               disabled={saving}
@@ -376,8 +377,8 @@ export function ChargeCardForm({ card, onSaved, onCancel, formId }: ChargeCardFo
             <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />}>
               Ends on
             </FieldLabel>
-            <Input
-              type="date"
+            <DateInput
+             
               value={form.effectiveTo ?? ''}
               onChange={e => patch({ effectiveTo: e.target.value })}
               disabled={saving}

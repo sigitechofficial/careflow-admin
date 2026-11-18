@@ -3,7 +3,6 @@ import { CalendarClock, GraduationCap, Loader2, Search, Users } from 'lucide-rea
 import { useQuery } from '@tanstack/react-query'
 import { ApiError } from '@/shared/api/api-client'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { FormField } from '@/shared/ui/form-field'
 import { Combobox } from '@/shared/ui/combobox'
 import { Checkbox, Switch } from '@/shared/ui/toggle-controls'
@@ -30,6 +29,7 @@ import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLoca
 import type { BulkLearningAssignmentInput } from '@/features/learning/types/learning.types'
 import { LEARNING_DELIVERY_METHOD_OPTIONS } from '@/features/learning/types/learning.types'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 type TargetMode = 'employees' | 'roles' | 'locations' | 'workAreas'
 
 type Props = {
@@ -216,7 +216,7 @@ export function AssignmentWizardDialog({ open, onOpenChange }: Props) {
               )}
             </FormField>
             <FormField label="Due date" hint={dueAt ? undefined : `Empty = ${defaultDays} days from today`}>
-              <Input type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)} />
+              <DateTimeInput value={dueAt} onChange={e => setDueAt(e.target.value)} />
             </FormField>
           </div>
 
@@ -306,8 +306,8 @@ export function AssignmentWizardDialog({ open, onOpenChange }: Props) {
                   {chosen.map(id => (
                     <li key={id} className="flex flex-wrap items-center gap-3 px-3 py-1.5 text-sm">
                       <span className="min-w-0 flex-1 truncate">{nameOf(id)}</span>
-                      <Input
-                        type="datetime-local"
+                      <DateTimeInput
+                       
                         className="h-8 w-56"
                         aria-label={`Due date for ${nameOf(id)}`}
                         value={dueByEmployee[id] || dueAt}

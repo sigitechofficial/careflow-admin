@@ -1,13 +1,13 @@
 import * as React from 'react'
 import { CalendarDays, CalendarRange, History } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import {
   rangeForInvoiceRunDatePreset,
   type InvoiceRunDatePreset,
 } from '@/features/billing/utils/invoice-run-date-filter.util'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const DATE_PRESETS: {
   id: InvoiceRunDatePreset
   label: string
@@ -112,8 +112,8 @@ export function InvoiceRunDateFilterBar({
               <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
               From
             </span>
-            <Input
-              type="date"
+            <DateInput
+             
               value={customFrom}
               onChange={e => onCustomFromChange(e.target.value)}
               className="h-9 w-44"
@@ -125,8 +125,8 @@ export function InvoiceRunDateFilterBar({
               <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
               To
             </span>
-            <Input
-              type="date"
+            <DateInput
+             
               value={customTo}
               onChange={e => onCustomToChange(e.target.value)}
               className="h-9 w-44"

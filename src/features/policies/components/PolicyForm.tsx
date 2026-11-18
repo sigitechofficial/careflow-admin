@@ -36,6 +36,7 @@ import { POLICY_DOCUMENT_TYPE_OPTIONS } from '@/features/policies/types/policy.t
 import { POLICY_PATHS } from '@/features/policies/policy-routes'
 import { PolicySectionNav, type PolicySectionLink } from '@/features/policies/components/PolicySectionNav'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 export type PolicyContentMode = 'EDITOR' | 'UPLOAD'
 
 export type PolicyFormValues = {
@@ -346,18 +347,18 @@ export function PolicyForm({
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label="Effective date" htmlFor="policy-effective">
-            <Input
+            <DateInput
               id="policy-effective"
-              type="date"
+             
               value={values.effectiveDate}
               onChange={e => patch({ effectiveDate: e.target.value })}
               disabled={readOnly}
             />
           </FormField>
           <FormField label="Review date" htmlFor="policy-review">
-            <Input
+            <DateInput
               id="policy-review"
-              type="date"
+             
               value={values.reviewDate}
               onChange={e => patch({ reviewDate: e.target.value })}
               disabled={readOnly}

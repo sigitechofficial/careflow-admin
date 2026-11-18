@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function ukTaxYearFromStartYear(startYear: number) {
   const endYear = startYear + 1
   const code = `${startYear}-${String(endYear).slice(-2)}`
@@ -150,11 +151,11 @@ export default function PayrollTaxYearsPage() {
             </label>
             <label className="block space-y-1 text-sm">
               <span>Start date</span>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <DateInput value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </label>
             <label className="block space-y-1 text-sm">
               <span>End date</span>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DateInput value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </label>
           </DialogBody>
           <DialogFooter>

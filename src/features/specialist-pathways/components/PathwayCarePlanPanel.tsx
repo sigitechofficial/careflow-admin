@@ -20,6 +20,7 @@ import type {
   SpecialistPathwayPlanStatus,
 } from '@/features/specialist-pathways/types/specialist-pathway.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = { caseData: PathwayCase }
 
 const STATUS_CLASS: Record<SpecialistPathwayPlanStatus, string> = {
@@ -217,7 +218,7 @@ function PlanEditor({ value, onChange }: { value: PathwayPlanContent; onChange: 
           </label>
           <label className="flex flex-col gap-1 text-xs">
             Date
-            <Input type="date" value={consent.date} onChange={e => setConsent({ date: e.target.value })} />
+            <DateInput value={consent.date} onChange={e => setConsent({ date: e.target.value })} />
           </label>
           <label className="flex flex-col gap-1 text-xs">
             How agreed
@@ -228,7 +229,7 @@ function PlanEditor({ value, onChange }: { value: PathwayPlanContent; onChange: 
 
       <label className="flex max-w-xs flex-col gap-1.5 text-sm">
         <span className="font-medium">Plan review date</span>
-        <Input type="date" value={value.reviewDate ?? ''} onChange={e => onChange({ ...value, reviewDate: e.target.value })} />
+        <DateInput value={value.reviewDate ?? ''} onChange={e => onChange({ ...value, reviewDate: e.target.value })} />
       </label>
     </div>
   )

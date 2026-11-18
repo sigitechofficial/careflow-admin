@@ -3,8 +3,8 @@ import * as React from 'react'
 import { useUpsertEmployeePayrollProfile } from '@/features/payroll/hooks/usePayroll'
 import type { EmployeePayrollProfile } from '@/features/payroll/types/payroll.types'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type DirectorChoice = 'UNCLASSIFIED' | 'NOT_DIRECTOR' | 'DIRECTOR'
 
 type DirectorFields = Pick<EmployeePayrollProfile, 'isDirector' | 'directorAppointedOn' | 'directorNicMethod'>
@@ -90,8 +90,8 @@ export function DirectorStatusSection({
         <div className="space-y-1">
           <label className="block space-y-1 text-sm">
             <span>Date appointed director</span>
-            <Input
-              type="date"
+            <DateInput
+             
               value={appointedOn}
               onChange={(e) => setAppointedOn(e.target.value)}
               aria-label="Date appointed director"

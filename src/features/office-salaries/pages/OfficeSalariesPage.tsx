@@ -29,6 +29,7 @@ import type {
   OfficeSalaryRow,
 } from '@/features/office-salaries/types'
 
+import { DateInput, MonthInput } from '@/shared/ui/date-time-input'
 const fieldClass =
   'h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
 
@@ -181,7 +182,7 @@ function SalaryDialog({ row, onClose }: { row: OfficeSalaryRow | null; onClose: 
                 </label>
                 <label className="block space-y-1 text-sm">
                   <span className="font-medium">Start date</span>
-                  <Input type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
+                  <DateInput value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
                 </label>
               </div>
               <div className="rounded-lg border border-border p-3">
@@ -282,7 +283,7 @@ function PayDialog({ row, month, onClose }: { row: OfficeSalaryRow | null; month
             </label>
             <label className="block space-y-1 text-sm">
               <span className="font-medium">Paid on</span>
-              <Input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
+              <DateInput value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
             </label>
           </div>
           <label className="block space-y-1 text-sm">
@@ -405,7 +406,7 @@ export default function OfficeSalariesPage() {
         </p>
         <label className="space-y-1 text-sm">
           <span className="block text-xs font-medium text-muted-foreground">Month</span>
-          <Input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} className="w-44" />
+          <MonthInput value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} className="w-44" />
         </label>
       </div>
 

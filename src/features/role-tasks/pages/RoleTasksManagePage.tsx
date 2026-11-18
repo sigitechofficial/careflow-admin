@@ -44,6 +44,7 @@ import type {
   RoleTaskTemplateInput,
 } from '@/features/role-tasks/types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const fieldClass =
   'h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
 
@@ -197,8 +198,8 @@ function TemplateDialog({
               </select>
             </Field>
             <Field label={form.recurrence === 'NONE' ? 'Due date' : 'Starts from'}>
-              <input
-                type="date"
+              <DateInput
+               
                 className={fieldClass}
                 value={form.startDate}
                 onChange={(e) => set('startDate', e.target.value)}

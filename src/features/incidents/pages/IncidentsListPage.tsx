@@ -41,6 +41,7 @@ import { useFetchScheduledJob } from '@/features/scheduling/hooks/useScheduling'
 import { ScheduleVisitWorkspaceSheet } from '@/features/scheduling/components/ScheduleVisitWorkspaceSheet'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const STATUS_OPTIONS: { value: IncidentStatus | ''; label: string }[] = [
   { value: '', label: 'All statuses' },
   { value: 'REPORTED', label: 'Reported' },
@@ -384,8 +385,8 @@ export default function IncidentsListPage() {
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
             Reported from
-            <Input
-              type="date"
+            <DateInput
+             
               value={urlState.dateFrom}
               max={urlState.dateTo || undefined}
               onChange={(e) => patchUrlState({ dateFrom: e.target.value })}
@@ -395,8 +396,8 @@ export default function IncidentsListPage() {
           </label>
           <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
             To
-            <Input
-              type="date"
+            <DateInput
+             
               value={urlState.dateTo}
               min={urlState.dateFrom || undefined}
               onChange={(e) => patchUrlState({ dateTo: e.target.value })}

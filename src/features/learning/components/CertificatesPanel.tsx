@@ -12,6 +12,7 @@ import { IssueCertificateDialog } from '@/features/learning/components/IssueCert
 import type { LearningCertificate } from '@/features/learning/types/learning.types'
 import { useAuthStore } from '@/features/auth/store'
 
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 function ColumnInfo({ label, tooltip }: { label: string; tooltip: string }) {
   return (
     <span className="inline-flex items-center gap-1">
@@ -164,10 +165,10 @@ export function CertificatesPanel() {
                       ) : null}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {new Date(row.issuedAt).toLocaleDateString()}
+                      {formatOrganisationDate(row.issuedAt)}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {row.expiresAt ? new Date(row.expiresAt).toLocaleDateString() : '—'}
+                      {row.expiresAt ? formatOrganisationDate(row.expiresAt) : '—'}
                     </td>
                     <td className="px-3 py-2">
                       <LearningStatusBadge

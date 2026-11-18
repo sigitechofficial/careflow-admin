@@ -54,6 +54,7 @@ import {
   SU_PROFILE_REF,
 } from '@/features/service-users/utils/service-user-profile-refs'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 /** @deprecated use SU_PROFILE_REF — kept for local aliases in this file */
 const PROFILE_REF = SU_PROFILE_REF
 
@@ -781,7 +782,7 @@ export function ServiceUserPersonalDetailsForm({
           <div className="space-y-1 sm:col-span-2">
             <LabelWithTooltip label="Date of Birth" required tooltip={FIELD_HELP.dateOfBirth} />
             <div className="flex flex-wrap items-center gap-3">
-              <Input type="date" value={form.dateOfBirth} onChange={(e) => set('dateOfBirth')(e.target.value)} className="max-w-xs" />
+              <DateInput value={form.dateOfBirth} onChange={(e) => set('dateOfBirth')(e.target.value)} className="max-w-xs" />
               {age != null && <span className="text-sm text-muted-foreground">{age} years</span>}
             </div>
           </div>

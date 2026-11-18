@@ -18,6 +18,7 @@ import {
 import type { IncidentVisitOption } from '@/features/incidents/types'
 import { formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 const selectClass =
   'h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
 
@@ -263,9 +264,9 @@ export function IncidentCategoryDetailsFields({
           />
         </FormField>
         <FormField label="Symptoms started on" htmlFor="cd-inf-start" error={errors.symptomsStartedOn}>
-          <Input
+          <DateInput
             id="cd-inf-start"
-            type="date"
+           
             max={new Date().toISOString().slice(0, 10)}
             value={String(value.symptomsStartedOn ?? '')}
             onChange={(e) => set('symptomsStartedOn', e.target.value || undefined)}
@@ -428,9 +429,9 @@ function MedicationFields({
         />
       </FormField>
       <FormField label="Scheduled time" htmlFor="cd-sched-time" error={errors.scheduledTime}>
-        <Input
+        <TimeInput
           id="cd-sched-time"
-          type="time"
+         
           value={String(value.scheduledTime ?? '')}
           onChange={(e) => set('scheduledTime', e.target.value || undefined)}
         />

@@ -27,6 +27,7 @@ import {
 import { cn } from '@/shared/lib/utils'
 import { currentOpsMonth, shiftSalaryMonth } from '@/features/billing/utils/salary-period.util'
 
+import { MonthInput } from '@/shared/ui/date-time-input'
 function formatHours(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return '—'
   return `${n.toFixed(n % 1 === 0 ? 0 : 2)}h`
@@ -136,8 +137,8 @@ export function EmployeeHoursDetailDialog({
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
-            <input
-              type="month"
+            <MonthInput
+             
               className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
               value={month}
               aria-label="Select month"

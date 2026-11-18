@@ -32,6 +32,7 @@ import {
   type IncidentExternalBodyType,
 } from '@/features/incidents/types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const inputClass =
   'mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
 
@@ -341,8 +342,8 @@ function ExternalBodyDialog({
           </Field>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Date referred" required error={shown.referredOn}>
-              <input
-                type="date"
+              <DateInput
+               
                 className={inputClass}
                 max={today}
                 value={v.referredOn}
@@ -394,8 +395,8 @@ function ExternalBodyDialog({
           {closed && (
             <div className="space-y-3 rounded-md border border-border p-3">
               <Field label="Outcome date" required error={shown.outcomeDate}>
-                <input
-                  type="date"
+                <DateInput
+                 
                   className={inputClass}
                   max={today}
                   min={v.referredOn || undefined}

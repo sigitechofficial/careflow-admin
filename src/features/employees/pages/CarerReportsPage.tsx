@@ -10,6 +10,7 @@ import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLoca
 import { useCarerReport, useCarerReportAllPages } from '@/features/employees/hooks/useCarerReports'
 import { CARER_REPORTS, carerReportCsv, type CarerReportDef } from '@/features/employees/components/CarerReportViews'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const PAGE_SIZE = 50
 const fieldClass =
   'h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
@@ -196,8 +197,8 @@ export function CarerReportsPanel() {
               <div className="space-y-1.5">
                 <span className="text-sm font-medium text-foreground">Date range</span>
                 <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="date"
+                  <DateInput
+                   
                     value={from}
                     max={to || undefined}
                     onChange={(e) => setFrom(e.target.value)}
@@ -205,8 +206,8 @@ export function CarerReportsPanel() {
                     aria-label="From"
                   />
                   <span className="text-sm text-muted-foreground">to</span>
-                  <input
-                    type="date"
+                  <DateInput
+                   
                     value={to}
                     min={from || undefined}
                     onChange={(e) => setTo(e.target.value)}

@@ -51,6 +51,7 @@ import {
 } from '@/features/billing/utils/billing-card-rule.util'
 import { normalizeBillingTimeInput } from '@/features/billing/utils/billing-time.util'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 type RuleMode = 'pay' | 'charge'
 
 type BillingCardRulesEditorProps = {
@@ -1159,8 +1160,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             <>
               <label className="space-y-1 text-sm">
                 <span className="text-xs font-medium text-foreground/90">From</span>
-                <Input
-                  type="time"
+                <TimeInput
+                 
                   value={normalizeBillingTimeInput(rule.startTime)}
                   onChange={e => updateRule(index, { startTime: e.target.value || null })}
                   disabled={disabled}
@@ -1168,8 +1169,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               </label>
               <label className="space-y-1 text-sm">
                 <span className="text-xs font-medium text-foreground/90">Until</span>
-                <Input
-                  type="time"
+                <TimeInput
+                 
                   value={normalizeBillingTimeInput(rule.endTime)}
                   onChange={e => updateRule(index, { endTime: e.target.value || null })}
                   disabled={disabled}
@@ -1182,8 +1183,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             <>
               <label className="space-y-1 text-sm">
                 <span className="text-xs text-muted-foreground">Band start</span>
-                <Input
-                  type="time"
+                <TimeInput
+                 
                   value={normalizeBillingTimeInput(rule.startTime)}
                   onChange={e => updateRule(index, { startTime: e.target.value || null })}
                   disabled={disabled}
@@ -1191,8 +1192,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               </label>
               <label className="space-y-1 text-sm">
                 <span className="text-xs text-muted-foreground">Band end</span>
-                <Input
-                  type="time"
+                <TimeInput
+                 
                   value={normalizeBillingTimeInput(rule.endTime)}
                   onChange={e => updateRule(index, { endTime: e.target.value || null })}
                   disabled={disabled}
@@ -1476,8 +1477,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               <div className="flex shrink-0 items-center gap-1.5">
                 <label className="block w-32 text-sm">
                   <span className="sr-only">From</span>
-                  <Input
-                    type="time"
+                  <TimeInput
+                   
                     value={normalizeBillingTimeInput(rule.startTime)}
                     onChange={e => {
                       const startTime = e.target.value || null
@@ -1496,8 +1497,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 <span className="text-muted-foreground" aria-hidden>–</span>
                 <label className="block w-32 text-sm">
                   <span className="sr-only">Until</span>
-                  <Input
-                    type="time"
+                  <TimeInput
+                   
                     value={normalizeBillingTimeInput(rule.endTime)}
                     onChange={e => {
                       const ok = tryUpdateHourlyWindow(index, {
@@ -1659,8 +1660,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             <span className="sr-only">
               From <span className="text-destructive" aria-hidden>*</span>
             </span>
-            <Input
-              type="time"
+            <TimeInput
+             
               value={normalizeBillingTimeInput(rule.startTime)}
               onChange={e => updateRule(index, { startTime: e.target.value || null })}
               disabled={disabled}
@@ -1673,8 +1674,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             <span className="sr-only">
               Until <span className="text-destructive" aria-hidden>*</span>
             </span>
-            <Input
-              type="time"
+            <TimeInput
+             
               value={normalizeBillingTimeInput(rule.endTime)}
               onChange={e => updateRule(index, { endTime: e.target.value || null })}
               disabled={disabled}

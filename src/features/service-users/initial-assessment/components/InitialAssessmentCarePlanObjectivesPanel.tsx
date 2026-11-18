@@ -34,6 +34,7 @@ import {
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 import { holisticTabRef } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   value: CarePlanObjectivesMetadata
   disabled?: boolean
@@ -360,8 +361,8 @@ export function InitialAssessmentCarePlanObjectivesPanel({
                           />
                         </td>
                         <td className={HOLISTIC_TABLE_CELL_CLASS}>
-                          <Input
-                            type="date"
+                          <DateInput
+                           
                             className="h-9 w-full min-w-[9rem] text-sm"
                             disabled={disabled}
                             value={dateValue(equipment.lastServiceDate)}
@@ -371,8 +372,8 @@ export function InitialAssessmentCarePlanObjectivesPanel({
                           />
                         </td>
                         <td className={HOLISTIC_TABLE_CELL_CLASS}>
-                          <Input
-                            type="date"
+                          <DateInput
+                           
                             className="h-9 w-full min-w-[9rem] text-sm"
                             disabled={disabled}
                             value={dateValue(equipment.nextServiceDate)}

@@ -9,13 +9,13 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 import {
   defaultBillingMonthRange,
   defaultBillingWeekRange,
 } from '@/features/billing/utils/billing-run.util'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type BillingRunPeriodMode = 'monthly' | 'weekly'
 
 /** End date implied by a start date for the chosen period type (weekly = +6 days, monthly = one month span). */
@@ -136,9 +136,9 @@ export function BillingRunPeriodDialog({
                 >
                   Period start
                 </label>
-                <Input
+                <DateInput
                   id="periodStart"
-                  type="date"
+                 
                   value={periodStart}
                   onChange={e => handleStartChange(e.target.value)}
                   required
@@ -151,9 +151,9 @@ export function BillingRunPeriodDialog({
                 >
                   Period end
                 </label>
-                <Input
+                <DateInput
                   id="periodEnd"
-                  type="date"
+                 
                   value={periodEnd}
                   onChange={e => setPeriodEnd(e.target.value)}
                   required

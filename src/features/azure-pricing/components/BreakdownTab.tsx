@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { ArrowDown, ArrowUp, ArrowUpDown, Download } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { cn } from '@/shared/lib/utils'
@@ -34,6 +33,7 @@ import {
 } from '@/features/azure-pricing/components/AzurePricingShared'
 import { DailySpendChart } from '@/features/azure-pricing/components/CostCharts'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const GROUP_BY_LABELS: Record<BreakdownGroupBy, string> = {
   service: 'Service',
   resource: 'Resource',
@@ -147,9 +147,9 @@ export function BreakdownTab() {
         <>
           <div className="space-y-1.5">
             <Label htmlFor="azure-breakdown-from">From</Label>
-            <Input
+            <DateInput
               id="azure-breakdown-from"
-              type="date"
+             
               value={custom.from}
               max={custom.to || undefined}
               onChange={e => setCustom(c => ({ ...c, from: e.target.value }))}
@@ -158,9 +158,9 @@ export function BreakdownTab() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="azure-breakdown-to">To</Label>
-            <Input
+            <DateInput
               id="azure-breakdown-to"
-              type="date"
+             
               value={custom.to}
               min={custom.from || undefined}
               onChange={e => setCustom(c => ({ ...c, to: e.target.value }))}

@@ -41,6 +41,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { formatDate } from '@/shared/lib/utils'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type TabId = 'profile' | 'documents'
 
 function toDateInput(value: string | null | undefined): string {
@@ -220,8 +221,8 @@ export default function HrEmployeeProfilePage() {
                 <Input value={profile.personal.lastName ?? ''} disabled />
               </Field>
               <Field label="Date of birth">
-                <Input
-                  type="date"
+                <DateInput
+                 
                   value={form.dateOfBirth ?? ''}
                   disabled={!canEdit}
                   onChange={e => setForm(f => ({ ...f, dateOfBirth: e.target.value }))}
@@ -298,8 +299,8 @@ export default function HrEmployeeProfilePage() {
                 </span>
               </Field>
               <Field label="Employment start date">
-                <Input
-                  type="date"
+                <DateInput
+                 
                   value={form.employmentStartDate ?? ''}
                   disabled={!canEdit}
                   onChange={e => setForm(f => ({ ...f, employmentStartDate: e.target.value }))}

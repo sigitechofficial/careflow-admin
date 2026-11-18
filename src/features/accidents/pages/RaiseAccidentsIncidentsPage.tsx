@@ -3,6 +3,7 @@ import { AlertTriangle, Calendar, Lock } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { PageHeader } from '@/shared/ui/page-elements'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const CORAL = '#e8645a'
 
 const recentColumns = [
@@ -145,9 +146,9 @@ export default function RaiseAccidentsIncidentsPage() {
                 <div className="space-y-1.5 lg:col-span-5">
                   <label className="text-sm font-medium text-muted-foreground">Date and time of Incident</label>
                   <div className="flex gap-2">
-                    <input
+                    <DateTimeInput
                       ref={incidentInputRef}
-                      type="datetime-local"
+                     
                       value={incidentAt}
                       onChange={e => setIncidentAt(e.target.value)}
                       className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"

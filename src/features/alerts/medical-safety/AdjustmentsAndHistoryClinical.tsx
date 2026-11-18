@@ -35,6 +35,7 @@ import {
 } from '@/features/alerts/hooks/useMedicalClinical'
 import { ClinicalBand, clinicalFieldClass } from '@/features/alerts/medical-safety/ClinicalRecordPrimitives'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 export function ReasonableAdjustmentsClinical({ serviceUserId }: { serviceUserId: string }) {
   const perms = useMedicalClinicalPermissions().adjustments
   const query = useReasonableAdjustments(serviceUserId, perms.read)
@@ -326,9 +327,9 @@ export function MedicalHistoryClinical({ serviceUserId }: { serviceUserId: strin
               <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300" htmlFor="history-date">
                 Date
               </label>
-              <Input
+              <DateInput
                 id="history-date"
-                type="date"
+               
                 value={eventDate}
                 onChange={(e) => setEventDate(e.target.value)}
                 className={clinicalFieldClass}

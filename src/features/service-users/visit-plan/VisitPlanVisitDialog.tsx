@@ -41,6 +41,7 @@ import {
   findVisitPlanVisitOverlap,
 } from '@/features/service-users/visit-plan/visit-plan-visit-overlap.util'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -185,9 +186,9 @@ export function VisitPlanVisitDialog({
                 <Label htmlFor="visit-start-date" className="text-xs text-muted-foreground">
                   {isOneOff ? 'Visit date' : 'Start date'}
                 </Label>
-                <Input
+                <DateInput
                   id="visit-start-date"
-                  type="date"
+                 
                   className="mt-1"
                   value={startDateValue}
                   onChange={(e) =>
@@ -203,9 +204,9 @@ export function VisitPlanVisitDialog({
                   <Label htmlFor="visit-end-date" className="text-xs text-muted-foreground">
                     End date (optional)
                   </Label>
-                  <Input
+                  <DateInput
                     id="visit-end-date"
-                    type="date"
+                   
                     className="mt-1"
                     value={draft.slotEffectiveTo?.slice(0, 10) ?? ''}
                     onChange={(e) => patch({ slotEffectiveTo: e.target.value || null })}
@@ -219,9 +220,9 @@ export function VisitPlanVisitDialog({
                 <Label htmlFor="visit-start-time" className="text-xs text-muted-foreground">
                   Start time
                 </Label>
-                <Input
+                <TimeInput
                   id="visit-start-time"
-                  type="time"
+                 
                   className="mt-1"
                   value={normalizeTimeForInput(draft.plannedStartTime)}
                   onChange={(e) => {
@@ -264,9 +265,9 @@ export function VisitPlanVisitDialog({
                 <Label htmlFor="visit-end-time" className="text-xs text-muted-foreground">
                   End time
                 </Label>
-                <Input
+                <TimeInput
                   id="visit-end-time"
-                  type="time"
+                 
                   className="mt-1"
                   value={normalizeTimeForInput(draft.plannedEndTime)}
                   onChange={(e) => {

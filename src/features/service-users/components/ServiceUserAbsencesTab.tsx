@@ -24,7 +24,6 @@ import {
 import { useServiceUserAbsences } from '@/features/service-users/hooks/useServiceUserTabs'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { Label } from '@/shared/ui/form-field'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
@@ -54,6 +53,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 const ABSENCE_TYPE_OPTIONS: { value: ServiceUserAbsenceType; label: string }[] = [
   { value: 'PLANNED', label: 'Planned Absence' },
   { value: 'UNPLANNED', label: 'Unplanned Absence' },
@@ -384,15 +384,15 @@ export function ServiceUserAbsencesTab({
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">
                     Absence Start Date <span className="text-destructive">*</span>
                   </label>
-                  <Input
-                    type="date"
+                  <DateInput
+                   
                     value={form.startDate}
                     onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">Absence End Date</label>
-                  <Input type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
+                  <DateInput value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
                 </div>
                 {form.startDate.trim() && form.startDate.trim() < todayIso() ? (
                   <div>
@@ -428,11 +428,11 @@ export function ServiceUserAbsencesTab({
               <div className="space-y-4">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">Absence Start Time</label>
-                  <Input type="time" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
+                  <TimeInput value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">Absence End Time</label>
-                  <Input type="time" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
+                  <TimeInput value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">

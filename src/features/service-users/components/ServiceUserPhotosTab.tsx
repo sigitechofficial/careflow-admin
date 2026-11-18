@@ -1,17 +1,12 @@
 import type { ServiceUserDetail } from '@/features/service-users/api/service-users.api'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 function formatPhotoDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatOrganisationDateTime(d)
 }
 
 export function ServiceUserPhotosTab({ detail }: { detail: ServiceUserDetail }) {

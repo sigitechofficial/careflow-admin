@@ -12,6 +12,7 @@ import {
   upsertEmployeePortalAccount,
 } from '@/features/employees/api/employee-portal.api'
 
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 export function EmployeeAppAccessSection({
   employeeId,
   defaultEmail,
@@ -110,10 +111,10 @@ export function EmployeeAppAccessSection({
                 </span>
               </p>
               {data.lastLoginAt && (
-                <p>Last sign-in: {new Date(data.lastLoginAt).toLocaleString()}</p>
+                <p>Last sign-in: {formatOrganisationDateTime(data.lastLoginAt)}</p>
               )}
               {data.lastSeenAt && (
-                <p>Last seen: {new Date(data.lastSeenAt).toLocaleString()}</p>
+                <p>Last seen: {formatOrganisationDateTime(data.lastSeenAt)}</p>
               )}
               {data.lastLoginUserAgent && (
                 <p className="break-all">Device: {data.lastLoginUserAgent}</p>

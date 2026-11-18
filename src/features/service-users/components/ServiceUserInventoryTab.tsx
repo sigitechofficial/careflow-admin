@@ -36,6 +36,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 export type InventorySignaturePadRef = {
   clear: () => void
   getDataUrl: () => string | null
@@ -499,7 +500,7 @@ export function ServiceUserInventoryTab({ serviceUserId }: { serviceUserId: stri
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 Date deposited <span className="text-destructive">*</span>
               </label>
-              <Input type="date" value={form.dateDeposited} onChange={(e) => setForm((f) => ({ ...f, dateDeposited: e.target.value }))} />
+              <DateInput value={form.dateDeposited} onChange={(e) => setForm((f) => ({ ...f, dateDeposited: e.target.value }))} />
             </div>
             <div>
               <div className="mb-1 flex items-center justify-between gap-2">

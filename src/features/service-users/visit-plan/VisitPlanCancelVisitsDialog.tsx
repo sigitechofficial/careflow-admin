@@ -51,6 +51,7 @@ import {
   type VisitCancelledByParty,
 } from '@/features/service-users/visit-plan/visit-plan-date-changes.api'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -291,8 +292,8 @@ export function VisitPlanCancelVisitsDialog({ open, onOpenChange, serviceUserId,
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">From</Label>
-                <Input
-                  type="date"
+                <DateInput
+                 
                   className="mt-1 w-40"
                   value={range.from || visitsQuery.data?.from || ''}
                   onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
@@ -300,8 +301,8 @@ export function VisitPlanCancelVisitsDialog({ open, onOpenChange, serviceUserId,
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">To</Label>
-                <Input
-                  type="date"
+                <DateInput
+                 
                   className="mt-1 w-40"
                   value={range.to || visitsQuery.data?.to || ''}
                   onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}

@@ -4,7 +4,6 @@ import { useEmployees } from '@/features/employees/hooks/useEmployees'
 import { useSaveOnCallShift } from '@/features/on-call/hooks/useOnCall'
 import { TIER_LABEL, type OnCallShiftRow, type OnCallTier } from '@/features/on-call/types'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
 import {
   Dialog,
@@ -20,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { isoToOrgDatetimeLocal, orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 const ALL_BRANCHES = '__all__'
 
 type Draft = { employeeId: string; tier: OnCallTier; locationId: string; start: string; end: string; notes: string }
@@ -174,11 +174,11 @@ export function OnCallShiftDialog({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label required>Starts</Label>
-              <Input type="datetime-local" value={draft.start} onChange={e => set('start', e.target.value)} data-testid="on-call-shift-start" />
+              <DateTimeInput value={draft.start} onChange={e => set('start', e.target.value)} data-testid="on-call-shift-start" />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label required>Ends</Label>
-              <Input type="datetime-local" value={draft.end} onChange={e => set('end', e.target.value)} data-testid="on-call-shift-end" />
+              <DateTimeInput value={draft.end} onChange={e => set('end', e.target.value)} data-testid="on-call-shift-end" />
             </div>
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <Label>Notes</Label>

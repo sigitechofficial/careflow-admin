@@ -40,6 +40,7 @@ import type {
   QuoteRates,
 } from '@/features/crm/types/quotation.types'
 
+import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 const selectClass = 'mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm'
 
 /** One price, or the lowest–highest when weekend / bank holiday rates make the days differ. */
@@ -205,7 +206,7 @@ function VisitDialog({
                     <button type="button" aria-label={`Remove ${d}`} onClick={() => patch({ oneOffDates: (draft.oneOffDates ?? []).filter(x => x !== d) })}>×</button>
                   </span>
                 ))}
-                <Input type="date" className="w-40" aria-label="Visit date" value={oneOff} onChange={e => setOneOff(e.target.value)} />
+                <DateInput className="w-40" aria-label="Visit date" value={oneOff} onChange={e => setOneOff(e.target.value)} />
                 <Button
                   type="button"
                   size="sm"
@@ -246,12 +247,12 @@ function VisitDialog({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="quote-visit-from" className="text-xs text-muted-foreground">Start date (optional)</Label>
-                  <Input id="quote-visit-from" type="date" className="mt-1" value={draft.effectiveFrom ?? ''} onChange={e => patch({ effectiveFrom: e.target.value || null })} />
+                  <DateInput id="quote-visit-from" className="mt-1" value={draft.effectiveFrom ?? ''} onChange={e => patch({ effectiveFrom: e.target.value || null })} />
                   {!draft.effectiveFrom && <p className="mt-1 text-xs text-muted-foreground">Leave empty to start with the care.</p>}
                 </div>
                 <div>
                   <Label htmlFor="quote-visit-to" className="text-xs text-muted-foreground">End date (optional)</Label>
-                  <Input id="quote-visit-to" type="date" className="mt-1" value={draft.effectiveTo ?? ''} onChange={e => patch({ effectiveTo: e.target.value || null })} />
+                  <DateInput id="quote-visit-to" className="mt-1" value={draft.effectiveTo ?? ''} onChange={e => patch({ effectiveTo: e.target.value || null })} />
                 </div>
               </div>
             </>
@@ -260,9 +261,9 @@ function VisitDialog({
           <div className="grid gap-4 sm:grid-cols-4">
             <div>
               <Label htmlFor="quote-visit-start" className="text-xs text-muted-foreground">Start time</Label>
-              <Input
+              <TimeInput
                 id="quote-visit-start"
-                type="time"
+               
                 className="mt-1"
                 value={draft.startTime}
                 onChange={e => {
@@ -292,9 +293,9 @@ function VisitDialog({
             </div>
             <div>
               <Label htmlFor="quote-visit-end" className="text-xs text-muted-foreground">End time{overnight ? ' (next day)' : ''}</Label>
-              <Input
+              <TimeInput
                 id="quote-visit-end"
-                type="time"
+               
                 className="mt-1"
                 value={end}
                 onChange={e => {

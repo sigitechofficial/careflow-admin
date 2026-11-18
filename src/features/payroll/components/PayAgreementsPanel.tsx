@@ -21,6 +21,7 @@ import type {
   SalaryProrationMethod,
 } from '@/features/payroll/types/payroll.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const gbp = (value: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(value)
 
 const BASIS_LABELS: Record<EmployeePayAgreementBasis, string> = {
@@ -224,8 +225,8 @@ export function PayAgreementsPanel({
                 <div className="flex flex-wrap items-end gap-2">
                   <label className="space-y-1">
                     <span className="text-muted-foreground">Last day it applies</span>
-                    <Input
-                      type="date"
+                    <DateInput
+                     
                       className="h-8 w-40"
                       value={endDates[a.id] ?? ''}
                       onChange={e => setEndDates(prev => ({ ...prev, [a.id]: e.target.value }))}
@@ -270,7 +271,7 @@ export function PayAgreementsPanel({
             </label>
             <label className="block space-y-1 text-sm">
               <span>Effective from</span>
-              <Input type="date" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} />
+              <DateInput value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} />
             </label>
             {salaried ? (
               <>

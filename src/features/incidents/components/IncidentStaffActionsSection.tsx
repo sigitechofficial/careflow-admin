@@ -26,6 +26,7 @@ import {
   type IncidentStaffActionType,
 } from '@/features/incidents/types'
 
+import { DateInput, MonthInput } from '@/shared/ui/date-time-input'
 const inputClass =
   'mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
 
@@ -264,9 +265,9 @@ function StaffActionForm({
           <label className="text-xs uppercase tracking-wide text-muted-foreground" htmlFor="staff-action-told">
             Told the staff member on
           </label>
-          <input
+          <DateInput
             id="staff-action-told"
-            type="date"
+           
             className={inputClass}
             max={today}
             value={form.toldOn}
@@ -302,9 +303,9 @@ function StaffActionForm({
                 Deduct from salary month
                 <Req />
               </label>
-              <input
+              <MonthInput
                 id="staff-fine-month"
-                type="month"
+               
                 className={inputClass}
                 min={fineUnchanged ? undefined : thisMonth}
                 value={form.fineMonth}

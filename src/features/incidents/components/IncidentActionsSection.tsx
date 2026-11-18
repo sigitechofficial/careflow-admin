@@ -54,6 +54,7 @@ import {
   type UpdateIncidentActionInput,
 } from '@/features/incidents/types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 type Item = { id: string; label: string }
 
 const PRIORITY_BADGE: Record<IncidentActionPriority, 'muted' | 'warning' | 'destructive'> = {
@@ -1190,8 +1191,8 @@ export function IncidentActionsSection({
                       {form.measureType === 'COURSE' ? 'Course due' : 'Due'}
                       <span className="ml-0.5 text-destructive dark:text-red-400">*</span>
                     </span>
-                    <input
-                      type="date"
+                    <DateInput
+                     
                       className={selectClass}
                       value={form.dueDate}
                       onChange={(e) => patch({ dueDate: e.target.value })}

@@ -22,6 +22,7 @@ import {
   type VisitTaskSchedule,
 } from '@/features/service-users/visit-tasks/visit-task-schedule.util'
 
+import { TimeInput } from '@/shared/ui/date-time-input'
 export type VisitTaskEditValues = {
   carerInstructions: string
   priority: VisitTaskPriorityCode
@@ -103,9 +104,9 @@ export function VisitTaskEditDialog({
                 <Clock className="h-3.5 w-3.5 text-primary" aria-hidden />
                 Due time
               </h3>
-              <input
+              <TimeInput
                 id="edit-task-due-time"
-                type="time"
+               
                 value={dueTime}
                 onChange={(event) => setDueTime(event.target.value)}
                 className="h-9 w-36 rounded-lg border border-input bg-muted/40 px-2.5 text-sm tabular-nums outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"

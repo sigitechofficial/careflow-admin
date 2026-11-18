@@ -56,6 +56,8 @@ import { ResponsesAndActivityPanel, ReviewAndSendPanel } from '@/features/crm/co
 import type { Enquiry } from '@/features/crm/types/crm.types'
 import type { QuoteDraftInput, QuotePricing, QuoteType, QuoteVersionDetail } from '@/features/crm/types/quotation.types'
 
+import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 /** Three steps to build a quote, then send it. Quote details and terms sit, folded, on the price step. */
 const SECTIONS: Array<{ key: SectionKey; label: string; icon: LucideIcon; hint: string }> = [
   { key: 'schedule', label: 'Visits', icon: CalendarClock, hint: 'Add each visit: days, times and how many carers. The price is worked out for you.' },
@@ -697,10 +699,10 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
                 <div className="sm:col-span-2">
                   <p className="mb-3 flex items-center gap-2 text-sm font-semibold"><CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden />Dates</p>
                   <div className="grid gap-5 sm:grid-cols-2">
-                    <Field label="Proposed start"><Input type="date" value={form.proposedStartDate ?? ''} onChange={e => patch({ proposedStartDate: e.target.value })} /></Field>
-                    <Field label="Proposed end" hint="Leave empty for ongoing care"><Input id="quote-end-date" type="date" value={form.proposedEndDate ?? ''} onChange={e => patch({ proposedEndDate: e.target.value })} /></Field>
-                    <Field label="Issue date" hint="Leave empty to use the day it is approved"><Input type="date" value={form.issueDate ?? ''} onChange={e => patch({ issueDate: e.target.value })} /></Field>
-                    <Field label="Valid until" required><Input id="quote-valid-until" type="date" value={form.validUntil ?? ''} onChange={e => patch({ validUntil: e.target.value })} /></Field>
+                    <Field label="Proposed start"><DateInput value={form.proposedStartDate ?? ''} onChange={e => patch({ proposedStartDate: e.target.value })} /></Field>
+                    <Field label="Proposed end" hint="Leave empty for ongoing care"><DateInput id="quote-end-date" value={form.proposedEndDate ?? ''} onChange={e => patch({ proposedEndDate: e.target.value })} /></Field>
+                    <Field label="Issue date" hint="Leave empty to use the day it is approved"><DateInput value={form.issueDate ?? ''} onChange={e => patch({ issueDate: e.target.value })} /></Field>
+                    <Field label="Valid until" required><DateInput id="quote-valid-until" value={form.validUntil ?? ''} onChange={e => patch({ validUntil: e.target.value })} /></Field>
                   </div>
                 </div>
                 <div className="sm:col-span-2">
@@ -710,7 +712,7 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
                 </div>
                 {detail?.approvedAt && (
                   <p className="text-sm text-muted-foreground sm:col-span-2">
-                    Approved {new Date(detail.approvedAt).toLocaleString()}{detail.approvedByName ? ` by ${detail.approvedByName}` : ''}{detail.approvalNote ? ` — ${detail.approvalNote}` : ''}
+                    Approved {formatOrganisationDateTime(detail.approvedAt)}{detail.approvedByName ? ` by ${detail.approvedByName}` : ''}{detail.approvalNote ? ` — ${detail.approvalNote}` : ''}
                   </p>
                 )}
               </fieldset>

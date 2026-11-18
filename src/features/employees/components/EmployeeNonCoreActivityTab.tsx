@@ -34,6 +34,7 @@ import {
 import { cn } from '@/shared/lib/utils'
 import { isoToOrgDatetimeLocal, orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 
+import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 const REASON_NONE = '__none__'
 
 /** DD-MM-YYYY HH:mm in the organisation timezone (not the device's). */
@@ -338,8 +339,8 @@ export function EmployeeNonCoreActivityTab() {
             <Filter className="h-3 w-3 opacity-70" aria-hidden />
             Date from (on or after)
           </div>
-          <Input
-            type="date"
+          <DateInput
+           
             value={filterDateFrom}
             onChange={e => setFilterDateFrom(e.target.value)}
             className="h-9 w-40"
@@ -502,9 +503,9 @@ export function EmployeeNonCoreActivityTab() {
                   <label htmlFor="nca-date-from" className="text-sm font-medium leading-none text-foreground">
                     Date from <span className="text-destructive">*</span>
                   </label>
-                  <Input
+                  <DateTimeInput
                     id="nca-date-from"
-                    type="datetime-local"
+                   
                     value={formDateFrom}
                     onChange={e => setFormDateFrom(e.target.value)}
                     className="h-10 font-mono text-sm tabular-nums"
@@ -514,9 +515,9 @@ export function EmployeeNonCoreActivityTab() {
                   <label htmlFor="nca-date-to" className="text-sm font-medium leading-none text-foreground">
                     Date to <span className="text-destructive">*</span>
                   </label>
-                  <Input
+                  <DateTimeInput
                     id="nca-date-to"
-                    type="datetime-local"
+                   
                     value={formDateTo}
                     onChange={e => setFormDateTo(e.target.value)}
                     className="h-10 font-mono text-sm tabular-nums"

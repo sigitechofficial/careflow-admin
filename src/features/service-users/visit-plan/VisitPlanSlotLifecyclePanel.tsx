@@ -12,6 +12,7 @@ import {
 } from '@/features/service-users/visit-plan/visit-plan-night-duty.util'
 import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function FieldHelp({ text }: { text: string }) {
   return (
     <TooltipProvider delayDuration={200}>
@@ -81,8 +82,8 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
             Start date
             <FieldHelp text="First day this slot generates visits. Defaults to today when first saved." />
           </Label>
-          <Input
-            type="date"
+          <DateInput
+           
             disabled={disabled}
             value={slot.slotEffectiveFrom?.slice(0, 10) ?? todayIsoDate()}
             onChange={(e) => onChange({ slotEffectiveFrom: e.target.value || null })}
@@ -94,8 +95,8 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
             End date
             <FieldHelp text="Last day this slot is active. Leave empty for open-ended." />
           </Label>
-          <Input
-            type="date"
+          <DateInput
+           
             disabled={disabled}
             value={slot.slotEffectiveTo?.slice(0, 10) ?? ''}
             onChange={(e) => onChange({ slotEffectiveTo: e.target.value || null })}
@@ -105,8 +106,8 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
         {isOneOff ? (
           <div>
             <Label className={contentOverlineClass}>One-off visit date</Label>
-            <Input
-              type="date"
+            <DateInput
+             
               disabled={disabled}
               value={slot.oneOffDate?.slice(0, 10) ?? ''}
               onChange={(e) => onChange({ oneOffDate: e.target.value || null })}

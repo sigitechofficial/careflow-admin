@@ -10,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/form-field'
 import { Skeleton } from '@/shared/ui/misc'
 import { Checkbox } from '@/shared/ui/toggle-controls'
@@ -25,6 +24,7 @@ import {
 import { ClinicalBand } from '@/features/alerts/medical-safety/ClinicalRecordPrimitives'
 import { CONDITION_CARE_PLAN_HINTS } from '@/features/alerts/medical-safety/suggest-conditions-from-ia'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 export type ConditionsChecklistHandle = {
   isDirty: boolean
   save: () => Promise<boolean>
@@ -410,9 +410,9 @@ export const MedicalConditionsChecklist = React.forwardRef<
                   <label className="text-sm font-medium" htmlFor="checklist-onset-date">
                     Onset date
                   </label>
-                  <Input
+                  <DateInput
                     id="checklist-onset-date"
-                    type="date"
+                   
                     value={dialogOnsetDate}
                     onChange={(e) => setDialogOnsetDate(e.target.value)}
                   />
@@ -421,9 +421,9 @@ export const MedicalConditionsChecklist = React.forwardRef<
                   <label className="text-sm font-medium" htmlFor="checklist-review-date">
                     Review date
                   </label>
-                  <Input
+                  <DateInput
                     id="checklist-review-date"
-                    type="date"
+                   
                     value={dialogReviewDate}
                     onChange={(e) => setDialogReviewDate(e.target.value)}
                   />

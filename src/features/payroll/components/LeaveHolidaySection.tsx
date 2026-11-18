@@ -9,6 +9,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { TooltipProvider } from '@/shared/ui/tooltip'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 const ENTRY_LABELS: Record<LeaveEntryRow['entryType'], string> = {
   TAKEN: 'Holiday taken',
   ADJUSTMENT: 'Correction (+ or −)',
@@ -186,7 +187,7 @@ export function LeaveHolidaySection({
               </label>
               <label className="block space-y-1 text-sm">
                 <span>Date</span>
-                <Input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} aria-label="Leave date" />
+                <DateInput value={entryDate} onChange={(e) => setEntryDate(e.target.value)} aria-label="Leave date" />
               </label>
               <div className="space-y-1 text-sm">
                 <span className="block">How many?</span>
@@ -289,7 +290,7 @@ export function LeaveHolidaySection({
               Leaving date on the employment record: <span className="font-medium text-foreground">{employmentEndDate ?? 'not set'}</span> (set it
               under Employees → Employment → End date). You can try another date here; it is not saved.
             </p>
-            <Input type="date" value={leaverPreview} onChange={(e) => setLeaverPreview(e.target.value)} aria-label="Leaver preview date" className="sm:max-w-xs" />
+            <DateInput value={leaverPreview} onChange={(e) => setLeaverPreview(e.target.value)} aria-label="Leaver preview date" className="sm:max-w-xs" />
             {leaverPreview && lv ? (
               lv.takenMoreThanEarned ? (
                 <p className="text-xs text-destructive" data-testid="leave-taken-in-advance">
@@ -381,7 +382,7 @@ export function LeaveHolidaySection({
                   </div>
                   <label className="block space-y-1 text-sm">
                     <span>Applies from</span>
-                    <Input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} aria-label="Leave terms effective from" />
+                    <DateInput value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} aria-label="Leave terms effective from" />
                   </label>
                   <div className="space-y-1 text-sm">
                     <span className="block">Leave year starts on</span>

@@ -23,6 +23,7 @@ import {
   type CompanyLegalDraft,
 } from '@/features/settings/company/company-legal.util'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
     <label className="text-sm font-medium text-foreground">
@@ -463,8 +464,8 @@ export function CompanyDetailsSettingsPanel() {
                 />
               </FieldRow>
               <FieldRow label="Incorporation Date">
-                <Input
-                  type="date"
+                <DateInput
+                 
                   value={legal.incorporationDate}
                   onChange={e => setLegalField('incorporationDate', e.target.value)}
                   disabled={!canUpdate}

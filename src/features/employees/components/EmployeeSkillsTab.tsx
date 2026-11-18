@@ -35,6 +35,7 @@ import {
   uploadSkillEvidence,
 } from '@/features/employees/components/EmployeeSkillDocumentCell'
 
+import { DateInput } from '@/shared/ui/date-time-input'
 function employeeDisplayName(emp: EmployeeListRow): string {
   return emp.fullName?.trim() || [emp.firstName, emp.lastName].filter(Boolean).join(' ').trim() || '—'
 }
@@ -435,7 +436,7 @@ export function EmployeeSkillsTab() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs text-muted-foreground">Expiry (optional)</label>
-                  <Input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="h-9" />
+                  <DateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="h-9" />
                 </div>
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-xs text-muted-foreground">Notes (optional)</label>

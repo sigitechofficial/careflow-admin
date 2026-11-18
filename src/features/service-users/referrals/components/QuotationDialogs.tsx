@@ -36,6 +36,7 @@ import {
 import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 
+import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 type LineForm = {
   description: string
   daysOfWeek: string[]
@@ -253,10 +254,10 @@ export function QuotationEditorDialog({
             </Field>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Proposed start">
-                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                <DateInput value={startDate} onChange={e => setStartDate(e.target.value)} />
               </Field>
               <Field label="Valid until">
-                <Input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} data-testid="quotation-valid-until" />
+                <DateInput value={validUntil} onChange={e => setValidUntil(e.target.value)} data-testid="quotation-valid-until" />
               </Field>
             </div>
           </section>
@@ -541,7 +542,7 @@ export function QuotationStatusDialog({
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           {action !== 'WITHDRAW' ? (
             <Field label="Date & time">
-              <Input type="datetime-local" value={at} onChange={e => setAt(e.target.value)} />
+              <DateTimeInput value={at} onChange={e => setAt(e.target.value)} />
             </Field>
           ) : null}
           {action === 'ACCEPT' ? (
