@@ -426,6 +426,17 @@ export async function bulkCreateLearningAssignments(
   })
 }
 
+/** Edit an open course before its due date (18 Nov 2026). Course and carer only before it is started. */
+export async function updateLearningAssignment(
+  id: string,
+  body: { courseId?: string; employeeId?: string; dueAt?: string; note?: string },
+): Promise<LearningAssignment> {
+  return fetchData<LearningAssignment>(`/learning/assignments/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
 export async function cancelLearningAssignment(
   id: string,
   cancellationReason: string,
