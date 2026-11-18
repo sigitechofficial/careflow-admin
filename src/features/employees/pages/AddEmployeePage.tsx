@@ -487,6 +487,14 @@ function LookupSelect({
   )
 }
 
+/** RBAC levels that map to admin-level roles; the staff-record sync never grants these (see API rbac-employment-sync). */
+const ADMIN_LEVEL_RBAC_NAMES = new Set([
+  'Administrator',
+  'Group Administrator',
+  'Privacy Officer',
+  'Branch Administrator',
+])
+
 export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: string } = {}) {
   const navigate = useNavigate()
   const search = useSearch({ strict: false }) as { tab?: string; complianceType?: string }
@@ -722,6 +730,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   const availableForWork = useWatch({ control, name: 'availableForWork' })
   const workingPatternRequired = useWatch({ control, name: 'workingPatternRequired' })
   const isAgencyStaff = useWatch({ control, name: 'isAgencyStaff' })
+  const watchedRbacLevelId = useWatch({ control, name: 'rbacLevelId' })
   const visaTypeId = useWatch({ control, name: 'visaTypeId' })
   const generalSettingsQuery = useGeneralSettings(apiReady)
   const visaTypes = React.useMemo(() => {
@@ -1683,8 +1692,33 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                   </p>
                 ) : null}
 
+                <div
+                  className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground"
+                  data-testid="employment-job-vs-access-help"
+                >
+                  <p className="font-medium text-foreground">Job details and CareFlow access are separate</p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                    <li>
+                      <span className="font-medium text-foreground">Work area, Role and Job title</span> describe the
+                      job (for rotas, payroll, reports and HR). They do not change what this person can see or do in
+                      CareFlow.
+                    </li>
+                    <li>
+                      <span className="font-medium text-foreground">CareFlow access level</span> is the one that
+                      controls access: it sets what their office login can do. A role of &ldquo;Carer&rdquo; and an
+                      access level of &ldquo;Carer/Domestic&rdquo; are not linked; choose both.
+                    </li>
+                  </ul>
+                </div>
+
                 <div className="grid grid-cols-1 gap-y-4 gap-x-10 lg:grid-cols-2">
-                  <FormField label="Work area" htmlFor="workAreaId" required error={errors.workAreaId?.message}>
+                  <FormField
+                    label="Work area"
+                    htmlFor="workAreaId"
+                    required
+                    error={errors.workAreaId?.message}
+                    hint="Where they mainly work, for example care floor or kitchen. Describes the job only."
+                  >
                     <Controller
                       name="workAreaId"
                       control={control}
@@ -1704,7 +1738,13 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     />
                   </FormField>
 
-                  <FormField label="Role" htmlFor="roleId" required error={errors.roleId?.message}>
+                  <FormField
+                    label="Role"
+                    htmlFor="roleId"
+                    required
+                    error={errors.roleId?.message}
+                    hint="Their job, for example Carer or Senior Carer. Used for rotas and payroll, not for CareFlow access."
+                  >
                     <Controller
                       name="roleId"
                       control={control}
@@ -1717,14 +1757,19 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           placeholder="Select role"
                           error={errors.roleId?.message}
                           disabled={!L}
-                          tip="Employee designation used across scheduling and payroll."
+                          tip="Their job, used across scheduling and payroll. It does not change what they can do in CareFlow; that is the CareFlow access level."
                           savedOptionName={savedEmployment?.role?.name}
                         />
                       )}
                     />
                   </FormField>
 
-                  <FormField label="Job title" htmlFor="jobTitleId" error={errors.jobTitleId?.message}>
+                  <FormField
+                    label="Job title"
+                    htmlFor="jobTitleId"
+                    error={errors.jobTitleId?.message}
+                    hint="The title on their contract and HR records. Describes the job only."
+                  >
                     <div className="flex items-start gap-2">
                       <div className="min-w-0 flex-1">
                         <Controller
@@ -1763,7 +1808,12 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     </div>
                   </FormField>
 
-                  <FormField label="RBAC level" htmlFor="rbacLevelId" error={errors.rbacLevelId?.message}>
+                  <FormField
+                    label="CareFlow access level (RBAC)"
+                    htmlFor="rbacLevelId"
+                    error={errors.rbacLevelId?.message}
+                    hint="Controls what they can do in CareFlow. Applied to their office login when it has the same email and was added by an administrator. Admin access is never given automatically."
+                  >
                     <Controller
                       name="rbacLevelId"
                       control={control}
@@ -1773,13 +1823,21 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           value={field.value}
                           onChange={field.onChange}
                           options={L?.rbacLevels ?? []}
-                          placeholder="Select RBAC level"
+                          placeholder="Select access level"
                           disabled={!L}
-                          tip="When employment is saved, if this employee’s personal email matches a login user, that user’s managed app roles are updated from this RBAC level (Super Admin accounts are never changed). See docs/phases/EMPLOYEE_MANAGEMENT.md."
+                          tip="When employment is saved and this person has an office login with the same email that an administrator added, that login's access is set from this level. Admin-level access (Administrator, Branch Administrator and similar) is never given automatically: an administrator gives it in Settings, Office users. Super Admin logins are never changed. Every change is in the audit log."
                           savedOptionName={savedEmployment?.rbacLevel?.name}
                         />
                       )}
                     />
+                    {ADMIN_LEVEL_RBAC_NAMES.has(
+                      (L?.rbacLevels ?? []).find((r) => r.id === watchedRbacLevelId)?.name ?? '',
+                    ) ? (
+                      <p className="mt-1 text-xs text-warning" data-testid="rbac-admin-level-note">
+                        This is admin-level access. Saving here does not give it: an administrator must give the
+                        Admin or Branch Admin role in Roles &amp; permissions, Office users.
+                      </p>
+                    ) : null}
                   </FormField>
 
                   <FormField label="Start date" htmlFor="startDate" error={errors.startDate?.message}>

@@ -447,7 +447,7 @@ const navItems: NavItem[] = [
     icon: <UserCheck className="h-5 w-5" />,
     href: '/employee',
     children: [
-      { section: 'Staff', label: 'All Employee', icon: <Users className="h-4 w-4" />, href: '/employee/staff-list', permission: 'employees.read', navTestId: 'nav-employee-staff-list' },
+      { section: 'Staff', label: 'All employees', icon: <Users className="h-4 w-4" />, href: '/employee/staff-list', permission: 'employees.read', navTestId: 'nav-employee-staff-list' },
       { section: 'Staff', label: 'Add Employee', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/add', permission: 'employees.create', navTestId: 'nav-employee-add' },
       {
         section: 'Staff',

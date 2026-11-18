@@ -311,7 +311,9 @@ export function OfficeUsersPanel() {
             </div>
             {usersQuery.data ? (
               <p className="text-xs text-muted-foreground" data-testid="office-users-count">
-                {filtersActive ? `${filteredUsers.length} of ${allUsers.length} users` : `${allUsers.length} users`}
+                {filtersActive
+                  ? `${filteredUsers.length} of ${allUsers.length} user${allUsers.length === 1 ? '' : 's'}`
+                  : `${allUsers.length} user${allUsers.length === 1 ? '' : 's'}`}
               </p>
             ) : null}
           </div>
@@ -386,8 +388,12 @@ export function OfficeUsersPanel() {
 
               <fieldset disabled={!canManage || setRoles.isPending} className="space-y-2">
                 <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Identity roles
+                  Roles: what they can do
                 </legend>
+                <p className="text-xs text-muted-foreground">
+                  If this person also has a staff record with the same email, saving the CareFlow access level
+                  on that record updates these roles. Admin roles are never given that way: give them here.
+                </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {assignableRoles.map(role => (
                     <label key={role} className="flex items-center gap-2 text-sm">
@@ -416,7 +422,7 @@ export function OfficeUsersPanel() {
 
               <fieldset disabled={!canManage || setLocations.isPending} className="space-y-2">
                 <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Authorization branches
+                  Branches: whose records they can see
                 </legend>
                 <p className="text-xs text-muted-foreground">
                   {actorBranchScoped
