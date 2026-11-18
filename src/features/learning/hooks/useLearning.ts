@@ -3,6 +3,7 @@ import {
   archiveLearningCourse,
   bulkCreateLearningAssignments,
   cancelLearningAssignment,
+  updateLearningAssignment,
   cancelLearningTrainingEvent,
   createAssessmentQuestion,
   createLearningAssessment,
@@ -515,6 +516,15 @@ export function useBulkCreateLearningAssignments() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: BulkLearningAssignmentInput) => bulkCreateLearningAssignments(body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useUpdateLearningAssignment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof updateLearningAssignment>[1] }) =>
+      updateLearningAssignment(id, body),
     onSuccess: () => invalidateLearning(qc),
   })
 }

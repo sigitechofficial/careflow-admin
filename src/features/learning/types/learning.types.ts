@@ -567,6 +567,8 @@ export type LearningAssignment = {
   deliveryMethod?: LearningDeliveryMethod | null
   /** Pass / fail for finished rows (list only). */
   result?: LearningAssignmentResult | null
+  /** Why course and carer can't be edited (18 Nov 2026): carer started it, or it is booked on a session. */
+  courseCarerLock?: 'STARTED' | 'BOOKED' | null
 }
 
 export type LearningAssignmentResult = {

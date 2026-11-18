@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Loader2, UserPlus } from 'lucide-react'
+import { Loader2, Pencil, UserPlus } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { formatOrganisationDate, formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 import { Input } from '@/shared/ui/input'
@@ -14,6 +14,12 @@ import { AssignmentWizardDialog } from '@/features/learning/components/Assignmen
 import { AssignmentRecordSheet, assignmentStatusForBadge } from '@/features/learning/components/AssignmentRecordSheet'
 import { useSearch } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
+import {
+  EditAssignmentDialog,
+  UnassignAssignmentDialog,
+  canEditAssignment,
+} from '@/features/learning/components/AssignmentEditDialogs'
+import type { LearningAssignment } from '@/features/learning/types/learning.types'
 
 type StatusTab =
   | 'ALL'
@@ -90,6 +96,8 @@ function lateBy(dueAt: string, completedAt: string): string {
 
 export function AssignmentsPanel() {
   const canManage = useAuthStore(s => s.can('learning.assignments.manage'))
+  const [editRow, setEditRow] = React.useState<LearningAssignment | null>(null)
+  const [unassignRow, setUnassignRow] = React.useState<LearningAssignment | null>(null)
   const { locationId } = useGlobalLocationScope()
   const [page, setPage] = React.useState(1)
   const [search, setSearch] = React.useState('')
@@ -210,6 +218,7 @@ export function AssignmentsPanel() {
                 <th className="px-3 py-2">Completed</th>
                 {showResult ? <th className="px-3 py-2">Result</th> : null}
                 <th className="px-3 py-2">Assigned</th>
+                {canManage ? <th className="px-3 py-2">Action</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -274,6 +283,28 @@ export function AssignmentsPanel() {
                   <td className="px-3 py-2 text-muted-foreground">
                     {formatOrganisationDate(row.assignedAt)}
                   </td>
+                  {canManage ? (
+                    <td className="px-3 py-2 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                      {canEditAssignment(row) ? (
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="outline" onClick={() => setEditRow(row)} data-testid="assignment-edit">
+                            <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden /> Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setUnassignRow(row)}
+                            data-testid="assignment-unassign"
+                          >
+                            Unassign
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -296,6 +327,8 @@ export function AssignmentsPanel() {
       ) : null}
 
       <AssignmentWizardDialog open={wizardOpen} onOpenChange={setWizardOpen} />
+      <EditAssignmentDialog assignment={editRow} onOpenChange={open => !open && setEditRow(null)} />
+      <UnassignAssignmentDialog assignment={unassignRow} onOpenChange={open => !open && setUnassignRow(null)} />
       <AssignmentRecordSheet assignmentId={openId} onOpenChange={open => !open && setOpenId(null)} />
     </div>
   )
