@@ -22,6 +22,7 @@ import {
 import { useEnterpriseFundingTypes } from '@/features/service-users/hooks/useServiceUserTabs'
 import { ChargeCardPicker } from '@/features/billing/components/ChargeCardPicker'
 
+import { AddressFinder } from '@/shared/ui/address-finder'
 type FunderForm = {
   name: string
   fundingTypeId: string
@@ -194,6 +195,23 @@ export function FunderFormDialog({
               {field('Email', 'email', undefined, 'email')}
               {field('Phone', 'phone')}
               {field('Payment terms', 'paymentTerms', 'e.g. Net 30')}
+              <div className="md:col-span-2">
+                <AddressFinder
+                  id="funder-address"
+                  title="Find the funder's address"
+                  initialPostcode={form.postcode}
+                  onPick={a =>
+                    setForm(f => ({
+                      ...f,
+                      addressLine1: a.addressLine1,
+                      addressLine2: a.addressLine2,
+                      town: a.town,
+                      county: a.county,
+                      postcode: a.postcode,
+                    }))
+                  }
+                />
+              </div>
               {field('Address line 1', 'addressLine1')}
               {field('Address line 2', 'addressLine2')}
               {field('Town', 'town')}
