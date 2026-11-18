@@ -772,12 +772,6 @@ function StaffListTab() {
             total={meta.total}
             empty={rows.length === 0}
           />
-          {rows.length > 0 && !canUpdateEmployee ? (
-            <p className="mb-2 text-xs text-muted-foreground" data-testid="staff-list-read-only-note">
-              You can see this list, but your role does not let you open or change staff records (the pencil is
-              greyed out). Ask an administrator if you need to.
-            </p>
-          ) : null}
           {rows.length > 0 ? (
             <p className="mb-3 text-xs text-muted-foreground">
               Showing {rows.length} of {meta.total} employee{meta.total === 1 ? '' : 's'} (up to 100 per page).
@@ -921,23 +915,38 @@ function StaffListTab() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          data-testid={`employee-edit-${emp.id}`}
-                          title={canUpdateEmployee ? 'Edit employee' : 'Your role cannot open staff records'}
-                          aria-label={`Edit ${name}`}
-                          disabled={!canUpdateEmployee}
-                          onClick={() =>
-                            navigate({
-                              to: '/employee/$employeeId/edit',
-                              params: { employeeId: emp.id },
-                            })
-                          }
-                        >
-                          <PenLine className="h-3.5 w-3.5" aria-hidden />
-                        </Button>
+                        {canUpdateEmployee ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            data-testid={`employee-edit-${emp.id}`}
+                            title="Edit employee"
+                            aria-label={`Edit ${name}`}
+                            onClick={() =>
+                              navigate({
+                                to: '/employee/$employeeId/edit',
+                                params: { employeeId: emp.id },
+                              })
+                            }
+                          >
+                            <PenLine className="h-3.5 w-3.5" aria-hidden />
+                          </Button>
+                        ) : (
+                          <TooltipProvider delayDuration={150}>
+                            <UiTooltip>
+                              <TooltipTrigger asChild>
+                                {/* A disabled button gets no hover, so the span carries the tip. */}
+                                <span tabIndex={0} className="inline-flex cursor-not-allowed" data-testid={`employee-edit-${emp.id}`}>
+                                  <Button type="button" variant="ghost" size="sm" disabled aria-label={`Edit ${name}`} className="pointer-events-none">
+                                    <PenLine className="h-3.5 w-3.5" aria-hidden />
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left">Your role can't open staff records. Ask an administrator.</TooltipContent>
+                            </UiTooltip>
+                          </TooltipProvider>
+                        )}
                         {canDeleteEmployee ? (
                           <Button
                             type="button"

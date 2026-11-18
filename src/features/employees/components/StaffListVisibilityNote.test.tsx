@@ -23,7 +23,7 @@ describe('StaffListVisibilityNote: says why someone is not listed', () => {
     )
   })
 
-  it("names a branch-limited manager's branches and mentions new staff with no branch", () => {
+  it("a branch-limited manager sees one short line naming their branch; the reasons are on hover", () => {
     render(
       <StaffListVisibilityNote
         {...base}
@@ -33,10 +33,10 @@ describe('StaffListVisibilityNote: says why someone is not listed', () => {
       />,
     )
     const note = screen.getByTestId('staff-list-visibility-note')
-    expect(note).toHaveTextContent('Your access covers the branch Croydon')
-    expect(note).toHaveTextContent('Not assigned to a branch yet')
-    // A one-branch manager is not told about the branch picker they cannot change.
-    expect(note).not.toHaveTextContent('branch picker')
+    expect(note).toHaveTextContent('Showing staff at Croydon')
+    // No block of explanation on screen: it sits behind the info icon.
+    expect(note).not.toHaveTextContent('Your access covers')
+    expect(screen.getByRole('button', { name: 'Why some staff may not be listed' })).toBeInTheDocument()
     expect(screen.queryByTestId('staff-list-show-all-branches')).toBeNull()
   })
 

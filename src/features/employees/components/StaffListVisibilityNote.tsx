@@ -1,5 +1,6 @@
 import { Info } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
 export type StaffListVisibilityNoteProps = {
   /** Branches the signed-in user is limited to (null = can see every branch). */
@@ -63,6 +64,47 @@ export function StaffListVisibilityNote({
       <p className="mb-3 mt-3 text-xs text-muted-foreground" data-testid="staff-list-visibility-note">
         Showing all {total} employee{total === 1 ? '' : 's'} at every branch, of every status.
       </p>
+    )
+  }
+
+  const clearable = Boolean(searchText.trim() || nonSearchFilters > 0)
+  if (!empty) {
+    // Rows are showing: one short line; the reasons are on hover.
+    const where = limited
+      ? (assignedLocations ?? []).map((l) => l.name).join(', ') || 'no branch'
+      : selectedBranchName ?? 'every branch'
+    return (
+      <div className="mb-3 mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="staff-list-visibility-note">
+        <span>
+          Showing staff at {where}
+          {clearable ? ', filtered' : ''}
+        </span>
+        <TooltipProvider delayDuration={150}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" className="inline-flex items-center text-muted-foreground hover:text-foreground" aria-label="Why some staff may not be listed">
+                <Info className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs space-y-1 text-xs">
+              {reasons.map((r) => (
+                <p key={r}>{r}</p>
+              ))}
+              {branchView ? <p>New staff with no branch show as &ldquo;Not assigned to a branch yet&rdquo; to the branch that added them.</p> : null}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        {clearable ? (
+          <button type="button" className="font-medium text-primary hover:underline" onClick={onClearFilters} data-testid="staff-list-clear-all">
+            Clear filters
+          </button>
+        ) : null}
+        {selectedBranchName && canShowAllBranches ? (
+          <button type="button" className="font-medium text-primary hover:underline" onClick={onShowAllBranches} data-testid="staff-list-show-all-branches">
+            Show all branches
+          </button>
+        ) : null}
+      </div>
     )
   }
 
