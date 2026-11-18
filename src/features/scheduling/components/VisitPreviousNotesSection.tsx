@@ -14,7 +14,8 @@ export async function fetchPreviousVisitNotes(jobId: string): Promise<PreviousVi
   const res = await apiJson<ApiEnvelope<PreviousVisitNotes | null>>(
     `/scheduled-jobs-housekeeping/jobs/${jobId}/previous-visit-notes`,
   )
-  return res.data ?? null
+  const d = res?.data
+  return d && Array.isArray(d.notes) && d.notes.length ? d : null
 }
 
 const KIND_LABEL: Record<PreviousVisitNotes['notes'][number]['kind'], string> = {
@@ -29,6 +30,7 @@ export function VisitPreviousNotesSection({ jobId, className }: { jobId: string;
     queryKey: ['visit-previous-notes', jobId],
     queryFn: () => fetchPreviousVisitNotes(jobId),
     staleTime: 60_000,
+    retry: false,
   })
   const data = q.data
   return (
@@ -40,6 +42,8 @@ export function VisitPreviousNotesSection({ jobId, className }: { jobId: string;
       </h3>
       {q.isLoading ? (
         <p className="mt-2 text-xs text-muted-foreground">Loading…</p>
+      ) : q.isError ? (
+        <p className="mt-2 text-xs text-muted-foreground">Notes from the last visit could not be loaded.</p>
       ) : !data ? (
         <p className="mt-2 text-xs text-muted-foreground">No notes were written on earlier visits.</p>
       ) : (
