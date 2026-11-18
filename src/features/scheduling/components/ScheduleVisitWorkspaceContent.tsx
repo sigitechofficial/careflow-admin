@@ -24,7 +24,6 @@ import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
 import {
   formatOrganisationDateTime,
-  formatOrganisationIsoDate,
   formatOrganisationIsoTime,
 } from '@/shared/lib/organisation-display-format.store'
 import { formatOpsClockTime, formatOpsHm } from '@/shared/lib/operational-day.util'
@@ -57,12 +56,7 @@ import {
   buildScheduleVisitContext,
   type ScheduleVisitContext,
 } from '@/features/scheduling/utils/schedule-visit-context.util'
-import {
-  employeesLabel,
-  formatJobTimeRange,
-  serviceUserFullLabel,
-} from '@/features/scheduling/utils/scheduling-format'
-import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
+import { employeesLabel } from '@/features/scheduling/utils/scheduling-format'
 import {
   isAbsentCoCarerAllocation,
   isClockOutMissingAllocation,
@@ -600,7 +594,6 @@ export function ScheduleVisitWorkspaceContent({
     staleTime: 0,
   })
 
-  const visitSlot = timelineJobVisitPlanSlot(job)
   const deliveryAssessment = React.useMemo(
     () =>
       liveJob.deliveryAssessment ??
@@ -702,26 +695,18 @@ export function ScheduleVisitWorkspaceContent({
               voiceNotes={sosVoiceNotes}
             />
           ) : null}
+          {/* Person, slot, date and times are in the window header; this card is who attended and when. */}
           <section className={cn('rounded-lg border border-border px-4 py-3', cardSurface)}>
-            <p className="text-base font-semibold text-foreground">{serviceUserFullLabel(job.serviceUser)}</p>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {visitSlot ? `${visitSlot} · ` : ''}
-              {formatJobTimeRange(job)}
-            </p>
-            <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-              {!multiCarer ? (
+            {!multiCarer ? (
+              <dl className="grid gap-2 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Users className="h-4 w-4 shrink-0" aria-hidden />
                   <span>
                     Carers: {employeesLabel(liveJob)} ({allocations.length}/{liveJob.requiredCarers})
                   </span>
                 </div>
-              ) : null}
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Clock className="h-4 w-4 shrink-0" aria-hidden />
-                <span>Date: {formatOrganisationIsoDate(date)}</span>
-              </div>
-            </dl>
+              </dl>
+            ) : null}
             {multiCarer ? (
               <VisitWorkspaceCarerPresence job={liveJob} />
             ) : null}
