@@ -117,9 +117,12 @@ export function AddServiceUserFundingSection({
     onChange({ ...value, [k]: v })
 
   const selectedFunder = funders.find((f) => f.id === value.funderId)
-  const routes = (useServiceUserLookups().data?.fundingTypes ?? [])
-    .filter((r) => selectedFunder?.fundingType?.id && r.billingFundingTypeId === selectedFunder.fundingType.id)
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const allRoutes = useServiceUserLookups().data?.fundingTypes ?? []
+  const ownRoutes = allRoutes.filter(
+    (r) => selectedFunder?.fundingType?.id && r.billingFundingTypeId === selectedFunder.fundingType.id,
+  )
+  // A funder type with no routes of its own (e.g. Private, Mixed, Family) is offered them all.
+  const routes = (ownRoutes.length ? ownRoutes : allRoutes).slice().sort((a, b) => a.name.localeCompare(b.name))
   const fundingTypeName = selectedFunder?.fundingType?.name ?? null
   const namePlaceholder = selectedFunder
     ? defaultChargeCardName(selectedFunder.name, suName)

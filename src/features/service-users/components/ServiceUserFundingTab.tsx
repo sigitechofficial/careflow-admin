@@ -620,7 +620,9 @@ type FundingRouteOption = { id: string; name: string; billingFundingTypeId?: str
 function routeFits(routes: FundingRouteOption[], routeId: string, billingTypeId: string | null | undefined): boolean {
   if (!routeId) return true
   const r = routes.find((x) => x.id === routeId)
-  return !r?.billingFundingTypeId || !billingTypeId || r.billingFundingTypeId === billingTypeId
+  if (!r?.billingFundingTypeId || !billingTypeId || r.billingFundingTypeId === billingTypeId) return true
+  // The funder's type has no routes of its own, so any route was offered.
+  return !routes.some((x) => x.billingFundingTypeId === billingTypeId)
 }
 
 /** Funding route picker, offering only the routes under the funder's billing type. */
@@ -638,8 +640,10 @@ function FundingRouteSelect({
   label: string
 }) {
   if (!billingTypeId) return null
-  const options = routes
-    .filter((r) => r.billingFundingTypeId === billingTypeId || r.id === value)
+  const own = routes.filter((r) => r.billingFundingTypeId === billingTypeId || r.id === value)
+  // A funder type with no routes of its own (e.g. Private, Mixed, Family) is offered them all.
+  const options = (own.some((r) => r.billingFundingTypeId === billingTypeId) ? own : routes)
+    .slice()
     .sort((a, b) => a.name.localeCompare(b.name))
   return (
     <div className="mt-2 space-y-1">
