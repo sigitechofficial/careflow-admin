@@ -21,6 +21,7 @@ import { RecordSurveyResponseDialog } from '@/features/surveys/components/Record
 import type { SurveyQuestion, SurveyRecordCandidate, SurveyTargetKind } from '@/features/surveys/types'
 
 import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 /**
  * Independent reviewer accounts (SUR-CQC-001/002). The reviewer has their own CareFlow account whose
  * only role is "Independent reviewer" (no other access, no branch, never a staff account). Survey
@@ -54,7 +55,7 @@ const STATUS_LABEL: Record<Grant['status'], string> = {
   ENDED: 'Ended',
   REVOKED: 'Access ended early',
 }
-const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+const day = (iso: string) => String(formatOrganisationDay(iso))
 const dateInput = (d: Date) => d.toISOString().slice(0, 10)
 
 /** Survey page: who may record answers as an independent reviewer. */

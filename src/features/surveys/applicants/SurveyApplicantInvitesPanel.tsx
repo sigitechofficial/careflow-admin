@@ -4,6 +4,7 @@ import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import { Button } from '@/shared/ui/button'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 export type ApplicantInvites = {
   on: boolean
   from: string | null
@@ -19,7 +20,7 @@ export type ApplicantInvites = {
 
 const key = (surveyId: string) => ['surveys', 'applicant-invites', surveyId] as const
 
-const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+const day = (iso: string) => String(formatOrganisationDay(iso))
 
 /**
  * Job applicants (Phase 3): an anonymous public survey can email each applicant a one-time link once they

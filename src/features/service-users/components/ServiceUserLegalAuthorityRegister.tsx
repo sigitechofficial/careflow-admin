@@ -40,6 +40,7 @@ import {
 } from '@/shared/ui/dialog'
 
 import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type Form = {
   category: ServiceUserLegalAuthorityCategory
   holderName: string
@@ -225,10 +226,10 @@ export function ServiceUserLegalAuthorityRegister({ serviceUserId, rows, canUpda
                       {LEGAL_AUTHORITY_VERIFICATION_LABEL[row.verificationStatus]}
                     </span>
                     {row.verifiedAt ? (
-                      <div className="mt-1 text-xs text-muted-foreground">{row.verifiedAt.slice(0, 10)}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">{formatOrganisationDay(row.verifiedAt)}</div>
                     ) : null}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 align-top">{row.expiresOn ?? '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2 align-top">{formatOrganisationDay(row.expiresOn) ?? '—'}</td>
                   <td className="px-3 py-2 text-right align-top">
                     <div className="inline-flex gap-1">
                       {canUpdate ? (

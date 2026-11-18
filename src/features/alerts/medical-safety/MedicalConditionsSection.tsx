@@ -50,9 +50,9 @@ import {
 import { cn } from '@/shared/lib/utils'
 
 import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 function formatDate(d: string | null | undefined) {
-  if (!d) return '—'
-  return d.slice(0, 10)
+  return d ? String(formatOrganisationDay(d)) : '—'
 }
 
 export function MedicalConditionsSection({ serviceUserId }: { serviceUserId: string }) {

@@ -4,20 +4,14 @@ import { Button } from '@/shared/ui/button'
 import { useLearningCourseVersions } from '@/features/learning/hooks/useLearning'
 import { LearningStatusBadge } from '@/features/learning/components/LearningStatusBadge'
 
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 function count(n: number | undefined, one: string, many: string) {
   const value = n ?? 0
   return `${value} ${value === 1 ? one : many}`
 }
 
 function formatDateTime(iso?: string | null) {
-  if (!iso) return null
-  return new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return iso ? formatOrganisationDateTime(iso) : null
 }
 
 /** Every version of a course, newest first: status, who published it, what changed, carers assigned. */

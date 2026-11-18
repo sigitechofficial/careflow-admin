@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type { SendSurveyInput } from '@/features/surveys/types'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 /** API: careflow-api src/surveys/survey-contact-rule.service.ts and survey-contact-rule.util.ts. */
 export type ContactRuleSource = 'SURVEY' | 'LIBRARY' | 'DEFAULT'
 /** DELAY: held people are sent it on their free day; SKIP: they are not sent it this time. */
@@ -115,6 +116,5 @@ export function useSendCheck(surveyId: string, input: SendSurveyInput, enabled: 
 
 /** "2 Dec 2026" from YYYY-MM-DD. */
 export function formatDay(iso: string): string {
-  const d = new Date(`${iso}T12:00:00Z`)
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  return String(formatOrganisationDay(iso.slice(0, 10)))
 }

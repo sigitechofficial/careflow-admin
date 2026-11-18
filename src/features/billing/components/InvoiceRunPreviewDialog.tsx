@@ -26,6 +26,7 @@ import {
 import { invoiceRunRef } from '@/features/billing/utils/invoice-run-display.util'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -81,7 +82,7 @@ function LiveInvoiceDocument({
             </div>
             <div className="flex gap-3">
               <dt className="w-28 shrink-0 font-semibold">Issue date</dt>
-              <dd>{issueDate}</dd>
+              <dd>{formatOrganisationDay(issueDate)}</dd>
             </div>
             <div className="flex gap-3">
               <dt className="w-28 shrink-0 font-semibold">Period</dt>

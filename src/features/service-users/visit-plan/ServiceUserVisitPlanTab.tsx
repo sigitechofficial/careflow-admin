@@ -131,6 +131,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
 import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 function VisitPlanCarePackageInfoIcon() {
   return (
     <TooltipProvider delayDuration={200}>
@@ -1755,7 +1756,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
             </p>
           ) : (
             <p className={contentHelperClass}>
-              Rota start: {rotaStartDate}. Will create: {backfillWindowStart} → {backfillWindowEnd} (up to{' '}
+              Rota start: {formatOrganisationDay(rotaStartDate)}. Will create: {formatOrganisationDay(backfillWindowStart)} → {formatOrganisationDay(backfillWindowEnd)} (up to{' '}
               {maxSlotBackfillDays} day{maxSlotBackfillDays === 1 ? '' : 's'} back).
             </p>
           )}

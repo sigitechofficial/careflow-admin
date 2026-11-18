@@ -645,7 +645,7 @@ function SosActions({ rows }: { rows: EcmExceptionRow[] }) {
             Record the outcome so this SOS leaves the queue.
           </p>
           {toClose.map(row => {
-            const sentAt = formatOpsClockTime(row.sos?.createdAt ?? row.createdAt)
+            const sentAtText = formatOpsClockTime(row.sos?.createdAt ?? row.createdAt)
             return (
               <Button
                 key={row.id}
@@ -656,7 +656,7 @@ function SosActions({ rows }: { rows: EcmExceptionRow[] }) {
                 data-testid="ecm-close-sos"
                 onClick={() => setCloseRow(row)}
               >
-                {toClose.length > 1 ? `Close SOS · ${sentAt}` : 'Close SOS'}
+                {toClose.length > 1 ? `Close SOS · ${sentAtText}` : 'Close SOS'}
               </Button>
             )
           })}

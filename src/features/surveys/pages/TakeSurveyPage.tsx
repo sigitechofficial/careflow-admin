@@ -10,6 +10,7 @@ import type { PublicSurveyForm, SubmitSurveyResponseInput } from '@/features/sur
 import { SurveyRespondentForm } from '@/features/surveys/components/SurveyRespondentForm'
 import { surveyStrings } from '@/features/surveys/survey-ui-strings'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 function PublicShell({ title, children }: { title: string; children: React.ReactNode }) {
   useDocumentTitle(title)
   // #root is overflow:hidden for the admin shell — this page must own scrolling. The bottom scroll
@@ -86,13 +87,9 @@ export function rememberAnswered(marker: string): void {
   }
 }
 
-/** "20 November 2026" (UK). */
+/** A day in the organisation date format. */
 function dayOf(iso: string | null): string | null {
-  if (!iso) return null
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime())
-    ? null
-    : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London' })
+  return iso ? String(formatOrganisationDay(iso)) : null
 }
 
 /** The page for a survey that cannot be answered now, or null when it can (or was just answered). */

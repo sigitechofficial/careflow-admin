@@ -34,8 +34,8 @@ describe('SurveyContactRulePanel', () => {
     apiJson.mockResolvedValue({ data: payload() })
     wrap(<SurveyContactRulePanel surveyId="s1" canEdit isOpen />)
     expect(await screen.findByText(/held back, and sent this one when 4 weeks have passed/)).toBeInTheDocument()
-    expect(screen.getByText(/Had another survey in the last 4 weeks\. Free from 30 Nov 2026/)).toBeInTheDocument()
-    expect(screen.getByText(/Had "Wellbeing check" on 4 Nov 2026/)).toBeInTheDocument()
+    expect(screen.getByText(/Had another survey in the last 4 weeks\. Free from 30\/11\/2026/)).toBeInTheDocument()
+    expect(screen.getByText(/Had "Wellbeing check" on 04\/11\/2026/)).toBeInTheDocument()
   })
 
   it('sending anyway needs a reason', async () => {
@@ -150,7 +150,7 @@ describe('SendContactRuleCheck', () => {
     const onChange = vi.fn()
     wrap(<SendContactRuleCheck surveyId="s1" input={{}} enabled value={{ sendAnyway: false, reason: '' }} onChange={onChange} />)
     expect(await screen.findByText(/4 of 40 had another survey in the last 4 weeks/)).toBeInTheDocument()
-    expect(screen.getByText(/the first on 30 Nov 2026/)).toBeInTheDocument()
+    expect(screen.getByText(/the first on 30\/11\/2026/)).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Send to them now anyway'))
     expect(onChange).toHaveBeenCalledWith({ sendAnyway: true, reason: '' })
   })

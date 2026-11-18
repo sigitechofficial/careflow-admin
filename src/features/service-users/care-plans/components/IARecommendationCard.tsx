@@ -36,7 +36,7 @@ export function IARecommendationCard({
   const state = suggestionConflictState(currentValue, suggestion)
   if (state === 'match' && !applied) return null
 
-  const sourceDate = formatSuggestionSourceDate(suggestion.sourceDate)
+  const sourceDateText = formatSuggestionSourceDate(suggestion.sourceDate)
   const isConflict = state === 'conflict'
   const isContext = suggestion.kind === 'context'
 
@@ -74,7 +74,7 @@ export function IARecommendationCard({
         <p className="font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Source</p>
         <p>Initial Assessment</p>
         {suggestion.sourceSection ? <p>{suggestion.sourceSection}</p> : null}
-        {sourceDate ? <p>{sourceDate}</p> : null}
+        {sourceDateText ? <p>{sourceDateText}</p> : null}
       </div>
 
       {disabled || isContext ? null : (

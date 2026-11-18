@@ -10,6 +10,7 @@ import type {
 } from '@/features/hr/recruitment/api/recruitment.api'
 import { daysUntilClosing, formatClosingDate } from '@/features/hr/recruitment/utils/recruitment-display.util'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 export { formatPay } from '@/features/hr/recruitment/utils/recruitment-display.util'
 
 /** "Apply by 30 Nov 2026" plus how soon: "Closes today", "Closes in 3 days". Null when there is no closing date. */
@@ -134,5 +135,5 @@ export function postedAgo(iso: string): string {
   if (days <= 0) return 'Posted today'
   if (days === 1) return 'Posted yesterday'
   if (days < 30) return `Posted ${days} days ago`
-  return `Posted ${new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+  return `Posted ${formatOrganisationDay(iso)}`
 }

@@ -35,6 +35,7 @@ import {
 import type { CreateVisitsInput, RunMeta, VisitInput } from '@/features/scripts/create-visits.runner'
 
 import { TimeInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type Mode = RunMeta['mode']
 
 /** What Run will do, shown before anything is saved. */
@@ -133,7 +134,7 @@ export default function VisitCreationPage() {
               <dd className="text-foreground">
                 After the run you choose Generate rota or Not now. Generate rota covers{' '}
                 {rota.data
-                  ? `${rota.data.fromDate} → ${rota.data.toDate} (${rota.data.how})`
+                  ? `${formatOrganisationDay(rota.data.fromDate)} → ${formatOrganisationDay(rota.data.toDate)} (${rota.data.how})`
                   : rota.isError
                     ? 'today → the rota horizon (Settings → Dom Rules)'
                     : '…'}

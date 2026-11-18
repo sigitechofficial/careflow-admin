@@ -22,6 +22,7 @@ import type {
 } from '@/features/payroll/types/payroll.types'
 
 import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const gbp = (value: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(value)
 
 const BASIS_LABELS: Record<EmployeePayAgreementBasis, string> = {
@@ -183,7 +184,7 @@ export function PayAgreementsPanel({
               </div>
               <p className="text-muted-foreground">
                 From {a.effectiveFrom}
-                {a.effectiveTo ? ` to ${a.effectiveTo}` : ''}
+                {a.effectiveTo ? ` to ${formatOrganisationDay(a.effectiveTo)}` : ''}
                 {a.createdByName ? ` · entered by ${a.createdByName}` : ''}
                 {a.approvedByName ? ` · approved by ${a.approvedByName}` : ''}
               </p>
@@ -230,7 +231,7 @@ export function PayAgreementsPanel({
                       className="h-8 w-40"
                       value={endDates[a.id] ?? ''}
                       onChange={e => setEndDates(prev => ({ ...prev, [a.id]: e.target.value }))}
-                      aria-label={`Last day of the agreement from ${a.effectiveFrom}`}
+                      aria-label={`Last day of the agreement from ${formatOrganisationDay(a.effectiveFrom)}`}
                     />
                   </label>
                   <Button

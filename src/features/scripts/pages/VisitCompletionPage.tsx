@@ -31,8 +31,9 @@ import {
 } from '@/features/scripts/complete-visits.runner'
 
 import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 const hm = (iso: string) =>
-  new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: getSyncedOperationalTimeZone() })
+  formatOrganisationTime(iso)
 
 const money = (n: number | null, currency: string) =>
   n == null ? '—' : new Intl.NumberFormat('en-GB', { style: 'currency', currency: currency || 'GBP' }).format(n)

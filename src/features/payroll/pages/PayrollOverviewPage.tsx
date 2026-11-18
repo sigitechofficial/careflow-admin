@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
 } from '@/shared/ui/dialog'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const CONFIRM_PHRASE = 'DELETE ALL PAYROLL'
 
 type OverviewCard = {
@@ -182,8 +183,8 @@ export default function PayrollOverviewPage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">Current tax year</p>
                   <p className="text-sm text-muted-foreground">
-                    {data.currentTaxYear.label} ({data.currentTaxYear.startDate} –{' '}
-                    {data.currentTaxYear.endDate})
+                    {data.currentTaxYear.label} ({formatOrganisationDay(data.currentTaxYear.startDate)} –{' '}
+                    {formatOrganisationDay(data.currentTaxYear.endDate)})
                   </p>
                 </div>
                 <Button asChild size="sm" variant="outline">

@@ -48,6 +48,7 @@ import {
 } from '@/shared/ui/dialog'
 import { cn } from '@/shared/lib/utils'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const FREQUENCIES: PayrollPayFrequency[] = ['WEEKLY', 'FORTNIGHTLY', 'FOUR_WEEKLY', 'MONTHLY']
 
 export default function PayrollSchedulesPage() {
@@ -424,7 +425,7 @@ export default function PayrollSchedulesPage() {
                         <td className="py-3 pr-3 tabular-nums">
                           {p.periodStart} – {p.periodEnd}
                         </td>
-                        <td className="py-3 pr-3 tabular-nums">{p.paymentDate}</td>
+                        <td className="py-3 pr-3 tabular-nums">{formatOrganisationDay(p.paymentDate)}</td>
                         <td className="py-3 pr-3">
                           <PayrollStatusBadge status={p.status} />
                         </td>

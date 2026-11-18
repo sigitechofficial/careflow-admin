@@ -47,6 +47,7 @@ import {
   useSuspensionReviewsOverdue,
 } from '@/features/home/hooks/useHomeSignals'
 
+import { formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 /*
  * Comprehensive module dashboards for /apps/<module>.
  * Each module is a set of themed KPI groups. A tile is either
@@ -318,14 +319,9 @@ const CANCEL_REASON_LABEL: Record<string, string> = {
 /** Short date and time in the organisation's timezone. */
 function orgDateTime(iso: string | null | undefined): string | null {
   if (!iso) return null
-  return new Date(iso).toLocaleString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: getSyncedOperationalTimeZone(),
-  })
+  // Weekday and day for scanning, then the time in the organisation format.
+  const day = new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: getSyncedOperationalTimeZone() })
+  return `${day}, ${formatOrganisationTime(iso)}`
 }
 
 function CareOperationsInsights() {

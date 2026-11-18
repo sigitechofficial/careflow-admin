@@ -17,6 +17,7 @@ import type {
   InitialAssessmentSection,
 } from '@/features/service-users/initial-assessment/types'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 export type PrefillContext = {
   detail: ServiceUserDetail | null | undefined
   domCare: ServiceUserDomCareData | null | undefined
@@ -331,7 +332,7 @@ function prefillDisplayValue(
   if (q.questionType === 'DATE' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
     const d = new Date(`${value.slice(0, 10)}T00:00:00Z`)
     if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+      return String(formatOrganisationDay(value.slice(0, 10)))
     }
   }
   return value

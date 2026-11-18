@@ -54,6 +54,7 @@ import {
 } from '@/shared/ui/dialog'
 
 import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDate, formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const ABSENCE_TYPE_OPTIONS: { value: ServiceUserAbsenceType; label: string }[] = [
   { value: 'PLANNED', label: 'Planned Absence' },
   { value: 'UNPLANNED', label: 'Unplanned Absence' },
@@ -341,8 +342,8 @@ export function ServiceUserAbsencesTab({
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id} className="border-b border-border last:border-0">
-                  <td className="whitespace-nowrap px-3 py-2 align-top">{row.startDate}</td>
-                  <td className="whitespace-nowrap px-3 py-2 align-top">{row.endDate ?? '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2 align-top">{formatOrganisationDate(row.startDate)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 align-top">{row.endDate ? formatOrganisationDate(row.endDate) : '—'}</td>
                   <td className="px-3 py-2 align-top text-muted-foreground">
                     {[row.startTime, row.endTime].filter(Boolean).join(' – ') || '—'}
                   </td>
@@ -568,8 +569,8 @@ export function ServiceUserAbsencesTab({
         title="Generate rota from return date?"
         description={
           returnPreview?.generatePreview
-            ? `Would create ${returnPreview.generatePreview.visitsToCreate} visit(s) from ${pendingReturnDate}.`
-            : `Generate visits from ${pendingReturnDate}?`
+            ? `Would create ${returnPreview.generatePreview.visitsToCreate} visit(s) from ${formatOrganisationDay(pendingReturnDate)}.`
+            : `Generate visits from ${formatOrganisationDay(pendingReturnDate)}?`
         }
         confirmLabel={`Generate ${generateRotaHorizonLabel()}`}
         cancelLabel="Later"

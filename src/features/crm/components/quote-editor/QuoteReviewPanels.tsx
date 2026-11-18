@@ -57,7 +57,7 @@ import type {
 } from '@/features/crm/types/quotation.types'
 
 import { DateTimeInput } from '@/shared/ui/date-time-input'
-import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+import { formatOrganisationDateTime, formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm'
 const labelClass = 'text-sm font-medium text-foreground'
 const fmtDateTime = (iso: string | null) => (iso ? formatOrganisationDateTime(iso) : '—')
@@ -77,7 +77,7 @@ type Props = { enquiryId: string; detail: QuoteVersionDetail; onOpenVersion: (ve
 /* ─── Review & Send ───────────────────────────────────────────────────── */
 
 const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null
+  iso ? String(formatOrganisationDay(iso)) : null
 
 /** The latest send attempt for this version failed (and nothing was sent since). */
 function lastAttemptFailed(detail: QuoteVersionDetail): boolean {

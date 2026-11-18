@@ -17,6 +17,7 @@ import {
 import { describeQuestionExtras } from '@/features/surveys/survey-logic'
 import { Badge } from '@/shared/ui/badge'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 export const questionsText = (n: number) => `${n} question${n === 1 ? '' : 's'}`
 
 /** The facts row, in a fixed order: who answers, when, minutes, questions, how answers are kept. */
@@ -267,7 +268,7 @@ export function LibrarySurveyDetail({
         </ul>
       </section>
       <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-        <Clock className="h-3.5 w-3.5" aria-hidden /> Researched {shown.researchedOn}
+        <Clock className="h-3.5 w-3.5" aria-hidden /> Researched {formatOrganisationDay(shown.researchedOn)}
       </p>
     </>
   )

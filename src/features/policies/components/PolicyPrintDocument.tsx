@@ -4,6 +4,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { useCompanyStore } from '@/store/company.store'
 import { PRINT_CSS } from './policy-print-css'
 
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 /** A CSS string literal (for @page margin boxes). */
 function cssString(s: string): string {
   return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`
@@ -97,7 +98,7 @@ export function PolicyPrintDocument(p: PolicyPrintDocumentProps) {
   const org = branding?.displayName || branding?.companyName || ''
   const logo = branding?.displayLogoUrl || branding?.companyLogoUrl || null
   const printedBy = user?.displayName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.email || ''
-  const printedOn = printedAt.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const printedOnText = formatOrganisationDateTime(printedAt)
 
   return (
     <div className="policy-print-screen">
@@ -164,7 +165,7 @@ export function PolicyPrintDocument(p: PolicyPrintDocumentProps) {
         <footer className="policy-print-end">
           <p className="policy-print-endmark">End of document</p>
           <p>
-            Printed {printedOn}
+            Printed {printedOnText}
             {printedBy ? ` by ${printedBy}` : ''}. Printed copies are not controlled: check CareFlow for the current version before relying on
             this copy.
           </p>

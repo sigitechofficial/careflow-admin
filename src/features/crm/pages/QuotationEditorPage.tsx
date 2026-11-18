@@ -57,7 +57,7 @@ import type { Enquiry } from '@/features/crm/types/crm.types'
 import type { QuoteDraftInput, QuotePricing, QuoteType, QuoteVersionDetail } from '@/features/crm/types/quotation.types'
 
 import { DateInput } from '@/shared/ui/date-time-input'
-import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+import { formatOrganisationDateTime, formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 /** Three steps to build a quote, then send it. Quote details and terms sit, folded, on the price step. */
 const SECTIONS: Array<{ key: SectionKey; label: string; icon: LucideIcon; hint: string }> = [
   { key: 'schedule', label: 'Visits', icon: CalendarClock, hint: 'Add each visit: days, times and how many carers. The price is worked out for you.' },
@@ -669,8 +669,8 @@ function QuoteEditor({ enquiry, detail }: { enquiry: Enquiry; detail: QuoteVersi
                   summary={[
                     QUOTE_TYPE_LABELS[form.quoteType ?? 'PROVISIONAL_ESTIMATE'],
                     branches.find(b => b.id === form.locationId)?.label ?? 'No branch',
-                    form.proposedStartDate ? `starts ${form.proposedStartDate}` : null,
-                    form.validUntil ? `valid until ${form.validUntil}` : 'no valid-until date',
+                    form.proposedStartDate ? `starts ${formatOrganisationDay(form.proposedStartDate)}` : null,
+                    form.validUntil ? `valid until ${formatOrganisationDay(form.validUntil)}` : 'no valid-until date',
                   ]
                     .filter(Boolean)
                     .join(' · ')}

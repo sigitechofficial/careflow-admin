@@ -36,6 +36,7 @@ import { Checkbox } from '@/shared/ui/toggle-controls'
 import { TooltipProvider } from '@/shared/ui/tooltip'
 
 import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const NI_OPTIONS = buildNiCategoryComboboxOptions()
 
 /**
@@ -467,11 +468,11 @@ export function PayrollProfileTaxForm({ row, canManage }: { row: EmployeePayroll
                 <p className="text-xs text-muted-foreground">
                   Employment dates (from HR): start{' '}
                   <span className="font-medium text-foreground">
-                    {row.employmentStartDate ?? '—'}
+                    {formatOrganisationDay(row.employmentStartDate) ?? '—'}
                   </span>
                   {' · '}leave{' '}
                   <span className="font-medium text-foreground">
-                    {row.employmentEndDate ?? '—'}
+                    {formatOrganisationDay(row.employmentEndDate) ?? '—'}
                   </span>
                   . Edit under Employees → Employment. Leave date in a pay period marks last pay on
                   FPS.

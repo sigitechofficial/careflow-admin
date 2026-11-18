@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 type ConfirmOptions = {
   cancelEndedPlanJobs: boolean
   reactivationReason?: string
@@ -181,7 +182,7 @@ export function VisitPlanActivateDialog({
               <p className="font-medium">Another active package will be ended</p>
               {activatePreview?.otherActivePlans.map((p) => (
                 <p key={p.id} className="mt-1 text-muted-foreground">
-                  Plan since {p.effectiveFrom.slice(0, 10)} · {p.enabledSlotCount} enabled slot
+                  Plan since {formatOrganisationDay(p.effectiveFrom)} · {p.enabledSlotCount} enabled slot
                   {p.enabledSlotCount === 1 ? '' : 's'}
                 </p>
               ))}

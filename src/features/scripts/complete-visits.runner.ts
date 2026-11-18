@@ -13,6 +13,7 @@ import {
   type VisitJobTasksResponse,
 } from '@/features/scheduling/types/visit-job-tasks.types'
 
+import { formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 type Envelope<T> = { data?: T; meta?: Record<string, unknown>; message?: string }
 
 /** Waits after the API's rate limit (429) turns a request away (nothing was saved), before sending it again. */
@@ -176,7 +177,7 @@ export type CompleteVisitsRunOptions = { dryRun: boolean; log: (line: string) =>
 
 /** HH:mm in the organisation's time zone (Settings), as the rota board shows times. */
 const hm = (iso: string) =>
-  new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: getSyncedOperationalTimeZone() })
+  formatOrganisationTime(iso)
 const addMinutes = (iso: string, minutes: number) => new Date(new Date(iso).getTime() + minutes * 60_000).toISOString()
 const amount = (v: unknown): number | null => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v))
 

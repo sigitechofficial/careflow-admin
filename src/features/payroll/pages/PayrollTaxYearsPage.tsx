@@ -20,6 +20,7 @@ import {
 } from '@/shared/ui/dialog'
 
 import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 function ukTaxYearFromStartYear(startYear: number) {
   const endYear = startYear + 1
   const code = `${startYear}-${String(endYear).slice(-2)}`
@@ -101,7 +102,7 @@ export default function PayrollTaxYearsPage() {
                     ) : null}
                   </td>
                   <td className="py-2.5 pr-3 tabular-nums">
-                    {row.startDate} – {row.endDate}
+                    {formatOrganisationDay(row.startDate)} – {formatOrganisationDay(row.endDate)}
                   </td>
                   <td className="py-2.5 pr-3">
                     <PayrollStatusBadge status={row.status} />

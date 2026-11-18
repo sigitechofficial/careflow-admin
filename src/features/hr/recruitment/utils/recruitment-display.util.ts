@@ -14,6 +14,7 @@ import type {
   WorkSetting,
 } from '@/features/hr/recruitment/api/recruitment.api'
 
+import { formatOrganisationDateTime, formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 /** The recruitment steps, in order (one step at a time). */
 export const PIPELINE_STAGES: CandidateStage[] = [
   'APPLIED',
@@ -141,19 +142,11 @@ export function formatMonth(ym: string | null | undefined): string {
 }
 
 export function formatDate(value: string | null | undefined): string {
-  if (!value) return '—'
-  return new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  return value ? String(formatOrganisationDay(value)) : '—'
 }
 
 export function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '—'
-  return new Date(value).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return value ? formatOrganisationDateTime(value) : '—'
 }
 
 /** ISO date → value for <input type="date"> */
@@ -203,13 +196,7 @@ function ymdToUtc(ymd: string): number {
 
 /** "2026-11-30" → "30 Nov 2026" (closing dates are whole days). */
 export function formatClosingDate(ymd: string | null | undefined): string | null {
-  if (!ymd) return null
-  return new Date(ymdToUtc(ymd)).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
+  return ymd ? String(formatOrganisationDay(ymd)) : null
 }
 
 /** Whole days from today to the closing date: 0 = closes today, negative = already closed. */
@@ -225,7 +212,7 @@ export function appliedAgo(iso: string): string {
   if (days <= 0) return 'Applied today'
   if (days === 1) return 'Applied yesterday'
   if (days < 30) return `Applied ${days} days ago`
-  return `Applied ${new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+  return `Applied ${formatOrganisationDay(iso)}`
 }
 
 /* ─── Vacancy form choices (shown on the careers page too) ─── */

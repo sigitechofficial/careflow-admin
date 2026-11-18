@@ -37,7 +37,7 @@ export function closingDay(iso: string | null | undefined, timeZone = 'Europe/Lo
   if (!iso) return null
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
-  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' }).formatToParts(d)
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' }).formatToParts(d) // date-format-ok: message wording ("Monday 4 November")
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? ''
   return `${get('weekday')} ${Number(get('day'))} ${UK_MONTHS[Number(get('month')) - 1]}`
 }

@@ -10,6 +10,7 @@ import { Input } from '@/shared/ui/input'
 import { TooltipProvider } from '@/shared/ui/tooltip'
 
 import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const ENTRY_LABELS: Record<LeaveEntryRow['entryType'], string> = {
   TAKEN: 'Holiday taken',
   ADJUSTMENT: 'Correction (+ or −)',
@@ -287,7 +288,7 @@ export function LeaveHolidaySection({
           <summary className="cursor-pointer text-sm font-medium">Leaving? Check holiday owed or taken in advance</summary>
           <div className="mt-2 space-y-1">
             <p className="text-xs text-muted-foreground">
-              Leaving date on the employment record: <span className="font-medium text-foreground">{employmentEndDate ?? 'not set'}</span> (set it
+              Leaving date on the employment record: <span className="font-medium text-foreground">{formatOrganisationDay(employmentEndDate) ?? 'not set'}</span> (set it
               under Employees → Employment → End date). You can try another date here; it is not saved.
             </p>
             <DateInput value={leaverPreview} onChange={(e) => setLeaverPreview(e.target.value)} aria-label="Leaver preview date" className="sm:max-w-xs" />
@@ -328,7 +329,7 @@ export function LeaveHolidaySection({
                 <tbody>
                   {terms.map((t) => (
                     <tr key={t.id} className="border-t border-border/70">
-                      <td className="py-1 pr-2">{t.effectiveFrom}</td>
+                      <td className="py-1 pr-2">{formatOrganisationDay(t.effectiveFrom)}</td>
                       <td className="py-1 pr-2">{CATEGORY_LABELS[t.workerCategory]}</td>
                       <td className="py-1 pr-2">{t.weeklyHours ?? '—'}</td>
                       <td className="py-1 pr-2">

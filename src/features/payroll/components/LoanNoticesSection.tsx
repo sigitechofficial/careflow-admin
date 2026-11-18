@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 
 import { DateInput } from '@/shared/ui/date-time-input'
+import { formatOrganisationDay } from '@/shared/lib/organisation-display-format.store'
 const NOTICE_LABELS: Record<LoanNoticeType, string> = {
   SL1: 'SL1 — Start student loan',
   SL2: 'SL2 — Stop student loan',
@@ -271,15 +272,15 @@ export function LoanNoticesSection({
                     <td className="py-1 pr-2">{n.noticeType}</td>
                     <td className="py-1 pr-2">{n.studentLoanPlan ? `Plan ${n.studentLoanPlan}` : '—'}</td>
                     <td className="py-1 pr-2">{n.hmrcReference ?? '—'}</td>
-                    <td className="py-1 pr-2">{n.noticeDate}</td>
-                    <td className="py-1 pr-2">{n.receivedOn}</td>
+                    <td className="py-1 pr-2">{formatOrganisationDay(n.noticeDate)}</td>
+                    <td className="py-1 pr-2">{formatOrganisationDay(n.receivedOn)}</td>
                     <td className="py-1 pr-2">{n.effectivePayday}</td>
                     <td className="py-1 pr-2">
                       {STATUS_LABELS[status]}
                       {status !== 'ACTIVE' && n.voidReason ? (
                         <span className="block text-muted-foreground">
                           {n.voidReason} · evidence {n.voidEvidenceRef}
-                          {n.voidedAt ? ` · ${n.voidedAt.slice(0, 10)}` : ''}
+                          {n.voidedAt ? ` · ${formatOrganisationDay(n.voidedAt)}` : ''}
                         </span>
                       ) : null}
                       {n.replacesId ? <span className="block text-muted-foreground">Replaces an entry recorded in error</span> : null}

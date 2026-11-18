@@ -75,8 +75,8 @@ describe('percent formatting', () => {
 describe('date formatting', () => {
   it('formats ISO dates without timezone drift', () => {
     // ICU versions differ on "Sep" vs "Sept" for en-GB.
-    expect(formatDateGb('2026-09-01')).toMatch(/^1 Sept? 2026$/)
-    expect(formatDateGb('2026-01-31T23:30:00Z')).toBe('31 Jan 2026')
+    expect(formatDateGb('2026-09-01')).toBe('01/09/2026')
+    expect(formatDateGb('2026-01-31T23:30:00Z')).toBe('31/01/2026')
     expect(formatShortDateGb('2026-12-31')).toMatch(/^31 Dec$/)
     expect(formatDateGb(null)).toBe('—')
   })
@@ -88,7 +88,7 @@ describe('date formatting', () => {
 
   it('formats timestamps in UK time', () => {
     // 13:05 UTC in BST is 14:05 London time.
-    expect(formatDateTimeGb('2026-07-01T13:05:00Z')).toMatch(/1 Jul 2026,? 14:05/)
+    expect(formatDateTimeGb('2026-07-01T13:05:00Z')).toBe('01/07/2026 14:05')
   })
 
   it('describes relative times', () => {
