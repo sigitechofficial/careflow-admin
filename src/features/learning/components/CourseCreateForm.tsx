@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { CourseKindPicker } from '@/features/learning/components/CourseKindPicker'
+import { SideCard, TwoColumn } from '@/features/learning/components/builder-layout'
 import { useNavigate } from '@tanstack/react-router'
 import { RefreshCw } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
@@ -6,7 +8,6 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { FormField, Textarea } from '@/shared/ui/form-field'
 import { Combobox } from '@/shared/ui/combobox'
-import { Checkbox } from '@/shared/ui/toggle-controls'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
   useCreateLearningCourse,
@@ -14,8 +15,8 @@ import {
   useSuggestLearningCourseCode,
 } from '@/features/learning/hooks/useLearning'
 import {
-  CREATABLE_COURSE_TYPES,
-  LEARNING_DELIVERY_METHOD_OPTIONS,
+  courseKindOf,
+  type LearningCourseKind,
   type LearningCourseType,
   type LearningDeliveryMethod,
 } from '@/features/learning/types/learning.types'
@@ -39,12 +40,9 @@ export function CourseCreateForm() {
   const [description, setDescription] = React.useState('')
   const [duration, setDuration] = React.useState('')
   const [learningObjectives, setLearningObjectives] = React.useState('')
-  const [isMandatory, setIsMandatory] = React.useState(false)
   const [errors, setErrors] = React.useState<Errors>({})
 
   const categoryOptions = (categoriesQuery.data?.rows ?? []).map(c => ({ value: c.id, label: c.name }))
-  const typeDef = CREATABLE_COURSE_TYPES.find(t => t.value === courseType)
-  const deliveryOptions = LEARNING_DELIVERY_METHOD_OPTIONS.filter(o => typeDef?.deliveryMethods.includes(o.value))
 
   const clearError = (key: keyof Errors) => setErrors(prev => (prev[key] ? { ...prev, [key]: undefined } : prev))
 
@@ -64,15 +62,6 @@ export function CourseCreateForm() {
     clearError('categoryId')
     // Suggest a code for the new category unless the admin typed their own.
     if (value && (!codeEdited || !code.trim())) void suggestCode(value)
-  }
-
-  const onTypeChange = (value: string) => {
-    const next = value as LearningCourseType
-    setCourseType(next)
-    clearError('courseType')
-    const allowed = CREATABLE_COURSE_TYPES.find(t => t.value === next)?.deliveryMethods ?? []
-    // Keep the delivery method only if it is still allowed for the new type.
-    setDeliveryMethod(prev => (prev && allowed.includes(prev) ? prev : (allowed[0] ?? '')))
   }
 
   const validate = (): Errors => {
@@ -104,7 +93,6 @@ export function CourseCreateForm() {
         description: description.trim() || undefined,
         estimatedDurationMinutes: duration.trim() ? Number(duration) : undefined,
         learningObjectives: learningObjectives.trim() || undefined,
-        isMandatory,
       })
       toastSuccess('Draft course created')
       void navigate({ to: LEARNING_PATHS.courseDetail, params: { courseId: created.id } })
@@ -119,7 +107,11 @@ export function CourseCreateForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="max-w-3xl space-y-6" data-testid="learning-course-create-form" noValidate>
+    <form onSubmit={onSubmit} data-testid="learning-course-create-form" noValidate>
+      {/* Wide screens: form in the main column, guidance on the right (17 Nov 2026). */}
+      <TwoColumn
+        main={
+      <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Course title" required error={errors.title} className="sm:col-span-2">
           <Input
@@ -176,36 +168,16 @@ export function CourseCreateForm() {
           </div>
         </FormField>
 
-        <FormField
-          label="Course type"
-          required
-          error={errors.courseType}
-          hint={typeDef?.description}
-        >
-          <Combobox
-            value={courseType}
-            onChange={onTypeChange}
-            options={CREATABLE_COURSE_TYPES.map(t => ({ value: t.value, label: t.label }))}
-            allowDeselect={false}
-            error={Boolean(errors.courseType)}
-          />
-        </FormField>
-
-        <FormField
-          label="Delivery method"
-          required
-          error={errors.deliveryMethod}
-          hint="Only methods that fit the course type are shown."
-        >
-          <Combobox
-            value={deliveryMethod}
-            onChange={v => {
-              setDeliveryMethod(v as LearningDeliveryMethod)
+        <FormField label="Course type" required error={errors.deliveryMethod} className="sm:col-span-2">
+          <CourseKindPicker
+            value={courseKindOf({ courseType, deliveryMethod })}
+            onChange={kind => {
+              // One choice (17 Nov 2026): stored as a training course with this delivery method.
+              setCourseType('COURSE')
+              setDeliveryMethod(kind)
+              clearError('courseType')
               clearError('deliveryMethod')
             }}
-            options={deliveryOptions.map(o => ({ value: o.value, label: o.label }))}
-            allowDeselect={false}
-            error={Boolean(errors.deliveryMethod)}
           />
         </FormField>
 
@@ -231,17 +203,6 @@ export function CourseCreateForm() {
               clearError('duration')
             }}
           />
-        </FormField>
-
-        <FormField label="Mandatory" hint="Course default. Where mandatory is decided is still open.">
-          <div className="inline-flex h-9 items-center gap-2 text-sm">
-            <Checkbox
-              checked={isMandatory}
-              onCheckedChange={v => setIsMandatory(!!v)}
-              aria-label="Mandatory course"
-            />
-            <span aria-hidden="true">Mandatory course</span>
-          </div>
         </FormField>
 
         <FormField
@@ -272,6 +233,83 @@ export function CourseCreateForm() {
           Cancel
         </Button>
       </div>
+      </div>
+        }
+        side={<NewCourseGuide kind={courseKindOf({ courseType, deliveryMethod })} />}
+      />
     </form>
+  )
+}
+
+/** What each course type means in practice (17 Nov 2026). */
+const KIND_GUIDE: Record<LearningCourseKind, { title: string; points: string[] }> = {
+  ONLINE: {
+    title: 'Online course',
+    points: [
+      'The carer opens it in the app and works through the lessons',
+      'Add quizzes or a final assessment if needed; a quiz-only course is fine',
+      'It completes by itself and the certificate is issued',
+    ],
+  },
+  FACE_TO_FACE: {
+    title: 'Face to face course',
+    points: [
+      'Book a session in Training events and record attendance',
+      'The office starts the course and marks the lessons done',
+      'Any quiz is done by the carer in the app',
+      'Add a practical test on the Finish step if needed',
+      'A manager records the result',
+    ],
+  },
+  WORKPLACE: {
+    title: 'Workplace course',
+    points: [
+      'Done on the job, no session to book',
+      'The office starts the course and marks the lessons done',
+      'Any quiz is done by the carer in the app',
+      'Add a practical test on the Finish step if needed',
+      'A manager records the result',
+    ],
+  },
+}
+
+const BUILDER_STEPS = ['Details', 'Course outline', 'Final assessment', 'Finish and certificate', 'Review and publish']
+
+function NewCourseGuide({ kind }: { kind: LearningCourseKind }) {
+  const guide = KIND_GUIDE[kind]
+  return (
+    <>
+      <SideCard title={guide.title} testId="new-course-kind-guide">
+        <ul className="list-disc space-y-1 pl-4 text-sm text-muted-foreground">
+          {guide.points.map(p => (
+            <li key={p}>{p}</li>
+          ))}
+        </ul>
+      </SideCard>
+      <SideCard title="What comes next">
+        <ol className="space-y-1.5 text-sm">
+          {BUILDER_STEPS.map((step, i) => (
+            <li key={step} className="flex items-center gap-2">
+              <span
+                className={
+                  i === 0
+                    ? 'flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground'
+                    : 'flex h-5 w-5 items-center justify-center rounded-full border border-border text-[11px] text-muted-foreground'
+                }
+              >
+                {i + 1}
+              </span>
+              <span className={i === 0 ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+                {step}
+                {i === 0 ? ' · you are here' : ''}
+              </span>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 text-xs text-muted-foreground">
+          The course is saved as a draft. Carers see it only after you publish it.
+        </p>
+      </SideCard>
+    </>
   )
 }

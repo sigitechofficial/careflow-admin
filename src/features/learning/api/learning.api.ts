@@ -28,6 +28,7 @@ import type {
   LearningPublishCheck,
   LearningCourseStatusCounts,
   LearningDashboardSummary,
+  PracticalSignoffInput,
   LearningExternalTraining,
   LearningExternalTrainingInput,
   LearningExternalTrainingListParams,
@@ -648,6 +649,14 @@ export async function recordLearningOutcome(
   body: RecordOutcomeInput,
 ): Promise<LearningAssignmentRecord & { reassignedAssignmentId: string | null }> {
   return fetchData(`/learning/assignments/${id}/outcome`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+/** Practical test sign-off: checklist + competent / not yet competent (17 Nov 2026). */
+export async function signOffLearningPractical(
+  id: string,
+  body: PracticalSignoffInput,
+): Promise<LearningAssignmentRecord & { reassignedAssignmentId: string | null }> {
+  return fetchData(`/learning/assignments/${id}/practical-signoff`, { method: 'POST', body: JSON.stringify(body) })
 }
 
 /** Short-lived link to a certificate PDF (17 Nov 2026). */

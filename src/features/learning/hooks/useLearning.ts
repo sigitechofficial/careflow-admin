@@ -45,6 +45,7 @@ import {
   fetchLearningReviewOptions,
   fetchLearningAssignmentStatusCounts,
   recordLearningOutcome,
+  signOffLearningPractical,
   assignLearningAgain,
   startLearningAssignment,
   markLearningLessons,
@@ -107,6 +108,7 @@ import type {
   ExtendAssignmentInput,
   RecordAssignmentReviewInput,
   RecordOutcomeInput,
+  PracticalSignoffInput,
   AssignAgainInput,
   LearningCompetencyInput,
 } from '@/features/learning/types/learning.types'
@@ -788,6 +790,14 @@ export function useRecordLearningOutcome() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: RecordOutcomeInput }) => recordLearningOutcome(id, body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useSignOffLearningPractical() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: PracticalSignoffInput }) => signOffLearningPractical(id, body),
     onSuccess: () => invalidateLearning(qc),
   })
 }
