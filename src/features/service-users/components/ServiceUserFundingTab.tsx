@@ -63,6 +63,7 @@ import { Combobox } from '@/shared/ui/combobox'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
 import { DateInput } from '@/shared/ui/date-time-input'
+import { AddressFinder } from '@/shared/ui/address-finder'
 function FundingFieldLabel({
   label,
   tooltip,
@@ -1597,6 +1598,17 @@ export function ServiceUserFundingTab({
                                     </Button>
                                   ) : null}
                                 </div>
+                                <AddressFinder
+                                  id={`billing-address-${funder.id}`}
+                                  title="Find the billing address"
+                                  initialPostcode={share.billingPostcode}
+                                  onPick={(a) =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      mixedShares: patchMixedShare(f.mixedShares, funder.id, { billingAddressLine1: a.addressLine1, billingAddressLine2: a.addressLine2, billingTown: a.town, billingCounty: a.county, billingPostcode: a.postcode, billingCountry: a.country }),
+                                    }))
+                                  }
+                                />
                                 <div className="grid gap-2 sm:grid-cols-2">
                                   <div className="sm:col-span-2">
                                     <FundingFieldLabel
@@ -2067,6 +2079,12 @@ export function ServiceUserFundingTab({
                     </Button>
                   ) : null}
                 </div>
+                <AddressFinder
+                  id="billing-address"
+                  title="Find the billing address"
+                  initialPostcode={form.billingPostcode}
+                  onPick={(a) => setForm((f) => ({ ...f, ...{ billingAddressLine1: a.addressLine1, billingAddressLine2: a.addressLine2, billingTown: a.town, billingCounty: a.county, billingPostcode: a.postcode, billingCountry: a.country } }))}
+                />
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <FundingFieldLabel
