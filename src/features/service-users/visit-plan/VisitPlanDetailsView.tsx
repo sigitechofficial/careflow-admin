@@ -388,7 +388,7 @@ export function VisitPlanDetailsView({
 
         {plan.notes?.trim() ? (
           <div className="mt-4 rounded-md border border-border/60 bg-muted/20 px-4 py-3">
-            <p className={contentOverlineClass}>Plan notes</p>
+            <p className={contentOverlineClass}>Notes for the person and family</p>
             <p className="mt-1 text-sm">{plan.notes}</p>
           </div>
         ) : null}

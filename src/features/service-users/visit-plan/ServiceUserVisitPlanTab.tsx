@@ -1439,6 +1439,21 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
             />
           ) : null}
 
+      <ContentCard className="space-y-2" data-testid="visit-plan-family-notes">
+        <FormField label="Notes for the person and family (optional)">
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g. Morning visits are a little later on Sundays so Mum can go to church."
+            aria-describedby="visit-plan-family-notes-help"
+          />
+        </FormField>
+        <p id="visit-plan-family-notes-help" className={contentHelperClass}>
+          Shown on the plan and in the person&apos;s portal, so their family can read it. Keep internal notes out of
+          here. Saved with the plan in the next step.
+        </p>
+      </ContentCard>
+
       <ContentCard
         className={cn(
           'space-y-4',
@@ -1473,9 +1488,6 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
           action={<VisitPlanSectionToggle open={saveStepOpen} onToggle={toggleSaveStep} label="save and amend" />}
         />
         <div hidden={!saveStepOpen} className="space-y-4">
-        <FormField label="Plan notes (optional)">
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </FormField>
         {workingPlan ? (
           <FormField
             label={
