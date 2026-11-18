@@ -289,6 +289,44 @@ export const CREATABLE_COURSE_TYPES: Array<{
   },
 ]
 
+/**
+ * One "Course type" in the admin (user, 17 Nov 2026): Online, Face to face or Workplace.
+ * Stored as courseType COURSE + the delivery method; old Assessment only / Practical courses
+ * are shown under the matching type.
+ */
+export type LearningCourseKind = 'ONLINE' | 'FACE_TO_FACE' | 'WORKPLACE'
+export const LEARNING_COURSE_KINDS: Array<{ value: LearningCourseKind; label: string; description: string }> = [
+  {
+    value: 'ONLINE',
+    label: 'Online',
+    description: 'The carer does it in the app: lessons and/or a quiz. Certificate when passed.',
+  },
+  {
+    value: 'FACE_TO_FACE',
+    label: 'Face to face',
+    description:
+      'A session with a trainer. The office starts it and marks lessons and attendance. Any quiz is done in the app. A manager records the result.',
+  },
+  {
+    value: 'WORKPLACE',
+    label: 'Workplace',
+    description:
+      'On the job. The office starts it and marks lessons. Any quiz is done in the app. A manager records the result. No session.',
+  },
+]
+export function courseKindOf(course: {
+  courseType?: string | null
+  deliveryMethod?: string | null
+}): LearningCourseKind {
+  if (course.deliveryMethod === 'FACE_TO_FACE') return 'FACE_TO_FACE'
+  if (course.deliveryMethod === 'WORKPLACE' || course.courseType === 'PRACTICAL_COMPETENCY') return 'WORKPLACE'
+  return 'ONLINE'
+}
+export function courseKindLabel(course: { courseType?: string | null; deliveryMethod?: string | null }): string {
+  const kind = courseKindOf(course)
+  return LEARNING_COURSE_KINDS.find(k => k.value === kind)?.label ?? 'Online'
+}
+
 export type LearningCourseVersion = {
   id: string
   courseId: string
@@ -788,6 +826,23 @@ export type LearningAssignmentRecord = {
   }>
   /** Face to face: the office marks lessons; the carer only views them. */
   lessonsMarkedByTrainer?: boolean
+  /** Practical test checklist and its sign-offs (17 Nov 2026); null when the course has none. */
+  practical?: {
+    competencyName: string
+    validityDays: number | null
+    checklist: string[]
+    signoffs: Array<{
+      id: string
+      assessmentDate: string
+      location: string | null
+      competent: boolean
+      assessorName: string | null
+      note: string | null
+      nextSteps: string | null
+      createdAt: string
+      results: Array<{ criterion: string; met: boolean; comment: string | null }>
+    }>
+  } | null
   hasRequiredQuiz?: boolean
   /** Why the outcome can't be recorded yet (face to face), or null. */
   outcomeBlockedReason?: string | null
@@ -874,3 +929,14 @@ export type RecordOutcomeInput = {
   policyVersionId?: string
 }
 export type AssignAgainInput = { dueAt: string; note?: string }
+
+/** Practical test sign-off body (17 Nov 2026). */
+export type PracticalSignoffInput = {
+  assessmentDate: string
+  location?: string
+  results: Array<{ criterion: string; met: boolean; comment?: string }>
+  competent: boolean
+  note?: string
+  nextSteps?: string
+  reassignDueAt?: string
+}
