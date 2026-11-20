@@ -25,6 +25,9 @@ export const ROLE_TASK_PAGES: Array<{ label: string; path: string }> = [
 
 export function rolePageLabel(path: string | null): string | null {
   if (!path) return null
+  // Learning tasks link to one record (18 Nov 2026): show the area, not the raw link.
+  if (path.startsWith('/learning/certificates')) return 'Learning › Certificates'
+  if (path.startsWith('/learning/')) return 'Learning › Assignments'
   return ROLE_TASK_PAGES.find((p) => p.path === path)?.label ?? path
 }
 

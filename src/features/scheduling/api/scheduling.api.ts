@@ -365,6 +365,8 @@ export type VisitTimelineItem = {
   type: string
   occurredAt: string
   sourceType: string
+  /** Stable key of the row, e.g. "arrival:<employeeId>" or "area_lock:<lockId>". */
+  sourceId?: string
   /** Notes / handover / concerns / incidents: who wrote it and their role on the visit then. */
   author?: {
     employeeId: string

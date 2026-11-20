@@ -11,10 +11,9 @@ import { RichTextEditor } from '@/shared/ui/rich-text-editor'
 import { RichTextHtml } from '@/shared/ui/rich-text-html'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useLearningCategories, useUpdateLearningCourse } from '@/features/learning/hooks/useLearning'
+import { CourseKindPicker } from '@/features/learning/components/CourseKindPicker'
 import {
-  CREATABLE_COURSE_TYPES,
-  LEARNING_COURSE_TYPE_OPTIONS,
-  LEARNING_DELIVERY_METHOD_OPTIONS,
+  courseKindOf,
   type LearningCourse,
   type LearningCourseType,
   type LearningCourseVersion,
@@ -77,28 +76,6 @@ export function CourseDetailsTab({ course, version, readOnly, onSaved }: Props) 
   // A retired category stays visible on old courses.
   if (course.categoryId && categoriesQuery.data && !categoryOptions.some(o => o.value === course.categoryId)) {
     categoryOptions.push({ value: course.categoryId, label: 'Retired category' })
-  }
-
-  const typeOptions = CREATABLE_COURSE_TYPES.map(t => ({ value: t.value, label: t.label }))
-  const legacyType = course.courseType && !CREATABLE_COURSE_TYPES.some(t => t.value === course.courseType)
-  if (legacyType && course.courseType) {
-    const label = LEARNING_COURSE_TYPE_OPTIONS.find(o => o.value === course.courseType)?.label ?? course.courseType
-    typeOptions.push({ value: course.courseType, label: `${label} (old type)` })
-  }
-  const typeDef = CREATABLE_COURSE_TYPES.find(t => t.value === form.courseType)
-  const deliveryOptions = typeDef
-    ? LEARNING_DELIVERY_METHOD_OPTIONS.filter(o => typeDef.deliveryMethods.includes(o.value))
-    : LEARNING_DELIVERY_METHOD_OPTIONS
-
-  const onTypeChange = (value: string) => {
-    const next = value as LearningCourseType
-    const allowed = CREATABLE_COURSE_TYPES.find(t => t.value === next)?.deliveryMethods
-    setForm(prev => ({
-      ...prev,
-      courseType: next,
-      deliveryMethod: !allowed || (prev.deliveryMethod && allowed.includes(prev.deliveryMethod)) ? prev.deliveryMethod : (allowed[0] ?? ''),
-    }))
-    setErrors(prev => ({ ...prev, courseType: undefined, deliveryMethod: undefined }))
   }
 
   const validate = (): Errors => {
@@ -180,22 +157,20 @@ export function CourseDetailsTab({ course, version, readOnly, onSaved }: Props) 
           disabled={readOnly}
         />
       </FormField>
-      <FormField label="Type" required error={errors.courseType}>
-        <Combobox
-          value={form.courseType}
-          onChange={onTypeChange}
-          options={typeOptions}
-          allowDeselect={false}
+      <FormField label="Course type" required error={errors.deliveryMethod ?? errors.courseType} className="sm:col-span-2">
+        <CourseKindPicker
+          value={courseKindOf(form)}
           disabled={readOnly}
-        />
-      </FormField>
-      <FormField label="Delivery" required error={errors.deliveryMethod}>
-        <Combobox
-          value={form.deliveryMethod}
-          onChange={v => set('deliveryMethod', v as LearningDeliveryMethod)}
-          options={deliveryOptions.map(o => ({ value: o.value, label: o.label }))}
-          allowDeselect={false}
-          disabled={readOnly}
+          onChange={kind => {
+            // Same as the saved type: keep the saved values (old types stay as they are).
+            const original = courseKindOf(course)
+            setForm(prev => ({
+              ...prev,
+              courseType: kind === original ? (course.courseType ?? 'COURSE') : 'COURSE',
+              deliveryMethod: kind === original ? (course.deliveryMethod ?? kind) : kind,
+            }))
+            setErrors(prev => ({ ...prev, courseType: undefined, deliveryMethod: undefined }))
+          }}
         />
       </FormField>
       <FormField

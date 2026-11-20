@@ -27,6 +27,7 @@ import {
 function humanizeTag(code: string): string {
   if (code === 'OUTSIDE_AREA_CHECK_IN_REQUEST') return 'Outside area check-in'
   if (code === 'UNABLE_TO_START') return 'Unable to start'
+  if (code === 'WELFARE_ON_ARRIVAL') return 'Welfare on arrival'
   if (code === 'NFC_TAG_MISMATCH') return 'Wrong NFC tag'
   return code
     .replace(/_/g, ' ')
@@ -48,6 +49,7 @@ function rowMatchesQueueTag(row: EcmExceptionRow, tag: string): boolean {
 /** Always shown — even when count is 0 — so coordinators can filter an empty period. */
 const ALWAYS_QUEUE_TAGS = [
   'CARER_SOS',
+  'WELFARE_ON_ARRIVAL',
   'UNABLE_TO_START',
   'MOCK_LOCATION',
   'OVERDUE',

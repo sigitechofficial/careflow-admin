@@ -31,9 +31,11 @@ export default function EcmLiveMonitoringPage() {
     lockedAreaVisitCount,
     checkInRequestVisitCount,
     unableToStartVisitCount,
+    welfareVisitCount,
   } = useExceptionQueueTabFlags()
   const flagBits = [
     sosVisitCount > 0 ? `${sosVisitCount} carer SOS` : null,
+    welfareVisitCount > 0 ? `${welfareVisitCount} welfare concern on arrival` : null,
     lockedAreaVisitCount > 0 ? `${lockedAreaVisitCount} left visit area` : null,
     unableToStartVisitCount > 0 ? `${unableToStartVisitCount} unable to start` : null,
     checkInRequestVisitCount > 0
@@ -87,6 +89,14 @@ export default function EcmLiveMonitoringPage() {
                 data-testid="ecm-exception-queue-sos-flag"
               >
                 SOS {sosVisitCount}
+              </span>
+            ) : null}
+            {welfareVisitCount > 0 ? (
+              <span
+                className="ml-1.5 inline-flex items-center rounded-full bg-destructive px-1.5 py-0.5 text-[11px] font-semibold leading-none text-destructive-foreground"
+                data-testid="ecm-exception-queue-welfare-flag"
+              >
+                Welfare {welfareVisitCount}
               </span>
             ) : null}
             {lockedAreaVisitCount > 0 ? (

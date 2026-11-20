@@ -134,12 +134,15 @@ describe('ecm-urgent-alert.util', () => {
       row({ kind: 'UNABLE_TO_START', scheduledJobId: 'c' }),
       row({ kind: 'OUTSIDE_AREA_CHECK_IN_REQUEST', scheduledJobId: 'd' }),
       row({ kind: 'CARER_SOS', scheduledJobId: 'e', acknowledgedAt: '2026-09-14T10:00:00Z' }),
+      row({ kind: 'WELFARE_ON_ARRIVAL', scheduledJobId: 'f' }),
+      row({ kind: 'WELFARE_ON_ARRIVAL', scheduledJobId: 'f' }),
     ])
     expect(flags).toEqual({
       sosVisitCount: 1,
       lockedAreaVisitCount: 1,
       unableToStartVisitCount: 1,
       checkInRequestVisitCount: 1,
+      welfareVisitCount: 1,
     })
   })
 })

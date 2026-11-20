@@ -1,8 +1,7 @@
-import { BookOpen, CircleHelp, Clock, Layers, ListChecks, Monitor, Tag, History, Info } from 'lucide-react'
+import { BookOpen, CircleHelp, Clock, Layers, ListChecks, Tag, History, Info } from 'lucide-react'
 import { useLearningCategories, useLearningSettings } from '@/features/learning/hooks/useLearning'
 import {
-  CREATABLE_COURSE_TYPES,
-  LEARNING_COURSE_TYPE_OPTIONS,
+  courseKindLabel,
   LEARNING_DELIVERY_METHOD_OPTIONS,
   type LearningCourse,
   type LearningCourseVersion,
@@ -26,10 +25,7 @@ export function useCourseFacts(course: LearningCourse, version: LearningCourseVe
   const requiredModuleQuizzes = moduleQuizzes.filter(q => q.isRequired !== false)
   return {
     categoryName: categories.data?.rows.find(c => c.id === course.categoryId)?.name ?? '—',
-    typeLabel:
-      CREATABLE_COURSE_TYPES.find(t => t.value === course.courseType)?.label ??
-      LEARNING_COURSE_TYPE_OPTIONS.find(t => t.value === course.courseType)?.label ??
-      '—',
+    typeLabel: courseKindLabel(course),
     deliveryLabel: LEARNING_DELIVERY_METHOD_OPTIONS.find(o => o.value === course.deliveryMethod)?.label ?? '—',
     duration: course.estimatedDurationMinutes ? `${course.estimatedDurationMinutes} minutes` : 'Not set',
     modules,
@@ -57,7 +53,6 @@ export function CourseInfoCard({ course, version }: { course: LearningCourse; ve
         value={`${f.quizzes.length}${f.quizzes.length ? ` (${required} required)` : ''}`}
       />
       <InfoRow icon={<Layers className="h-4 w-4" />} label="Course type" value={f.typeLabel} />
-      <InfoRow icon={<Monitor className="h-4 w-4" />} label="Delivery method" value={f.deliveryLabel} />
       <InfoRow icon={<Tag className="h-4 w-4" />} label="Category" value={f.categoryName} />
     </SideCard>
   )

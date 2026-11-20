@@ -368,18 +368,9 @@ export function ServiceUserDomCareTab({
       <ServiceUserHouseholdSummary serviceUserId={serviceUserId} />
 
       <section className={sectionClass()}>
-        <SectionTitle>Access</SectionTitle>
+        <SectionTitle>Access risks</SectionTitle>
+        {/* Access instructions live in Home & access above (the field carers see in the app). */}
         <div className="space-y-5">
-          <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(140px,200px)_1fr] md:gap-x-6">
-            <label className="pt-2 text-sm text-muted-foreground">Access Instruction</label>
-            <textarea
-              className={cn(areaCls, !canUpdate && 'opacity-80')}
-              value={data.accessInstruction}
-              onChange={(e) => setField('accessInstruction', e.target.value)}
-              disabled={!canUpdate}
-              rows={4}
-            />
-          </div>
           <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(140px,200px)_1fr] md:gap-x-6">
             <label className="pt-2 text-sm text-muted-foreground">Access Risks</label>
             <textarea

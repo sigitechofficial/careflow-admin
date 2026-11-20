@@ -5,6 +5,7 @@ import { Input } from '@/shared/ui/input'
 import { FormField } from '@/shared/ui/form-field'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
+import { Combobox } from '@/shared/ui/combobox'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useLearningSettings, useUpdateLearningSettings } from '@/features/learning/hooks/useLearning'
 import type { LearningSettings } from '@/features/learning/types/learning.types'
@@ -33,6 +34,7 @@ export function LearningSettingsPanel() {
       allowCourseAccessAfterExpiry: form.allowCourseAccessAfterExpiry,
       allowCourseRetakeAfterPass: form.allowCourseRetakeAfterPass,
       complianceCalculationMode: form.complianceCalculationMode,
+      taskRoleId: form.taskRoleId ?? null,
     }
     try {
       await updateMut.mutateAsync(body)
@@ -83,6 +85,18 @@ export function LearningSettingsPanel() {
             onChange={e =>
               setForm(p => ({ ...p, defaultCertificateValidityDays: Number(e.target.value) || undefined }))
             }
+          />
+        </FormField>
+        <FormField
+          label="Learning tasks go to"
+          hint="Role that sees Learning work in My tasks (outcomes, overdue, late reviews, certificates)."
+        >
+          <Combobox
+            value={form.taskRoleId ?? ''}
+            onChange={v => setForm(p => ({ ...p, taskRoleId: v || null }))}
+            options={(settingsQuery.data?.taskRoleOptions ?? []).map(r => ({ value: r.id, label: r.name }))}
+            placeholder="Admin (default)"
+            searchPlaceholder="Search roles…"
           />
         </FormField>
         <FormField label="Compliance calculation mode">

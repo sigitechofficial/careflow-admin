@@ -33,6 +33,16 @@ describe('notificationDeepLink', () => {
     ).toBe('/hours-approvals')
   })
 
+  it('routes incident reports to the all incidents list', () => {
+    expect(
+      notificationDeepLink({
+        recordType: 'Incident',
+        recordId: 'incident-1',
+        metadata: { severity: 'HIGH', referenceNumber: 'INC-2026-000007' },
+      }),
+    ).toBe('/incidents/view')
+  })
+
   it('returns null for unrelated notifications', () => {
     expect(
       notificationDeepLink({

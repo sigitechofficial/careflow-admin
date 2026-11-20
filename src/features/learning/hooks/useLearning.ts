@@ -3,6 +3,7 @@ import {
   archiveLearningCourse,
   bulkCreateLearningAssignments,
   cancelLearningAssignment,
+  updateLearningAssignment,
   cancelLearningTrainingEvent,
   createAssessmentQuestion,
   createLearningAssessment,
@@ -45,6 +46,7 @@ import {
   fetchLearningReviewOptions,
   fetchLearningAssignmentStatusCounts,
   recordLearningOutcome,
+  signOffLearningPractical,
   assignLearningAgain,
   startLearningAssignment,
   markLearningLessons,
@@ -107,6 +109,7 @@ import type {
   ExtendAssignmentInput,
   RecordAssignmentReviewInput,
   RecordOutcomeInput,
+  PracticalSignoffInput,
   AssignAgainInput,
   LearningCompetencyInput,
 } from '@/features/learning/types/learning.types'
@@ -517,6 +520,15 @@ export function useBulkCreateLearningAssignments() {
   })
 }
 
+export function useUpdateLearningAssignment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof updateLearningAssignment>[1] }) =>
+      updateLearningAssignment(id, body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
 export function useCancelLearningAssignment() {
   const qc = useQueryClient()
   return useMutation({
@@ -788,6 +800,14 @@ export function useRecordLearningOutcome() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: RecordOutcomeInput }) => recordLearningOutcome(id, body),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useSignOffLearningPractical() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: PracticalSignoffInput }) => signOffLearningPractical(id, body),
     onSuccess: () => invalidateLearning(qc),
   })
 }

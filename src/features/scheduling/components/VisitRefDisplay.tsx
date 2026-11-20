@@ -3,11 +3,9 @@ import { cn } from '@/shared/lib/utils'
 const REF_TITLE =
   'Visit reference (EMONITORED): VIS-[BRANCH]-[YYYYMMDD]-[NNNN] — same as visit reconciliation'
 
-const ID_TITLE = 'Scheduled visit system ID'
-
 type Props = {
   visitRef?: string | null
-  /** Scheduled visit UUID (internal Visit ID). */
+  /** Internal system ID: not shown (kept so callers need not change). */
   visitId?: string | null
   className?: string
   /** When true, always reserve EMONITORED row (shows — if missing). */
@@ -15,17 +13,15 @@ type Props = {
   size?: 'sm' | 'md'
 }
 
-/** EMONITORED visit reference + optional Visit ID for schedule workspace. */
+/** The visit reference people use (VIS-CRO-20261117-0004). The internal system ID is never shown. */
 export function VisitRefDisplay({
   visitRef,
-  visitId,
   className,
   showEmpty = false,
   size = 'sm',
 }: Props) {
   const ref = visitRef?.trim() || null
-  const id = visitId?.trim() || null
-  if (!ref && !id && !showEmpty) return null
+  if (!ref && !showEmpty) return null
 
   const labelClass = cn(
     'shrink-0 font-medium uppercase tracking-wide text-muted-foreground',
@@ -43,7 +39,7 @@ export function VisitRefDisplay({
           className="inline-flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-0.5"
           title={REF_TITLE}
         >
-          <span className={labelClass}>EMONITORED</span>
+          <span className={labelClass}>Visit ref</span>
           {ref ? (
             <span className={valueClass}>{ref}</span>
           ) : (
@@ -53,15 +49,6 @@ export function VisitRefDisplay({
           )}
         </div>
       )}
-      {id ? (
-        <div
-          className="inline-flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-0.5"
-          title={ID_TITLE}
-        >
-          <span className={labelClass}>Visit ID</span>
-          <span className={cn(valueClass, 'font-medium')}>{id}</span>
-        </div>
-      ) : null}
     </div>
   )
 }

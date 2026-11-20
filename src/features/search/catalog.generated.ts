@@ -3879,6 +3879,15 @@ export const CATALOG_SETTINGS: CatalogSetting[] = [
     ]
   },
   {
+    "label": "Learning tasks go to",
+    "pageTitle": "Learning settings",
+    "path": "/learning/settings",
+    "permissions": [
+      "learning.settings.manage"
+    ],
+    "hint": "Role that sees Learning work in My tasks (outcomes, overdue, late reviews, certificates)."
+  },
+  {
     "label": "Compliance calculation mode",
     "pageTitle": "Learning settings",
     "path": "/learning/settings",

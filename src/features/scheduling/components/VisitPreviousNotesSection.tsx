@@ -1,8 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { MessageSquareText } from 'lucide-react'
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
-import { formatOrganisationDate, formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 import { cn } from '@/shared/lib/utils'
+import {
+  splitHandoverText,
+  VisitNoteCard,
+  type VisitNoteCardData,
+} from '@/features/scheduling/components/VisitHandoverSection'
 
 export type PreviousVisitNotes = {
   jobId: string
@@ -18,10 +23,26 @@ export async function fetchPreviousVisitNotes(jobId: string): Promise<PreviousVi
   return d && Array.isArray(d.notes) && d.notes.length ? d : null
 }
 
-const KIND_LABEL: Record<PreviousVisitNotes['notes'][number]['kind'], string> = {
-  visit_note: 'Note',
-  handover: 'Handover',
-  concern: 'Concern',
+/** Last visit's notes as cards: handovers first (with priority and outstanding action), then concerns, then notes. */
+export function previousNoteCards(data: PreviousVisitNotes): VisitNoteCardData[] {
+  const order = { handover: 0, concern: 1, visit_note: 2 } as const
+  return data.notes
+    .map((n, i) => {
+      const parts =
+        n.kind === 'handover'
+          ? splitHandoverText(n.text)
+          : { highPriority: false, text: n.text, outstandingAction: null }
+      return {
+        id: `${data.jobId}-${i}`,
+        kind: n.kind,
+        title: n.title,
+        ...parts,
+        author: null,
+        at: n.at,
+        voiceNotes: [],
+      }
+    })
+    .sort((a, b) => order[a.kind] - order[b.kind])
 }
 
 /** Notes, handover and concerns from this person's last visit, at the top of the visit window. */
@@ -48,13 +69,8 @@ export function VisitPreviousNotesSection({ jobId, className }: { jobId: string;
         <p className="mt-2 text-xs text-muted-foreground">No notes were written on earlier visits.</p>
       ) : (
         <ul className="mt-2 space-y-2">
-          {data.notes.map((n, i) => (
-            <li key={i} className={cn('rounded-md border p-2 text-sm', n.kind === 'concern' ? 'border-warning/40 bg-warning/5' : 'border-border')}>
-              <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{KIND_LABEL[n.kind]}</span> · {n.title} · {formatOrganisationDateTime(n.at)}
-              </p>
-              <p className="mt-1 whitespace-pre-wrap">{n.text}</p>
-            </li>
+          {previousNoteCards(data).map((n) => (
+            <VisitNoteCard key={n.id} note={n} />
           ))}
         </ul>
       )}

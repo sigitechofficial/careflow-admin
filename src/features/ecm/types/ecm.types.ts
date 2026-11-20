@@ -390,6 +390,7 @@ export type EcmExceptionKind =
   | 'OUTSIDE_AREA_CHECK_IN_REQUEST'
   | 'UNABLE_TO_START'
   | 'NFC_TAG_MISMATCH'
+  | 'WELFARE_ON_ARRIVAL'
   | 'OTHER'
 
 export type CarerSosAlertDto = {
