@@ -6,6 +6,7 @@ import { useVisitTimeline } from '@/features/scheduling/hooks/useVisitVoiceNotes
 import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
 import { VoiceNotePlayer } from '@/features/scheduling/components/VoiceNotePlayer'
 import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
+import { VisitHandoverSection } from '@/features/scheduling/components/VisitHandoverSection'
 
 /**
  * Every recording has one home in the workspace. These play in their own tab
@@ -68,6 +69,8 @@ export function VisitLogTimelinePanel({ jobId }: { jobId: string }) {
           timezone.
         </p>
       </div>
+
+      <VisitHandoverSection jobId={jobId} className="rounded-lg border border-border bg-card" />
 
       {timeline.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">

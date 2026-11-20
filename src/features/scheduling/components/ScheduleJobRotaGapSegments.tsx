@@ -171,9 +171,11 @@ export function ScheduleJobRotaGapSegments({
             {isIdle ? (
               <TooltipContent side="top" className="max-w-xs rounded-xl px-4 py-3 text-xs ring-1 ring-black/5 dark:ring-white/10">
                 <p className="font-semibold">Idle time</p>
-                <p className="tabular-nums text-foreground">{segment.timeRangeLabel}</p>
-                <p className="font-medium tabular-nums text-foreground">{segment.durationLabel}</p>
-                <p className="text-muted-foreground">{segment.title}</p>
+                <p className="mt-1 flex flex-wrap items-center gap-2 tabular-nums text-foreground">
+                  <span>{segment.timeRangeLabel}</span>
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-semibold">{segment.durationLabel}</span>
+                </p>
+                <p className="mt-0.5 text-muted-foreground">{segment.title}</p>
               </TooltipContent>
             ) : (
               <ScheduleRotaGapHoverTooltip

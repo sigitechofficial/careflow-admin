@@ -8,7 +8,6 @@ import {
   RefreshCw,
   Save,
   Settings,
-  ShieldAlert,
   UserCheck,
   UserCog,
 } from 'lucide-react'
@@ -22,7 +21,7 @@ import { FormField } from '@/shared/ui/form-field'
 import { Checkbox, Switch } from '@/shared/ui/toggle-controls'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useLearningSettings, useUpdateLearningCourse } from '@/features/learning/hooks/useLearning'
-import type { LearningCourse, LearningCourseVersion } from '@/features/learning/types/learning.types'
+import { courseKindOf, type LearningCourse, type LearningCourseVersion } from '@/features/learning/types/learning.types'
 import { CompetencyLink } from '@/features/learning/components/CompetencyLink'
 
 type Props = {
@@ -127,10 +126,7 @@ export function CourseCompletionTab({ course, version, readOnly, onSaved }: Prop
   const validityShown = form.validityDays.trim() || (defaultValidity ? String(defaultValidity) : '—')
   const warnings: string[] = []
   if (course.courseType === 'PRACTICAL_COMPETENCY' && !form.requiresPracticalAssessment) {
-    warnings.push('This is a practical course but the practical competency is not required.')
-  }
-  if (form.requiresPracticalAssessment) {
-    warnings.push('The assessor sign-off screen is not built yet, so carers cannot finish a course with practical competency on.')
+    warnings.push('This is a practical course but the practical test is not required.')
   }
   requiredQuizzes.filter(q => !(q.questions?.length ?? 0)).forEach(q => warnings.push(`"${q.title}" has no questions yet.`))
   if (!form.certificateEnabled) warnings.push('No certificate will be issued.')
@@ -181,13 +177,14 @@ export function CourseCompletionTab({ course, version, readOnly, onSaved }: Prop
                   </p>
                 ) : null}
               </RequirementCard>
+              {courseKindOf(course) !== 'ONLINE' || form.requiresPracticalAssessment ? (
               <RequirementCard
                 icon={<UserCheck className="h-5 w-5" />}
                 checked={form.requiresPracticalAssessment}
                 onChange={v => set('requiresPracticalAssessment', v)}
                 disabled={readOnly}
-                title="Practical competency"
-                hint="An assessor checks the skill in person against the competency checklist."
+                title="Practical test"
+                hint="The manager watches the carer do the task and fills the checklist (Met / Not met with comments)."
               >
                 {form.requiresPracticalAssessment || course.courseType === 'PRACTICAL_COMPETENCY' || version.competencyId ? (
                   <div className="mt-2">
@@ -195,6 +192,7 @@ export function CourseCompletionTab({ course, version, readOnly, onSaved }: Prop
                   </div>
                 ) : null}
               </RequirementCard>
+              ) : null}
               <RequirementCard
                 icon={<UserCog className="h-5 w-5" />}
                 checked={form.requiresManagerApproval}
@@ -202,14 +200,6 @@ export function CourseCompletionTab({ course, version, readOnly, onSaved }: Prop
                 disabled={readOnly}
                 title="Manager approval"
                 hint="A manager confirms the completion before it counts."
-              />
-              <RequirementCard
-                icon={<ShieldAlert className="h-5 w-5" />}
-                checked={form.isMandatory}
-                onChange={v => set('isMandatory', v)}
-                disabled={readOnly}
-                title="Mandatory training"
-                hint="Counted as mandatory in training compliance. Applies to the course, not only this version."
               />
             </div>
           </Panel>

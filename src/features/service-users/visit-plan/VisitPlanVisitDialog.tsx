@@ -43,6 +43,13 @@ import {
 
 import { DateInput, TimeInput } from '@/shared/ui/date-time-input'
 import { operationalTodayIso } from '@/shared/lib/operational-day.util'
+/** Name a new visit starts with, from its slot: "Evening" → "Evening visit". */
+export function defaultVisitPurpose(visit: Pick<VisitPlanSlot, 'label'>): string {
+  const label = (visit.label ?? '').trim()
+  if (!label) return 'Visit'
+  return /\bvisit$/i.test(label) ? label : `${label} visit`
+}
+
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -83,14 +90,17 @@ export function VisitPlanVisitDialog({
 
   React.useEffect(() => {
     if (!open) return
+    // A new visit gets a name to start from ("Evening visit"); the office can change or clear it.
+    const named =
+      mode === 'add' && visit && !visit.notes?.trim() ? { ...visit, notes: defaultVisitPurpose(visit) } : visit
     // A new repeating visit starts today (or when the plan starts, if later): visits that would
     // already have started today are not made (the API skips them), and none are made for past days.
-    if (mode === 'add' && visit && visit.slotKind !== 'ONE_OFF' && !visit.slotEffectiveFrom) {
+    if (mode === 'add' && named && named.slotKind !== 'ONE_OFF' && !named.slotEffectiveFrom) {
       const today = operationalTodayIso()
       const planStart = planEffectiveFrom?.slice(0, 10)
-      setDraft({ ...visit, slotEffectiveFrom: planStart && planStart > today ? planStart : today })
+      setDraft({ ...named, slotEffectiveFrom: planStart && planStart > today ? planStart : today })
     } else {
-      setDraft(visit)
+      setDraft(named)
     }
     setError(null)
     // Snapshot the visit only when the dialog opens (its identity changes on every parent render).
@@ -168,7 +178,7 @@ export function VisitPlanVisitDialog({
           <DialogBody className="space-y-5">
             <section>
               <Label htmlFor="visit-purpose" className="text-xs text-muted-foreground">
-                What is this visit for? (optional)
+                What is this visit for?
               </Label>
               <Input
                 id="visit-purpose"
@@ -179,7 +189,7 @@ export function VisitPlanVisitDialog({
                 onChange={(e) => patch({ notes: e.target.value })}
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Shown on every visit this makes (the visit window and the carer app) and on the person&apos;s plan.
+                Change it to say what the visit is for. Shown on every visit this makes (the visit window and the carer app) and on the person&apos;s plan.
               </p>
             </section>
             <section>

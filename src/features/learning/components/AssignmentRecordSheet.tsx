@@ -26,6 +26,7 @@ import {
 import type { LearningAssignmentRecord } from '@/features/learning/types/learning.types'
 import { LearningStatusBadge } from '@/features/learning/components/LearningStatusBadge'
 import { CertificateViewDialog } from '@/features/learning/components/CertificateViewDialog'
+import { PracticalSignoffCard } from '@/features/learning/components/PracticalSignoffCard'
 
 import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 type Props = { assignmentId: string | null; onOpenChange: (open: boolean) => void }
@@ -73,7 +74,11 @@ export function AssignmentRecordSheet({ assignmentId, onOpenChange }: Props) {
           ) : (
             <>
               <Summary r={r} />
-              {canManage && r.needsOutcome ? <Outcome r={r} onChanged={() => void recordQuery.refetch()} /> : null}
+              {canManage && r.practical ? (
+                <PracticalSignoffCard r={r} onChanged={() => void recordQuery.refetch()} />
+              ) : canManage && r.needsOutcome ? (
+                <Outcome r={r} onChanged={() => void recordQuery.refetch()} />
+              ) : null}
               {canManage && (r.status === 'FAILED' || r.status === 'EXPIRED') ? (
                 <AssignAgain r={r} onChanged={() => void recordQuery.refetch()} />
               ) : null}
@@ -135,7 +140,7 @@ function Summary({ r }: { r: LearningAssignmentRecord }) {
         <span>Started: {when(r.startedAt)}</span>
         <span>Completed: {when(r.completedAt)}</span>
         <span>Last opened: {when(r.lastAccessedAt)}</span>
-        <span>Lessons: {Math.round(r.progressPercentage)}%</span>
+        <span>Course progress: {Math.round(r.progressPercentage)}%</span>
       </div>
       {r.source?.type === 'Incident' ? (
         <Link

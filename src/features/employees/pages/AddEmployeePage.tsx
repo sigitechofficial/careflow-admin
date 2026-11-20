@@ -55,6 +55,7 @@ import { EmployeeEditSuspensionsPanel } from '@/features/employees/components/Em
 import { EmployeeEditIncidentsPanel } from '@/features/employees/components/EmployeeEditIncidentsPanel'
 import { EmployeeEditAllocationsPanel } from '@/features/employees/components/EmployeeEditAllocationsPanel'
 import { StaffSignInAccessSection } from '@/features/employees/components/StaffSignInAccessSection'
+import { EmployeeAccountReviewCard } from '@/features/employees/components/EmployeeAccountReviewCard'
 import { PersonSurveysSection, SurveyContactSettingsLink } from '@/features/surveys/reminders/PersonSurveysSection'
 import { SurveyContactPreferencesSection } from '@/features/surveys/reminders/SurveyContactPreferencesSection'
 import { EmployeeEditReviewsPanel } from '@/features/employees/components/EmployeeEditReviewsPanel'
@@ -1168,6 +1169,9 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
               <p className="text-xs text-muted-foreground">
                 Employee ID: <span className="font-mono text-foreground">{createdEmployeeId}</span>
               </p>
+            ) : null}
+            {isEditMode && createdEmployeeId && !employeeBootstrapError ? (
+              <EmployeeAccountReviewCard employeeId={createdEmployeeId} />
             ) : null}
           </div>
         </div>

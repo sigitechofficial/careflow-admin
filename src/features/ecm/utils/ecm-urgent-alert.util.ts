@@ -1,6 +1,7 @@
 /** Field events that ring the office and deep-link to the ECM exception queue. */
 export const URGENT_OFFICE_ALERT_KINDS = [
   'CARER_SOS',
+  'WELFARE_ON_ARRIVAL',
   'LEFT_VISIT_AREA',
   'UNABLE_TO_START',
 ] as const
@@ -19,6 +20,7 @@ export type UrgentOfficeDialogKind = (typeof URGENT_OFFICE_DIALOG_KINDS)[number]
 /** Action-needed flags on the ECM Exception queue tab and Schedule Jobs board. */
 export const BOARD_LIVE_OFFICE_ALERT_KINDS = [
   'CARER_SOS',
+  'WELFARE_ON_ARRIVAL',
   'LEFT_VISIT_AREA',
   'UNABLE_TO_START',
   'OUTSIDE_AREA_CHECK_IN_REQUEST',
@@ -167,6 +169,11 @@ export function isLiveLeftVisitArea(row: LiveOfficeAlertException): boolean {
   return row.kind === 'LEFT_VISIT_AREA' && row.areaLock?.status !== 'ALLOWED'
 }
 
+/** Carer's clock-in answers were worrying (found on the floor, not seen, manager review asked). */
+export function isLiveWelfareOnArrival(row: LiveOfficeAlertException): boolean {
+  return row.kind === 'WELFARE_ON_ARRIVAL' && !isClosedEcmExceptionLifecycle(row.lifecycle)
+}
+
 export function isLiveUnableToStart(row: LiveOfficeAlertException): boolean {
   return row.kind === 'UNABLE_TO_START' && !isClosedEcmExceptionLifecycle(row.lifecycle)
 }
@@ -183,6 +190,7 @@ export function liveOfficeAlertKindForRow(
   row: LiveOfficeAlertException,
 ): BoardLiveOfficeAlertKind | null {
   if (isLiveCarerSos(row)) return 'CARER_SOS'
+  if (isLiveWelfareOnArrival(row)) return 'WELFARE_ON_ARRIVAL'
   if (isLiveLeftVisitArea(row)) return 'LEFT_VISIT_AREA'
   if (isLiveUnableToStart(row)) return 'UNABLE_TO_START'
   if (isLiveOutsideAreaCheckIn(row)) return 'OUTSIDE_AREA_CHECK_IN_REQUEST'
@@ -194,6 +202,7 @@ export type ExceptionQueueTabFlags = {
   lockedAreaVisitCount: number
   checkInRequestVisitCount: number
   unableToStartVisitCount: number
+  welfareVisitCount: number
 }
 
 export function countExceptionQueueTabFlags(
@@ -203,16 +212,19 @@ export function countExceptionQueueTabFlags(
   const lockedAreaJobs = new Set<string>()
   const checkInRequestJobs = new Set<string>()
   const unableToStartJobs = new Set<string>()
+  const welfareJobs = new Set<string>()
   for (const row of rows) {
     if (isLiveCarerSos(row)) sosJobs.add(row.scheduledJobId)
     if (isLiveLeftVisitArea(row)) lockedAreaJobs.add(row.scheduledJobId)
     if (isLiveOutsideAreaCheckIn(row)) checkInRequestJobs.add(row.scheduledJobId)
     if (isLiveUnableToStart(row)) unableToStartJobs.add(row.scheduledJobId)
+    if (isLiveWelfareOnArrival(row)) welfareJobs.add(row.scheduledJobId)
   }
   return {
     sosVisitCount: sosJobs.size,
     lockedAreaVisitCount: lockedAreaJobs.size,
     checkInRequestVisitCount: checkInRequestJobs.size,
     unableToStartVisitCount: unableToStartJobs.size,
+    welfareVisitCount: welfareJobs.size,
   }
 }

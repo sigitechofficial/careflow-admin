@@ -30,9 +30,7 @@ import {
   usePublishLearningCourse,
 } from '@/features/learning/hooks/useLearning'
 import {
-  CREATABLE_COURSE_TYPES,
-  LEARNING_COURSE_TYPE_OPTIONS,
-  LEARNING_DELIVERY_METHOD_OPTIONS,
+  courseKindLabel,
   type LearningCourse,
   type LearningCourseVersion,
   type LearningPublishIssue,
@@ -96,11 +94,7 @@ export function CourseReviewTab({ course, version, canPublish, onGoTo, onPreview
   const finals = quizzes.filter(a => !a.sectionId)
   const requiredModuleQuizzes = moduleQuizzes.filter(a => a.isRequired !== false)
   const category = categoriesQuery.data?.rows.find(c => c.id === course.categoryId)?.name ?? '—'
-  const typeLabel =
-    CREATABLE_COURSE_TYPES.find(t => t.value === course.courseType)?.label ??
-    LEARNING_COURSE_TYPE_OPTIONS.find(t => t.value === course.courseType)?.label ??
-    '—'
-  const deliveryLabel = LEARNING_DELIVERY_METHOD_OPTIONS.find(o => o.value === course.deliveryMethod)?.label ?? '—'
+  const typeLabel = courseKindLabel(course)
   const validity = version.certificateValidityDays ?? settings?.defaultCertificateValidityDays
 
   const openConfirm = async () => {
@@ -169,7 +163,6 @@ export function CourseReviewTab({ course, version, canPublish, onGoTo, onPreview
                 <InfoRow label="Course code" value={<span className="font-mono text-xs">{course.code}</span>} />
                 <InfoRow label="Category" value={category} />
                 <InfoRow label="Course type" value={typeLabel} />
-                <InfoRow label="Delivery method" value={deliveryLabel} />
                 <InfoRow label="Version" value={`v${version.versionNumber}`} />
               </div>
               <div>
@@ -198,7 +191,6 @@ export function CourseReviewTab({ course, version, canPublish, onGoTo, onPreview
               <InfoRow label="CPD minutes" value={version.cpdMinutes ?? '—'} />
               <InfoRow label="Certificate validity" value={version.certificateEnabled && validity ? `${validity} days` : '—'} />
               <InfoRow label="Refresher" value={version.refresherFrequencyDays ? 'On expiry' : '—'} />
-              <InfoRow label="Mandatory" value={course.isMandatory ? 'Yes' : 'No'} />
             </Panel>
           </div>
 
