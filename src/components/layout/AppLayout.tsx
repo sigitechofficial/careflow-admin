@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { useUIStore } from '@/store/ui.store'
 import { useDocumentTitle } from '@/shared/lib/use-document-title'
+import { InspectorAccessBanner } from './InspectorAccessBanner'
 
 import type { LayoutVariant } from '@/components/layout/sidebar-types'
 
@@ -38,6 +39,7 @@ export function AppLayout({ children, pageTitle, contentLayout = 'default', vari
       {/* Main column */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar pageTitle={pageTitle} variant={variant} />
+        <InspectorAccessBanner />
         {/* Sole vertical scroll surface for page content */}
         <main
           className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"

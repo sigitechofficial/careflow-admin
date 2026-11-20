@@ -182,7 +182,6 @@ const reviewerOnlyNavItems: NavItem[] = [
 ]
 
 const inspectorOnlyNavItems: NavItem[] = [
-  { label: 'Home', icon: <Home className="h-5 w-5" />, href: '/' },
   {
     label: 'Service Users',
     icon: <Users className="h-5 w-5" />,
@@ -195,13 +194,7 @@ const inspectorOnlyNavItems: NavItem[] = [
         permission: 'service_users.read',
         navTestId: 'nav-service-users-all',
       },
-      {
-        label: 'Calendar',
-        icon: <CalendarDays className="h-4 w-4" />,
-        href: '/service-users/calendar',
-        permission: 'service_users.calendar.read',
-        navTestId: 'nav-service-users-calendar',
-      },
+      // No Calendar: the all-service-users calendar covers people outside the inspector's chosen ones.
     ],
   },
 ]
