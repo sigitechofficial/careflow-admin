@@ -8,7 +8,7 @@ export type ScriptWorkflow = {
   title: string
   description: string
   /** Its details page. */
-  href: '/scripts/visit-creation' | '/scripts/visit-completion'
+  href: '/scripts/visit-creation' | '/scripts/visit-completion' | '/scripts/staff-creation'
 }
 
 export const SCRIPT_WORKFLOWS: ScriptWorkflow[] = [
@@ -25,5 +25,12 @@ export const SCRIPT_WORKFLOWS: ScriptWorkflow[] = [
     description:
       "Complete a carer's visits on a day the way the office records them — tasks ticked, actual times, reasons — then see the pay, charge, travel time and mileage CareFlow works out for each visit.",
     href: '/scripts/visit-completion',
+  },
+  {
+    id: 'staff-creation',
+    title: 'Staff Creation',
+    description:
+      'Create test staff ready to work — carers, senior carers, coordinators, office managers or HR — with employment, availability, sign-in with a password you set, compliance and skills, the same way the Add employee screens do.',
+    href: '/scripts/staff-creation',
   },
 ]

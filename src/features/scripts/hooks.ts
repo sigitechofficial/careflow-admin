@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { fetchEmployeeLookups } from '@/features/employees/api/employees.api'
 import {
   fetchCarerOptions,
   fetchServiceUserOptions,
@@ -111,4 +112,9 @@ export function useVisitCreationRun() {
 
   const running = state.kind === 'running' || (state.kind === 'done' && state.rota === 'generating')
   return { state, log, start, generateRota, skipRota, running }
+}
+
+/** Branches and the other employee lookups, for Staff Creation's branch picker. */
+export function useScriptEmployeeLookups() {
+  return useQuery({ queryKey: ['scripts', 'employee-lookups'], queryFn: () => fetchEmployeeLookups(), staleTime: 60_000 })
 }
