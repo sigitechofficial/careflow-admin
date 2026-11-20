@@ -71,6 +71,7 @@ import EmployeePage from '@/features/employees/pages/EmployeePage'
 import GeneralEmployeeDocumentsPage from '@/features/employees/pages/GeneralEmployeeDocumentsPage'
 import AddEmployeePage from '@/features/employees/pages/AddEmployeePage'
 import EditEmployeePage from '@/features/employees/pages/EditEmployeePage'
+import EmployeeAccountReviewPage from '@/features/employees/pages/EmployeeAccountReviewPage'
 import HrDashboardPage from '@/features/hr/pages/HrDashboardPage'
 import HrEmployeeProfilePage from '@/features/hr/pages/HrEmployeeProfilePage'
 import RecruitmentDashboardPage from '@/features/hr/recruitment/pages/RecruitmentDashboardPage'
@@ -611,6 +612,8 @@ function AppRootShell() {
         ? 'Survey'
       : /^\/employee\/[^/]+\/edit$/.test(pathname)
       ? 'Edit Employee'
+      : /^\/employee\/[^/]+\/review$/.test(pathname)
+      ? 'Care app request'
       : /^\/service-users\/[^/]+\/profile$/.test(pathname)
         ? 'Profile'
       : /^\/service-users\/[^/]+\/view$/.test(pathname)
@@ -1818,6 +1821,14 @@ const employeeEditRoute = createRoute({
     prefetchEmployeeEditRoute(qc, employeeId)
   },
   component: EditEmployeePage,
+})
+
+/** Care app sign-up / delete request review: opens with employees.read (reviewers may not edit staff). */
+const employeeAccountReviewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/employee/$employeeId/review',
+  beforeLoad: requireAnyPermission('employees.read'),
+  component: EmployeeAccountReviewPage,
 })
 
 const hrIndexRoute = createRoute({
@@ -3197,6 +3208,7 @@ const routeTree = rootRoute.addChildren([
     employeeGeneralDocumentsRoute,
     employeeAddRoute,
     employeeEditRoute,
+    employeeAccountReviewRoute,
     hrIndexRoute,
     hrEmployeesRoute,
     hrEmployeeProfileRoute,
