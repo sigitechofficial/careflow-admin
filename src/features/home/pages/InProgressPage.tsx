@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link, useRouterState } from '@tanstack/react-router'
+import { Link, Navigate, useRouterState } from '@tanstack/react-router'
 import { ArrowLeft, Home } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { LoadingSpinner } from '@/shared/ui/page-elements'
@@ -27,12 +27,27 @@ function findPlanned(title: string | undefined) {
   return undefined
 }
 
+/** A menu page with this title that has since been built (old links and bookmarks to /in-progress). */
+function findBuilt(title: string | undefined) {
+  if (!title) return undefined
+  for (const mod of adminNavItems) {
+    const page = mod.children?.find(
+      (c) => !c.planned && c.ready !== false && c.label === title && c.href !== '/in-progress',
+    )
+    if (page) return page
+  }
+  return undefined
+}
+
 /** Shown for menu links to features that are not built yet, and as the router default not-found view. */
 export default function InProgressPage() {
   const contextTitle = useRouterState({
     select: (s) => titleFromSearch(s.location.search),
   })
+  const builtPage = React.useMemo(() => findBuilt(contextTitle), [contextTitle])
   const plannedPage = React.useMemo(() => findPlanned(contextTitle), [contextTitle])
+  if (builtPage) return <Navigate to={builtPage.href} replace />
+
   const meta = plannedPage ? NAV_MODULES[plannedPage.module] : undefined
   const landing = plannedPage ? moduleLandingPath(plannedPage.module) : undefined
 

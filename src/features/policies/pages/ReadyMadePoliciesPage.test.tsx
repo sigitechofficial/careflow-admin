@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
   useNavigate: () => state.navigate,
+  useSearch: () => ({}),
 }))
 vi.mock('@/features/auth/store', () => ({
   useAuthStore: (pick: (s: unknown) => unknown) => pick({ can: () => true }),

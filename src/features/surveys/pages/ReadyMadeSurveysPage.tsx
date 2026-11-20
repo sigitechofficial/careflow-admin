@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { ArrowLeft, BookCopy, CheckCircle2, FilePlus2, LayoutTemplate, Loader2, RefreshCw, Search } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
 import {
@@ -92,7 +92,9 @@ export default function ReadyMadeSurveysPage() {
   const [search, setSearch] = React.useState('')
   const [group, setGroup] = React.useState<string>('ALL')
   const [selected, setSelected] = React.useState<Set<string>>(new Set())
-  const [previewId, setPreviewId] = React.useState<string | null>(null)
+  // `?open=<id>` (from a mock CQC inspection) opens that survey's Read dialog.
+  const routeSearch = useSearch({ strict: false }) as { open?: string }
+  const [previewId, setPreviewId] = React.useState<string | null>(routeSearch.open ?? null)
   /** The Read dialog shows the survey as people answer it first; guidance is one click away. */
   const [detailView, setDetailView] = React.useState<'respondent' | 'details'>('respondent')
   const [adopted, setAdopted] = React.useState<AdoptSurveysResult | null>(null)

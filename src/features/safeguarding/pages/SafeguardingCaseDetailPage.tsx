@@ -9,6 +9,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { SafeguardingSectionLayout } from '@/features/safeguarding/components/SafeguardingSectionLayout'
 import { SafeguardingInvestigationCard } from '@/features/safeguarding/components/SafeguardingInvestigationCard'
+import { CqcNotificationsPanel } from '@/features/cqc-notifications/components/CqcNotificationsPanel'
 import {
   AlertList,
   ChecklistCard,
@@ -280,6 +281,7 @@ function ReferralTile({ label, decision, date, reference }: {
 
 function ReferralsCard({ caseData }: { caseData: SafeguardingCase }) {
   const canManage = useAuthStore(s => s.can)('safeguarding.manage')
+  const canSeeCqcNotifications = useAuthStore(s => s.can)('cqc_notifications.read')
   const update = useUpdateSafeguarding(caseData.id)
   const [editing, setEditing] = React.useState(false)
   const [laReferral, setLaReferral] = React.useState(caseData.laReferral)
@@ -429,6 +431,17 @@ function ReferralsCard({ caseData }: { caseData: SafeguardingCase }) {
           <ReferralTile label="CQC notification" decision={caseData.cqcNotified} reference={caseData.cqcReference} />
         </div>
       )}
+      {canSeeCqcNotifications ? (
+        <div className="mt-4 border-t border-border pt-4">
+          <h3 className="mb-2 text-sm font-semibold text-foreground">CQC notifications</h3>
+          <CqcNotificationsPanel
+            safeguardingCaseId={caseData.id}
+            suggestedType="ABUSE_ALLEGATION"
+            locationId={caseData.locationId}
+            recordLabel={caseData.referenceNumber}
+          />
+        </div>
+      ) : null}
     </SectionCard>
   )
 }

@@ -20,6 +20,7 @@ vi.mock('@tanstack/react-router', () => ({
     <a {...rest}>{children}</a>
   ),
   useNavigate: () => navigateMock,
+  useSearch: () => ({}),
 }))
 // The one New survey dialog is reused; here it only shows what it was opened with.
 vi.mock('@/features/surveys/components/NewSurveyDialog', () => ({

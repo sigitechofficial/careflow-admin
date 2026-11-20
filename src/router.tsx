@@ -178,6 +178,13 @@ import MyActionsPage from '@/features/incidents/pages/MyActionsPage'
 import IncidentAnalyticsPage from '@/features/incidents/pages/IncidentAnalyticsPage'
 import ComplaintsComplimentsPage from '@/features/complaints/pages/ComplaintsComplimentsPage'
 import FeedbackDetailPage from '@/features/complaints/pages/FeedbackDetailPage'
+import MockInspectionsPage from '@/features/cqc-mock-inspection/pages/MockInspectionsPage'
+import MockInspectionPage from '@/features/cqc-mock-inspection/pages/MockInspectionPage'
+import ReadyMadeInspectionsPage from '@/features/cqc-mock-inspection/pages/ReadyMadeInspectionsPage'
+import ReadyMadeInspectionPage from '@/features/cqc-mock-inspection/pages/ReadyMadeInspectionPage'
+import CqcNotificationsPage from '@/features/cqc-notifications/pages/CqcNotificationsPage'
+import CqcEvidencePage from '@/features/cqc-evidence/pages/CqcEvidencePage'
+import CqcNotificationPage from '@/features/cqc-notifications/pages/CqcNotificationPage'
 import ServiceUserAlertsPage from '@/features/alerts/pages/ServiceUserAlertsPage'
 import BillingManagementPage from '@/features/billing/pages/BillingManagementPage'
 import InvoiceRunDetailPage from '@/features/billing/pages/InvoiceRunDetailPage'
@@ -355,6 +362,7 @@ const pageTitles: Record<string, string> = {
   '/policies/ready-made': 'Ready-made policies',
   '/surveys': 'Surveys',
   '/surveys/ready-made': 'Ready-made surveys',
+  '/governance/mock-inspections/ready-made': 'Ready-made inspections',
   '/surveys/outside-people': 'Outside people',
   '/surveys/reviewers': 'Independent reviewers',
   '/surveys/follow-ups': 'Survey follow-ups',
@@ -2014,6 +2022,9 @@ const survey360Route = createRoute({
 const surveyReadyMadeRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/surveys/ready-made',
+  // `?open=<id>` opens one ready-made survey (links from mock CQC inspections).
+  validateSearch: (raw: Record<string, unknown>): { open?: string } =>
+    typeof raw.open === 'string' && raw.open ? { open: raw.open } : {},
   beforeLoad: requirePermission('surveys.read'),
   component: ReadyMadeSurveysPage,
 })
@@ -2142,6 +2153,64 @@ const feedbackDetailRoute = createRoute({
   path: '/incidents/feedback/$feedbackId',
   beforeLoad: requirePermission('complaints.read'),
   component: FeedbackDetailPage,
+})
+
+// Governance → CQC evidence.
+const cqcEvidenceRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/cqc-evidence',
+  beforeLoad: requirePermission('cqc_evidence.read'),
+  // `?add=<statementId>` opens "Add evidence" for that statement; `from=<inspectionId>` offers the way back
+  // (links from mock inspections).
+  validateSearch: (raw: Record<string, unknown>): { add?: string; from?: string } => ({
+    ...(typeof raw.add === 'string' && raw.add ? { add: raw.add } : {}),
+    ...(typeof raw.from === 'string' && /^[0-9a-f-]{36}$/.test(raw.from) ? { from: raw.from } : {}),
+  }),
+  component: CqcEvidencePage,
+})
+
+// Governance → Mock CQC inspection.
+const mockInspectionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/mock-inspections',
+  beforeLoad: requirePermission('cqc_mock_inspection.read'),
+  component: MockInspectionsPage,
+})
+
+const readyMadeInspectionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/mock-inspections/ready-made',
+  beforeLoad: requirePermission('cqc_mock_inspection.read'),
+  component: ReadyMadeInspectionsPage,
+})
+
+const readyMadeInspectionRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/mock-inspections/ready-made/$templateCode',
+  beforeLoad: requirePermission('cqc_mock_inspection.read'),
+  component: ReadyMadeInspectionPage,
+})
+
+const mockInspectionRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/mock-inspections/$inspectionId',
+  beforeLoad: requirePermission('cqc_mock_inspection.read'),
+  component: MockInspectionPage,
+})
+
+// Governance → CQC notifications.
+const cqcNotificationsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/cqc-notifications',
+  beforeLoad: requirePermission('cqc_notifications.read'),
+  component: CqcNotificationsPage,
+})
+
+const cqcNotificationRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/cqc-notifications/$notificationId',
+  beforeLoad: requirePermission('cqc_notifications.read'),
+  component: CqcNotificationPage,
 })
 
 const incidentDetailRoute = createRoute({
@@ -3012,6 +3081,9 @@ const policyTagsRoute = createRoute({
 const policyReadyMadeRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/policies/ready-made',
+  // `?open=<id>` opens one ready-made policy (links from mock CQC inspections).
+  validateSearch: (raw: Record<string, unknown>): { open?: string } =>
+    typeof raw.open === 'string' && raw.open ? { open: raw.open } : {},
   beforeLoad: requirePermission('policies.read'),
   component: ReadyMadePoliciesPage,
 })
@@ -3246,6 +3318,13 @@ const routeTree = rootRoute.addChildren([
     incidentsAnalyticsRoute,
     complaintsComplimentsRoute,
     feedbackDetailRoute,
+    cqcEvidenceRoute,
+    mockInspectionsRoute,
+    readyMadeInspectionsRoute,
+    readyMadeInspectionRoute,
+    mockInspectionRoute,
+    cqcNotificationsRoute,
+    cqcNotificationRoute,
     incidentDetailRoute,
     supervisionSessionRoute,
     accountRoute,

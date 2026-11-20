@@ -50,6 +50,7 @@ import { useVisitVoiceNotes } from '@/features/scheduling/hooks/useVisitVoiceNot
 import { VoiceNoteList } from '@/features/scheduling/components/VoiceNoteList'
 import { IncidentOutcomeSection } from '@/features/incidents/components/IncidentOutcomeSection'
 import { IncidentTimeline } from '@/features/incidents/components/IncidentTimeline'
+import { CqcNotificationsPanel } from '@/features/cqc-notifications/components/CqcNotificationsPanel'
 import {
   IncidentWorkflowStepCard,
   resolveIncidentDetailWorkflow,
@@ -192,6 +193,7 @@ export default function IncidentDetailPage() {
   // Duty of Candour steps get their own tab once anyone's answer is Yes / Not known.
   const showCandourTab = candourStepsTabVisible(incident.candour)
   const canEditRecord = canEdit && !isClosed
+  const canSeeCqcNotifications = can('cqc_notifications.read')
   const canInvestigateRecord = canInvestigate && !isClosed
   const canReviewRecord = canReview && !isClosed
   const canManageActionsRecord = canManageActions && !isClosed
@@ -778,6 +780,22 @@ export default function IncidentDetailPage() {
             <SubBlock title="Related incidents">
               <IncidentRelatedPanel incidentId={incident.id} canManage={canEditRecord} />
             </SubBlock>
+            {canSeeCqcNotifications && (
+              <SubBlock title="CQC notifications">
+                <CqcNotificationsPanel
+                  incidentId={incident.id}
+                  locationId={incident.locationId}
+                  recordLabel={incident.referenceNumber}
+                  suggestedType={
+                    incident.category.key === 'DEATH'
+                      ? 'DEATH'
+                      : incident.category.key === 'SAFEGUARDING'
+                        ? 'ABUSE_ALLEGATION'
+                        : undefined
+                  }
+                />
+              </SubBlock>
+            )}
             {incident.primaryServiceUserId && (
               <SubBlock title="This service user's incidents">
                 <ServiceUserIncidentHistoryPanel

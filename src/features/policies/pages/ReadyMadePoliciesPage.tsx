@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { BookCopy, CheckCircle2, Loader2, Printer, RefreshCw, Search } from 'lucide-react'
 import { PolicyDownloadButtons } from '@/features/policies/components/PolicyDownloadButtons'
 import { useAuthStore } from '@/features/auth/store'
@@ -50,7 +50,9 @@ export default function ReadyMadePoliciesPage() {
   const [search, setSearch] = React.useState('')
   const [category, setCategory] = React.useState<string>('ALL')
   const [selected, setSelected] = React.useState<Set<string>>(new Set())
-  const [previewId, setPreviewId] = React.useState<string | null>(null)
+  // `?open=<id>` (from a mock CQC inspection) opens that policy's Read dialog.
+  const routeSearch = useSearch({ strict: false }) as { open?: string }
+  const [previewId, setPreviewId] = React.useState<string | null>(routeSearch.open ?? null)
   const preview = useLibraryPolicy(previewId)
 
   const policies = library.data ?? []
