@@ -120,10 +120,10 @@ export function CalendarEventForm({
             onValueChange={v => onServiceUserChange?.(v === '_none' ? '' : v)}
           >
             <SelectTrigger data-testid="calendar-event-service-user">
-              <SelectValue placeholder={loadingServiceUsers ? 'Loadingâ€¦' : 'Select service user'} />
+              <SelectValue placeholder={loadingServiceUsers ? 'Loading…' : 'Select service user'} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="_none">â€”</SelectItem>
+              <SelectItem value="_none">—</SelectItem>
               {serviceUserOptions?.map(su => (
                 <SelectItem key={su.id} value={su.id}>
                   {su.label}
@@ -159,7 +159,7 @@ export function CalendarEventForm({
             <SelectValue placeholder="Select type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="_none">â€”</SelectItem>
+            <SelectItem value="_none">—</SelectItem>
             {eventTypes.map(t => (
               <SelectItem key={t.id} value={t.id}>
                 {t.name}
@@ -327,7 +327,7 @@ export function CalendarEventFormActions({
         Cancel
       </Button>
       <Button type="button" onClick={onSubmit} disabled={loading || canSubmit === false}>
-        {loading ? 'Savingâ€¦' : submitLabel}
+        {loading ? 'Saving…' : submitLabel}
       </Button>
     </div>
   )
