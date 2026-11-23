@@ -61,6 +61,7 @@ const detail = (over: Partial<MockInspectionDetail> = {}): MockInspectionDetail 
     { score: 3, label: 'Good standard' },
     { score: 4, label: 'Exceptional standard' },
   ],
+  checkScoring: { metPoints: 3, partlyMetPoints: 1, notMetPoints: 0, score4Percent: 90, score3Percent: 70, score2Percent: 40 },
   leadReviewer: { id: 'u1', name: 'Sam Manager' },
   createdBy: { id: 'u1', name: 'Sam Manager' },
   startedAt: '2026-11-17T10:00:00.000Z',
@@ -110,6 +111,9 @@ describe('mock inspection workspace', () => {
     const cards = screen.getAllByTestId('mock-kq-card')
     expect(within(cards[0]).getByText('Inadequate')).toBeInTheDocument()
     expect(within(cards[1]).getByText('Not scored yet')).toBeInTheDocument()
+    // Each card has its own ⓘ beside it (not inside the card button).
+    expect(screen.getByRole('button', { name: 'About Safe' })).toBeInTheDocument()
+    expect(within(cards[0]).queryByRole('button', { name: 'About Safe' })).not.toBeInTheDocument()
     expect(screen.getByText('Incident learning log')).toBeInTheDocument()
     expect(screen.getByText('Review overdue')).toBeInTheDocument()
     expect(screen.getByText(/1 more from surveys whose results you cannot see/)).toBeInTheDocument()
@@ -279,6 +283,10 @@ describe('mock inspection workspace', () => {
     expect(screen.getByTestId('mock-statement-focus')).toHaveTextContent('Errors and near misses.')
     const rows = within(checks).getAllByTestId('mock-check')
     expect(rows).toHaveLength(3)
+    // The inspection's own settings, in plain words.
+    expect(within(checks).getByTestId('mock-check-scoring')).toHaveTextContent(
+      'Met 3 · Partially met 1 · Not met 0 points. Score 4 at 90% · 3 at 70% · 2 at 40% · below that 1.',
+    )
     expect(rows[0]).toHaveTextContent('1.MAR charts for 3 people')
     expect(rows[2]).toHaveTextContent('3.What if a dose is missed?')
     expect(within(checks).getByText('Ask staff')).toBeInTheDocument()

@@ -17,6 +17,8 @@ import {
   fetchCqcFramework,
   fetchEvidencePack,
   fetchMockInspections,
+  fetchMockInspectionSettings,
+  updateMockInspectionSettings,
   refreshMockEvidence,
   scoreMockStatement,
   updateMockAction,
@@ -38,6 +40,19 @@ export const mockInspectionKeys = {
   statementPolicies: () => [...mockInspectionKeys.all(), 'statement-policies'] as const,
   comparison: (id: string) => [...mockInspectionKeys.all(), 'comparison', id] as const,
   framework: () => [...mockInspectionKeys.all(), 'framework'] as const,
+  settings: () => [...mockInspectionKeys.all(), 'settings'] as const,
+}
+
+export function useMockInspectionSettings() {
+  return useQuery({ queryKey: mockInspectionKeys.settings(), queryFn: fetchMockInspectionSettings })
+}
+
+export function useSaveMockInspectionSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: updateMockInspectionSettings,
+    onSuccess: data => qc.setQueryData(mockInspectionKeys.settings(), data),
+  })
 }
 
 export function useMockInspections(params: MockInspectionListParams) {

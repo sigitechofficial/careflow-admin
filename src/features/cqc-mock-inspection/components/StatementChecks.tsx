@@ -36,9 +36,9 @@ export function sameCheckAnswers(a: CheckAnswers, b: CheckAnswers): boolean {
 }
 
 /**
- * The 1–4 score from the answers, as the API works it out (scoreFromChecks in
- * cqc-mock-inspection-scoring.util.ts): Met 1, Partially met ½, Not met 0; all → 4, 75% or more → 3,
- * 50% or more → 2, less → 1. No score until every check is answered.
+ * The 1–4 score from the answers with the default settings (the API scores with each inspection's own
+ * settings, scoreFromChecks in cqc-mock-inspection-scoring.util.ts): Met 1, Partially met ½, Not met 0;
+ * all → 4, 75% or more → 3, 50% or more → 2, less → 1. No score until every check is answered.
  */
 export function scoreFromChecks(guidance: TemplateGuidance | null, answers: CheckAnswers) {
   let total = 0
@@ -170,19 +170,23 @@ export function StatementChecks({
               <div
                 key={text}
                 className={cn(
-                  'space-y-3 rounded-lg border bg-muted/30 p-3',
+                  'space-y-3 rounded-lg border bg-muted/30 p-4',
                   missing ? 'border-destructive' : 'border-border',
                 )}
                 data-testid="mock-check"
               >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                 <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
+                  <span className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-md bg-primary px-2 text-sm font-bold text-primary-foreground">
                     {n}.
                   </span>
-                  <p className="pt-1 text-sm text-foreground">{text}</p>
+                  <p className="pt-1.5 text-[15px] font-medium leading-snug text-foreground">{text}</p>
                 </div>
-                <div className="flex shrink-0 gap-1.5 pl-10 sm:pl-0" role="radiogroup" aria-label={`Answer for check ${n}`}>
+                <div
+                  className="grid shrink-0 grid-cols-3 gap-2 sm:pl-12 lg:flex lg:pl-0"
+                  role="radiogroup"
+                  aria-label={`Answer for check ${n}`}
+                >
                   {ANSWERS.map(a => (
                     <button
                       key={a.value}
@@ -193,10 +197,10 @@ export function StatementChecks({
                       onClick={() => set(p.key, text, a.value)}
                       data-testid={`mock-check-${a.value}`}
                       className={cn(
-                        'min-w-[4.5rem] rounded-md border px-2.5 py-1.5 text-xs font-semibold uppercase transition-colors disabled:cursor-not-allowed',
+                        'min-h-11 rounded-md border-2 px-3 py-2.5 text-sm font-bold uppercase tracking-wide shadow-sm transition-colors disabled:cursor-not-allowed lg:min-w-[7.5rem] lg:px-4',
                         chosen === a.value
                           ? a.on
-                          : 'border-border bg-card text-foreground hover:bg-muted disabled:opacity-60 disabled:hover:bg-card',
+                          : 'border-border bg-card text-foreground hover:border-foreground/30 hover:bg-muted disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-card',
                       )}
                     >
                       {a.label}
@@ -205,7 +209,7 @@ export function StatementChecks({
                 </div>
               </div>
               {saved || linked.length ? (
-                <div className="space-y-2 pl-10">
+                <div className="space-y-2 sm:pl-12">
                   {saved ? (
                     editable ? (
                       <div>

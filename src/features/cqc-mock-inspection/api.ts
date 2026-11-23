@@ -6,6 +6,18 @@ export type MockActionStatus = 'OPEN' | 'DONE'
 
 export type Ref = { id: string; name: string | null }
 
+/** How check answers become a statement's 1–4 score (Mock CQC inspection → Settings). */
+export type CheckScoring = {
+  metPoints: number
+  partlyMetPoints: number
+  notMetPoints: number
+  score4Percent: number
+  score3Percent: number
+  score2Percent: number
+}
+
+export type MockInspectionSettings = CheckScoring & { defaults: CheckScoring }
+
 export type MockInspectionRow = {
   id: string
   title: string
@@ -109,6 +121,8 @@ export type MockInspectionDetail = {
   framework: { id: string; version: number; code: string; title: string }
   template: { code: string; title: string } | null
   scale: { score: number; label: string }[]
+  /** The settings this inspection started with (older inspections: the defaults). */
+  checkScoring: CheckScoring
   leadReviewer: Ref | null
   createdBy: Ref | null
   startedAt: string
@@ -265,7 +279,15 @@ export async function fetchMockInspection(id: string): Promise<MockInspectionDet
   return res.data
 }
 
-async function send<T>(path: string, method: 'POST' | 'PATCH' | 'DELETE', body?: unknown): Promise<T> {
+export async function fetchMockInspectionSettings(): Promise<MockInspectionSettings> {
+  const res = await apiJson<ApiEnvelope<MockInspectionSettings>>(`${BASE}/settings`, { method: 'GET' })
+  return res.data
+}
+
+export const updateMockInspectionSettings = (body: CheckScoring) =>
+  send<MockInspectionSettings>(`${BASE}/settings`, 'PUT', body)
+
+async function send<T>(path: string, method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', body?: unknown): Promise<T> {
   const res = await apiJson<ApiEnvelope<T>>(path, {
     method,
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),

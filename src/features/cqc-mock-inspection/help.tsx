@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 /** Plain-words explanations for the ⓘ tips on the mock inspection pages. */
 export const HELP = {
   whatToCheck: (
@@ -80,6 +82,45 @@ export const HELP = {
       rating, how many statements you have scored, and the total score as a percentage of the highest possible. One
       very low score can pull a rating down, and the card then says &quot;Limited from&quot;. Click a card to see its
       statements.
+    </>
+  ),
+  /** What each key question asks, in plain words (shown on its card). */
+  keyQuestion: {
+    SAFE: (
+      <>
+        <b>Are people kept safe from harm?</b> For example: safe medicines, enough trained staff, a clean place, and
+        learning when something goes wrong.
+      </>
+    ),
+    EFFECTIVE: (
+      <>
+        <b>Does the care work well for people?</b> For example: needs are assessed, staff have the right skills, people
+        agree to their care, and staff work well with doctors and other services.
+      </>
+    ),
+    CARING: (
+      <>
+        <b>Are people treated with kindness and respect?</b> For example: dignity, privacy, being listened to and
+        being involved in decisions about their own care.
+      </>
+    ),
+    RESPONSIVE: (
+      <>
+        <b>Is care built around each person?</b> For example: care plans match what the person needs and wants,
+        complaints are listened to, and people are supported at the end of life.
+      </>
+    ),
+    WELL_LED: (
+      <>
+        <b>Is the service well managed?</b> For example: clear goals, good checks on quality, an open culture where
+        staff can speak up, and always looking for ways to improve.
+      </>
+    ),
+  } as Record<string, ReactNode>,
+  keyQuestionCard: (
+    <>
+      On the card, &quot;4/8 scored&quot; (for example) means 4 of its 8 quality statements have a score. The % is the total score out of the
+      highest possible, and the rating comes from it.
     </>
   ),
   statements: (

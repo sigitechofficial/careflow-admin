@@ -8,9 +8,9 @@ import { toastSuccess } from '@/shared/lib/toast'
 import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
-import type { MockAction, MockStatement, StatementPolicy, StatementSurvey } from '../types'
+import type { CheckScoring, MockAction, MockStatement, StatementPolicy, StatementSurvey } from '../types'
 import { useScoreMockStatement } from '../hooks'
-import { CATEGORY_LABEL, SOURCE_LABEL } from '../labels'
+import { CATEGORY_LABEL, SOURCE_LABEL, levelsSummary, pointsSummary } from '../labels'
 import { HELP } from '../help'
 import { InfoTip } from './InfoTip'
 import { SurveyList } from './RelatedSurveys'
@@ -95,6 +95,7 @@ export function StatementPanel({
   inspectionId,
   statement,
   scale,
+  checkScoring,
   editable,
   onAddAction,
   onSaved,
@@ -107,6 +108,8 @@ export function StatementPanel({
   inspectionId: string
   statement: MockStatement
   scale: { score: number; label: string }[]
+  /** How this inspection turns check answers into a score. */
+  checkScoring?: CheckScoring
   editable: boolean
   onAddAction: () => void
   onSaved: () => void
@@ -174,9 +177,16 @@ export function StatementPanel({
           actions={actions}
           onCreateAction={onCheckAction}
           heading={
-            <div className="flex items-center gap-1.5">
-              <h4 className="text-sm font-medium text-foreground">What to check</h4>
-              <InfoTip label="what to check">{HELP.whatToCheck}</InfoTip>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <h4 className="text-sm font-medium text-foreground">What to check</h4>
+                <InfoTip label="what to check">{HELP.whatToCheck}</InfoTip>
+              </div>
+              {checkScoring ? (
+                <p className="text-xs text-muted-foreground" data-testid="mock-check-scoring">
+                  {pointsSummary(checkScoring)}. {levelsSummary(checkScoring)}.
+                </p>
+              ) : null}
             </div>
           }
         />

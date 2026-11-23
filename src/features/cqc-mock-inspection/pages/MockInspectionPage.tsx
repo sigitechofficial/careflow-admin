@@ -37,45 +37,56 @@ import { EvidencePackDialog, useCanDownloadEvidencePack, type EvidencePackStart 
 import { HELP } from '../help'
 
 function KeyQuestionCard({
+  code,
   title,
   result,
   active,
   onClick,
 }: {
+  code: string
   title: string
   result: KeyQuestionResult | undefined
   active: boolean
   onClick: () => void
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      data-testid="mock-kq-card"
-      className={cn(
-        'rounded-lg border bg-card px-3 py-3 text-left shadow-sm transition-colors',
-        active ? 'border-primary ring-1 ring-primary' : 'border-border hover:bg-muted/30',
-      )}
-    >
-      <div className="text-sm font-semibold text-foreground">{title}</div>
-      <div className="mt-1.5 min-h-[1.5rem]">
-        {result?.rating ? (
-          <Badge size="sm" variant={ratingVariant(result.rating)}>
-            {RATING_LABEL[result.rating]}
-          </Badge>
-        ) : (
-          <span className="text-xs text-muted-foreground">Not scored yet</span>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        data-testid="mock-kq-card"
+        className={cn(
+          'h-full w-full rounded-lg border bg-card px-3 py-3 text-left shadow-sm transition-colors',
+          active ? 'border-primary ring-1 ring-primary' : 'border-border hover:bg-muted/30',
         )}
-      </div>
-      <div className="mt-1 text-xs text-muted-foreground tabular-nums">
-        {result ? `${result.scoredCount}/${result.statementCount} scored` : ''}
-        {result?.percent != null ? ` · ${result.percent}%` : ''}
-      </div>
-      {result?.limitedFrom ? (
-        <div className="mt-1 text-[11px] text-warning">Limited from {RATING_LABEL[result.limitedFrom]} by a low score</div>
-      ) : null}
-    </button>
+      >
+        <div className="pr-5 text-sm font-semibold text-foreground">{title}</div>
+        <div className="mt-1.5 min-h-[1.5rem]">
+          {result?.rating ? (
+            <Badge size="sm" variant={ratingVariant(result.rating)}>
+              {RATING_LABEL[result.rating]}
+            </Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground">Not scored yet</span>
+          )}
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground tabular-nums">
+          {result ? `${result.scoredCount}/${result.statementCount} scored` : ''}
+          {result?.percent != null ? ` · ${result.percent}%` : ''}
+        </div>
+        {result?.limitedFrom ? (
+          <div className="mt-1 text-[11px] text-warning">Limited from {RATING_LABEL[result.limitedFrom]} by a low score</div>
+        ) : null}
+      </button>
+      {/* Beside the card button, not inside it: a button cannot hold another button. */}
+      <span className="absolute right-2.5 top-3.5">
+        <InfoTip label={title}>
+          <p>{HELP.keyQuestion[code] ?? title}</p>
+          <p className="mt-1.5 text-muted-foreground">{HELP.keyQuestionCard}</p>
+        </InfoTip>
+      </span>
+    </div>
   )
 }
 
@@ -266,7 +277,7 @@ function Workspace({ inspection }: { inspection: MockInspectionDetail }) {
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {inspection.keyQuestions.map(k => (
-          <KeyQuestionCard key={k.code} title={k.title} result={kqResult(k.code)} active={k.code === kq?.code} onClick={() => pickKq(k.code)} />
+          <KeyQuestionCard key={k.code} code={k.code} title={k.title} result={kqResult(k.code)} active={k.code === kq?.code} onClick={() => pickKq(k.code)} />
         ))}
       </div>
 
@@ -310,6 +321,7 @@ function Workspace({ inspection }: { inspection: MockInspectionDetail }) {
               inspectionId={inspection.id}
               statement={statement}
               scale={inspection.scale}
+              checkScoring={inspection.checkScoring}
               editable={editable}
               onAddAction={() => setActionFor({ statementId: statement.id })}
               actions={inspection.actions.filter(a => a.statementId === statement.id)}

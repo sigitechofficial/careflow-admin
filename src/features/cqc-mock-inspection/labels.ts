@@ -61,3 +61,13 @@ export const CATEGORY_LABEL: Record<string, string> = {
   PROCESSES: 'Processes',
   OUTCOMES: 'Outcomes',
 }
+
+/** "Met 2 · Partially met 1 · Not met 0 points" for a scoring. */
+export function pointsSummary(s: { metPoints: number; partlyMetPoints: number; notMetPoints: number }) {
+  return `Met ${s.metPoints} · Partially met ${s.partlyMetPoints} · Not met ${s.notMetPoints} points`
+}
+
+/** "4 at 100% · 3 at 75% · 2 at 50% · else 1" for a scoring. */
+export function levelsSummary(s: { score4Percent: number; score3Percent: number; score2Percent: number }) {
+  return `Score 4 at ${s.score4Percent}% · 3 at ${s.score3Percent}% · 2 at ${s.score2Percent}% · below that 1`
+}

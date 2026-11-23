@@ -180,7 +180,16 @@ import ComplaintsComplimentsPage from '@/features/complaints/pages/ComplaintsCom
 import FeedbackDetailPage from '@/features/complaints/pages/FeedbackDetailPage'
 import MockInspectionsPage from '@/features/cqc-mock-inspection/pages/MockInspectionsPage'
 import MockInspectionPage from '@/features/cqc-mock-inspection/pages/MockInspectionPage'
+import AuditDashboardPage, { MyAuditsPage } from '@/features/quality-audits/pages/AuditDashboardPage'
+import AuditPage from '@/features/quality-audits/pages/AuditPage'
+import AuditReportsPage from '@/features/quality-audits/pages/AuditReportsPage'
+import AuditTemplatesPage from '@/features/quality-audits/pages/AuditTemplatesPage'
+import AuditTemplateWizardPage from '@/features/quality-audits/pages/AuditTemplateWizardPage'
+import AuditSchedulesPage from '@/features/quality-audits/pages/AuditSchedulesPage'
+import CqcDashboardPage from '@/features/cqc-dashboard/pages/CqcDashboardPage'
+import CqcReportsPage from '@/features/cqc-dashboard/pages/CqcReportsPage'
 import ReadyMadeInspectionsPage from '@/features/cqc-mock-inspection/pages/ReadyMadeInspectionsPage'
+import MockInspectionSettingsPage from '@/features/cqc-mock-inspection/pages/MockInspectionSettingsPage'
 import ReadyMadeInspectionPage from '@/features/cqc-mock-inspection/pages/ReadyMadeInspectionPage'
 import CqcNotificationsPage from '@/features/cqc-notifications/pages/CqcNotificationsPage'
 import CqcEvidencePage from '@/features/cqc-evidence/pages/CqcEvidencePage'
@@ -363,6 +372,7 @@ const pageTitles: Record<string, string> = {
   '/surveys': 'Surveys',
   '/surveys/ready-made': 'Ready-made surveys',
   '/governance/mock-inspections/ready-made': 'Ready-made inspections',
+  '/governance/mock-inspections/settings': 'CQC settings',
   '/surveys/outside-people': 'Outside people',
   '/surveys/reviewers': 'Independent reviewers',
   '/surveys/follow-ups': 'Survey follow-ups',
@@ -2169,12 +2179,94 @@ const cqcEvidenceRoute = createRoute({
   component: CqcEvidencePage,
 })
 
+// Governance → CQC dashboard and reports (each part needs its own CQC read permission).
+const cqcDashboardRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/cqc-dashboard',
+  beforeLoad: requireAnyPermission('cqc_evidence.read', 'cqc_mock_inspection.read', 'cqc_notifications.read'),
+  component: CqcDashboardPage,
+})
+
+const cqcReportsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/cqc-reports',
+  beforeLoad: requireAnyPermission('cqc_evidence.read', 'cqc_mock_inspection.read', 'cqc_notifications.read'),
+  component: CqcReportsPage,
+})
+
+// Governance → Audits.
+const auditsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/audits',
+  beforeLoad: requirePermission('quality_audits.read'),
+  component: AuditDashboardPage,
+})
+
+const myAuditsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/audits/mine',
+  beforeLoad: requirePermission('quality_audits.read'),
+  component: MyAuditsPage,
+})
+
+const auditReportsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/audits/reports',
+  beforeLoad: requirePermission('quality_audits.read'),
+  component: AuditReportsPage,
+})
+
+const auditTemplatesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/audits/templates',
+  beforeLoad: requirePermission('quality_audits.read'),
+  component: AuditTemplatesPage,
+})
+
+const newAuditTemplateRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/audits/templates/new',
+  beforeLoad: requirePermission('quality_audits.manage'),
+  // `?copy=<template code>` starts from a copy of that template.
+  validateSearch: (raw: Record<string, unknown>): { copy?: string } =>
+    typeof raw.copy === 'string' && /^(AUD|OWN)-\d{3,4}$/.test(raw.copy) ? { copy: raw.copy } : {},
+  component: AuditTemplateWizardPage,
+})
+
+const editAuditTemplateRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/audits/templates/$code/edit',
+  beforeLoad: requirePermission('quality_audits.manage'),
+  component: AuditTemplateWizardPage,
+})
+
+const auditSchedulesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/audits/schedules',
+  beforeLoad: requirePermission('quality_audits.read'),
+  component: AuditSchedulesPage,
+})
+
+const auditRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/audits/$auditId',
+  beforeLoad: requirePermission('quality_audits.read'),
+  component: AuditPage,
+})
+
 // Governance → Mock CQC inspection.
 const mockInspectionsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/governance/mock-inspections',
   beforeLoad: requirePermission('cqc_mock_inspection.read'),
   component: MockInspectionsPage,
+})
+
+const mockInspectionSettingsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/governance/mock-inspections/settings',
+  beforeLoad: requirePermission('cqc_mock_inspection.read'),
+  component: MockInspectionSettingsPage,
 })
 
 const readyMadeInspectionsRoute = createRoute({
@@ -3320,9 +3412,20 @@ const routeTree = rootRoute.addChildren([
     feedbackDetailRoute,
     cqcEvidenceRoute,
     mockInspectionsRoute,
+    mockInspectionSettingsRoute,
     readyMadeInspectionsRoute,
     readyMadeInspectionRoute,
     mockInspectionRoute,
+    cqcDashboardRoute,
+    cqcReportsRoute,
+    auditsRoute,
+    myAuditsRoute,
+    auditReportsRoute,
+    auditTemplatesRoute,
+    newAuditTemplateRoute,
+    editAuditTemplateRoute,
+    auditSchedulesRoute,
+    auditRoute,
     cqcNotificationsRoute,
     cqcNotificationRoute,
     incidentDetailRoute,

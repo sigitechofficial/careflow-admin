@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { BookCopy, FileArchive, PlusCircle, Scale } from 'lucide-react'
+import { BookCopy, FileArchive, PlusCircle, Scale, Settings2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Badge } from '@/shared/ui/badge'
@@ -36,6 +36,12 @@ export default function MockInspectionsPage() {
         info={HELP.listPage}
         breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Governance' }, { label: 'Mock CQC inspection' }]}
         actions={[
+          {
+            label: 'Settings',
+            onClick: () => void navigate({ to: '/governance/mock-inspections/settings' }),
+            icon: <Settings2 className="h-4 w-4" />,
+            variant: 'outline' as const,
+          },
           {
             label: 'Ready-made inspections',
             onClick: () => void navigate({ to: '/governance/mock-inspections/ready-made' }),

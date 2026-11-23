@@ -269,6 +269,8 @@ export type Permission =
   | 'cqc_evidence.export'
   | 'cqc_mock_inspection.read'
   | 'cqc_mock_inspection.manage'
+  | 'quality_audits.read'
+  | 'quality_audits.manage'
   | 'cqc_notifications.read'
   | 'cqc_notifications.manage'
   | 'hours_approvals.read'
