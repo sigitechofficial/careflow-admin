@@ -32,8 +32,20 @@ export type CqcDashboard = {
     keyQuestions: { code: string; title: string; statementCount: number; coveredCount: number; gapCount: number }[]
   } | null
   mock: {
+    /** The newest completed inspection with an overall rating (focused ones have none). */
     latest: MockSummary | null
     previous: MockSummary | null
+    /** When the newest mock inspection of any kind was completed. */
+    lastCompletedAt: string | null
+    /** Each key question's rating from the newest inspection that rated it. */
+    keyQuestions: {
+      code: string
+      rating: CqcRating
+      percent: number | null
+      inspectionId: string
+      inspectionTitle: string
+      completedAt: string
+    }[]
     inProgress: number
     /** Mock inspections by status (cancelled ones included in the total). */
     counts: { total: number; completed: number; inProgress: number; cancelled: number }

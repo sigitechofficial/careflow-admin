@@ -108,7 +108,7 @@ export default function CqcDashboardPage() {
 
       {d ? (
         <>
-          <Attention items={d.attention} hasCompletedMock={Boolean(d.mock?.latest)} />
+          <Attention items={d.attention} hasCompletedMock={Boolean(d.mock?.lastCompletedAt)} />
           <Tiles d={d} />
           <KeyQuestions d={d} />
           <div className="grid gap-4 lg:grid-cols-2">
@@ -194,7 +194,16 @@ function Tiles({ d }: { d: CqcDashboard }) {
           </Tile>
         ) : null}
         {d.mock ? (
-          <Tile label="Latest rating" testId="cqc-tile-mock" info={<>The overall rating of the last completed mock inspection, compared with the one before.</>}>
+          <Tile
+            label="Latest overall rating"
+            testId="cqc-tile-mock"
+            info={
+              <>
+                The overall rating of the last completed mock inspection that gives one (a full inspection), compared with the one
+                before. Focused inspections rate only some key questions, so they show under Key questions instead.
+              </>
+            }
+          >
             {latest ? (
               <>
                 <Rating rating={latest.overall} size="lg" />
@@ -250,7 +259,7 @@ function Bar({ value, className }: { value: number; className?: string }) {
 }
 
 function KeyQuestions({ d }: { d: CqcDashboard }) {
-  const codes = d.evidence?.keyQuestions.map(k => k.code) ?? d.mock?.latest?.keyQuestions.map(k => k.code) ?? []
+  const codes = d.evidence?.keyQuestions.map(k => k.code) ?? d.mock?.keyQuestions.map(k => k.code) ?? []
   if (!codes.length) return null
   return (
     <section className="rounded-xl border border-border bg-card p-4 shadow-sm" data-testid="cqc-key-questions">
@@ -263,11 +272,27 @@ function KeyQuestions({ d }: { d: CqcDashboard }) {
       <ul className="divide-y divide-border">
         {codes.map(code => {
           const ev = d.evidence?.keyQuestions.find(k => k.code === code)
-          const mock = d.mock?.latest?.keyQuestions.find(k => k.code === code)
+          const mock = d.mock?.keyQuestions.find(k => k.code === code)
           return (
             <li key={code} className="grid gap-2 py-3 sm:grid-cols-[1fr_10rem_1fr] sm:items-center sm:gap-4" data-testid="cqc-key-question">
               <span className="font-medium text-foreground">{KEY_QUESTION_LABEL[code] ?? ev?.title ?? code}</span>
-              {d.mock ? <span><Rating rating={mock?.rating} /></span> : <span />}
+              {d.mock ? (
+                <span className="min-w-0">
+                  <Rating rating={mock?.rating} />
+                  {mock ? (
+                    <Link
+                      to="/governance/mock-inspections/$inspectionId"
+                      params={{ inspectionId: mock.inspectionId }}
+                      className="mt-0.5 block truncate text-xs text-muted-foreground hover:underline"
+                      title={mock.inspectionTitle}
+                    >
+                      {date(mock.completedAt)}
+                    </Link>
+                  ) : null}
+                </span>
+              ) : (
+                <span />
+              )}
               {ev ? (
                 <div>
                   <div className="flex items-baseline justify-between gap-2 text-sm">

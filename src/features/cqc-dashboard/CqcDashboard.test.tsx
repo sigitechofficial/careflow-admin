@@ -55,6 +55,11 @@ const DASHBOARD: CqcDashboard = {
       ],
     },
     previous: { id: 'm1', title: 'May', completedAt: '2026-05-10T10:00:00.000Z', overall: 'REQUIRES_IMPROVEMENT', keyQuestions: [] },
+    lastCompletedAt: '2026-11-20T10:00:00.000Z',
+    keyQuestions: [
+      { code: 'SAFE', rating: 'REQUIRES_IMPROVEMENT', percent: 62.5, inspectionId: 'm3', inspectionTitle: 'Infection control', completedAt: '2026-11-20T10:00:00.000Z' },
+      { code: 'WELL_LED', rating: 'GOOD', percent: 75, inspectionId: 'm2', inspectionTitle: 'Mock inspection, November 2026', completedAt: '2026-11-17T10:00:00.000Z' },
+    ],
     inProgress: 1,
     counts: { total: 5, completed: 3, inProgress: 1, cancelled: 1 },
     actions: {
@@ -155,6 +160,9 @@ describe('CQC dashboard', () => {
     expect(cards[0]).toHaveTextContent('Requires improvement')
     expect(cards[0]).toHaveTextContent('5 / 8')
     expect(cards[0]).toHaveTextContent('3 missing')
+    // The rating comes from the newest inspection that rated Safe, with its date.
+    expect(cards[0]).toHaveTextContent('20/11/2026')
+    expect(cards[1]).toHaveTextContent('17/11/2026')
     expect(cards[1]).toHaveTextContent('Complete')
     expect(screen.getByTestId('cqc-next-actions')).toHaveTextContent('Share lessons')
     expect(screen.getByTestId('cqc-open-notifications')).toHaveTextContent('Death of a person')
