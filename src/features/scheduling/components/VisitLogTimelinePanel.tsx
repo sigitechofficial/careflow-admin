@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import { Badge } from '@/shared/ui/badge'
 import { formatOpsClockTime } from '@/shared/lib/operational-day.util'
 import { useVisitTimeline } from '@/features/scheduling/hooks/useVisitVoiceNotes'
 import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
@@ -99,8 +100,20 @@ export function VisitLogTimelinePanel({ jobId }: { jobId: string }) {
                   {item.timeLabel || item.time}
                 </span>
                 <div className="min-w-0 flex-1 pb-4">
-                  <p className="text-sm font-medium text-foreground">{item.title}</p>
-                  {item.author ? (
+                  <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground">
+                    <span>{item.title}</span>
+                    {item.actor?.kind === 'office' ? (
+                      <Badge variant="warning" size="sm" data-testid="visit-log-office-tag">
+                        Office
+                      </Badge>
+                    ) : null}
+                  </p>
+                  {item.actor?.kind === 'office' ? (
+                    <p className="text-xs text-muted-foreground" data-testid="visit-log-office-by">
+                      By {item.actor.name} (office)
+                      {item.author ? ` · for ${item.author.label}` : ''} · {item.timeLabel || item.time}
+                    </p>
+                  ) : item.author ? (
                     <p className="text-xs text-muted-foreground" data-testid="visit-log-author">
                       {item.author.label} · {item.timeLabel || item.time}
                     </p>

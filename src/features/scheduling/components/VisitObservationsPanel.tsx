@@ -156,6 +156,7 @@ export function VisitObservationsPanel({
       notes,
       unit: def.unit ?? undefined,
       payload,
+      scheduledJobId,
     }
     if (numericValue != null) body.numericValue = numericValue
     if (wellbeingScores.length > 0) body.wellbeingScores = wellbeingScores
