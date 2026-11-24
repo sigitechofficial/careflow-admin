@@ -11,6 +11,8 @@ type Props = {
   onGoToSection: (sectionNumber: number, message?: string) => void
   /** Label for the tab an issue lives on (e.g. "Tab 14"); falls back to the § number. */
   issueTabLabel?: (issue: ValidationIssue) => string
+  /** Issue text as shown to the assessor (field issues use the form's question wording). */
+  issueMessage?: (issue: ValidationIssue) => string
   onGoToHubTab?: (tab: HubTabId) => void
   onReviewSubmit?: () => void
 }
@@ -21,6 +23,7 @@ export function InitialAssessmentBlockingBanner({
   editable,
   onGoToSection,
   issueTabLabel,
+  issueMessage,
   onGoToHubTab,
   onReviewSubmit,
 }: Props) {
@@ -52,7 +55,7 @@ export function InitialAssessmentBlockingBanner({
                 <p className="font-semibold">
                   {blocks.length} blocking issue{blocks.length > 1 ? 's' : ''} — fix before submit
                 </p>
-                <p className="text-xs opacity-90">{topBlock?.message}</p>
+                <p className="text-xs opacity-90">{topBlock ? (issueMessage?.(topBlock) ?? topBlock.message) : null}</p>
               </>
             ) : (
               <>

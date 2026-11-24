@@ -8,6 +8,10 @@ import {
   type SectionProgressContext,
 } from '@/features/service-users/initial-assessment/utils/section-progress'
 import type { InitialAssessmentAnswerInput } from '@/features/service-users/initial-assessment/types'
+import {
+  fieldIssueInlineLabel,
+  questionIdForValidationMessage,
+} from '@/features/service-users/initial-assessment/utils/missing-field-navigation'
 
 export type SectionNavStatus = 'ok' | 'incomplete' | 'blocking' | 'warning'
 
@@ -43,10 +47,6 @@ export function buildValidationMaps(params: {
   const sectionBlocks = new Map<number, ValidationIssue[]>()
   const sectionWarnings = new Map<number, ValidationIssue[]>()
 
-  const allQuestions = sections.flatMap((s) =>
-    s.questions.map((q) => ({ q, sectionNumber: s.sectionNumber })),
-  )
-
   const pushSection = (map: Map<number, ValidationIssue[]>, issue: ValidationIssue) => {
     const list = map.get(issue.sectionNumber) ?? []
     list.push(issue)
@@ -57,19 +57,10 @@ export function buildValidationMaps(params: {
   for (const issue of warnings) pushSection(sectionWarnings, issue)
 
   if (revealFieldErrors) {
+    // Same question lookup as the submit dialog's jump-to-field (stored text or on-screen label).
     for (const issue of blocks) {
-      const msg = issue.message
-      if (msg.startsWith('Required: ')) {
-        const text = msg.slice('Required: '.length)
-        const match = allQuestions.find(({ q }) => q.questionText === text)
-        if (match) questionErrors.set(match.q.id, 'Required')
-        continue
-      }
-      if (msg.startsWith('Assessor sign-off required: ')) {
-        const text = msg.slice('Assessor sign-off required: '.length)
-        const match = allQuestions.find(({ q }) => q.questionText === text)
-        if (match) questionErrors.set(match.q.id, 'Sign-off required')
-      }
+      const questionId = questionIdForValidationMessage(issue.message, sections)
+      if (questionId) questionErrors.set(questionId, fieldIssueInlineLabel(issue.message))
     }
   }
 

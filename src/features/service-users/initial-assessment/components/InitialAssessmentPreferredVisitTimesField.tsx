@@ -1,3 +1,4 @@
+import { iaMissingQuestionAttrs } from '@/features/service-users/initial-assessment/utils/missing-field-navigation'
 import { Label } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
 import { useMedicationLookups } from '@/features/service-users/hooks/useServiceUserMedicationMutations'
@@ -198,7 +199,7 @@ export function InitialAssessmentPreferredVisitTimesField({
       ) : null}
 
       {errorMessage ? (
-        <p className="text-xs font-medium text-destructive" role="alert">
+        <p className="text-xs font-medium text-destructive" role="alert" {...iaMissingQuestionAttrs(question.id)}>
           {errorMessage}
         </p>
       ) : null}

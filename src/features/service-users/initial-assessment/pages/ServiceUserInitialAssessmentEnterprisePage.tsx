@@ -64,6 +64,19 @@ import { InitialAssessmentRequiredAssessmentsPanel } from '@/features/service-us
 import { InitialAssessmentSchedulePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSchedulePanel'
 import { InitialAssessmentSectionComment } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionComment'
 import { InitialAssessmentBlockingBanner } from '@/features/service-users/initial-assessment/components/InitialAssessmentBlockingBanner'
+import { InitialAssessmentMissingFieldsBar } from '@/features/service-users/initial-assessment/components/InitialAssessmentMissingFieldsBar'
+import {
+  adjacentMissingField,
+  dedupeIssuesByQuestion,
+  IA_MISSING_QUESTION_ATTR,
+  issuePanelSelectorForMessage,
+  missingFieldElementFor,
+  missingFieldElements,
+  questionIdForValidationMessage,
+  revealElement,
+  revealMissingField,
+  validationMessageForDisplay,
+} from '@/features/service-users/initial-assessment/utils/missing-field-navigation'
 import { InitialAssessmentSignOffPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSignOffPanel'
 import { InitialAssessmentSectionQuestions } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionQuestions'
 import { signOffQuestionIds } from '@/features/service-users/initial-assessment/utils/sign-off-questions'
@@ -214,7 +227,7 @@ import { InitialAssessmentFinanceSupportPanel } from '@/features/service-users/i
 import { InitialAssessmentEquipmentChecklistPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentEquipmentChecklistPanel'
 import { InitialAssessmentCareActivationPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCareActivationPanel'
 import { InitialAssessmentQuestionField } from '@/features/service-users/initial-assessment/components/InitialAssessmentQuestionField'
-import { sectionProgress, overallAssessmentProgress, formatSectionNavMeta, type SectionProgressContext } from '@/features/service-users/initial-assessment/utils/section-progress'
+import { sectionProgress, overallAssessmentProgress, formatSectionAnsweredMeta, type SectionProgressContext } from '@/features/service-users/initial-assessment/utils/section-progress'
 import {
   nextImportantSection,
   type NextImportantSection,
@@ -257,6 +270,7 @@ import { syncHoistFromMovingHandling } from '@/features/service-users/initial-as
 import { draftAnswersEqual } from '@/features/service-users/initial-assessment/utils/draft-answers-equality'
 import {
   getSubmitValidationIssues,
+  isSkippableIncompleteValidationMessage,
   type ValidationIssue,
   specialistRequiredBlocks,
 } from '@/features/service-users/initial-assessment/utils/submit-validation'
@@ -334,6 +348,9 @@ const SPECIALIST_NAV_BADGE_CLASS: Record<SpecialistStatus, string> = {
 }
 
 const ENTERPRISE_PATH = '/service-users/initial-assessment'
+
+/** localStorage key remembering "Show missing fields" for one assessment. */
+const missingFieldsShownKey = (submissionId: string) => `ia-missing-fields-shown:${submissionId}`
 // const LEGACY_PATH = '/service-users/initial-assessment-checklist'
 
 const AUTOSAVE_MS = 400
@@ -645,6 +662,16 @@ function InitialAssessmentEnterprisePageContent() {
   const [pendingHolisticTab, setPendingHolisticTab] = React.useState<number | null>(null)
   const tabSwitchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const tabSwitchLoading = pendingHolisticTab != null
+  /** Missing field to scroll to once its tab is on screen ('first' = first missing field on the tab). */
+  const [pendingMissingFocus, setPendingMissingFocus] = React.useState<
+    { questionId: string } | { selector: string } | { first: true } | { last: true } | null
+  >(null)
+  /** Left tab list: show only tabs that still have missing items. */
+  const [onlyTabsWithMissing, setOnlyTabsWithMissing] = React.useState(false)
+  /** Left tab list (scrolls on its own); kept scrolled to the open tab. */
+  const sectionNavRef = React.useRef<HTMLElement>(null)
+  /** Last missing field the assessor was taken to — "Next missing" continues from here. */
+  const missingCursorRef = React.useRef<string | null>(null)
   const sectionCommentsLocalEditRef = React.useRef(false)
   const sectionCommentDraftRef = React.useRef<Record<string, string>>({})
   const saveSectionInProgressRef = React.useRef(false)
@@ -709,10 +736,16 @@ function InitialAssessmentEnterprisePageContent() {
     submissionId,
     hasApi && canRead && !!submissionId && needsRiskSidebarData,
   )
+  // The server's submit check feeds the dialog, banner, missing-fields bar and tab counts, so they all
+  // show the same list. Runs while the assessment is editable (or the dialog is open); every answer save
+  // invalidates it, so it refreshes after autosave.
+  const validateWhileEditable = isEditableInitialAssessmentStatus(
+    pickSubmissionFromList(submissionsQuery.data, submissionId)?.status,
+  )
   const validateQuery = useValidateInitialAssessment(
     selectedId,
     submissionId,
-    submitModalOpen && Boolean(submissionId),
+    (submitModalOpen || validateWhileEditable) && Boolean(submissionId),
   )
   const createMutation = useCreateInitialAssessmentSubmission(selectedId)
   const saveMutation = useSaveInitialAssessmentAnswers(selectedId, submissionId ?? '')
@@ -1269,12 +1302,39 @@ function InitialAssessmentEnterprisePageContent() {
     [rawHolisticTabNavStatus, specialistStatusByTab],
   )
 
-  React.useEffect(() => {
-    if (submitModalOpen) setValidationRevealed(true)
-  }, [submitModalOpen])
+  /**
+   * Missing-field indicators (bar, tab "N missing" / "Done", filter) stay off until the assessor first
+   * presses Submit (or jumps to an item from the submit list). After that they can be hidden / shown
+   * again. Remembered per assessment in this browser: '1' = shown, '0' = hidden after being shown.
+   */
+  const [missingFieldsSeen, setMissingFieldsSeen] = React.useState(false)
+  const showMissingFields = React.useCallback(
+    (shown: boolean) => {
+      setValidationRevealed(shown)
+      setMissingFieldsSeen(true)
+      if (!submissionId) return
+      try {
+        window.localStorage.setItem(missingFieldsShownKey(submissionId), shown ? '1' : '0')
+      } catch {
+        // Storage unavailable (private mode): the choice lasts for this page only.
+      }
+    },
+    [submissionId],
+  )
 
   React.useEffect(() => {
-    setValidationRevealed(false)
+    if (submitModalOpen) showMissingFields(true)
+  }, [submitModalOpen, showMissingFields])
+
+  React.useEffect(() => {
+    let stored: string | null = null
+    try {
+      stored = submissionId ? window.localStorage.getItem(missingFieldsShownKey(submissionId)) : null
+    } catch {
+      stored = null
+    }
+    setValidationRevealed(stored === '1')
+    setMissingFieldsSeen(stored != null)
   }, [submissionId])
 
   const goToHolisticTab = React.useCallback(
@@ -1362,8 +1422,167 @@ function InitialAssessmentEnterprisePageContent() {
       goToHolisticTab(
         holisticTabForValidationIssue({ sectionNumber, message }, sections, visibleQuestionsBySection),
       )
+      // A field-level issue ("Required: …") also scrolls to that field once the tab is on screen.
+      const questionId = message ? questionIdForValidationMessage(message, sections) : null
+      if (questionId) {
+        showMissingFields(true)
+        setPendingMissingFocus({ questionId })
+        return
+      }
+      // Worksheet items (ADL scores, agreed goals…) scroll to their panel instead.
+      const selector = message ? issuePanelSelectorForMessage(message) : null
+      if (selector) setPendingMissingFocus({ selector })
     },
-    [goToHolisticTab, sections, visibleQuestionsBySection],
+    [goToHolisticTab, sections, visibleQuestionsBySection, showMissingFields],
+  )
+
+  /** Submit items as listed to the assessor: one entry per question (see dedupeIssuesByQuestion). */
+  const displayBlocks = React.useMemo(
+    () =>
+      dedupeIssuesByQuestion(
+        validation.blocks,
+        sections,
+        (issue) => !isSkippableIncompleteValidationMessage(issue.message),
+      ),
+    [validation.blocks, sections],
+  )
+
+  /** First tab (navigation order) that shows each question. */
+  const tabIdByQuestionId = React.useMemo(() => {
+    const map = new Map<string, number>()
+    for (const tab of HOLISTIC_ASSESSMENT_TABS) {
+      for (const q of questionsForDocumentTab(tab, sections, visibleQuestionsBySection)) {
+        if (!map.has(q.id)) map.set(q.id, tab.id)
+      }
+    }
+    return map
+  }, [sections, visibleQuestionsBySection])
+
+  /**
+   * Submit items per tab — the same list as the submit dialog: field items (one question) and other
+   * items (worksheets, safety rules). Independent of whether missing fields are shown.
+   */
+  const missingItemsByTab = React.useMemo(() => {
+    const byTab = new Map<number, { fieldIds: string[]; otherItems: string[]; hasHardBlock: boolean }>()
+    for (const tab of HOLISTIC_ASSESSMENT_TABS) {
+      byTab.set(tab.id, { fieldIds: [], otherItems: [], hasHardBlock: false })
+    }
+    for (const issue of displayBlocks) {
+      const questionId = questionIdForValidationMessage(issue.message, sections)
+      const tabId =
+        (questionId ? tabIdByQuestionId.get(questionId) : undefined) ??
+        holisticTabForValidationIssue(issue, sections, visibleQuestionsBySection)
+      const entry = byTab.get(tabId)
+      if (!entry) continue
+      if (questionId) {
+        if (!entry.fieldIds.includes(questionId)) entry.fieldIds.push(questionId)
+      } else {
+        entry.otherItems.push(validationMessageForDisplay(issue.message, sections))
+      }
+      if (!isSkippableIncompleteValidationMessage(issue.message)) entry.hasHardBlock = true
+    }
+    return byTab
+  }, [sections, visibleQuestionsBySection, tabIdByQuestionId, displayBlocks])
+
+  /** Nearest tab after / before the open one (navigation order, wrapping) that still has items. */
+  const adjacentTabWithMissing = React.useCallback(
+    (direction: 'next' | 'previous') => {
+      const order = HOLISTIC_ASSESSMENT_TABS.map((t) => t.id)
+      const start = order.indexOf(activeHolisticTab)
+      const delta = direction === 'next' ? 1 : -1
+      for (let step = 1; step < order.length; step++) {
+        const id = order[(start + delta * step + order.length * order.length) % order.length]!
+        const items = missingItemsByTab.get(id)
+        if (items && (items.fieldIds.length > 0 || items.otherItems.length > 0)) return id
+      }
+      return null
+    },
+    [activeHolisticTab, missingItemsByTab],
+  )
+  const nextTabWithMissing = React.useMemo(() => adjacentTabWithMissing('next'), [adjacentTabWithMissing])
+
+  // When the open tab changes (Previous / Next, a jump, a link), scroll the left list so that tab is in
+  // view. Only the list scrolls — not the page, which may be scrolling to a field.
+  React.useEffect(() => {
+    const nav = sectionNavRef.current
+    const button = nav?.querySelector<HTMLElement>(`[data-ia-nav-tab="${activeHolisticTab}"]`)
+    if (!nav || !button) return
+    const navRect = nav.getBoundingClientRect()
+    const rect = button.getBoundingClientRect()
+    if (rect.top >= navRect.top && rect.bottom <= navRect.bottom) return
+    const top = nav.scrollTop + (rect.top - navRect.top) - (nav.clientHeight - rect.height) / 2
+    nav.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+  }, [activeHolisticTab, tabSwitchLoading])
+
+  // Scroll to the requested missing field once its tab has rendered (tab switches are deferred).
+  React.useEffect(() => {
+    if (!pendingMissingFocus || tabSwitchLoading) return
+    let frame = 0
+    let tries = 0
+    const attempt = () => {
+      const root = sectionContentRef.current
+      if ('selector' in pendingMissingFocus) {
+        const panel = root?.querySelector<HTMLElement>(pendingMissingFocus.selector)
+        if (panel && panel.getClientRects().length > 0) {
+          revealElement(panel)
+          setPendingMissingFocus(null)
+          return
+        }
+      } else {
+        const marker =
+          'questionId' in pendingMissingFocus
+            ? missingFieldElementFor(root, pendingMissingFocus.questionId)
+            : 'last' in pendingMissingFocus
+              ? (missingFieldElements(root).at(-1) ?? null)
+              : (missingFieldElements(root)[0] ?? null)
+        if (marker) {
+          missingCursorRef.current = marker.getAttribute(IA_MISSING_QUESTION_ATTR)
+          revealMissingField(marker)
+          setPendingMissingFocus(null)
+          return
+        }
+      }
+      if (++tries > 90) {
+        setPendingMissingFocus(null)
+        return
+      }
+      frame = requestAnimationFrame(attempt)
+    }
+    frame = requestAnimationFrame(attempt)
+    return () => cancelAnimationFrame(frame)
+  }, [pendingMissingFocus, tabSwitchLoading, activeHolisticTab])
+
+  const goToAdjacentMissingField = React.useCallback(
+    (direction: 'next' | 'previous') => {
+      const list = missingFieldElements(sectionContentRef.current)
+      const target = adjacentMissingField(list, missingCursorRef.current, direction)
+      if (target) {
+        missingCursorRef.current = target.getAttribute(IA_MISSING_QUESTION_ATTR)
+        revealMissingField(target)
+        return
+      }
+      // Past the first / last missing field of this tab: continue on the previous / next tab
+      // (Previous lands on that tab's last missing field, Next on its first).
+      const tabId = adjacentTabWithMissing(direction)
+      if (tabId != null && tabId !== activeHolisticTab) {
+        missingCursorRef.current = null
+        goToHolisticTab(tabId)
+        setPendingMissingFocus(direction === 'next' ? { first: true } : { last: true })
+      }
+    },
+    [goToHolisticTab, adjacentTabWithMissing, activeHolisticTab],
+  )
+
+  const goToNextTabWithMissing = React.useCallback(() => {
+    if (nextTabWithMissing == null) return
+    missingCursorRef.current = null
+    goToHolisticTab(nextTabWithMissing)
+    setPendingMissingFocus({ first: true })
+  }, [goToHolisticTab, nextTabWithMissing])
+
+  const issueMessage = React.useCallback(
+    (issue: ValidationIssue) => validationMessageForDisplay(issue.message, sections),
+    [sections],
   )
 
   const issueTabLabel = React.useCallback(
@@ -3467,11 +3686,12 @@ function InitialAssessmentEnterprisePageContent() {
 
               {editable && validationRevealed ? (
                 <InitialAssessmentBlockingBanner
-                  blocks={validation.blocks}
+                  blocks={displayBlocks}
                   warnings={validation.warnings}
                   editable={editable}
                   onGoToSection={goToSection}
                   issueTabLabel={issueTabLabel}
+                  issueMessage={issueMessage}
                   onGoToHubTab={(tab) => setHubTab(tab)}
                   onReviewSubmit={openSubmitReview}
                 />
@@ -3513,9 +3733,24 @@ function InitialAssessmentEnterprisePageContent() {
                 )}
               >
                 <nav
+                  ref={sectionNavRef}
                   data-testid="ia-section-nav"
                   className="flex max-h-[calc(100vh-7rem)] flex-col gap-1 overflow-y-auto rounded-xl border border-border bg-card p-2 shadow-sm min-[900px]:sticky min-[900px]:top-4 min-[900px]:self-start"
                 >
+                  {editable && validationRevealed && displayBlocks.length > 0 ? (
+                    <label
+                      className="flex cursor-pointer items-center gap-2 border-b border-border px-3 pb-2 pt-1 text-xs text-muted-foreground"
+                      data-testid="ia-nav-only-missing"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5"
+                        checked={onlyTabsWithMissing}
+                        onChange={(e) => setOnlyTabsWithMissing(e.target.checked)}
+                      />
+                      Only tabs with missing items
+                    </label>
+                  ) : null}
                   {(['core', 'specialist', 'finalisation'] as const).map((group) => {
                     const renderNavTab = (tab: (typeof HOLISTIC_ASSESSMENT_TABS)[number]) => {
                     const enterprise = sections.find((s) => s.sectionNumber === tab.enterpriseSection)
@@ -3536,6 +3771,15 @@ function InitialAssessmentEnterprisePageContent() {
                     const navStatus = holisticTabNavStatus.get(tab.id) ?? 'ok'
                     const relevance = specialistRelevanceByTab.get(tab.id)
                     const isSwitchTarget = pendingHolisticTab === tab.id
+                    const missing = missingItemsByTab.get(tab.id)
+                    // Status pills only once missing fields are shown (after Submit) — a new IA starts plain.
+                    const statusShown = editable && validationRevealed
+                    const missingCount = statusShown
+                      ? (missing?.fieldIds.length ?? 0) + (missing?.otherItems.length ?? 0)
+                      : 0
+                    // Done only when every field on the tab is answered (not just the required ones).
+                    const showDone =
+                      statusShown && missingCount === 0 && prog.total > 0 && prog.answered >= prog.total && !relevance
                     return (
                       <button
                         key={tab.id}
@@ -3550,6 +3794,7 @@ function InitialAssessmentEnterprisePageContent() {
                             : null,
                         )}
                         aria-busy={isSwitchTarget || undefined}
+                        data-ia-nav-tab={tab.id}
                         disabled={tabSwitchLoading}
                         onClick={() => goToHolisticTab(tab.id)}
                       >
@@ -3562,15 +3807,32 @@ function InitialAssessmentEnterprisePageContent() {
                               aria-hidden
                               data-testid={`ia-nav-loading-${tab.id}`}
                             />
-                          ) : navStatus === 'blocking' ? (
+                          ) : missingCount > 0 ? (
                             <span
-                              className="h-2 w-2 shrink-0 rounded-full bg-red-500"
-                              title="Blocking issues — fix before submit"
-                            />
+                              className={cn(
+                                'shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold',
+                                missing?.hasHardBlock
+                                  ? 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200'
+                                  : 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
+                              )}
+                              title={
+                                missing?.hasHardBlock
+                                  ? 'Includes an item that must be fixed before submit'
+                                  : 'Missing items — see the submit list'
+                              }
+                              data-testid={`ia-nav-missing-${tab.id}`}
+                            >
+                              {missingCount} missing
+                            </span>
                           ) : navStatus === 'warning' ? (
                             <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" title="Warnings" />
-                          ) : navStatus === 'incomplete' ? (
-                            <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/50" title="Incomplete" />
+                          ) : showDone ? (
+                            <span
+                              className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                              data-testid={`ia-nav-done-${tab.id}`}
+                            >
+                              ✓ Done
+                            </span>
                           ) : null}
                           {hasComment ? (
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400" title="Section comment" />
@@ -3594,7 +3856,7 @@ function InitialAssessmentEnterprisePageContent() {
                           ) : null}
                         </span>
                         <span className={IA_FORM_NAV_META_CLASS}>
-                          {isSwitchTarget ? 'Loading…' : formatSectionNavMeta(prog)}
+                          {isSwitchTarget ? 'Loading…' : formatSectionAnsweredMeta(prog)}
                           {relevance && relevance.status !== 'pending' ? (
                             <span
                               className={cn(
@@ -3644,6 +3906,13 @@ function InitialAssessmentEnterprisePageContent() {
                           )
                         : []
                     const hiddenIds = new Set(hidden.map((tab) => tab.id))
+                    if (onlyTabsWithMissing && validationRevealed) {
+                      for (const tab of groupTabs) {
+                        const items = missingItemsByTab.get(tab.id)
+                        const count = (items?.fieldIds.length ?? 0) + (items?.otherItems.length ?? 0)
+                        if (count === 0 && tab.id !== activeHolisticTab) hiddenIds.add(tab.id)
+                      }
+                    }
                     return (
                       <React.Fragment key={group}>
                         <p className="mt-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground first:mt-0">
@@ -3699,6 +3968,21 @@ function InitialAssessmentEnterprisePageContent() {
                       <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
                       Loading section…
                     </div>
+                  ) : null}
+                  {editable && missingFieldsSeen && displayBlocks.length > 0 ? (
+                    <InitialAssessmentMissingFieldsBar
+                      shown={validationRevealed}
+                      onShow={() => showMissingFields(true)}
+                      onHide={() => showMissingFields(false)}
+                      tabFieldCount={missingItemsByTab.get(activeHolisticTab)?.fieldIds.length ?? 0}
+                      tabOtherItems={missingItemsByTab.get(activeHolisticTab)?.otherItems ?? []}
+                      totalCount={displayBlocks.length}
+                      nextTabLabel={nextTabWithMissing != null ? holisticTabRef(nextTabWithMissing) : null}
+                      onPrevious={() => goToAdjacentMissingField('previous')}
+                      onNext={() => goToAdjacentMissingField('next')}
+                      onNextTab={goToNextTabWithMissing}
+                      onReviewAll={openSubmitReview}
+                    />
                   ) : null}
                   <div
                     ref={sectionContentRef}
@@ -4033,7 +4317,7 @@ function InitialAssessmentEnterprisePageContent() {
       <InitialAssessmentSubmitDialog
         open={submitModalOpen}
         onOpenChange={setSubmitModalOpen}
-        blocks={validation.blocks}
+        blocks={displayBlocks}
         warnings={validation.warnings}
         canSubmit={validation.canSubmit}
         canSubmitIncomplete={validation.canSubmitIncomplete}
@@ -4053,6 +4337,7 @@ function InitialAssessmentEnterprisePageContent() {
           goToSection(n, message)
         }}
         issueTabLabel={issueTabLabel}
+        issueMessage={issueMessage}
         onGoToHubTab={(tab) => {
           setSubmitModalOpen(false)
           setHubTab(tab)

@@ -1,3 +1,4 @@
+import { iaMissingQuestionAttrs } from '@/features/service-users/initial-assessment/utils/missing-field-navigation'
 import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
 import { Input } from '@/shared/ui/input'
@@ -334,7 +335,7 @@ export function InitialAssessmentGpContactField({
       </div>
 
       {errorMessage ? (
-        <p className="text-xs font-medium text-destructive" role="alert">
+        <p className="text-xs font-medium text-destructive" role="alert" {...iaMissingQuestionAttrs(question.id)}>
           {errorMessage}
         </p>
       ) : null}
