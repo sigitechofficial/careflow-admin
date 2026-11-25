@@ -217,7 +217,7 @@ export function syncEnvPetsToSection3(
 }
 
 /**
- * The Waterlow tab is the single master for the pressure-ulcer score and band; Equipment Selection
+ * The Waterlow tab is the single master for the pressure-ulcer score and band; Equipment selection
  * keeps a read-only copy (compose reads it). Cleared again when the Waterlow is reset.
  */
 export function syncWaterlowScoreToEquipment(

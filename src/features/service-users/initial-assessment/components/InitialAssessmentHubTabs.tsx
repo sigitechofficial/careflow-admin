@@ -18,7 +18,7 @@ const TABS: { id: HubTabId; label: string }[] = [
   { id: 'review', label: 'Manager review' },
   { id: 'schedule', label: 'Actions & care plans' },
   { id: 'audit', label: 'Audit trail' },
-  { id: 'compare', label: 'Compare' },
+  { id: 'compare', label: 'Compare with previous' },
 ]
 
 type Props = {

@@ -30,12 +30,12 @@ function instance(over: Partial<CarePlanInstance> & { approval?: CarePlanDraftAp
 describe('carePlanApprovalView', () => {
   it('approval off and nothing in flight: plain Publish, no panel, editable', () => {
     const v = carePlanApprovalView(instance({}))
-    expect(v).toMatchObject({ footerAction: 'publish', footerLabel: 'Publish Care Plan', showPanel: false, locked: false })
+    expect(v).toMatchObject({ footerAction: 'publish', footerLabel: 'Publish care plan', showPanel: false, locked: false })
   })
 
-  it('approval on: Submit for Approval, then locked while pending, then Publish Approved Plan', () => {
+  it('approval on: Submit for approval, then locked while pending, then Publish approved plan', () => {
     expect(carePlanApprovalView(instance({ carePlanApprovalRequired: true }))).toMatchObject({
-      footerLabel: 'Submit for Approval',
+      footerLabel: 'Submit for approval',
       showPanel: true,
     })
     expect(carePlanApprovalView(instance({ carePlanApprovalRequired: true, approval: pending }))).toMatchObject({
@@ -43,7 +43,7 @@ describe('carePlanApprovalView', () => {
     })
     expect(
       carePlanApprovalView(instance({ carePlanApprovalRequired: true, approval: { ...pending, status: 'APPROVED' } })),
-    ).toMatchObject({ footerAction: 'publish_approved', footerLabel: 'Publish Approved Plan', locked: false })
+    ).toMatchObject({ footerAction: 'publish_approved', footerLabel: 'Publish approved plan', locked: false })
   })
 
   it('detects edits made after approval', () => {
@@ -70,8 +70,8 @@ describe('CarePlanApprovalPanel', () => {
   it('requesting changes needs a reason', async () => {
     const onRequestChanges = vi.fn()
     render(<CarePlanApprovalPanel approval={pending} canApprove actorId="manager-1" onApprove={noop} onRequestChanges={onRequestChanges} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Request Changes' }))
-    const confirm = screen.getAllByRole('button', { name: 'Request Changes' }).at(-1)!
+    await userEvent.click(screen.getByRole('button', { name: 'Request changes' }))
+    const confirm = screen.getAllByRole('button', { name: 'Request changes' }).at(-1)!
     expect(confirm).toBeDisabled()
     await userEvent.type(screen.getByLabelText(/What needs to change/), 'Add night routine')
     await userEvent.click(confirm)

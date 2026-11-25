@@ -4,7 +4,7 @@ import type { InitialAssessmentStatus } from '@/features/service-users/initial-a
 const STATUS_LABEL: Record<InitialAssessmentStatus, string> = {
   DRAFT: 'Draft',
   IN_PROGRESS: 'In progress',
-  SUBMITTED: 'Submitted',
+  SUBMITTED: 'In review',
   REVIEWED: 'Reviewed',
   ARCHIVED: 'Archived',
   CANCELLED: 'Cancelled',

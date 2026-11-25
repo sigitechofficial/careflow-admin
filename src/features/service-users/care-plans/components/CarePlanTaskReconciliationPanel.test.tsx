@@ -51,7 +51,7 @@ const base: CarePlanTaskReconciliation = {
 describe('CarePlanTaskReconciliationPanel', () => {
   it('shows the plan, version, each requirement state, review hints and N/A reasons — never "all covered"', () => {
     render(<CarePlanTaskReconciliationPanel data={base} canManage onAction={vi.fn()} />)
-    expect(screen.getByText('Visit Task Reconciliation')).toBeInTheDocument()
+    expect(screen.getByText('Visit task reconciliation')).toBeInTheDocument()
     expect(screen.getByText(/Mobility · published version 2/)).toBeInTheDocument()
     const rows = screen.getAllByTestId('task-requirement-row')
     expect(within(rows[0]).getAllByText('Needs review').length).toBeGreaterThan(0)
@@ -78,7 +78,7 @@ describe('CarePlanTaskReconciliationPanel', () => {
     render(<CarePlanTaskReconciliationPanel data={base} canManage onAction={onAction} />)
 
     const transfer = screen.getAllByTestId('task-requirement-row')[1]
-    await userEvent.click(within(transfer).getByRole('button', { name: 'Link Existing Task' }))
+    await userEvent.click(within(transfer).getByRole('button', { name: 'Link existing task' }))
     expect(screen.getByLabelText('Care plan requirement')).toHaveValue('mob:transfer')
     const linkBtn = screen.getByRole('button', { name: 'Link' })
     expect(linkBtn).toBeDisabled()
@@ -86,7 +86,7 @@ describe('CarePlanTaskReconciliationPanel', () => {
     await userEvent.click(linkBtn)
     expect(onAction).toHaveBeenCalledWith({ action: 'link', visitTaskAssignmentId: 'a-shower', requirementKey: 'mob:transfer' })
 
-    await userEvent.click(screen.getByRole('button', { name: 'Mark Reviewed' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }))
     expect(onAction).toHaveBeenCalledWith({ action: 'review', linkId: 'l1' })
     await userEvent.click(screen.getAllByRole('button', { name: 'Unlink' })[0])
     expect(onAction).toHaveBeenCalledWith({ action: 'unlink', linkId: 'l1' })
@@ -95,8 +95,8 @@ describe('CarePlanTaskReconciliationPanel', () => {
   it('not applicable needs a reason', async () => {
     const onAction = vi.fn()
     render(<CarePlanTaskReconciliationPanel data={base} canManage onAction={onAction} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Mark Not Applicable' }))
-    const confirm = screen.getAllByRole('button', { name: 'Mark Not Applicable' }).at(-1)!
+    await userEvent.click(screen.getByRole('button', { name: 'Mark not applicable' }))
+    const confirm = screen.getAllByRole('button', { name: 'Mark not applicable' }).at(-1)!
     expect(confirm).toBeDisabled()
     await userEvent.type(screen.getByLabelText('Reason (required)'), 'Family help with transfers')
     await userEvent.click(confirm)
@@ -117,7 +117,7 @@ describe('CarePlanTaskReconciliationPanel', () => {
       />,
     )
     expect(screen.getByText(/no longer in the published plan/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Mark Reviewed' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Mark reviewed' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Unlink' })).toBeInTheDocument()
   })
 })

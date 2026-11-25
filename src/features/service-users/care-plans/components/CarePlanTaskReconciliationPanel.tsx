@@ -54,7 +54,7 @@ function StateBadge({ state }: { state: CarePlanTaskReconciliationState }) {
 const selectClass = 'mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
 
 /**
- * Visit Task Reconciliation: links between the published care plan and the service user's
+ * Visit task reconciliation: links between the published care plan and the service user's
  * existing visit tasks. Never says "all covered" — requirements are matched by a manager.
  */
 export function CarePlanTaskReconciliationPanel({ data, canManage, busy, onAction }: Props) {
@@ -100,7 +100,7 @@ export function CarePlanTaskReconciliationPanel({ data, canManage, busy, onActio
         <div className="flex gap-2">
           {link.state === 'REVIEW_REQUIRED' && !link.requirementGone && !link.assignmentInactive ? (
             <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onAction({ action: 'review', linkId: link.id })}>
-              Mark Reviewed
+              Mark reviewed
             </Button>
           ) : null}
           <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onAction({ action: 'unlink', linkId: link.id })}>
@@ -115,7 +115,7 @@ export function CarePlanTaskReconciliationPanel({ data, canManage, busy, onActio
     <section className="rounded-md border border-border bg-card px-4 py-3 text-sm" data-testid="care-plan-task-reconciliation">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-semibold">Visit Task Reconciliation</h2>
+          <h2 className="font-semibold">Visit task reconciliation</h2>
           <p className="text-xs text-muted-foreground">
             {data.formName} · published version {data.publishedVersion.versionNumber} · {data.counts.linked} linked ·{' '}
             {data.counts.reviewRequired} need review · {data.counts.notApplicable} not applicable
@@ -123,7 +123,7 @@ export function CarePlanTaskReconciliationPanel({ data, canManage, busy, onActio
         </div>
         {canManage ? (
           <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setLinkFor('')}>
-            Link Existing Task
+            Link existing task
           </Button>
         ) : null}
       </div>
@@ -145,10 +145,10 @@ export function CarePlanTaskReconciliationPanel({ data, canManage, busy, onActio
                 {canManage && req.state === 'UNLINKED' ? (
                   <div className="flex gap-2">
                     <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setLinkFor(req.key)}>
-                      Link Existing Task
+                      Link existing task
                     </Button>
                     <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setNaFor(req.key)}>
-                      Mark Not Applicable
+                      Mark not applicable
                     </Button>
                   </div>
                 ) : null}
@@ -256,7 +256,7 @@ export function CarePlanTaskReconciliationPanel({ data, canManage, busy, onActio
                 closeNa()
               }}
             >
-              Mark Not Applicable
+              Mark not applicable
             </Button>
           </DialogFooter>
         </DialogContent>

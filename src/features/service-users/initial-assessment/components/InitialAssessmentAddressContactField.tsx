@@ -1,3 +1,4 @@
+import { iaMissingQuestionAttrs } from '@/features/service-users/initial-assessment/utils/missing-field-navigation'
 import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
 import { Input } from '@/shared/ui/input'
@@ -235,7 +236,7 @@ export function InitialAssessmentAddressContactField({
       {poNumber ? (
         <div className={simple ? IA_SIMPLE_FIELD_CLASS : 'space-y-1'}>
           <Label htmlFor={`${question.id}-poNumber`} className={IA_QUESTION_LABEL_CLASS}>
-            PO Number
+            PO number
           </Label>
           <Input
             id={`${question.id}-poNumber`}
@@ -248,7 +249,7 @@ export function InitialAssessmentAddressContactField({
               })
             }
             disabled={disabled}
-            placeholder="PO Number"
+            placeholder="PO number"
             className={simple ? IA_SIMPLE_INPUT_CLASS : 'h-10 max-w-md text-base'}
           />
           {poNumber.errorMessage ? (
@@ -326,7 +327,7 @@ export function InitialAssessmentAddressContactField({
             : 'Leave a field to save. Address search uses Google Places and fills the postcode.'}
       </p>
       {errorMessage ? (
-        <p className="text-xs font-medium text-destructive" role="alert">
+        <p className="text-xs font-medium text-destructive" role="alert" {...iaMissingQuestionAttrs(question.id)}>
           {errorMessage}
         </p>
       ) : null}

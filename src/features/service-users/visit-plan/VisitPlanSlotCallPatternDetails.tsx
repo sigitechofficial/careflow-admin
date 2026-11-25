@@ -131,7 +131,7 @@ export function VisitPlanSlotCallPatternDetails({
         </div>
       </div>
 
-      <DetailSection title="Call pattern">
+      <DetailSection title="Visit pattern">
         <dl className="grid gap-4 sm:grid-cols-2">
           <DetailField label="Visit window" value={`${start} – ${end}`} />
           <DetailField label="Required carers" value={String(slot.requiredCarers)} />

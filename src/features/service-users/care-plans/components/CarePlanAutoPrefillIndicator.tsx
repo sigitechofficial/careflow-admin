@@ -23,7 +23,7 @@ export function CarePlanAutoPrefillIndicator({
     >
       <ClipboardCheck className="h-3.5 w-3.5 shrink-0 text-[#0f766e]" aria-hidden />
       <span>
-        Prefilled from Initial Assessment
+        Prefilled from initial assessment
         {sourceDateText ? ` · ${sourceDateText}` : null}
       </span>
     </p>

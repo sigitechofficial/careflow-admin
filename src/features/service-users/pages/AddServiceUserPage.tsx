@@ -88,8 +88,8 @@ import {
 import { DateInput, DateTimeInput } from '@/shared/ui/date-time-input'
 /** Fixed Standard / Complex care-level options. */
 const CARE_LEVEL_OPTIONS = [
-  { id: 'STANDARD', name: 'Standard Care' },
-  { id: 'COMPLEX', name: 'Complex Care' },
+  { id: 'STANDARD', name: 'Standard care' },
+  { id: 'COMPLEX', name: 'Complex care' },
 ]
 
 type FormState = {
@@ -357,12 +357,12 @@ type FieldErrors = Partial<Record<keyof FormState, string>>
 /** Fields marked * on the form, in on-screen order (drives inline errors and the summary). */
 const REQUIRED_FIELD_LABELS = {
   statusId: 'Status',
-  firstName: 'First name',
-  lastName: 'Last name',
+  firstName: 'Legal first name',
+  lastName: 'Legal last name',
   titleId: 'Title',
   dateOfBirth: 'Date of birth',
   genderId: 'Gender',
-  locationId: 'Location',
+  locationId: 'Branch',
 } as const satisfies Partial<Record<keyof FormState, string>>
 
 function requiredFieldErrors(form: FormState): FieldErrors {
@@ -741,8 +741,8 @@ export default function AddServiceUserPage() {
       if (withReferral) {
         const referralProblem = validateReferralForm(referralForm)
         if (referralProblem) {
-          setSubmitError(`Referral Information: ${referralProblem}`)
-          toastError('Cannot create service user', `Referral Information: ${referralProblem}`)
+          setSubmitError(`Referral information: ${referralProblem}`)
+          toastError('Cannot create service user', `Referral information: ${referralProblem}`)
           return
         }
       }
@@ -875,10 +875,10 @@ export default function AddServiceUserPage() {
           <div className="space-y-1.5 p-5">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <Info className="h-4 w-4 text-muted-foreground" />
-              Add Service User
+              Add service user
             </div>
             <p className="text-sm text-muted-foreground">
-              Creates a service user via the CareAdmin API. Fields marked * are required for save.
+              Add a new service user. Fields marked * are required.
             </p>
           </div>
         </div>
@@ -930,30 +930,30 @@ export default function AddServiceUserPage() {
               </label>
             </div>
             <div>
-              <LabelWithTip tip="Organisation service user / case number.">Service User ID</LabelWithTip>
+              <LabelWithTip tip="Organisation service user / case number.">Service user ID</LabelWithTip>
               <Input
                 value={form.serviceUserNumber}
                 onChange={(e) => set('serviceUserNumber')(e.target.value)}
               />
             </div>
             <div>
-              <LabelWithTip tip="UK National Insurance number.">NI Number</LabelWithTip>
+              <LabelWithTip tip="UK National Insurance number.">NI number</LabelWithTip>
               <Input
                 value={form.nationalInsuranceNumber}
                 onChange={(e) => set('nationalInsuranceNumber')(e.target.value)}
               />
             </div>
             <div>
-              <LabelWithTip tip="NHS number (10 digits in England and Wales).">NHS Number</LabelWithTip>
+              <LabelWithTip tip="NHS number (10 digits in England and Wales).">NHS number</LabelWithTip>
               <Input value={form.nhsNumber} onChange={(e) => set('nhsNumber')(e.target.value)} />
             </div>
             <div>
-              <LabelWithTip tip="Verification status of the NHS number.">NHS Number Status</LabelWithTip>
+              <LabelWithTip tip="Verification status of the NHS number.">NHS number status</LabelWithTip>
               <StringSelect
                 value={form.nhsNumberStatus}
                 onChange={set('nhsNumberStatus')}
                 options={NHS_STATUS_OPTIONS}
-                placeholder="Select Status"
+                placeholder="Select status"
               />
             </div>
             <div>
@@ -970,11 +970,11 @@ export default function AddServiceUserPage() {
         </Section>
 
         <Section>
-          <SHead>Personal Details</SHead>
+          <SHead>Personal details</SHead>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <LabelWithTip required tip="Legal or primary given name.">
-                First Name
+                Legal first name
               </LabelWithTip>
               <Input
                 data-testid="service-user-first-name"
@@ -985,12 +985,12 @@ export default function AddServiceUserPage() {
               <FieldError message={fieldErrors.firstName} />
             </div>
             <div>
-              <LabelWithTip tip="Additional given names if used.">Middle Name</LabelWithTip>
+              <LabelWithTip tip="Additional given names if used.">Middle name(s)</LabelWithTip>
               <Input value={form.middleName} onChange={(e) => set('middleName')(e.target.value)} />
             </div>
             <div>
               <LabelWithTip required tip="Family name or surname.">
-                Last Name
+                Legal last name
               </LabelWithTip>
               <Input
                 data-testid="service-user-last-name"
@@ -1014,17 +1014,17 @@ export default function AddServiceUserPage() {
               </div>
             </div>
             <div>
-              <LabelWithTip tip="Previous family name if relevant.">Maiden Name</LabelWithTip>
+              <LabelWithTip tip="Previous family name if relevant.">Maiden name</LabelWithTip>
               <Input value={form.maidenName} onChange={(e) => set('maidenName')(e.target.value)} />
             </div>
             <div>
-              <LabelWithTip tip="Day-to-day preferred name.">Preferred Name</LabelWithTip>
+              <LabelWithTip tip="What they like to be called.">Preferred name</LabelWithTip>
               <Input value={form.preferredName} onChange={(e) => set('preferredName')(e.target.value)} />
             </div>
 
             <div>
               <LabelWithTip required tip="Date of birth for age and safeguarding.">
-                Date of Birth
+                Date of birth
               </LabelWithTip>
               <div className="flex flex-wrap items-center gap-2">
                 <DateInput
@@ -1040,11 +1040,11 @@ export default function AddServiceUserPage() {
               <FieldError message={fieldErrors.dateOfBirth} />
             </div>
             <div>
-              <LabelWithTip tip="Marital or civil partnership status.">Marital Status</LabelWithTip>
+              <LabelWithTip tip="Marital or civil partnership status.">Marital status</LabelWithTip>
               {lookups ? mapSelect('maritalStatusId', 'Select', lookups.maritalStatuses) : <Input disabled />}
             </div>
             <div>
-              <LabelWithTip tip="Town, city, or country of birth.">Place of Birth</LabelWithTip>
+              <LabelWithTip tip="Town, city, or country of birth.">Place of birth</LabelWithTip>
               <Input
                 value={form.placeOfBirth}
                 onChange={(e) => set('placeOfBirth')(e.target.value)}
@@ -1073,7 +1073,7 @@ export default function AddServiceUserPage() {
                 onValueChange={(v) => set('ethnicity')(v === '__none__' ? '' : v)}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Please select a Ethnicity" />
+                  <SelectValue placeholder="Please select an ethnicity" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">— None —</SelectItem>
@@ -1118,7 +1118,7 @@ export default function AddServiceUserPage() {
             </div>
             <div>
               <LabelWithTip tip="Optional — collect only with consent. Options are managed in Settings → Lookup data → Sexual orientation.">
-                Sexual Orientation
+                Sexual orientation
               </LabelWithTip>
               <Select
                 value={form.sexualOrientation || '__none__'}
@@ -1141,12 +1141,12 @@ export default function AddServiceUserPage() {
         </Section>
 
         <Section>
-          <SHead>Contact Details</SHead>
+          <SHead>Contact details</SHead>
           <div className="space-y-4">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
               <div className="w-36 shrink-0">
                 <LabelWithTip tip="How this person prefers to be contacted first.">
-                  Preferred Contact Method
+                  Preferred contact method
                 </LabelWithTip>
               </div>
               <div className="lg:w-96">
@@ -1162,7 +1162,7 @@ export default function AddServiceUserPage() {
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-3">
               <div className="w-36 shrink-0 lg:pt-7">
                 <LabelWithTip required tip="Branch and area for scheduling. The zone is set from the branch.">
-                  Location
+                  Branch and area
                 </LabelWithTip>
               </div>
               <div className="min-w-0 flex-1">
@@ -1217,10 +1217,7 @@ export default function AddServiceUserPage() {
             />
 
             <div>
-              <LabelWithTip tip="Separate from the service address. Choose how carers get in.">
-                How to enter the home
-              </LabelWithTip>
-              <div className="mt-2 rounded-xl border border-border bg-card p-4">
+              <div className="rounded-xl border border-border bg-card p-4">
                 <HomeAccessFields
                   value={{
                     accessMethod: form.accessMethod,
@@ -1237,10 +1234,10 @@ export default function AddServiceUserPage() {
         </Section>
 
         <Section>
-          <SHead>Service User Login App Settings</SHead>
+          <SHead>Service user login app settings</SHead>
           <div className="flex flex-wrap items-center gap-3">
             <LabelWithTip tip="Allow this person to sign in at /portal/login (requires email).">
-              Access Service User Application
+              Access service user application
             </LabelWithTip>
             <button
               type="button"
@@ -1268,10 +1265,10 @@ export default function AddServiceUserPage() {
         </Section>
 
         <Section>
-          <SHead>Reference Information</SHead>
+          <SHead>Reference information</SHead>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
-              <LabelWithTip tip="Date and time service started.">Service Start Date/Time</LabelWithTip>
+              <LabelWithTip tip="Date and time service started.">Service start date/time</LabelWithTip>
               <DateTimeInput
                 data-testid="service-user-service-start"
                
@@ -1281,7 +1278,7 @@ export default function AddServiceUserPage() {
             </div>
             <div>
               <LabelWithTip tip="Last day and time of service, or Ongoing if there is no end date yet.">
-                Service End Date/Time
+                Service end date/time
               </LabelWithTip>
               <DateTimeInput
                
@@ -1306,7 +1303,7 @@ export default function AddServiceUserPage() {
               </label>
             </div>
             <div>
-              <LabelWithTip tip="Only when verified.">Date of Death</LabelWithTip>
+              <LabelWithTip tip="Only when verified.">Date of death</LabelWithTip>
               <DateInput
                
                 value={form.dateOfDeath}
@@ -1315,7 +1312,7 @@ export default function AddServiceUserPage() {
             </div>
 
             <EmployeeSearch
-              label="Key Worker"
+              label="Key worker"
               search={kwSearch}
               setSearch={setKwSearch}
               selectedId={form.keyWorkerId}
@@ -1333,7 +1330,7 @@ export default function AddServiceUserPage() {
               }}
             />
             <EmployeeSearch
-              label="Named Nurse"
+              label="Named nurse"
               search={nnSearch}
               setSearch={setNnSearch}
               selectedId={form.namedNurseId}
@@ -1353,7 +1350,7 @@ export default function AddServiceUserPage() {
             <div />
 
             <div>
-              <LabelWithTip tip="Category or package of care.">Category of Care</LabelWithTip>
+              <LabelWithTip tip="Category or package of care.">Category of care</LabelWithTip>
               {lookups ? mapSelect('careTypeId', 'Please select a Category of Care', lookups.careTypes) : <Input disabled />}
             </div>
             <div>
@@ -1365,7 +1362,7 @@ export default function AddServiceUserPage() {
 
             <div className="md:col-span-3">
               <LabelWithTip tip="Notes about change preferences for this person.">
-                Change Preference
+                Change preference
               </LabelWithTip>
               <textarea
                 rows={3}
@@ -1379,11 +1376,11 @@ export default function AddServiceUserPage() {
             </div>
 
             <div>
-              <LabelWithTip>Order Number</LabelWithTip>
+              <LabelWithTip>Order number</LabelWithTip>
               <Input value={form.orderNumber} onChange={(e) => set('orderNumber')(e.target.value)} />
             </div>
             <div>
-              <LabelWithTip tip="Adult social care / local-system AS reference.">AS Number</LabelWithTip>
+              <LabelWithTip tip="Adult social care / local-system AS reference.">AS number</LabelWithTip>
               <Input value={form.asNumber} onChange={(e) => set('asNumber')(e.target.value)} />
             </div>
             <div>
@@ -1392,7 +1389,7 @@ export default function AddServiceUserPage() {
             </div>
 
             <div>
-              <LabelWithTip>Scan Type</LabelWithTip>
+              <LabelWithTip>Scan type</LabelWithTip>
               <StringSelect
                 value={form.scanType}
                 onChange={set('scanType')}
@@ -1401,7 +1398,7 @@ export default function AddServiceUserPage() {
               />
             </div>
             <div>
-              <LabelWithTip tip="Scan code value when Scan Type is set.">Scan Code</LabelWithTip>
+              <LabelWithTip tip="Scan code value when Scan type is set.">Scan code</LabelWithTip>
               <Input
                 value={form.scanCode}
                 onChange={(e) => set('scanCode')(e.target.value)}
@@ -1414,11 +1411,11 @@ export default function AddServiceUserPage() {
             <div />
 
             <div>
-              <LabelWithTip>Case Number</LabelWithTip>
+              <LabelWithTip>Case number</LabelWithTip>
               <Input value={form.caseNumber} onChange={(e) => set('caseNumber')(e.target.value)} />
             </div>
             <div>
-              <LabelWithTip>SPROC Number</LabelWithTip>
+              <LabelWithTip>SPROC number</LabelWithTip>
               <Input value={form.sprocNumber} onChange={(e) => set('sprocNumber')(e.target.value)} />
             </div>
             <div>
@@ -1473,7 +1470,7 @@ export default function AddServiceUserPage() {
         </Section>
 
         <Section>
-          <SHead>Referral Information</SHead>
+          <SHead>Referral information</SHead>
           <p className="-mt-2 mb-4 text-xs text-muted-foreground">
             Who referred this person, when and how it reached you. Optional — more detail, follow-ups and private
             quotations are on the service user&apos;s Referral &amp; Quotes tab after saving.
@@ -1483,7 +1480,7 @@ export default function AddServiceUserPage() {
 
         {canAddFundingRates ? (
           <Section>
-            <SHead>Funding &amp; Charge Rates</SHead>
+            <SHead>Funding &amp; charge rates</SHead>
             <p className="-mt-2 mb-4 text-xs text-muted-foreground">
               Optional. Record the funder and the per-hour / visit rates they pay for this person. Saved as a
               charge card linked to a new funding line — manage or extend it later on the Funding tab.
@@ -1539,7 +1536,7 @@ export default function AddServiceUserPage() {
                 Saving…
               </>
             ) : (
-              'Save'
+              'Create service user'
             )}
           </Button>
         </div>

@@ -18,7 +18,7 @@ type Props = {
   onPainAssessmentChange: (next: PainAssessmentMetadata) => void
   renderField: (q: InitialAssessmentQuestion) => ReactNode
   renderMultiSelect?: (q: InitialAssessmentQuestion) => ReactNode
-  /** When false, only checklist fields show (Pain Assessment Tool is on its own tab). */
+  /** When false, only checklist fields show (Pain assessment tool is on its own tab). */
   showPainAssessmentTool?: boolean
 }
 

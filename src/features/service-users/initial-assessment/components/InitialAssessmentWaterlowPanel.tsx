@@ -292,7 +292,7 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
   return (
     <div className={IA_SECTION_BODY_CLASS} data-testid="ia-waterlow-panel">
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
-        <HolisticSectionHeader title="Waterlow Pressure Ulcer Risk Assessment" />
+        <HolisticSectionHeader title="Waterlow pressure ulcer risk assessment" />
 
         <div className="space-y-4 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <div className="space-y-1">

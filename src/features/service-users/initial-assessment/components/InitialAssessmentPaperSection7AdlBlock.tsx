@@ -81,7 +81,7 @@ export function InitialAssessmentPaperSection7AdlBlock({
           <p className="font-medium text-teal-950 dark:text-teal-100">
             {adlDisplay.fallsAssessmentCompleted === true
               ? `Falls assessment completed${adlDisplay.fallsAssessmentDate ? ` on ${formatOrganisationDay(adlDisplay.fallsAssessmentDate)}` : ''}.`
-              : 'Falls history, concerns and the falls screen are recorded on the Falls Screening tab.'}
+              : 'Falls history, concerns and the falls screen are recorded on the Falls screening tab.'}
           </p>
           {onOpenFallsScreeningTab ? (
             <Button
@@ -92,7 +92,7 @@ export function InitialAssessmentPaperSection7AdlBlock({
               onClick={onOpenFallsScreeningTab}
             >
               <ExternalLink className="mr-2 h-4 w-4" aria-hidden />
-              Open Falls Screening
+              Open Falls screening
             </Button>
           ) : null}
         </div>

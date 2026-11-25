@@ -163,6 +163,8 @@ export type CreateMedicationEventPayload = {
   prnOutcome?: string
   administeredById?: string
   recordOnBehalfOfCarer?: boolean
+  /** ScheduledVisit id when recorded from a visit window — adds an office row to that visit Log. */
+  visitId?: string
 }
 
 export type CorrectMedicationEventPayload = {

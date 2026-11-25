@@ -113,11 +113,11 @@ export const CARE_PLAN_EQUIPMENT_ROWS: {
   id: CarePlanEquipmentId
   label: string
 }[] = [
-  { id: 'zimmerFrame', label: 'Zimmer Frame/ walking aid' },
-  { id: 'reclinerChair', label: 'Recliner Chair/ high back chair, other' },
-  { id: 'perchingStool', label: 'Perching Stool' },
+  { id: 'zimmerFrame', label: 'Zimmer frame/ walking aid' },
+  { id: 'reclinerChair', label: 'Recliner chair/ high back chair, other' },
+  { id: 'perchingStool', label: 'Perching stool' },
   { id: 'profilingBed', label: 'Profiling bed' },
-  { id: 'hoistSling', label: 'Hoist and Sling' },
+  { id: 'hoistSling', label: 'Hoist and sling' },
   { id: 'commode', label: 'Commode' },
   { id: 'wheelchair', label: 'Wheel chair' },
   { id: 'standAid', label: 'Stand aid' },

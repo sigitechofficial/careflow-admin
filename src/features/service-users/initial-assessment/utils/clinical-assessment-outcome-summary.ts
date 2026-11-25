@@ -42,7 +42,7 @@ export const CLINICAL_OUTCOME_SUMMARY_ROWS: {
     id: 'pain',
     label: 'Pain (state tool used in assessment)',
   },
-  { id: 'movingHandling', label: 'Moving and Handling' },
+  { id: 'movingHandling', label: 'Moving and handling' },
   {
     id: 'skinIntegrity',
     label:
@@ -51,7 +51,7 @@ export const CLINICAL_OUTCOME_SUMMARY_ROWS: {
   { id: 'bloodPressure', label: 'Blood pressure' },
   { id: 'pulseRate', label: 'Pulse rate' },
   { id: 'pulseRhythm', label: 'Pulse rhythm (irregular/regular)' },
-  { id: 'o2Saturations', label: 'O2 Saturations' },
+  { id: 'o2Saturations', label: 'O2 saturations' },
   { id: 'respirationRate', label: 'Respiration rate' },
   { id: 'temperature', label: 'Temperature' },
   { id: 'others', label: 'Others, please state:' },

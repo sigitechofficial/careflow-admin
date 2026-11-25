@@ -80,7 +80,7 @@ describe('CarePathwayFormRenderer area-risk follow-ups', () => {
       <CarePathwayFormRenderer form={eatingForm} values={{}} onChange={() => undefined} />,
     )
     expect(screen.getByText('Is there a risk associated with this area of my care?')).toBeInTheDocument()
-    expect(screen.queryByText('Identify the risk?')).not.toBeInTheDocument()
+    expect(screen.queryByText('What is the risk?')).not.toBeInTheDocument()
     expect(screen.queryByText('Who might be harmed?')).not.toBeInTheDocument()
 
     rerender(
@@ -90,7 +90,7 @@ describe('CarePathwayFormRenderer area-risk follow-ups', () => {
         onChange={() => undefined}
       />,
     )
-    expect(screen.queryByText('Identify the risk?')).not.toBeInTheDocument()
+    expect(screen.queryByText('What is the risk?')).not.toBeInTheDocument()
 
     rerender(
       <CarePathwayFormRenderer
@@ -102,7 +102,7 @@ describe('CarePathwayFormRenderer area-risk follow-ups', () => {
         onChange={() => undefined}
       />,
     )
-    expect(screen.getByText('Identify the risk?')).toBeInTheDocument()
+    expect(screen.getByText('What is the risk?')).toBeInTheDocument()
     expect(screen.getByText('Who might be harmed?')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Family and staff')).toBeInTheDocument()
 

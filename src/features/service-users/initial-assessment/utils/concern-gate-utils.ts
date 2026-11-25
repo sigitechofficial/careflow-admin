@@ -220,7 +220,7 @@ export function isHiddenDerivedConcernGate(
 ): boolean {
   if (q.questionType !== 'YES_NO' && q.questionType !== 'CHECKBOX') return false
   const text = q.questionText.toLowerCase()
-  // C43 — Moving & Handling / Equipment Selection own hoist; hide template trigger.
+  // C43 — Moving & Handling / Equipment selection own hoist; hide template trigger.
   if (fieldKeyOf(q) === 'usesHoistOrSling' || text.includes('uses hoist or sling')) {
     return true
   }

@@ -1,3 +1,4 @@
+import { iaMissingQuestionAttrs } from '@/features/service-users/initial-assessment/utils/missing-field-navigation'
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { cn } from '@/shared/lib/utils'
@@ -76,7 +77,11 @@ export function InitialAssessmentAllergiesField({
         hideHeading
         disabled={disabled}
       />
-      {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
+      {errorMessage ? (
+        <p className="text-sm text-destructive" {...iaMissingQuestionAttrs(question.id)}>
+          {errorMessage}
+        </p>
+      ) : null}
     </div>
   )
 }

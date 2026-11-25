@@ -180,7 +180,7 @@ function ContentTypographyShowcase() {
       </TokenRow>
       <TokenRow name="contentEmphasisClass">
         <p className={contentBodyClass}>
-          Save the plan, then open <span className={contentEmphasisClass}>Call pattern</span>.
+          Save the plan, then open <span className={contentEmphasisClass}>Visit pattern</span>.
         </p>
       </TokenRow>
     </div>

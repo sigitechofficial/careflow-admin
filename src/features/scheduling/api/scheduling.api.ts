@@ -381,6 +381,12 @@ export type VisitTimelineItem = {
   }>
   /** Carer voice notes (max 3, recording order) on a note / handover / concern; uploaded ones only. */
   voiceNotes?: VisitVoiceNote[]
+  /** Only on rows the office recorded: shown as an "Office" tag and who did it. */
+  actor?: {
+    kind: 'office'
+    userId: string | null
+    name: string
+  } | null
 }
 
 export type VisitTimelineResponse = {

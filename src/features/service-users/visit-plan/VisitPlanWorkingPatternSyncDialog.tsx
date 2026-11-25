@@ -35,7 +35,7 @@ export function VisitPlanWorkingPatternSyncDialog({
         <DialogHeader className="text-left">
           <DialogTitle>Carer working pattern conflicts</DialogTitle>
           <DialogDescription className="text-left">
-            Assigned carers are not available on every day or time in this call pattern. Choose how to sync carers
+            Assigned carers are not available on every day or time in this visit pattern. Choose how to sync carers
             onto the rota.
           </DialogDescription>
         </DialogHeader>

@@ -1,9 +1,9 @@
 export const CARE_PLAN_REVIEW_FREQUENCY_OPTIONS = [
-  { value: 1, label: '1 Month' },
-  { value: 2, label: '2 Months' },
-  { value: 3, label: '3 Months' },
-  { value: 6, label: '6 Months' },
-  { value: 12, label: '12 Months' },
+  { value: 1, label: '1 month' },
+  { value: 2, label: '2 months' },
+  { value: 3, label: '3 months' },
+  { value: 6, label: '6 months' },
+  { value: 12, label: '12 months' },
 ] as const
 
 export type CarePlanReviewFrequencyMonths = (typeof CARE_PLAN_REVIEW_FREQUENCY_OPTIONS)[number]['value']

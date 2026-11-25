@@ -64,7 +64,7 @@ export type HolisticAssessmentTab = {
   id: number
   /**
    * User-facing Table of Contents number. Independent of `id` and of
-   * `enterpriseSection` (catalogue §15 Infection / §16 PEEP / §17 Bed Rails /
+   * `enterpriseSection` (catalogue §15 Infection / §16 PEEP / §17 Bed rails /
    * §18 Fire must not drive this label).
    */
   displayNumber: number
@@ -82,7 +82,7 @@ export type HolisticAssessmentTab = {
   additionalSpecRefs?: string[]
   /** Tab 1 ΓÇö stacked enterprise sections from the main assessment pages. */
   multiSections?: Array<{ sectionNumber: number } & SectionQuestionFilter>
-  /** ┬º12 panel blocks for Practical Task / Equipment / Falls / Moving & Handling tabs. */
+  /** ┬º12 panel blocks for Practical task / Equipment / Falls / Moving & Handling tabs. */
   section12Blocks?: Section12PanelBlock[]
   /** Template questions rendered below a tool panel (e.g. §3 under the Environment worksheet). */
   appendedSection?: { sectionNumber: number } & SectionQuestionFilter
@@ -110,7 +110,7 @@ const HOLISTIC_ASSESSMENT_TAB_DEFS: HolisticAssessmentTab[] = [
   {
     id: 1,
     displayNumber: 2,
-    title: 'Personal Details & Medical History',
+    title: 'Personal details & medical history',
     kind: 'multi-section',
     enterpriseSection: 1,
     multiSections: [
@@ -210,16 +210,16 @@ const HOLISTIC_ASSESSMENT_TAB_DEFS: HolisticAssessmentTab[] = [
   {
     id: 2,
     displayNumber: 3,
-    title: 'Practical Task',
+    title: 'Practical task',
     kind: 'section12-blocks',
     enterpriseSection: 12,
     section12Blocks: [{ kind: 'practical-care' }],
   },
-  { id: 10, displayNumber: 4, title: 'Pain Assessment Tool', kind: 'pain-tool', enterpriseSection: 5 },
+  { id: 10, displayNumber: 4, title: 'Pain assessment tool', kind: 'pain-tool', enterpriseSection: 5 },
   {
     id: 11,
     displayNumber: 5,
-    title: 'Aide Memorie to Establish Therapy Needs',
+    title: 'Aide-memoire to establish therapy needs',
     kind: 'therapy-memoire',
     enterpriseSection: 5,
   },
@@ -227,7 +227,7 @@ const HOLISTIC_ASSESSMENT_TAB_DEFS: HolisticAssessmentTab[] = [
   {
     id: 3,
     displayNumber: 7,
-    title: 'Initial Mental Capacity Act Screening Tool',
+    title: 'Initial Mental Capacity Act screening tool',
     kind: 'mca-screening',
     enterpriseSection: 2,
     specRefs: ['2.mca', '2.6', '2.9'],
@@ -235,43 +235,43 @@ const HOLISTIC_ASSESSMENT_TAB_DEFS: HolisticAssessmentTab[] = [
   {
     id: 17,
     displayNumber: 8,
-    title: 'Mental Capacity Assessment Identified',
+    title: 'Mental capacity assessment identified',
     kind: 'mental-capacity-checklist',
     enterpriseSection: 10,
   },
-  { id: 4, displayNumber: 9, title: 'Total Skin Integrity Check', kind: 'skin-integrity-check', enterpriseSection: 11 },
-  { id: 5, displayNumber: 10, title: 'Waterlow Pressure Score', kind: 'waterlow', enterpriseSection: 11 },
-  { id: 8, displayNumber: 11, title: 'Falls Screening', kind: 'falls-screening', enterpriseSection: 12 },
-  { id: 9, displayNumber: 12, title: 'Moving and Handling Operations', kind: 'moving-handling', enterpriseSection: 12 },
-  { id: 6, displayNumber: 13, title: 'Equipment Selection', kind: 'equipment-selection', enterpriseSection: 12 },
+  { id: 4, displayNumber: 9, title: 'Total skin integrity check', kind: 'skin-integrity-check', enterpriseSection: 11 },
+  { id: 5, displayNumber: 10, title: 'Waterlow pressure score', kind: 'waterlow', enterpriseSection: 11 },
+  { id: 8, displayNumber: 11, title: 'Falls screening', kind: 'falls-screening', enterpriseSection: 12 },
+  { id: 9, displayNumber: 12, title: 'Moving and handling operations', kind: 'moving-handling', enterpriseSection: 12 },
+  { id: 6, displayNumber: 13, title: 'Equipment selection', kind: 'equipment-selection', enterpriseSection: 12 },
   {
     id: 12,
     displayNumber: 14,
-    title: 'Environment & Home Safety',
+    title: 'Environment & home safety',
     kind: 'environment-assessment',
     enterpriseSection: 3,
     // §3.5 / §3.6 already render on Tab 1's home-access panel — don't ask twice.
     appendedSection: { sectionNumber: 3, excludeSpecRefs: ['3.5', '3.6'] },
   },
-  { id: 22, displayNumber: 15, title: 'Fire Safety', kind: 'form-section', enterpriseSection: 18 },
+  { id: 22, displayNumber: 15, title: 'Fire safety', kind: 'form-section', enterpriseSection: 18 },
   {
     id: 21,
     displayNumber: 16,
-    title: 'Infection and Clinical Precautions',
+    title: 'Infection and clinical precautions',
     kind: 'form-section',
     enterpriseSection: 15,
   },
-  { id: 20, displayNumber: 17, title: 'Bed Rails', kind: 'form-section', enterpriseSection: 17 },
+  { id: 20, displayNumber: 17, title: 'Bed rails', kind: 'form-section', enterpriseSection: 17 },
   {
     id: 19,
     displayNumber: 18,
-    title: 'Personal Emergency Evacuation Plan (PEEP)',
+    title: 'Personal emergency evacuation plan (PEEP)',
     kind: 'form-section',
     enterpriseSection: 16,
   },
-  { id: 24, displayNumber: 19, title: 'Safeguarding & Emergency', kind: 'form-section', enterpriseSection: 13 },
-  { id: 13, displayNumber: 20, title: 'Advance Care Planning', kind: 'advance-care-planning', enterpriseSection: 13 },
-  { id: 14, displayNumber: 21, title: 'End of Life Assessment', kind: 'end-of-life-assessment', enterpriseSection: 13 },
+  { id: 24, displayNumber: 19, title: 'Safeguarding & emergency', kind: 'form-section', enterpriseSection: 13 },
+  { id: 13, displayNumber: 20, title: 'Advance care planning', kind: 'advance-care-planning', enterpriseSection: 13 },
+  { id: 14, displayNumber: 21, title: 'End of life assessment', kind: 'end-of-life-assessment', enterpriseSection: 13 },
   {
     id: 15,
     displayNumber: 22,
@@ -282,7 +282,7 @@ const HOLISTIC_ASSESSMENT_TAB_DEFS: HolisticAssessmentTab[] = [
   {
     id: 16,
     displayNumber: 23,
-    title: 'Care Plan, Consent to Care & Sign-off',
+    title: 'Care plan, consent to care & sign-off',
     kind: 'care-plan-objectives',
     enterpriseSection: 14,
   },

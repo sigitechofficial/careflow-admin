@@ -626,7 +626,7 @@ export function JobHoverPanel({
           {timingChanged && callPattern && !cancelled && !completed ? (
             <p className={cn('mt-1 text-[13px] font-medium sm:text-sm', subtitleClass)}>
               Rescheduled · moved ~{rescheduleShift?.label ?? 'some time'} {rescheduleShift?.direction ?? 'from'}{' '}
-              call pattern{' '}
+              visit pattern{' '}
               <span className="line-through">{formatRangeLabel(callPattern)}</span>
             </p>
           ) : null}

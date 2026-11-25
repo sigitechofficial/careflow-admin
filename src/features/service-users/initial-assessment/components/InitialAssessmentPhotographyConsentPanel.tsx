@@ -79,7 +79,7 @@ export function InitialAssessmentPhotographyConsentPanel({ value, disabled, onCh
           <div className="grid gap-0 overflow-hidden rounded-sm border border-slate-300 dark:border-slate-600 lg:grid-cols-2">
             <div className="space-y-2 border-b border-slate-300 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-900/40 lg:border-b-0 lg:border-r">
               <p className="text-sm font-semibold text-foreground">Allfor Care Services</p>
-              <p className="text-sm text-foreground">Client, Parent or Guardian agreement for</p>
+              <p className="text-sm text-foreground">Client, parent or guardian agreement for</p>
               <p className="text-sm font-semibold text-foreground">
                 Photography for clinical use and best practices only
               </p>

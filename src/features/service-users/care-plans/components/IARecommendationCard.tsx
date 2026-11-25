@@ -72,7 +72,7 @@ export function IARecommendationCard({
 
       <div className="mt-3 space-y-0.5 border-t border-emerald-200/60 pt-2.5 text-[11px] leading-relaxed text-slate-600 dark:border-emerald-900/50 dark:text-slate-300">
         <p className="font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Source</p>
-        <p>Initial Assessment</p>
+        <p>Initial assessment</p>
         {suggestion.sourceSection ? <p>{suggestion.sourceSection}</p> : null}
         {sourceDateText ? <p>{sourceDateText}</p> : null}
       </div>

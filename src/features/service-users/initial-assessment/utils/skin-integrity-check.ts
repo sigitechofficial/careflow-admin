@@ -21,7 +21,7 @@ export const SKIN_INTEGRITY_CHECK_BODY_PARTS: ReadonlyArray<{ id: string; label:
   { id: 'sacrum', label: 'Sacrum' },
   { id: 'spine', label: 'Spine (thoracic/lumbar)' },
   { id: 'buttocks', label: 'Buttocks' },
-  { id: 'ischial-tuberosities', label: 'Ischial Tuberosities' },
+  { id: 'ischial-tuberosities', label: 'Ischial tuberosities' },
   { id: 'heels', label: 'Heels' },
   { id: 'toes', label: 'Toes (list toes affected)' },
   { id: 'ankles', label: 'Ankles' },

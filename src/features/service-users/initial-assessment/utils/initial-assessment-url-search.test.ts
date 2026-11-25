@@ -27,17 +27,17 @@ describe('parseInitialAssessmentEnterpriseSearch', () => {
 
   it('selects by frozen internal tab id, not enterpriseSection or display order index', () => {
     expect(parseInitialAssessmentEnterpriseSearch({ section: 21 }).section).toBe(21)
-    expect(holisticTabById(21)?.title).toBe('Infection and Clinical Precautions')
+    expect(holisticTabById(21)?.title).toBe('Infection and clinical precautions')
     expect(holisticTabById(21)?.enterpriseSection).toBe(15)
 
     expect(parseInitialAssessmentEnterpriseSearch({ section: 19 }).section).toBe(19)
-    expect(holisticTabById(19)?.title).toBe('Personal Emergency Evacuation Plan (PEEP)')
+    expect(holisticTabById(19)?.title).toBe('Personal emergency evacuation plan (PEEP)')
 
     expect(parseInitialAssessmentEnterpriseSearch({ section: 20 }).section).toBe(20)
-    expect(holisticTabById(20)?.title).toBe('Bed Rails')
+    expect(holisticTabById(20)?.title).toBe('Bed rails')
 
     expect(parseInitialAssessmentEnterpriseSearch({ section: 22 }).section).toBe(22)
-    expect(holisticTabById(22)?.title).toBe('Fire Safety')
+    expect(holisticTabById(22)?.title).toBe('Fire safety')
 
     expect(parseInitialAssessmentEnterpriseSearch({ section: 15 }).section).toBe(15)
     expect(holisticTabById(15)?.title).toBe('Clinical outcome summary (baseline)')

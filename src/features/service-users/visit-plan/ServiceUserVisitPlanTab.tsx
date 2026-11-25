@@ -151,13 +151,13 @@ function VisitPlanCarePackageInfoIcon() {
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-sm space-y-2 text-left text-xs leading-snug">
           <p>
-            Authorised call pattern — when visits happen, how long, and how many carers. Separate from the clinical
+            Authorised visit pattern — when visits happen, how long, and how many carers. Separate from the clinical
             care plan. Changes are amendment-audited for CQC. Use{' '}
-            <strong className="font-medium">Call pattern</strong> or{' '}
+            <strong className="font-medium">Visit pattern</strong> or{' '}
             <strong className="font-medium">Visit calendar</strong> at the top of this page to review without editing.
           </p>
           <p>
-            Enter weekly contracted hours above, configure the call pattern below, then create a draft. You can also
+            Enter weekly contracted hours above, configure the visit pattern below, then create a draft. You can also
             auto-create a plan when care package activation is approved on initial assessment (hours must be on the DOM
             Care profile).
           </p>
@@ -670,7 +670,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
           await persistWorkingPlan(reason, false, respect)
           toastSuccess(
             'Amendment recorded',
-            'Call pattern saved. Assigned carers are synced onto the rota from today — refresh Schedule Jobs to see updates.',
+            'Visit pattern saved. Assigned carers are synced onto the rota from today — refresh Schedule Jobs to see updates.',
           )
         })
       } else {
@@ -1027,7 +1027,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
               <p className={contentTitleClass}>Which package are you editing?</p>
               <p className={cn('mt-0.5', contentBodyClass)}>
                 Only live, suspended, or draft packages appear here. To compare ended versions or visit outcomes, use{' '}
-                <strong className="font-medium text-foreground">Call pattern</strong> or{' '}
+                <strong className="font-medium text-foreground">Visit pattern</strong> or{' '}
                 <strong className="font-medium text-foreground">Visit calendar</strong>.
               </p>
               <div className="mt-2 flex flex-wrap gap-2">

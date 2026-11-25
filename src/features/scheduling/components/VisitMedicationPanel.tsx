@@ -626,6 +626,7 @@ export function VisitMedicationPanel({
         onOpenChange={setRecordOpen}
         serviceUserId={serviceUserId}
         target={recordTarget}
+        visitId={visitId}
       />
       <RecordDetailDrawer
         open={detailOpen}

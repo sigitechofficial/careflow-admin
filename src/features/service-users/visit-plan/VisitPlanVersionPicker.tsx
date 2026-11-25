@@ -37,7 +37,7 @@ export function VisitPlanVersionPicker({ plans, selectedPlanId, onSelectPlan }: 
     <ContentCard className="p-4" data-testid="visit-plan-version-picker">
       <ContentSectionHeader
         title="Which plan version?"
-        description="Each activated plan is kept when you replace it. Pick a version to see its call pattern and the visits generated from that version's slots."
+        description="Each activated plan is kept when you replace it. Pick a version to see its visit pattern and the visits generated from that version's slots."
         className="mb-3"
       />
 

@@ -539,7 +539,7 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           <PlannerIconBadge visual={PLANNER_STAT_VISUALS.tasks} size="md" />
           <div className="min-w-0 flex-1">
             <h2 className="font-display text-base font-semibold text-foreground">This visit plan</h2>
-            <p className="text-xs text-muted-foreground">Tasks planned for each visit time slot</p>
+            <p className="text-xs text-muted-foreground">What the carer will see at each visit</p>
           </div>
           <Button
             type="button"

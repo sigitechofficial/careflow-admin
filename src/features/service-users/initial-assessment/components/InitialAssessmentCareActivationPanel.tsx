@@ -63,7 +63,7 @@ export function InitialAssessmentCareActivationPanel({ careActivation, serviceUs
           {eligible && approvedForCareStart && serviceUserId ? (
             <div className="mt-4 rounded-lg border border-emerald-200 bg-white/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
               <p className="text-xs text-muted-foreground">
-                A draft visit plan is created when a manager approves care start. Review the call pattern, activate the
+                A draft visit plan is created when a manager approves care start. Review the visit pattern, activate the
                 plan, then generate rota visits.
               </p>
               <Link
@@ -72,7 +72,7 @@ export function InitialAssessmentCareActivationPanel({ careActivation, serviceUs
                 className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-800 underline-offset-2 hover:underline dark:text-emerald-200"
               >
                 <MapPinned className="h-4 w-4" aria-hidden />
-                Open Visit Plan
+                Open visit plan
               </Link>
             </div>
           ) : null}

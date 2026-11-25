@@ -209,7 +209,7 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId, onSelectP
                           onSelectPlan(plan.id)
                         }}
                       >
-                        View call pattern
+                        View visit pattern
                       </button>
                     ) : null}
                   </td>

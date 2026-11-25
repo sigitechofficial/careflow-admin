@@ -207,7 +207,7 @@ export function VisitPlanSlotAdvancedPanel({
         </div>
 
         <p className={cn('rounded-md border border-dashed border-border bg-muted/20 px-3 py-2', contentHelperClass)}>
-          Link care plans and assign carers in the <strong className="font-medium">Call pattern</strong> table below.
+          Link care plans and assign carers in the <strong className="font-medium">Visit pattern</strong> table below.
           Recording options are in <strong className="font-medium">Additional details</strong> after the table.
         </p>
       </section>

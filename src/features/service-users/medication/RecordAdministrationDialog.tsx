@@ -59,11 +59,14 @@ export function RecordAdministrationDialog({
   onOpenChange,
   serviceUserId,
   target,
+  visitId,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   serviceUserId: string
   target: RecordAdministrationTarget | null
+  /** ScheduledVisit id when opened from a visit window (the record then shows in that visit Log). */
+  visitId?: string | null
 }) {
   const qc = useQueryClient()
   const lookupsQuery = useMedicationLookups(open)
@@ -145,6 +148,7 @@ export function RecordAdministrationDialog({
         notes: notes.trim() || undefined,
         recordOnBehalfOfCarer: onBehalf || undefined,
         administeredById: onBehalf && administeredById ? administeredById : undefined,
+        visitId: visitId || undefined,
       })
       if (marLinkChoice && marChartRowMayNeedBodyMap(row)) {
         try {

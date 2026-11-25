@@ -17,6 +17,7 @@ const CARE_PLAN_FIRST_PERSON_LABELS: Record<string, string> = {
   "Person-centred details": "Person-centred details about me",
   "Is there a risk associated with this area of care?":
     "Is there a risk associated with this area of my care?",
+  "Identify the risk?": "What is the risk?",
 
   // Advance
   "Capacity to participate":

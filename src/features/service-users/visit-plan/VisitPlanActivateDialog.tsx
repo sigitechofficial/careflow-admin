@@ -147,7 +147,7 @@ export function VisitPlanActivateDialog({
                 </p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
                   {hasPatternConflicts
-                    ? 'Assigned carers are not available on every day or time in this call pattern. Choose how to sync carers onto the rota when you activate.'
+                    ? 'Assigned carers are not available on every day or time in this visit pattern. Choose how to sync carers onto the rota when you activate.'
                     : 'Choose how assigned carers are synced onto the rota when you generate visits.'}
                 </p>
               </div>

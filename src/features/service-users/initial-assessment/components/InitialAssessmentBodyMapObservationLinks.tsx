@@ -26,7 +26,7 @@ export function InitialAssessmentBodyMapObservationLinks({
   syncBodyMapLoading = false,
   onOpenSkinIntegrityCheckTab,
   onOpenWaterlowTab,
-  hint = 'Record wound location, skin changes, and observations on the body map. Complete the Total Skin Integrity Check worksheet when required.',
+  hint = 'Record wound location, skin changes, and observations on the body map. Complete the Total skin integrity check worksheet when required.',
   variant = 'inline',
 }: Props) {
   const buttons = (

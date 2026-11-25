@@ -137,7 +137,7 @@ describe('pain-assessment-scoring', () => {
     const text = formatAbbeyCarePlanSuggestion({
       abbey: { ...abbey11, painType: 'acute_on_chronic' },
     })
-    expect(text).toBe('Abbey 11/18 — moderate; acute on chronic (IA Pain Assessment Tool)')
+    expect(text).toBe('Abbey 11/18 — moderate; acute on chronic (IA Pain assessment tool)')
     expect(text).not.toMatch(/^[0-9]+$/)
   })
 

@@ -27,7 +27,7 @@ export type SpecRefGroup = {
 
 const SECTION_1_ACT_DIVIDERS: Record<string, { title: string; hint?: string }> = {
   '1.1': {
-    title: 'Personal Details',
+    title: 'Personal details',
     hint: 'Pre-filled from profile where available — confirm with the service user.',
   },
   '1.0': {
@@ -78,7 +78,7 @@ const SECTION_1_ACT_DIVIDERS: Record<string, { title: string; hint?: string }> =
 
 const SUBSECTION_LABELS: Record<string, string> = {
   '1.0': 'Section 1–2 — Reason for referral & health history',
-  '1.1': 'Personal Details',
+  '1.1': 'Personal details',
   '1.2': 'Section 3 — Social history',
   '1.3': '1.3 What matters to me',
   '1.3a': 'About Me',

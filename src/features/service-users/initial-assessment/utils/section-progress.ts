@@ -157,6 +157,12 @@ export function formatSectionNavMeta(prog: SectionProgressResult): string {
   return parts.join(' · ')
 }
 
+/** Side-nav line shown next to the missing-items count: "2 of 9 answered". */
+export function formatSectionAnsweredMeta(prog: Pick<SectionProgressResult, 'answered' | 'total'>): string {
+  if (prog.total === 0) return 'No fields'
+  return `${prog.answered} of ${prog.total} answered`
+}
+
 export function overallAssessmentProgress(
   sections: InitialAssessmentSection[],
   answers: Record<string, InitialAssessmentAnswerInput>,

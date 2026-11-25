@@ -270,7 +270,7 @@ function fire(i: SpecialistInputs): SpecialistRelevance {
   if (i.hoarding === true) reasons.push('Hoarding or clutter')
   if (reasons.length) return required(...reasons)
   if (i.fireRisks == null || i.smokeAlarmWorking == null) {
-    return pending('Answer "fire safety risks" and "smoke alarm" (Fire Safety)')
+    return pending('Answer "fire safety risks" and "smoke alarm" (Fire safety)')
   }
   return notNeeded('Working smoke alarm, no fire risks')
 }
@@ -401,16 +401,16 @@ export function specialistRequiredMessage(tabTitle: string, reasons: string[]): 
  * fire, infection, bed rails, PEEP, MCA screening — raise "Required:" blocks for their own questions).
  */
 export const SPECIALIST_WORKSHEET_TITLES: Readonly<Record<number, string>> = {
-  [SPECIALIST_TAB_IDS.pain]: 'Pain Assessment Tool',
+  [SPECIALIST_TAB_IDS.pain]: 'Pain assessment tool',
   [SPECIALIST_TAB_IDS.must]: 'Nutrition (MUST)',
-  [SPECIALIST_TAB_IDS.skin]: 'Total Skin Integrity Check',
-  [SPECIALIST_TAB_IDS.waterlow]: 'Waterlow Pressure Score',
-  [SPECIALIST_TAB_IDS.falls]: 'Falls Screening',
+  [SPECIALIST_TAB_IDS.skin]: 'Total skin integrity check',
+  [SPECIALIST_TAB_IDS.waterlow]: 'Waterlow pressure score',
+  [SPECIALIST_TAB_IDS.falls]: 'Falls screening',
   [SPECIALIST_TAB_IDS.movingHandling]: 'Moving and Handling',
-  [SPECIALIST_TAB_IDS.equipment]: 'Equipment Selection',
-  [SPECIALIST_TAB_IDS.acp]: 'Advance Care Planning',
-  [SPECIALIST_TAB_IDS.eol]: 'End of Life Assessment',
-  [SPECIALIST_TAB_IDS.mcaChecklist]: 'Mental Capacity Assessment Identified',
+  [SPECIALIST_TAB_IDS.equipment]: 'Equipment selection',
+  [SPECIALIST_TAB_IDS.acp]: 'Advance care planning',
+  [SPECIALIST_TAB_IDS.eol]: 'End of life assessment',
+  [SPECIALIST_TAB_IDS.mcaChecklist]: 'Mental capacity assessment identified',
 }
 
 /** Tab a "Specialist assessment required: <title> — …" message points at. */

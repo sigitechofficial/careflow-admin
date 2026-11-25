@@ -1,3 +1,4 @@
+import { iaMissingQuestionAttrs } from '@/features/service-users/initial-assessment/utils/missing-field-navigation'
 import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
 import { Input } from '@/shared/ui/input'
@@ -119,7 +120,11 @@ export function InitialAssessmentLpaContactField({
           />
         </div>
       </div>
-      {errorMessage ? <p className="text-xs text-destructive">{errorMessage}</p> : null}
+      {errorMessage ? (
+        <p className="text-xs text-destructive" {...iaMissingQuestionAttrs(question.id)}>
+          {errorMessage}
+        </p>
+      ) : null}
     </div>
   )
 }

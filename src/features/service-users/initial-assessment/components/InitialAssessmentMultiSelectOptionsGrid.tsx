@@ -1,3 +1,4 @@
+import { iaMissingQuestionAttrs } from '@/features/service-users/initial-assessment/utils/missing-field-navigation'
 import {
   InitialAssessmentControlTooltip,
   iaQuestionTooltipText,
@@ -77,7 +78,7 @@ export function InitialAssessmentMultiSelectOptionsGrid({
           </span>
         ) : null}
         {hasError ? (
-          <p className="mt-1 text-xs font-medium text-destructive" role="alert">
+          <p className="mt-1 text-xs font-medium text-destructive" role="alert" {...iaMissingQuestionAttrs(question.id)}>
             {errorMessage}
           </p>
         ) : null}

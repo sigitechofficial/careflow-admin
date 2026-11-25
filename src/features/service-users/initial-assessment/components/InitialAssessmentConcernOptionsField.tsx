@@ -1,3 +1,4 @@
+import { iaMissingQuestionAttrs } from '@/features/service-users/initial-assessment/utils/missing-field-navigation'
 import { useMemo, useState } from 'react'
 import {
   InitialAssessmentControlTooltip,
@@ -177,7 +178,7 @@ export function InitialAssessmentConcernOptionsField({
           </span>
         ) : null}
         {hasError ? (
-          <p className="mt-1 text-xs font-medium text-destructive" role="alert">
+          <p className="mt-1 text-xs font-medium text-destructive" role="alert" {...iaMissingQuestionAttrs(question.id)}>
             {errorMessage}
           </p>
         ) : null}

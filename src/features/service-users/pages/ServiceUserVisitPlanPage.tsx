@@ -69,7 +69,7 @@ const PAGE_TABS: {
   },
   {
     id: 'summary',
-    label: 'Call pattern',
+    label: 'Visit pattern',
     hint: 'Read-only summary of slots, carers, and rules',
     icon: ClipboardList,
   },
@@ -360,7 +360,7 @@ export default function ServiceUserVisitPlanPage() {
               No visit plan to show yet
             </h2>
             <p className={cn('mx-auto mt-2 max-w-md', contentBodyClass)}>
-              Configure and save a draft visit plan first, then use Call pattern to review the summary.
+              Configure and save a draft visit plan first, then use Visit pattern to review the summary.
             </p>
             <Button type="button" className="mt-6" onClick={() => setPageTab('setup')}>
               Set up visits

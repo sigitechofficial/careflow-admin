@@ -1,4 +1,5 @@
 ﻿import type { ReactElement } from 'react'
+import { iaMissingQuestionAttrs } from '@/features/service-users/initial-assessment/utils/missing-field-navigation'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { InitialAssessmentDateInput } from '@/features/service-users/initial-assessment/components/InitialAssessmentDateInput'
@@ -155,7 +156,7 @@ export function InitialAssessmentQuestionField({
     </InitialAssessmentControlTooltip>
   )
   const errorEl = hasError ? (
-    <p className="mt-1 text-xs font-medium text-destructive" role="alert">
+    <p className="mt-1 text-xs font-medium text-destructive" role="alert" {...iaMissingQuestionAttrs(question.id)}>
       {errorMessage}
     </p>
   ) : null

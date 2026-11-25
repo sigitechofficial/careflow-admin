@@ -929,7 +929,7 @@ export function ScheduleJobAllocateDialog({
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Call pattern
+                      Visit pattern
                     </p>
                     <p className="mt-0.5 text-sm font-medium text-foreground">
                       {visitSlot ? `${visitSlot.label} · ` : ''}

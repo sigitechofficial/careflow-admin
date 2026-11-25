@@ -1,3 +1,4 @@
+import * as React from 'react'
 import {
   Dialog,
   DialogBody,
@@ -35,6 +36,8 @@ type Props = {
   onGoToSection: (sectionNumber: number, message?: string) => void
   /** Label for the tab an issue lives on (e.g. "Tab 14"); falls back to the § number. */
   issueTabLabel?: (issue: ValidationIssue) => string
+  /** Issue text as shown to the assessor (field issues use the form's question wording). */
+  issueMessage?: (issue: ValidationIssue) => string
   onGoToHubTab?: (tab: HubTabId) => void
   onConfirm: () => void
   onConfirmIncomplete?: () => void
@@ -57,16 +60,34 @@ export function InitialAssessmentSubmitDialog({
   openActionsCount,
   onGoToSection,
   issueTabLabel,
+  issueMessage,
   onGoToHubTab,
   onConfirm,
   onConfirmIncomplete,
 }: Props) {
+  // Going to an issue moves focus into that field — stop the dialog handing focus back to the
+  // "Submit for review" button as it closes.
+  const goingToIssueRef = React.useRef(false)
+  const goToSection = (sectionNumber: number, message: string) => {
+    goingToIssueRef.current = true
+    onGoToSection(sectionNumber, message)
+  }
+
   const skippableBlocks = blocks.filter((b) => isSkippableIncompleteValidationMessage(b.message))
   const hardBlocks = blocks.filter((b) => !isSkippableIncompleteValidationMessage(b.message))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="xl">
+      <DialogContent
+        size="xl"
+        onOpenAutoFocus={() => {
+          goingToIssueRef.current = false
+        }}
+        onCloseAutoFocus={(event) => {
+          if (goingToIssueRef.current) event.preventDefault()
+          goingToIssueRef.current = false
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Submit for manager review</DialogTitle>
         </DialogHeader>
@@ -157,7 +178,7 @@ export function InitialAssessmentSubmitDialog({
                     key={`hard-${b.sectionNumber}-${i}`}
                     className="flex flex-col rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
                   >
-                    <span className="leading-snug">{b.message}</span>
+                    <span className="leading-snug">{issueMessage?.(b) ?? b.message}</span>
                     {b.hubTab && onGoToHubTab ? (
                       <Button
                         type="button"
@@ -174,7 +195,7 @@ export function InitialAssessmentSubmitDialog({
                         size="sm"
                         variant="outline"
                         className="mt-3 w-fit bg-white/80"
-                        onClick={() => onGoToSection(b.sectionNumber, b.message)}
+                        onClick={() => goToSection(b.sectionNumber, b.message)}
                       >
                         {issueTabLabel ? `Go to ${issueTabLabel(b)}` : 'Go to section'}
                       </Button>
@@ -195,13 +216,13 @@ export function InitialAssessmentSubmitDialog({
               <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-amber-200 bg-amber-50/80 p-3 text-sm text-amber-950">
                 {skippableBlocks.map((b, i) => (
                   <li key={`skip-${b.sectionNumber}-${i}`} className="flex flex-wrap items-baseline gap-2">
-                    <span>{b.message}</span>
+                    <span>{issueMessage?.(b) ?? b.message}</span>
                     <Button
                       type="button"
                       size="sm"
                       variant="link"
                       className="h-auto p-0 text-amber-900"
-                      onClick={() => onGoToSection(b.sectionNumber, b.message)}
+                      onClick={() => goToSection(b.sectionNumber, b.message)}
                     >
                       {issueTabLabel?.(b) ?? `Section ${b.sectionNumber}`}
                     </Button>

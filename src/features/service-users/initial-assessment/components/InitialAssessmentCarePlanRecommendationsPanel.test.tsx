@@ -140,7 +140,7 @@ describe('InitialAssessmentCarePlanRecommendationsPanel — manager decisions', 
     ])
     expect(screen.getByText('Care plan: Draft')).toBeInTheDocument()
     expect(screen.getByText('Care plan: Published')).toBeInTheDocument()
-    const open = screen.getAllByRole('button', { name: 'Open Care Plan' })
+    const open = screen.getAllByRole('button', { name: 'Open care plan' })
     expect(open).toHaveLength(2)
     await userEvent.click(open[1])
     expect(navigate).toHaveBeenCalledWith({
@@ -160,6 +160,6 @@ describe('InitialAssessmentCarePlanRecommendationsPanel — manager decisions', 
       }),
     ])
     expect(screen.getByTestId('ia-care-plan-linked-plan')).toHaveTextContent(/kept after this decision changed/)
-    expect(screen.getByRole('button', { name: 'Open Care Plan' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open care plan' })).toBeInTheDocument()
   })
 })

@@ -59,6 +59,8 @@ export type CreateServiceUserObservationPayload = {
   payload?: Record<string, unknown>
   shareTargetCodes?: string[]
   wellbeingScores?: { dimensionCode: string; level: number }[]
+  /** Visit (scheduled job) when recorded from the visit window — adds an office row to that visit Log. */
+  scheduledJobId?: string
 }
 
 export async function fetchObservationTypes(): Promise<ObservationTypeRow[]> {

@@ -571,7 +571,7 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
               Today&apos;s visits
             </p>
             <p className="text-sm text-muted-foreground">
-              Configure the authorised call pattern on the{' '}
+              Configure the authorised visit pattern on the{' '}
               <Link
                 to="/service-users/$serviceUserId/visit-plan"
                 params={{ serviceUserId }}

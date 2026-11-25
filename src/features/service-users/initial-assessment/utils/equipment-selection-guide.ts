@@ -1,4 +1,4 @@
-/** Quick Guide to Equipment Selection — Pressure relieving / redistribution devices (paper reference). */
+/** Quick Guide to Equipment selection — Pressure relieving / redistribution devices (paper reference). */
 
 // Risk bands and the equipment to consider per band come from the Waterlow tab's
 // WATERLOW_EQUIPMENT_CATALOG (single source) — no second, contradicting table here.

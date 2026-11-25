@@ -342,7 +342,7 @@ export function VisitPlanDetailsView({
           icon={<ClipboardList className="h-5 w-5" aria-hidden />}
           iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
           title="Visit plan summary"
-          description="Authorised care package — call pattern and scheduling rules."
+          description="Authorised care package — visit pattern and scheduling rules."
           action={statusBadge(plan.status)}
         />
 
@@ -398,7 +398,7 @@ export function VisitPlanDetailsView({
         <ContentSectionHeader
           icon={<LayoutGrid className="h-5 w-5" aria-hidden />}
           iconClassName="bg-teal-500/10 text-teal-700 dark:text-teal-300"
-          title="Call pattern"
+          title="Visit pattern"
           description="One card per call slot — schedule, assigned carers, care plans, and documentation rules."
           className="mb-4"
         />

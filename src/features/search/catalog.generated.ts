@@ -334,6 +334,13 @@ export const CATALOG_PAGES: CatalogPage[] = [
     ]
   },
   {
+    "path": "/governance/mock-inspections/ready-made",
+    "title": "Ready-made inspections",
+    "permissions": [
+      "cqc_mock_inspection.read"
+    ]
+  },
+  {
     "path": "/hours-approvals",
     "title": "Hours approvals",
     "permissions": [
@@ -434,6 +441,14 @@ export const CATALOG_PAGES: CatalogPage[] = [
     "title": "All incidents",
     "permissions": [
       "incidents.read"
+    ]
+  },
+  {
+    "path": "/initial-assessments",
+    "title": "Initial assessments",
+    "permissions": [
+      "service_users.initial_assessment.read",
+      "service_users.initial_assessment.review"
     ]
   },
   {
@@ -4401,7 +4416,7 @@ export const CATALOG_RECORD_TABS: CatalogRecordTabs = {
       "path": "/service-users/$serviceUserId/view"
     },
     {
-      "label": "Initial Assessment",
+      "label": "Initial assessment",
       "path": "/service-users/$serviceUserId/initial-assessment",
       "permission": "service_users.initial_assessment.read"
     },
@@ -4422,15 +4437,15 @@ export const CATALOG_RECORD_TABS: CatalogRecordTabs = {
       "path": "/service-users/$serviceUserId/comms"
     },
     {
-      "label": "Tasks Planner",
+      "label": "Tasks planner",
       "path": "/service-users/$serviceUserId/tasks-planner"
     },
     {
-      "label": "Visit Plan",
+      "label": "Visit plan",
       "path": "/service-users/$serviceUserId/visit-plan"
     },
     {
-      "label": "Care Plan",
+      "label": "Care plan",
       "path": "/service-users/$serviceUserId/care-plan"
     },
     {
@@ -4442,11 +4457,11 @@ export const CATALOG_RECORD_TABS: CatalogRecordTabs = {
       "path": "/service-users/$serviceUserId/documents"
     },
     {
-      "label": "Body Map",
+      "label": "Body map",
       "path": "/service-users/$serviceUserId/body-map"
     },
     {
-      "label": "Medical Alerts",
+      "label": "Medical alerts",
       "path": "/service-users/$serviceUserId/alerts"
     },
     {
@@ -4454,7 +4469,7 @@ export const CATALOG_RECORD_TABS: CatalogRecordTabs = {
       "path": "/service-users/$serviceUserId/activity"
     },
     {
-      "label": "Flash Message",
+      "label": "Flash message",
       "path": "/service-users/$serviceUserId/view"
     }
   ],

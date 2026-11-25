@@ -94,7 +94,7 @@ export const MOVING_HANDLING_TASK_DEFINITIONS: ReadonlyArray<{
     label: 'Transfers bed to chair or commode etc.',
     methods: [
       { id: 'hoist', label: 'Hoist' },
-      { id: 'patslideSlidingSheets', label: 'Patslide + Sliding sheets' },
+      { id: 'patslideSlidingSheets', label: 'Patslide + sliding sheets' },
     ],
   },
   {
@@ -117,9 +117,9 @@ export const MOVING_HANDLING_TASK_DEFINITIONS: ReadonlyArray<{
   },
   {
     id: 'bathOrShower',
-    label: 'Bath or Shower',
+    label: 'Bath or shower',
     methods: [
-      { id: 'showerChair', label: 'Shower Chair' },
+      { id: 'showerChair', label: 'Shower chair' },
       { id: 'bathBoard', label: 'Bath board' },
     ],
     bathTypeOptions: true,

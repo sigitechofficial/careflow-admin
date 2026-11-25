@@ -267,7 +267,7 @@ export function formatAbbeyCarePlanSuggestion(
   const band = abbeySeverityFromTotal(total)
   const typeLabel = formatPainTypeLabel(abbey.painType)
   const typePart = typeLabel ? `; ${typeLabel}` : ''
-  return `Abbey ${total}/18 — ${band}${typePart} (IA Pain Assessment Tool)`
+  return `Abbey ${total}/18 — ${band}${typePart} (IA Pain assessment tool)`
 }
 
 /** Elevated pain review: Abbey total ≥ 8 or NRS ≥ 4. */

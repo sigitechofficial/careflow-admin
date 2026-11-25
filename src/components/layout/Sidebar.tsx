@@ -252,7 +252,8 @@ const navItems: NavItem[] = [
         section: 'Assessment & care plans',
         label: 'Initial Assessment',
         icon: <ClipboardList className="h-4 w-4" />,
-        href: '/service-users/initial-assessment',
+        // All service users and their latest IA; Open / Start goes to /service-users/initial-assessment.
+        href: '/initial-assessments',
         permission: 'service_users.initial_assessment.read',
         navTestId: 'nav-service-users-initial-assessment',
       },
