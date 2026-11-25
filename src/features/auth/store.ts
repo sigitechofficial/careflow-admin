@@ -296,6 +296,7 @@ function userFromMe(me: BackendMeUser, prev?: AuthUser | null): AuthUser {
     assignedLocations: me.assignedLocations ?? null,
     scopeType: me.scopeType,
     backendRoles: me.roles,
+    inspectorAccess: me.inspectorAccess ?? null,
   }
 }
 

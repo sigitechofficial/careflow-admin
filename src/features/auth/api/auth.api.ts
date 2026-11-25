@@ -28,6 +28,8 @@ export type BackendMeUser = {
   assignedLocations?: Array<{ id: string; name: string }> | null
   /** platform | company | branch — from Nest org-scope */
   scopeType?: 'platform' | 'company' | 'branch'
+  /** Temporary inspector sessions: chosen service users (empty = all) and when the access ends. */
+  inspectorAccess?: { serviceUserIds: string[]; validTo: string } | null
 }
 
 export type LoginHistoryRow = {

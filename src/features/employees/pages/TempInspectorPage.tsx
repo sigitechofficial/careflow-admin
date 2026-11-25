@@ -49,7 +49,7 @@ import { DateTimeInput } from '@/shared/ui/date-time-input'
 const PAGE_SIZE = 5
 
 const RESIDENT_SCOPE_TOOLTIP =
-  'The temporary user will be able to see data only for the selected service users. Leave empty (or clear all) for access to all service users.'
+  "The inspector can read the chosen service users’ records only: profile, contacts, care plans and assessments, medical details, medication and MAR, body map, observations, notes, documents and incidents. Nothing can be changed, and funding, invoices and the portal are never shown. Leave empty for all service users. Every record they open is written to the data access log."
 
 /** Today 09:00–17:00 in the organisation timezone (datetime-local values). */
 function defaultWindow(): { from: string; to: string } {

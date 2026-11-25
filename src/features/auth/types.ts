@@ -410,6 +410,8 @@ export interface AuthUser {
   scopeType?: 'platform' | 'company' | 'branch'
   /** Raw Nest identity role names (e.g. "Branch Admin") */
   backendRoles?: string[]
+  /** Temporary inspector sessions: chosen service users (empty = all) and when the access ends. */
+  inspectorAccess?: { serviceUserIds: string[]; validTo: string } | null
 }
 
 export interface AuthSession {

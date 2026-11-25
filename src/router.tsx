@@ -1005,6 +1005,8 @@ const indexRoute = createRoute({
   // An independent survey reviewer's account has one page.
   beforeLoad: () => {
     if (useAuthStore.getState().user?.role === 'independent_reviewer') throw redirect({ to: '/survey-reviews' })
+    // A temporary inspector reads their chosen service users only: the office dashboard is not theirs.
+    if (useAuthStore.getState().user?.role === 'temporary_inspector') throw redirect({ to: '/service-users/all' })
   },
   component: HomePage,
 })
