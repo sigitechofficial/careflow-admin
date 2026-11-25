@@ -803,6 +803,11 @@ export const CATALOG_PAGES: CatalogPage[] = [
     "permissions": []
   },
   {
+    "path": "/scripts/staff-creation",
+    "title": "Staff Creation",
+    "permissions": []
+  },
+  {
     "path": "/scripts/visit-completion",
     "title": "Visit Completion",
     "permissions": []

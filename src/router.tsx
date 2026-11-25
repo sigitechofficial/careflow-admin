@@ -230,6 +230,7 @@ import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
 import ScriptsPage from '@/features/scripts/pages/ScriptsPage'
 import VisitCreationPage from '@/features/scripts/pages/VisitCreationPage'
 import VisitCompletionPage from '@/features/scripts/pages/VisitCompletionPage'
+import StaffCreationPage from '@/features/scripts/pages/StaffCreationPage'
 import MySurveysPage, { MySurveyAnswerPage } from '@/features/surveys/my-surveys/MySurveysPage'
 import CarerReportsPage from '@/features/employees/pages/CarerReportsPage'
 import TimebankPage from '@/features/timebank/pages/TimebankPage'
@@ -486,6 +487,7 @@ const pageTitles: Record<string, string> = {
   '/scripts': 'Scripts',
   '/scripts/visit-creation': 'Visit Creation',
   '/scripts/visit-completion': 'Visit Completion',
+  '/scripts/staff-creation': 'Staff Creation',
   '/my-surveys': 'My surveys',
   '/reports/carers': 'Carer reports',
   '/reports/timebank': 'Timebank',
@@ -2888,6 +2890,12 @@ const visitCompletionRoute = createRoute({
   component: VisitCompletionPage,
 })
 
+const staffCreationRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scripts/staff-creation',
+  component: StaffCreationPage,
+})
+
 // Any office user who is also a member of staff: surveys sent to them (answered here or in the carer app).
 const mySurveysRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -3494,6 +3502,7 @@ const routeTree = rootRoute.addChildren([
     scriptsRoute,
     visitCreationRoute,
     visitCompletionRoute,
+    staffCreationRoute,
     mySurveysRoute,
     mySurveyAnswerRoute,
     carerReportsRoute,
