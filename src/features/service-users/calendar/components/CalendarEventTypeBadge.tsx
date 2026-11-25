@@ -3,15 +3,18 @@
 export function CalendarEventTypeBadge({
   name,
   color,
+  className,
 }: {
   name: string
   color?: string | null
+  className?: string
 }) {
   return (
     <span
       className={cn(
         'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
         !color && 'bg-muted text-muted-foreground',
+        className,
       )}
       style={
         color

@@ -24,7 +24,7 @@ import { countByMonth, nextMonthParts } from '../utils/calendar-summary.util'
 import { CalendarInfoTooltip } from './CalendarInfoTooltip'
 import { CalendarSummaryCards } from './CalendarSummaryCards'
 import { CalendarMonthView } from './CalendarMonthView'
-import { CalendarWeekView } from './CalendarWeekView'
+import { CalendarWeekView, weekDayKey, weekDays } from './CalendarWeekView'
 import { CalendarDayView } from './CalendarDayView'
 import { CalendarEventCard } from './CalendarEventCard'
 import { CalendarEventDialog } from './CalendarEventDialog'
@@ -115,7 +115,22 @@ export function ServiceUserCalendarPage({
     limit: 100,
   })
 
+  // Week view: the week's own dates (a week can start or end in another month).
+  const weekStart = weekStartFrom(cursor)
+  const weekKeys = weekDays(weekStart).map(weekDayKey)
+  const weekQuery = useGlobalServiceUserCalendar({
+    dateFrom: weekKeys[0]!,
+    dateTo: weekKeys[6]!,
+    eventTypeId: eventTypeId || undefined,
+    status: (statusFilter as CalendarEventStatus) || undefined,
+    serviceUserId,
+    locationId: scopedLocationId,
+    limit: 100,
+    enabled: view === 'WEEK',
+  })
+
   const events: ServiceUserCalendarEvent[] = globalQuery.data?.data ?? []
+  const weekSource: ServiceUserCalendarEvent[] = weekQuery.data?.data ?? []
   const nextMonthEvents: ServiceUserCalendarEvent[] = nextMonthQuery.data?.data ?? []
   const thisMonthStats = React.useMemo(() => countByMonth(events, year, month), [events, year, month])
   const nextMonthStats = React.useMemo(
@@ -125,13 +140,19 @@ export function ServiceUserCalendarPage({
 
   const groupedByDate = React.useMemo(() => {
     const g: Record<string, ServiceUserCalendarEvent[]> = {}
-    for (const e of events) {
+    for (const e of view === 'WEEK' ? weekSource : events) {
       const k = e.startDateTime.slice(0, 10)
       if (!g[k]) g[k] = []
       g[k].push(e)
     }
     return g
-  }, [events])
+  }, [events, weekSource, view])
+  /** The week's events in date order, for the list beside the week. */
+  const weekKeyList = weekKeys.join(',')
+  const weekEvents = React.useMemo(
+    () => weekKeyList.split(',').flatMap(k => groupedByDate[k] ?? []),
+    [groupedByDate, weekKeyList],
+  )
 
   const goToday = () => {
     const n = new Date()
@@ -388,12 +409,12 @@ export function ServiceUserCalendarPage({
 
           <aside className="space-y-3">
             <h2 className="text-sm font-semibold">
-              {view === 'MONTH' ? `Events — ${dateStr}` : view === 'DAY' ? `Events — ${dayViewDateStr}` : 'Events'}
+              {view === 'MONTH' ? `Events — ${dateStr}` : view === 'DAY' ? `Events — ${dayViewDateStr}` : `Events — week of ${weekKeys[0]}`}
             </h2>
-            {(view === 'MONTH' ? selectedEvents : view === 'DAY' ? dayViewEvents : events).length === 0 ? (
+            {(view === 'MONTH' ? selectedEvents : view === 'DAY' ? dayViewEvents : weekEvents).length === 0 ? (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground" data-testid="calendar-empty">
-                  No events on this day.
+                  {view === 'WEEK' ? 'No events this week.' : 'No events on this day.'}
                 </p>
                 {canCreate ? (
                   <Button
@@ -410,7 +431,7 @@ export function ServiceUserCalendarPage({
               </div>
             ) : (
               <div className="space-y-2">
-                {(view === 'MONTH' ? selectedEvents : view === 'DAY' ? dayViewEvents : events).map(e => (
+                {(view === 'MONTH' ? selectedEvents : view === 'DAY' ? dayViewEvents : weekEvents).map(e => (
                   <CalendarEventCard
                     key={e.id}
                     event={e}
