@@ -306,7 +306,7 @@ function AssessmentFormPanel({
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" disabled={disabled} onClick={handleUpdateAssessment}>
-            Update Assessment
+            Update assessment
           </Button>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -348,7 +348,7 @@ function AssessmentFormPanel({
 
         <div className="space-y-3 border-t border-border pt-4">
           <Button type="button" size="sm" disabled={disabled} onClick={handleSaveAssessment}>
-            Save Assessment
+            Save assessment
           </Button>
           <AssessmentHistoryTable
             rows={history}

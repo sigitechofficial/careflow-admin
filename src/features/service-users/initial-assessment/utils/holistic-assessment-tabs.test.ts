@@ -58,7 +58,7 @@ describe('questionsForDocumentTab', () => {
     const section18: InitialAssessmentSection = {
       id: 's18',
       sectionNumber: 18,
-      title: 'Fire Safety',
+      title: 'Fire safety',
       sortOrder: 18,
       questions: [fireYes, lfb],
     }
@@ -97,7 +97,7 @@ describe('questionsForDocumentTab', () => {
     const section18: InitialAssessmentSection = {
       id: 's18',
       sectionNumber: 18,
-      title: 'Fire Safety',
+      title: 'Fire safety',
       sortOrder: 18,
       questions: [fireYes],
     }
@@ -149,28 +149,28 @@ describe('holistic tab display numbering and navigation order', () => {
   // A. Core → B. Specialist / conditional → C. Outcome & sign-off
   const NAV_ORDER: Array<[number, string]> = [
     [23, 'Consent'],
-    [1, 'Personal Details & Medical History'],
-    [2, 'Practical Task'],
-    [12, 'Environment & Home Safety'],
-    [24, 'Safeguarding & Emergency'],
-    [10, 'Pain Assessment Tool'],
-    [11, 'Aide Memorie to Establish Therapy Needs'],
+    [1, 'Personal details & medical history'],
+    [2, 'Practical task'],
+    [12, 'Environment & home safety'],
+    [24, 'Safeguarding & emergency'],
+    [10, 'Pain assessment tool'],
+    [11, 'Aide-memoire to establish therapy needs'],
     [7, 'Alternative to MUST'],
-    [3, 'Initial Mental Capacity Act Screening Tool'],
-    [17, 'Mental Capacity Assessment Identified'],
-    [4, 'Total Skin Integrity Check'],
-    [5, 'Waterlow Pressure Score'],
-    [8, 'Falls Screening'],
-    [9, 'Moving and Handling Operations'],
-    [6, 'Equipment Selection'],
-    [22, 'Fire Safety'],
-    [21, 'Infection and Clinical Precautions'],
-    [20, 'Bed Rails'],
-    [19, 'Personal Emergency Evacuation Plan (PEEP)'],
-    [13, 'Advance Care Planning'],
-    [14, 'End of Life Assessment'],
+    [3, 'Initial Mental Capacity Act screening tool'],
+    [17, 'Mental capacity assessment identified'],
+    [4, 'Total skin integrity check'],
+    [5, 'Waterlow pressure score'],
+    [8, 'Falls screening'],
+    [9, 'Moving and handling operations'],
+    [6, 'Equipment selection'],
+    [22, 'Fire safety'],
+    [21, 'Infection and clinical precautions'],
+    [20, 'Bed rails'],
+    [19, 'Personal emergency evacuation plan (PEEP)'],
+    [13, 'Advance care planning'],
+    [14, 'End of life assessment'],
     [15, 'Clinical outcome summary (baseline)'],
-    [16, 'Care Plan, Consent to Care & Sign-off'],
+    [16, 'Care plan, consent to care & sign-off'],
   ]
 
   it('navigates in home-visit order with display numbers 1–23', () => {
@@ -224,8 +224,8 @@ describe('holistic tab display numbering and navigation order', () => {
     const sections: InitialAssessmentSection[] = [
       { id: 's15', sectionNumber: 15, title: 'Infection', sortOrder: 15, questions: [infectionQ] },
       { id: 's16', sectionNumber: 16, title: 'PEEP', sortOrder: 16, questions: [peepQ] },
-      { id: 's17', sectionNumber: 17, title: 'Bed Rails', sortOrder: 17, questions: [bedQ] },
-      { id: 's18', sectionNumber: 18, title: 'Fire Safety', sortOrder: 18, questions: [fireQ] },
+      { id: 's17', sectionNumber: 17, title: 'Bed rails', sortOrder: 17, questions: [bedQ] },
+      { id: 's18', sectionNumber: 18, title: 'Fire safety', sortOrder: 18, questions: [fireQ] },
     ]
     const visible = new Map<number, InitialAssessmentQuestion[]>([
       [15, [infectionQ]],
@@ -500,7 +500,7 @@ describe('tab re-order: hidden sections now have a home', () => {
     expect(idsOn(1)).toEqual(expect.arrayContaining(['h35', 'h36']))
   })
 
-  it('Safeguarding & Emergency tab owns §13', () => {
+  it('Safeguarding & emergency tab owns §13', () => {
     expect(idsOn(24)).toEqual(['s131'])
   })
 

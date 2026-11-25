@@ -26,7 +26,7 @@ export type CarePlanReviewRowProps = {
 const APPLIED_FLASH_MS = 1800
 
 /**
- * Enterprise Care Plan review row: Question | Current Answer | IA Recommendation.
+ * Enterprise Care Plan review row: Question | Current answer | IA recommendation.
  * Desktop = 3 columns; tablet/mobile stacks vertically.
  */
 export function CarePlanReviewRow({
@@ -95,7 +95,7 @@ export function CarePlanReviewRow({
 
         <div className="min-w-0 space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 md:sr-only">
-            Current Answer
+            Current answer
           </p>
           {input}
           {answerFooter}
@@ -103,7 +103,7 @@ export function CarePlanReviewRow({
 
         <div className="min-w-0 space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 md:sr-only">
-            IA Recommendation
+            IA recommendation
           </p>
           {activeSuggestion && onUseSuggestion && onDismissSuggestion && onKeepCurrentSuggestion ? (
             <IARecommendationCard
@@ -140,7 +140,7 @@ function QuestionColumn({
     <div className="min-w-0 space-y-2">
       {compact ? null : (
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 md:sr-only">
-          Field / Question
+          Field / question
         </p>
       )}
       {category?.trim() ? (

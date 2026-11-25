@@ -63,7 +63,7 @@ export function CarePlanRiskReviewPanel({ data, canManage, busy, onAction }: Pro
                 </div>
                 {canManage ? (
                   <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setResolving(flag.id)}>
-                    Mark Reviewed
+                    Mark reviewed
                   </Button>
                 ) : null}
               </li>
@@ -105,7 +105,7 @@ export function CarePlanRiskReviewPanel({ data, canManage, busy, onAction }: Pro
                   <div className="flex gap-2">
                     {link.status === 'REVIEW_REQUIRED' ? (
                       <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onAction({ action: 'review', linkId: link.id })}>
-                        Mark Reviewed
+                        Mark reviewed
                       </Button>
                     ) : null}
                     <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onAction({ action: 'unlink', linkId: link.id })}>
@@ -141,7 +141,7 @@ export function CarePlanRiskReviewPanel({ data, canManage, busy, onAction }: Pro
                 setRiskId('')
               }}
             >
-              Link Risk
+              Link risk
             </Button>
           </div>
         ) : null}
@@ -171,7 +171,7 @@ export function CarePlanRiskReviewPanel({ data, canManage, busy, onAction }: Pro
                 setNote('')
               }}
             >
-              Mark Reviewed
+              Mark reviewed
             </Button>
           </DialogFooter>
         </DialogContent>

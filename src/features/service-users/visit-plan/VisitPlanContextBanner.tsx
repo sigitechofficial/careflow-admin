@@ -27,7 +27,7 @@ export function VisitPlanContextBanner({ plan, context, otherPlanCount }: Props)
       'This calendar shows visits linked to this plan version\'s call slots. Visits from a different plan (e.g. when you had more or fewer calls per day) appear when you select that version above.'
   } else if (context === 'history') {
     detail =
-      'Compare plan versions below. Open a version to see its full call pattern, or use Summary / Calendar for that version.'
+      'Compare plan versions below. Open a version to see its full visit pattern, or use Summary / Calendar for that version.'
   } else if (isPast) {
     detail =
       'This is a past plan version. New visits are generated from the current active plan, not this one.'
@@ -44,7 +44,7 @@ export function VisitPlanContextBanner({ plan, context, otherPlanCount }: Props)
   } else if (isSuspended) {
     detail = 'This package is suspended. Open Set up visits to re-activate it.'
   } else if (otherPlanCount > 0) {
-    detail = `This person has ${otherPlanCount} other plan version${otherPlanCount === 1 ? '' : 's'} — switch above to compare call patterns.`
+    detail = `This person has ${otherPlanCount} other plan version${otherPlanCount === 1 ? '' : 's'} — switch above to compare visit patterns.`
   }
 
   if (!detail && context === 'summary') return null

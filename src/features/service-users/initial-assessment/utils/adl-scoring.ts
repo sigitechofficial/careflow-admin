@@ -117,7 +117,7 @@ export type AdlWorksheetMetadata = {
   /** §12.7 — Falls trigger assessment completed */
   fallsAssessmentCompleted?: boolean | null
   fallsAssessmentDate?: string | null
-  /** Paper §7 — gate before falls trigger; opens Falls Screening tab when Yes */
+  /** Paper §7 — gate before falls trigger; opens Falls screening tab when Yes */
   fallsScreeningRequested?: boolean | null
   /** §12.8 — Mobility aids in use or required */
   mobilityAidsRequired?: boolean | null

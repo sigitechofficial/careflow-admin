@@ -51,7 +51,7 @@ export function InitialAssessmentMissingFieldsBar({
       >
         <span className="flex items-center gap-2">
           <EyeOff className="h-4 w-4 shrink-0" aria-hidden />
-          Missing fields are hidden · {totalCount} to complete before submit
+          Missing fields are hidden · {totalCount} required item{totalCount === 1 ? '' : 's'} remaining
         </span>
         <Button type="button" size="sm" variant="outline" onClick={onShow} data-testid="ia-missing-show">
           Show missing fields

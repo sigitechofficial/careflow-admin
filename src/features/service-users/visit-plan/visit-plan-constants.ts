@@ -46,5 +46,5 @@ export const VISIT_PLAN_ANALYSIS_AREAS = [
   { value: 'falls', label: 'falls' },
   { value: 'learning_disability', label: 'learning disability' },
   { value: 'medication', label: 'medication' },
-  { value: 'personal_care', label: 'Personal Care' },
+  { value: 'personal_care', label: 'personal care' },
 ] as const

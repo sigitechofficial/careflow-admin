@@ -56,7 +56,7 @@ export function InitialAssessmentHeightBuildWeightPanel({ title, questions, rend
           >
             <div>
               <p className="text-sm font-medium text-foreground">
-                Nutritional risk using Mid Upper Arm Circumference (MUAC)
+                Nutritional risk using mid upper arm circumference (MUAC)
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Record MUAC when standard weighing is not possible. Bands follow BAPEN-style green / amber / red

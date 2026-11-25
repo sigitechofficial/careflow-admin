@@ -53,7 +53,7 @@ function statusMessage(
   visitsNeedApproval?: VisitPlanWeeklyHoursResult['visitsNeedApproval'],
 ): string {
   if (summary.contractedMinutes == null) {
-    return `Call pattern totals ${formatVisitPlanWeeklyHours(summary.plannedMinutes)} per week.`
+    return `Visit pattern totals ${formatVisitPlanWeeklyHours(summary.plannedMinutes)} per week.`
   }
   if (summary.plannedMinutes <= 0) {
     return `No visits planned yet — ${formatVisitPlanWeeklyHours(summary.contractedMinutes)} a week available.`
@@ -69,7 +69,7 @@ function statusMessage(
   if (summary.isUnderContract) {
     return `Within contract — ${formatVisitPlanWeeklyHours((summary.contractedMinutes ?? 0) - summary.plannedMinutes)} remaining in the package.`
   }
-  return 'Call pattern matches weekly contracted hours.'
+  return 'Visit pattern matches weekly contracted hours.'
 }
 
 export function VisitPlanWeeklyHoursPanel({
@@ -117,7 +117,7 @@ export function VisitPlanWeeklyHoursPanel({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
             <span>
               <span className="text-muted-foreground">
-                {serverSummary ? 'Planned (busiest week):' : 'Planned from call pattern:'}
+                {serverSummary ? 'Planned (busiest week):' : 'Planned from visit pattern:'}
               </span>{' '}
               <strong className="font-semibold text-foreground">
                 {formatVisitPlanWeeklyHours(summary.plannedMinutes)}

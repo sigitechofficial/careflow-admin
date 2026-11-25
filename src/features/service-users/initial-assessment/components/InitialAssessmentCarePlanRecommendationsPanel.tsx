@@ -177,7 +177,7 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
         })
       : recommendations.filter((rec) => rec.status === 'pending')
     : recommendations
-  const createLabel = lifecycle ? 'Create Plan' : 'Create care plan'
+  const createLabel = lifecycle ? 'Create plan' : 'Create care plan'
   const triggerLimit = lifecycle ? 2 : 4
   const lifecycleGroups = lifecycle ? groupPendingRecommendationsByForm(visibleRecommendations) : []
 
@@ -209,7 +209,7 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
         )}
         {reviewPending && lifecycle ? (
           <p className="text-xs text-muted-foreground" data-testid="ia-care-plan-awaiting-review" role="status">
-            Awaiting manager review. Create Plan remains available; the plan may need revisiting after
+            Awaiting manager review. Create plan remains available; the plan may need revisiting after
             review.
           </p>
         ) : null}
@@ -448,7 +448,7 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                       data-testid="open-linked-care-plan"
                       onClick={() => openCarePlan(rec.linkedCarePlan!.carePathwayFormId)}
                     >
-                      Open Care Plan
+                      Open care plan
                     </Button>
                   </div>
                 ) : rec.status === 'declined' ? null : canCreate || rec.status === 'accepted' ? (

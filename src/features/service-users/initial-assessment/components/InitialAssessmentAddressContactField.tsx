@@ -236,7 +236,7 @@ export function InitialAssessmentAddressContactField({
       {poNumber ? (
         <div className={simple ? IA_SIMPLE_FIELD_CLASS : 'space-y-1'}>
           <Label htmlFor={`${question.id}-poNumber`} className={IA_QUESTION_LABEL_CLASS}>
-            PO Number
+            PO number
           </Label>
           <Input
             id={`${question.id}-poNumber`}
@@ -249,7 +249,7 @@ export function InitialAssessmentAddressContactField({
               })
             }
             disabled={disabled}
-            placeholder="PO Number"
+            placeholder="PO number"
             className={simple ? IA_SIMPLE_INPUT_CLASS : 'h-10 max-w-md text-base'}
           />
           {poNumber.errorMessage ? (

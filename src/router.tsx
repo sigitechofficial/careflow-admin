@@ -63,6 +63,7 @@ import ServiceUserDocumentsModulePage from '@/features/service-users/pages/Servi
 import ServiceUserInvoicesModulePage from '@/features/service-users/pages/ServiceUserInvoicesModulePage'
 import BodyMapReviewQueuePage from '@/features/service-users/body-map/pages/BodyMapReviewQueuePage'
 import InitialAssessmentReviewQueuePage from '@/features/service-users/initial-assessment/pages/InitialAssessmentReviewQueuePage'
+import InitialAssessmentListPage from '@/features/service-users/initial-assessment/pages/InitialAssessmentListPage'
 import AssessmentReviewQueuePage from '@/features/service-users/assessments/pages/AssessmentReviewQueuePage'
 import CarePlanReviewsPage from '@/features/service-users/care-plans/pages/CarePlanReviewsPage'
 
@@ -343,6 +344,7 @@ const pageTitles: Record<string, string> = {
   '/': 'Home',
   '/medication': 'Medication',
   '/body-map/review-queue': 'Body map review queue',
+  '/initial-assessments': 'Initial assessments',
   '/initial-assessments/review-queue': 'Initial assessment review queue',
   '/assessments/review-queue': 'Assessment review queue',
   '/care-plans/reviews': 'Care plan reviews',
@@ -1450,6 +1452,14 @@ const bodyMapReviewQueueRoute = createRoute({
   path: '/body-map/review-queue',
   beforeLoad: requirePermission('service_users.read'),
   component: BodyMapReviewQueuePage,
+})
+
+// Organisation-wide list (sidebar "Initial Assessment"); the per-person IA page stays at /service-users/initial-assessment.
+const initialAssessmentListRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/initial-assessments',
+  beforeLoad: requireAnyPermission('service_users.initial_assessment.read', 'service_users.initial_assessment.review'),
+  component: InitialAssessmentListPage,
 })
 
 const initialAssessmentReviewQueueRoute = createRoute({
@@ -3247,6 +3257,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersAlertsRoute,
     serviceUsersDocumentsRoute,
     bodyMapReviewQueueRoute,
+    initialAssessmentListRoute,
     initialAssessmentReviewQueueRoute,
     assessmentReviewQueueRoute,
     carePlanReviewsRoute,

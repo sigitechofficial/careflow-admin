@@ -331,7 +331,7 @@ export function ServiceUserDashboardWednesday({ serviceUserId }: { serviceUserId
 
             <DashCard title="Visits">
               <p className="text-muted-foreground">
-                Configure the call pattern on the{' '}
+                Configure the visit pattern on the{' '}
                 <Link
                   to="/service-users/$serviceUserId/visit-plan"
                   params={{ serviceUserId }}

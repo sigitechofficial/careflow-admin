@@ -98,7 +98,7 @@ export function InitialAssessmentSection31FireSafetyPanel({
             onClick={onOpenEnvironmentAssessmentTab}
           >
             <ExternalLink className="mr-2 h-4 w-4" aria-hidden />
-            Open Environment Assessment
+            Open environment assessment
           </Button>
           <p className={cn('mt-2', IA_HINT_CLASS)}>
             Record smoke alarms, access hazards, flooring, and other environmental risks there.

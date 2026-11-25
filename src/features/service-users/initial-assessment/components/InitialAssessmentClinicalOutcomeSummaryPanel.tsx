@@ -145,11 +145,11 @@ export function InitialAssessmentClinicalOutcomeSummaryPanel({
             <thead>
               <tr>
                 <th className={cn(HOLISTIC_TABLE_HEAD_CLASS, 'w-[18rem] align-top')}>
-                  Clinical Activity
+                  Clinical activity
                 </th>
                 <th className={cn(HOLISTIC_TABLE_HEAD_CLASS, 'min-w-[10rem] align-top')}>
                   <ColumnHeaderFields
-                    title="Initial Assessment"
+                    title="Initial assessment"
                     column={initial}
                     disabled={disabled}
                     dateId="clinical-outcome-initial-date"
@@ -163,7 +163,7 @@ export function InitialAssessmentClinicalOutcomeSummaryPanel({
                     className={cn(HOLISTIC_TABLE_HEAD_CLASS, 'min-w-[10rem] align-top')}
                   >
                     <ColumnHeaderFields
-                      title="Review Assessment"
+                      title="Review assessment"
                       column={reviews[index] ?? {}}
                       disabled={disabled}
                       dateId={`clinical-outcome-review-${index}-date`}

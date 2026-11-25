@@ -86,7 +86,7 @@ export function CarePlanApprovalPanel({
         {pending && canApprove && !ownSubmission ? (
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setChangesOpen(true)}>
-              Request Changes
+              Request changes
             </Button>
             <Button type="button" size="sm" disabled={busy} onClick={onApprove}>
               Approve
@@ -125,7 +125,7 @@ export function CarePlanApprovalPanel({
                 setReason('')
               }}
             >
-              Request Changes
+              Request changes
             </Button>
           </DialogFooter>
         </DialogContent>

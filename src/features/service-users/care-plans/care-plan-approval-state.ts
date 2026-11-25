@@ -3,9 +3,9 @@ import type { CarePlanInstance } from '@/features/service-users/care-plans/types
 export type CarePlanFooterAction = 'publish' | 'submit' | 'publish_approved'
 
 const FOOTER_LABEL: Record<CarePlanFooterAction, string> = {
-  publish: 'Publish Care Plan',
-  submit: 'Submit for Approval',
-  publish_approved: 'Publish Approved Plan',
+  publish: 'Publish care plan',
+  submit: 'Submit for approval',
+  publish_approved: 'Publish approved plan',
 }
 
 function meaningful(values: Record<string, string | boolean> | null | undefined) {

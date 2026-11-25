@@ -39,4 +39,12 @@ export const initialAssessmentKeys = {
       overdueActionsOnly ?? false,
       locationId ?? '',
     ] as const,
+  list: (params: {
+    view: string
+    sort: string
+    search: string
+    locationId: string
+    startedByRole: string
+    page: number
+  }) => [...initialAssessmentKeys.all(), 'list', params] as const,
 }

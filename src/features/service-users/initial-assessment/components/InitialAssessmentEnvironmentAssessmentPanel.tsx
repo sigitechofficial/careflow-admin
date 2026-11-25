@@ -120,7 +120,7 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, factorHints
   return (
     <div className={IA_SECTION_BODY_CLASS} data-testid="ia-environment-assessment-panel">
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
-        <HolisticSectionHeader title="Environment Assessment" />
+        <HolisticSectionHeader title="Environment assessment" />
 
         <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <HolisticAssessmentTable
@@ -144,7 +144,7 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, factorHints
                   <HolisticAssessmentTableCell className="align-top text-sm">
                     {q.staffOnly ? (
                       <>
-                        <span className="font-semibold">Staff Only</span>
+                        <span className="font-semibold">Staff only</span>
                         {' — '}
                         {q.label}
                       </>
@@ -178,7 +178,7 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, factorHints
             data-testid="ia-lone-worker-section"
           >
             <div className={IA_SUBSECTION_PANEL_HEADER_CLASS}>
-              <h4 className="text-sm font-semibold text-foreground">Lone Worker &amp; Staff Safety</h4>
+              <h4 className="text-sm font-semibold text-foreground">Lone worker &amp; staff safety</h4>
             </div>
             <div className="space-y-4 p-4">
               <HolisticAssessmentTable
@@ -231,7 +231,7 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, factorHints
                               htmlFor={`${name}-details`}
                               className={cn(IA_QUESTION_LABEL_CLASS, 'flex items-center gap-1')}
                             >
-                              Risk Details / Notes
+                              Risk details / notes
                               <span className="text-destructive" aria-hidden="true">
                                 *
                               </span>
@@ -265,7 +265,7 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, factorHints
 
               <div className="space-y-4 rounded-sm border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Staff Use Only
+                  Staff use only
                 </p>
 
                 <div>
@@ -412,7 +412,7 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, factorHints
                     htmlFor="environment-staff-safety-instructions"
                     className={IA_QUESTION_LABEL_CLASS}
                   >
-                    Control Measures / Safety Actions
+                    Control measures / safety actions
                   </Label>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     Optional. Record mitigation steps — e.g. two carers required, avoid evening
@@ -434,7 +434,7 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, factorHints
 
           <section className="overflow-hidden rounded-sm border border-slate-300 dark:border-slate-600">
             <div className={IA_SUBSECTION_PANEL_HEADER_CLASS}>
-              <h4 className="text-sm font-semibold text-foreground">My Goals</h4>
+              <h4 className="text-sm font-semibold text-foreground">My goals</h4>
             </div>
             <div className="space-y-4 p-4">
               {ENVIRONMENT_ASSESSMENT_GOALS_PROMPTS.map((prompt) => (
@@ -456,7 +456,7 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, factorHints
 
           <section className="overflow-hidden rounded-sm border border-slate-300 dark:border-slate-600">
             <div className={IA_SUBSECTION_PANEL_HEADER_CLASS}>
-              <h4 className="text-sm font-semibold text-foreground">Staff Use Only</h4>
+              <h4 className="text-sm font-semibold text-foreground">Staff use only</h4>
             </div>
             <div className="space-y-4 p-4">
               <ul className="space-y-3">

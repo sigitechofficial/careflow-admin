@@ -187,7 +187,7 @@ export function InitialAssessmentManagerReviewPanel({
                   className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-teal-900 underline-offset-2 hover:underline dark:text-teal-100"
                 >
                   <MapPinned className="h-4 w-4" aria-hidden />
-                  Open Visit Plan
+                  Open visit plan
                 </Link>
               </div>
             ) : null}

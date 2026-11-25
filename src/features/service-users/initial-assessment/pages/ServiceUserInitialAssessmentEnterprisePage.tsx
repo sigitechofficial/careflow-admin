@@ -2112,7 +2112,7 @@ function InitialAssessmentEnterprisePageContent() {
     [sections, persistMetadata, onAnswerChange, equipmentSelection],
   )
 
-  // Equipment Selection keeps a read-only copy of the Waterlow score / band: bring older or stale
+  // Equipment selection keeps a read-only copy of the Waterlow score / band: bring older or stale
   // copies (typed by hand before the copy became derived) back in line with the Waterlow tab.
   React.useEffect(() => {
     if (!isEditableInitialAssessmentStatus(submission?.status)) return
@@ -4269,7 +4269,7 @@ function InitialAssessmentEnterprisePageContent() {
                               onClick={openSubmitReview}
                               disabled={submitSaving}
                             >
-                              Submit assessment
+                              Submit for review
                             </Button>
                           ) : null}
                         </div>

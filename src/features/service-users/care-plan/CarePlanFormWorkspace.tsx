@@ -192,7 +192,7 @@ function ReviewSummarySection({
 
       <div>
         <FieldLabel required info>
-          Review and Evaluation Summary
+          Review and evaluation summary
         </FieldLabel>
         <CarePlanRichTextField
           className="[&_.note-editor]:rounded-sm [&_.note-editor]:border-sky-200"
@@ -207,7 +207,7 @@ function ReviewSummarySection({
       </div>
 
       <div>
-        <FieldLabel>Care Plan Summary</FieldLabel>
+        <FieldLabel>Care plan summary</FieldLabel>
         <CarePlanRichTextField
           value={carePlanSummary}
           disabled={disabled}
@@ -220,7 +220,7 @@ function ReviewSummarySection({
       </div>
 
       <div>
-        <FieldLabel>Consent for Care Plan</FieldLabel>
+        <FieldLabel>Consent for care plan</FieldLabel>
         <div className="grid gap-3 sm:grid-cols-2">
           <Input
             value={consentName}
@@ -284,7 +284,7 @@ function ReviewSummarySection({
       </div>
 
       <div>
-        <FieldLabel required>Next Review date:</FieldLabel>
+        <FieldLabel required>Next review date:</FieldLabel>
         <DatePicker
           value={nextReviewDate ? new Date(nextReviewDate) : undefined}
           disabled={disabled}
@@ -398,7 +398,7 @@ function RiskProfileSection({
       <section className="space-y-3" aria-labelledby="care-plan-ia-risks-heading">
         <div>
           <h3 id="care-plan-ia-risks-heading" className="text-sm font-semibold text-foreground">
-            Identified Risks from Initial Assessment
+            Identified risks from initial assessment
           </h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Read-only risks from the latest eligible Initial Assessment. Not stored on this care plan
@@ -413,14 +413,14 @@ function RiskProfileSection({
           </div>
         ) : !submissionId ? (
           <p className="rounded-sm border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
-            No risks identified from Initial Assessment
+            No risks identified from the initial assessment
           </p>
         ) : iaRisks.length === 0 ? (
           <p
             className="rounded-sm border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground"
             data-testid="care-plan-ia-risks-empty"
           >
-            No risks identified from Initial Assessment
+            No risks identified from the initial assessment
           </p>
         ) : (
           <ul className="space-y-3" data-testid="care-plan-ia-risks-list">
@@ -467,7 +467,7 @@ function RiskProfileSection({
                         {formatRiskLevelLabel(risk.riskLevel)}
                       </Badge>
                       <Badge variant="outline" size="sm" className="font-normal text-muted-foreground">
-                        From Initial Assessment
+                        From initial assessment
                       </Badge>
                     </div>
 
@@ -496,7 +496,7 @@ function RiskProfileSection({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 id="care-plan-manual-risks-heading" className="text-sm font-semibold text-foreground">
-              Additional Care Plan Risks
+              Additional care plan risks
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Optional risks recorded on this care plan. Saved with draft / publish.
@@ -620,7 +620,7 @@ function BodyMapSection({ serviceUserId }: { serviceUserId: string }) {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Issue Type</span>
+          <span className="text-sm text-muted-foreground">Issue type</span>
           <Select
             value={issueType}
             onValueChange={(v) => setIssueType(v as 'all' | BodyMapRecordTypeCode)}
@@ -629,7 +629,7 @@ function BodyMapSection({ serviceUserId }: { serviceUserId: string }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Issues</SelectItem>
+              <SelectItem value="all">All issues</SelectItem>
               {BODY_MAP_RECORD_TYPES.map((t) => (
                 <SelectItem key={t.value} value={t.value}>
                   {t.label}
@@ -639,7 +639,7 @@ function BodyMapSection({ serviceUserId }: { serviceUserId: string }) {
           </Select>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Show Cleared</span>
+          <span className="text-sm text-muted-foreground">Show cleared</span>
           <Switch checked={showCleared} onCheckedChange={setShowCleared} />
           <span className="text-xs font-medium text-muted-foreground">
             {showCleared ? 'YES' : 'NO'}
@@ -652,8 +652,8 @@ function BodyMapSection({ serviceUserId }: { serviceUserId: string }) {
           <thead>
             <tr className="border-b border-border bg-muted/30 text-muted-foreground">
               <th className="px-3 py-2 font-medium">Location</th>
-              <th className="px-3 py-2 font-medium">Issue Type</th>
-              <th className="px-3 py-2 font-medium">Issue At</th>
+              <th className="px-3 py-2 font-medium">Issue type</th>
+              <th className="px-3 py-2 font-medium">Issue at</th>
               <th className="px-3 py-2 font-medium">Status</th>
               <th className="px-3 py-2 font-medium">Issue</th>
             </tr>
@@ -731,7 +731,7 @@ function CareActionsSection({ serviceUserId }: { serviceUserId: string }) {
       <section className="space-y-3" aria-labelledby="care-plan-ia-actions-heading">
         <div>
           <h3 id="care-plan-ia-actions-heading" className="text-sm font-semibold text-foreground">
-            Actions from Initial Assessment
+            Actions from initial assessment
           </h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Read-only open actions from the latest eligible Initial Assessment. Not stored on this care
@@ -749,7 +749,7 @@ function CareActionsSection({ serviceUserId }: { serviceUserId: string }) {
             className="rounded-sm border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground"
             data-testid="care-plan-ia-actions-empty"
           >
-            No actions identified from Initial Assessment
+            No actions identified from the initial assessment
           </p>
         ) : (
           <ul className="space-y-2" data-testid="care-plan-ia-actions-list">
@@ -803,7 +803,7 @@ function CareActionsSection({ serviceUserId }: { serviceUserId: string }) {
                         size="sm"
                         className="font-normal text-muted-foreground"
                       >
-                        From Initial Assessment
+                        From initial assessment
                       </Badge>
                     </div>
 
@@ -840,7 +840,7 @@ function CareActionsSection({ serviceUserId }: { serviceUserId: string }) {
       <section className="space-y-2" aria-labelledby="care-plan-manual-actions-heading">
         <div>
           <h3 id="care-plan-manual-actions-heading" className="text-sm font-semibold text-foreground">
-            Additional Care Plan Actions
+            Additional care plan actions
           </h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Plan-specific actions (separate from Initial Assessment). Not configured yet.
@@ -878,7 +878,7 @@ function CareHistorySection({
       <section className="space-y-3" aria-labelledby="care-plan-version-history-heading">
         <div>
           <h3 id="care-plan-version-history-heading" className="text-sm font-semibold text-foreground">
-            Care Plan History
+            Care plan history
           </h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Published versions of this care plan. Read-only.
@@ -951,11 +951,11 @@ function CareHistorySection({
         )}
       </section>
 
-      {/* Phase 2: Visit Activity History — keep section shell for future integration. */}
+      {/* Phase 2: Visit activity history — keep section shell for future integration. */}
       <section className="space-y-2" aria-labelledby="care-plan-visit-history-heading">
         <div>
           <h3 id="care-plan-visit-history-heading" className="text-sm font-semibold text-foreground">
-            Visit Activity History
+            Visit activity history
           </h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Completed visit actions linked to this care plan (coming soon).
@@ -980,14 +980,14 @@ export type CarePlanFormSectionId =
   | 'consent-capacity'
 
 const CARE_PLAN_FORM_SECTIONS: { id: CarePlanFormSectionId; label: string }[] = [
-  { id: 'review-summary', label: 'Review Summary' },
+  { id: 'review-summary', label: 'Review summary' },
   { id: 'assessment', label: 'Assessment' },
-  { id: 'care-plan', label: 'Care Plan' },
-  { id: 'risk-profile', label: 'Care Plan Risk Profile' },
-  { id: 'body-map', label: 'Body Map' },
-  { id: 'care-actions', label: 'Care Actions' },
-  { id: 'care-history', label: 'Care History' },
-  { id: 'consent-capacity', label: 'Consent and Mental Capacity' },
+  { id: 'care-plan', label: 'Care plan' },
+  { id: 'risk-profile', label: 'Care plan risk profile' },
+  { id: 'body-map', label: 'Body map' },
+  { id: 'care-actions', label: 'Care actions' },
+  { id: 'care-history', label: 'Care history' },
+  { id: 'consent-capacity', label: 'Consent and mental capacity' },
 ]
 
 export function CarePlanFormFooter({
@@ -996,14 +996,14 @@ export function CarePlanFormFooter({
   onSaveDraft,
   saving,
   disabled,
-  publishLabel = 'Publish Care Plan',
+  publishLabel = 'Publish care plan',
 }: {
   onCancel: () => void
   onPublish: () => void
   onSaveDraft: () => void
   saving?: boolean
   disabled?: boolean
-  /** e.g. "Submit for Approval" / "Publish Approved Plan" when approval is required. */
+  /** e.g. "Submit for approval" / "Publish approved plan" when approval is required. */
   publishLabel?: string
 }) {
   return (
@@ -1018,7 +1018,7 @@ export function CarePlanFormFooter({
         {publishLabel}
       </Button>
       <Button type="button" onClick={onSaveDraft} disabled={saving || disabled}>
-        Save Care Plan As Draft
+        Save care plan as draft
       </Button>
     </div>
   )

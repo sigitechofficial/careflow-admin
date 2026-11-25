@@ -199,7 +199,7 @@ export function InitialAssessmentCarePlanObjectivesPanel({
     <div className={cn(IA_SECTION_BODY_CLASS, 'space-y-6')} data-testid="ia-care-plan-objectives-panel">
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader
-          title="My Care and Support Plan"
+          title="My care and support plan"
           subtitle={CARE_PLAN_PLAN_SUBTITLE}
         />
 
@@ -318,8 +318,8 @@ export function InitialAssessmentCarePlanObjectivesPanel({
                   <tr>
                     <th className={cn(HOLISTIC_TABLE_HEAD_CLASS, 'w-[34%]')}>Equipment in use</th>
                     <th className={HOLISTIC_TABLE_HEAD_CLASS}>Make/Model</th>
-                    <th className={HOLISTIC_TABLE_HEAD_CLASS}>Last Service Date</th>
-                    <th className={HOLISTIC_TABLE_HEAD_CLASS}>Next service Date</th>
+                    <th className={HOLISTIC_TABLE_HEAD_CLASS}>Last service date</th>
+                    <th className={HOLISTIC_TABLE_HEAD_CLASS}>Next service date</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -54,7 +54,7 @@ export function BulkGenerateRotaCandidatesPanel({
         <div>
           <h2 className="text-sm font-semibold">Visit plans</h2>
           <p className="text-xs text-muted-foreground">
-            {selectedCount} selected · ready = call pattern configured (carers assigned separately)
+            {selectedCount} selected · ready = visit pattern configured (carers assigned separately)
             {locationFilterDisabled ? ' · filtered by header location' : null}
           </p>
         </div>

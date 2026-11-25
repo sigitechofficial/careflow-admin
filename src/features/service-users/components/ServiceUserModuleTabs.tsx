@@ -74,7 +74,7 @@ export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
   },
   {
     id: 'initial-assessment',
-    label: 'Initial Assessment',
+    label: 'Initial assessment',
     to: '/service-users/$serviceUserId/initial-assessment',
     permission: 'service_users.initial_assessment.read',
   },
@@ -100,17 +100,17 @@ export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
   },
   {
     id: 'tasks-planner',
-    label: 'Tasks Planner',
+    label: 'Tasks planner',
     to: '/service-users/$serviceUserId/tasks-planner',
   },
   {
     id: 'visit-plan',
-    label: 'Visit Plan',
+    label: 'Visit plan',
     to: '/service-users/$serviceUserId/visit-plan',
   },
   {
     id: 'care-plan',
-    label: 'Care Plan',
+    label: 'Care plan',
     to: '/service-users/$serviceUserId/care-plan',
   },
   {
@@ -125,12 +125,12 @@ export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
   },
   {
     id: 'body-map',
-    label: 'Body Map',
+    label: 'Body map',
     to: '/service-users/$serviceUserId/body-map',
   },
   {
     id: 'alerts',
-    label: 'Medical Alerts',
+    label: 'Medical alerts',
     to: '/service-users/$serviceUserId/alerts',
   },
   {
@@ -140,13 +140,13 @@ export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
   },
   {
     id: 'flash',
-    label: 'Flash Message',
+    label: 'Flash message',
     to: '/service-users/$serviceUserId/view',
     search: { focus: 'flash' },
   },
   {
     id: 'service-management',
-    label: 'Service Mgmt',
+    label: 'Service mgmt',
     to: '/service-users/$serviceUserId',
     search: { tab: 'dom' },
   },

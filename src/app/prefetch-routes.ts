@@ -216,11 +216,16 @@ export async function prefetchInitialAssessmentEnterprise(
     staleTime: ROUTE_STALE_MS,
   })
 
-  const submissions = await qc.fetchQuery({
-    queryKey: initialAssessmentKeys.submissions(serviceUserId),
-    queryFn: ({ signal }) => listInitialAssessmentSubmissions(serviceUserId, { signal }),
-    staleTime: ROUTE_STALE_MS,
-  })
+  // Prefetch only: a cancelled/failed request must not fail the route ("CancelledError" screen).
+  // The page's own queries load the data and show their own loading/error states.
+  const submissions = await qc
+    .fetchQuery({
+      queryKey: initialAssessmentKeys.submissions(serviceUserId),
+      queryFn: ({ signal }) => listInitialAssessmentSubmissions(serviceUserId, { signal }),
+      staleTime: ROUTE_STALE_MS,
+    })
+    .catch(() => null)
+  if (!submissions) return
 
   const submissionId = resolveInitialAssessmentSubmissionId(submissions)
   if (!submissionId) return

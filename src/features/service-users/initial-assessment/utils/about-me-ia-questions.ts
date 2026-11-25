@@ -21,11 +21,11 @@ export type AboutMeIaTabId =
 export const ABOUT_ME_IA_TABS: ReadonlyArray<{ id: AboutMeIaTabId; label: string }> = [
   { id: 'about-main', label: 'What matters to me' },
   { id: 'interests', label: 'Interests' },
-  { id: 'history', label: 'My Life History' },
-  { id: 'routine', label: 'My Daily Routine' },
-  { id: 'support', label: 'Support I Need' },
-  { id: 'favourites', label: 'My Favourite Things' },
-  { id: 'id-chars', label: 'Identification Characteristics' },
+  { id: 'history', label: 'My life history' },
+  { id: 'routine', label: 'My daily routine' },
+  { id: 'support', label: 'Support I need' },
+  { id: 'favourites', label: 'My favourite things' },
+  { id: 'id-chars', label: 'Identification characteristics' },
 ]
 
 export function isAboutMeIaSpecRef(specRef: string): boolean {

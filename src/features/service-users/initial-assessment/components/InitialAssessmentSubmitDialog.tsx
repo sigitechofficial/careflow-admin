@@ -66,7 +66,7 @@ export function InitialAssessmentSubmitDialog({
   onConfirmIncomplete,
 }: Props) {
   // Going to an issue moves focus into that field — stop the dialog handing focus back to the
-  // "Submit assessment" button as it closes.
+  // "Submit for review" button as it closes.
   const goingToIssueRef = React.useRef(false)
   const goToSection = (sectionNumber: number, message: string) => {
     goingToIssueRef.current = true

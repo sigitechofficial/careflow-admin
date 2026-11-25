@@ -395,7 +395,7 @@ export default function ServiceUserCarePlanFormPage() {
       .catch((e) => toastApiError(e, 'Could not update visit task reconciliation'))
   }
 
-  /** Footer action: plain publish, Submit for Approval, or Publish Approved Plan. */
+  /** Footer action: plain publish, Submit for approval, or Publish approved plan. */
   const onFooterPublish = () => {
     if (approval.footerAction === 'submit') return onSubmitForApproval()
     if (approval.footerAction === 'publish_approved') {

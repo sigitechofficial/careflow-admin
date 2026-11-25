@@ -70,18 +70,18 @@ describe('CarePlanRiskReviewPanel', () => {
     const onAction = vi.fn()
     render(<CarePlanRiskReviewPanel data={data} canManage onAction={onAction} />)
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Mark Reviewed' })[0])
-    const confirm = screen.getAllByRole('button', { name: 'Mark Reviewed' }).at(-1)!
+    await userEvent.click(screen.getAllByRole('button', { name: 'Mark reviewed' })[0])
+    const confirm = screen.getAllByRole('button', { name: 'Mark reviewed' }).at(-1)!
     expect(confirm).toBeDisabled()
     await userEvent.type(screen.getByLabelText(/What did you review/), 'Falls plan updated and published')
     await userEvent.click(confirm)
     expect(onAction).toHaveBeenCalledWith({ action: 'resolve_flag', flagId: 'f1', note: 'Falls plan updated and published' })
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Mark Reviewed' })[1])
+    await userEvent.click(screen.getAllByRole('button', { name: 'Mark reviewed' })[1])
     expect(onAction).toHaveBeenCalledWith({ action: 'review', linkId: 'l1' })
 
     await userEvent.selectOptions(screen.getByLabelText('Link an assessment risk'), 'r2')
-    await userEvent.click(screen.getByRole('button', { name: 'Link Risk' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Link risk' }))
     expect(onAction).toHaveBeenCalledWith({ action: 'link', riskRecordId: 'r2' })
   })
 

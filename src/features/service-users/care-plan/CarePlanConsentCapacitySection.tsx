@@ -62,10 +62,10 @@ function ConsentCategoryPanel({
             <thead className="border-b border-border bg-muted/30 text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 font-medium" style={{ width: '25%' }}>
-                  Consent Reason
+                  Consent reason
                 </th>
                 <th className="px-3 py-2 font-medium" style={{ width: '20%' }}>
-                  Date Created
+                  Date created
                 </th>
                 <th className="px-3 py-2 font-medium" style={{ width: '8%' }}>
                   Status
@@ -158,7 +158,7 @@ function IaConsentCapacityPanel({ serviceUserId }: { serviceUserId: string }) {
     <section className="space-y-3" aria-labelledby="care-plan-ia-consent-heading">
       <div>
         <h3 id="care-plan-ia-consent-heading" className="text-sm font-semibold text-foreground">
-          Information from Initial Assessment
+          Information from initial assessment
         </h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Read-only consent and mental capacity from the latest eligible Initial Assessment. Not stored
@@ -176,7 +176,7 @@ function IaConsentCapacityPanel({ serviceUserId }: { serviceUserId: string }) {
           className="rounded-sm border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground"
           data-testid="care-plan-ia-consent-empty"
         >
-          No consent or mental capacity information from Initial Assessment
+          No consent or mental capacity information from the initial assessment
         </p>
       ) : (
         <div
@@ -197,7 +197,7 @@ function IaConsentCapacityPanel({ serviceUserId }: { serviceUserId: string }) {
 
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <Badge variant="outline" size="sm" className="font-normal text-muted-foreground">
-                  From Initial Assessment
+                  From initial assessment
                 </Badge>
               </div>
 
@@ -403,7 +403,7 @@ export function CarePlanConsentCapacitySection({
                 id="care-plan-manual-consent-heading"
                 className="text-lg font-semibold text-foreground"
               >
-                Care Plan Consent Records
+                Care plan consent records
               </h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {possessive} plan-specific consents. Saved with draft / publish.
@@ -433,7 +433,7 @@ export function CarePlanConsentCapacitySection({
               </Button>
               <div className="flex items-center gap-2">
                 <Label className="text-sm font-normal text-muted-foreground">
-                  Show Closed Consent
+                  Show closed consent
                 </Label>
                 <Switch
                   checked={showClosed}

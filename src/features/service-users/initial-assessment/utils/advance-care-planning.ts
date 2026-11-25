@@ -85,7 +85,7 @@ export const ACP_DISCUSSION_BRANCHES = [
 
 export const THINKING_AHEAD_INTRO_PARAGRAPHS = [
   'The goal is to give me the best care by understanding my needs and preferences, and those of my family, for the future.',
-  'The aim of my Advance Care Planning discussion is to record my priorities and needs. The philosophy is "hoping for the best but preparing for the worst."',
+  'The aim of my Advance care planning discussion is to record my priorities and needs. The philosophy is "hoping for the best but preparing for the worst."',
   'This is my Advance Statement (what I DO WISH to happen), which is different from a legally binding Advance Decision (ADRT — what I DO NOT wish to happen), in line with the Mental Capacity Act (2005).',
   'This is a living document: I can discuss it early, and review and change it as my needs change.',
 ] as const

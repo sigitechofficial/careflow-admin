@@ -155,7 +155,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({
     <div className={IA_SECTION_BODY_CLASS} data-testid="ia-mental-capacity-checklist-panel">
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader
-          title="Assessment of Mental Capacity Check List"
+          title="Assessment of mental capacity checklist"
           subtitle="This form is used to assess whether or not I have the mental capacity to make key decisions about my daily living needs and chosen lifestyle."
         />
 

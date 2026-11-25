@@ -1,5 +1,6 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  InitialAssessmentStatus,
   InitialAssessmentAnswer,
   InitialAssessmentAnswerInput,
   InitialAssessmentFlaggedItem,
@@ -718,4 +719,95 @@ export async function downloadInitialAssessmentCqcEvidence(
   a.download = `ia-cqc-evidence-${submissionId.slice(0, 8)}.json`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+export type InitialAssessmentListView =
+  | 'all'
+  | 'in_progress'
+  | 'waiting_review'
+  | 'reviewed'
+  | 'overdue_actions'
+  | 'no_ia'
+  | 'archived'
+  | 'cancelled'
+
+export type InitialAssessmentListSort = 'updated' | 'started' | 'name'
+
+export type InitialAssessmentListBucket =
+  | 'in_progress'
+  | 'waiting_review'
+  | 'reviewed'
+  | 'archived'
+  | 'cancelled'
+  | 'no_ia'
+
+export type InitialAssessmentListPerson = { id: string; name: string }
+
+export type InitialAssessmentListRow = {
+  serviceUser: {
+    id: string
+    firstName: string
+    lastName: string
+    preferredName: string | null
+    serviceUserNumber: string | null
+    isActive: boolean
+  }
+  branch: { id: string; name: string } | null
+  bucket: InitialAssessmentListBucket
+  overdueActionCount: number
+  assessment: {
+    id: string
+    status: InitialAssessmentStatus
+    startedAt: string
+    submittedAt: string | null
+    reviewedAt: string | null
+    updatedAt: string
+    startedBy: InitialAssessmentListPerson | null
+    startedByRoles: string[]
+    submittedBy: InitialAssessmentListPerson | null
+    reviewedBy: InitialAssessmentListPerson | null
+  } | null
+}
+
+export type InitialAssessmentListResult = {
+  rows: InitialAssessmentListRow[]
+  counts: {
+    in_progress: number
+    waiting_review: number
+    reviewed: number
+    overdue_actions: number
+    no_ia: number
+  }
+  startedByRoles: string[]
+  meta: { page: number; limit: number; total: number; totalPages: number }
+}
+
+export type InitialAssessmentListParams = {
+  view?: InitialAssessmentListView
+  sort?: InitialAssessmentListSort
+  search?: string
+  locationId?: string
+  startedByRole?: string
+  page?: number
+  limit?: number
+}
+
+/** Every service user in the caller's branches with their latest IA (read-only). */
+export async function fetchInitialAssessmentList(
+  params: InitialAssessmentListParams,
+  init?: RequestInit,
+): Promise<InitialAssessmentListResult> {
+  const qs = new URLSearchParams()
+  if (params.view && params.view !== 'all') qs.set('view', params.view)
+  if (params.sort && params.sort !== 'updated') qs.set('sort', params.sort)
+  if (params.search?.trim()) qs.set('search', params.search.trim())
+  if (params.locationId) qs.set('locationId', params.locationId)
+  if (params.startedByRole) qs.set('startedByRole', params.startedByRole)
+  if (params.page) qs.set('page', String(params.page))
+  if (params.limit) qs.set('limit', String(params.limit))
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<
+    ApiEnvelope<Omit<InitialAssessmentListResult, 'meta'>> & { meta: InitialAssessmentListResult['meta'] }
+  >(`/initial-assessments/list${suffix}`, { method: 'GET', ...init })
+  return { ...res.data, meta: res.meta }
 }

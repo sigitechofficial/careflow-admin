@@ -33,7 +33,7 @@ export function InitialAssessmentTherapyAideMemoirePanel({ value, disabled, onCh
   return (
     <div className={IA_SECTION_BODY_CLASS} data-testid="ia-therapy-aide-memoire-panel">
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
-        <HolisticSectionHeader title="Aide Memoire to establish therapy needs" />
+        <HolisticSectionHeader title="Aide-memoire to establish therapy needs" />
 
         <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <ol className="space-y-4">

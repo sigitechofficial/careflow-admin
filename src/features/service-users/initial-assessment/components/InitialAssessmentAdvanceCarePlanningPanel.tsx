@@ -96,7 +96,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
   return (
     <div className={cn(IA_SECTION_BODY_CLASS, 'space-y-6')} data-testid="ia-advance-care-planning-panel">
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
-        <HolisticSectionHeader title="Advance Care Planning (ACP)" />
+        <HolisticSectionHeader title="Advance care planning (ACP)" />
 
         <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <div className="flex flex-wrap gap-1">
@@ -125,9 +125,9 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
           </ol>
 
           <section className="space-y-4">
-            <h4 className="text-sm font-semibold text-foreground">Advance Care Planning Discussions</h4>
+            <h4 className="text-sm font-semibold text-foreground">Advance care planning discussions</h4>
             <div className="rounded-sm border border-teal-300 bg-teal-700 px-4 py-2 text-center text-sm font-semibold text-white dark:border-teal-800">
-              Advance Care Planning
+              Advance care planning
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               {ACP_DISCUSSION_BRANCHES.map((branch) => (
@@ -247,7 +247,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <section className="space-y-3 rounded-sm border border-slate-300 p-4 dark:border-slate-600">
             <p className="text-sm font-medium text-foreground">
-              The family members involved in my Advance Care Planning discussions:
+              The family members involved in my Advance care planning discussions:
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -275,7 +275,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
 
           <section className="space-y-3 rounded-sm border border-slate-300 p-4 dark:border-slate-600">
             <p className="text-sm font-medium text-foreground">
-              The Care Professional involved in my Advance Care Planning discussions:
+              The Care Professional involved in my Advance care planning discussions:
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>

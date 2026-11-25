@@ -312,7 +312,7 @@ export default function ServiceUserCarePlanPage() {
         {!loading && !error && detail && (
           <div className="space-y-5" data-care-plan-section-order={CARE_PLAN_PAGE_SECTION_ORDER.join(',')}>
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <h2 className="text-sm font-semibold sm:text-base">Care Plans</h2>
+              <h2 className="text-sm font-semibold sm:text-base">Care plans</h2>
               <p
                 className="flex flex-wrap items-center gap-1.5"
                 data-testid="care-plans-summary"
@@ -321,7 +321,7 @@ export default function ServiceUserCarePlanPage() {
                   {liveCount} Live
                 </Badge>
                 <Badge variant="info" size="sm" className="font-normal">
-                  {inProgressCount} In Progress
+                  {inProgressCount} In progress
                 </Badge>
                 <Badge variant="warning" size="sm" className="font-normal">
                   {recommendedCount} Recommended
@@ -330,7 +330,7 @@ export default function ServiceUserCarePlanPage() {
             </div>
 
             <CarePlanLifecycleSection
-              title="Live Care Plans"
+              title="Live care plans"
               testId="live-care-plans"
               headingId="care-plans-live"
             >
@@ -362,7 +362,7 @@ export default function ServiceUserCarePlanPage() {
             </CarePlanLifecycleSection>
 
             <CarePlanLifecycleSection
-              title="In Progress"
+              title="In progress"
               testId="in-progress-care-plans"
               headingId="care-plans-in-progress"
             >
@@ -382,13 +382,13 @@ export default function ServiceUserCarePlanPage() {
                         onOpen={() => openCarePlanForm(plan.id)}
                         displayState="IN_PROGRESS"
                         displayStatus={instance?.displayStatus}
-                        statusLabel={isDraft ? 'Draft' : 'In Progress'}
+                        statusLabel={isDraft ? 'Draft' : 'In progress'}
                         review={instance?.review}
                         note={isDraft && recStatus === 'pending' ? 'Recommendation pending' : null}
                         meta={
                           instance?.updatedAt ? `Updated ${formatDate(instance.updatedAt)}` : null
                         }
-                        actionLabel={isDraft ? 'Continue editing' : 'Create Plan'}
+                        actionLabel={isDraft ? 'Continue editing' : 'Create plan'}
                       />
                     )
                   })}
@@ -418,7 +418,7 @@ export default function ServiceUserCarePlanPage() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <h3 id="care-plans-monitor" className={contentTitleClass}>
-                    Monitor Care Plans
+                    Monitor care plans
                   </h3>
                   <p className={cn('mt-0.5', contentHelperClass)}>
                     Review dates for this service user’s published care plans.
@@ -493,13 +493,13 @@ export default function ServiceUserCarePlanPage() {
             >
               <div>
                 <h3 id="care-plans-assessment-risk" className={contentTitleClass}>
-                  Assessment & Risk Information
+                  Assessment & risk information
                 </h3>
                 <p className={cn('mt-0.5', contentHelperClass)}>
                   Supporting context from assessments, the risk profile, and the action register.
                 </p>
               </div>
-              <CarePlanAccordion title={`${name}'s Assessments`} tone="teal">
+              <CarePlanAccordion title={`${name}'s assessments`} tone="teal">
                 <ServiceUserAssessmentsPanel serviceUserId={serviceUserId} serviceUserName={name} />
               </CarePlanAccordion>
               <CarePlanAccordion title={riskTitle} tone="teal">
@@ -508,7 +508,7 @@ export default function ServiceUserCarePlanPage() {
             </section>
 
             <CarePlanLifecycleSection
-              title="Available Care Plans"
+              title="Available care plans"
               description="Additional care-plan templates available when needed."
               testId="available-care-plans"
               headingId="care-plans-available"
@@ -550,7 +550,7 @@ export default function ServiceUserCarePlanPage() {
                           onOpen={() => openCarePlanForm(plan.id)}
                           displayState="AVAILABLE"
                           appearance="available"
-                          actionLabel="Create Plan"
+                          actionLabel="Create plan"
                         />
                       ))}
                     </div>

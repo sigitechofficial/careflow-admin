@@ -15,7 +15,7 @@ import { formatDate } from '@/shared/lib/utils'
 const FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'overdue', label: 'Overdue' },
-  { id: 'due_soon', label: 'Due Soon' },
+  { id: 'due_soon', label: 'Due soon' },
   { id: 'ok', label: 'Up to date' },
 ] as const
 
@@ -50,7 +50,7 @@ export default function CarePlanReviewsPage() {
         icon={<CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[
           { label: 'Home', href: '/' },
-          { label: 'Service Users', href: '/service-users/all' },
+          { label: 'Service users', href: '/service-users/all' },
           { label: 'Care plan reviews' },
         ]}
       >

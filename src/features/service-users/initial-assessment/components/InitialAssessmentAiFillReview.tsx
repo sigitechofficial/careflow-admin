@@ -26,7 +26,7 @@ const formatModel = (model: string) =>
   model.startsWith('claude-haiku-5-5') ? 'Claude Haiku 5.5' : model
 
 export type AiFillTarget = {
-  /** Name of the open form tab, e.g. "Personal Details & Medical History". */
+  /** Name of the open form tab, e.g. "Personal details & medical history". */
   tabTitle: string
   questions: InitialAssessmentQuestion[]
   answers: Record<string, InitialAssessmentAnswerInput>

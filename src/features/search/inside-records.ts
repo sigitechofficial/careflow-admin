@@ -12,7 +12,7 @@ const SERVICE_USER_TAB_WORDS: Record<string, string> = {
   Observations: 'vitals blood pressure temperature pulse weight news2',
   Comms: 'communication notes messages',
   'Tasks Planner': 'tasks visit tasks',
-  'Visit Plan': 'visits calls schedule rota call pattern',
+  'Visit Plan': 'visits calls schedule rota visit pattern call pattern',
   'Care Plan': 'support plan care plans',
   Meds: 'medication medications medicines mar emar allergies blister',
   Documents: 'files uploads attachments',

@@ -476,7 +476,7 @@ export function InitialAssessmentDocumentTabContent({
       <>
         <InitialAssessmentTabLinkBanner
           title="Measurements & MUST"
-          body={`Use ${holisticTabRef(1)} for height/weight/appetite narrative. Waterlow scores pressure risk here; MUST (${holisticTabRef(7)}) scores malnutrition. Score also syncs to Equipment Selection.`}
+          body={`Use ${holisticTabRef(1)} for height/weight/appetite narrative. Waterlow scores pressure risk here; MUST (${holisticTabRef(7)}) scores malnutrition. Score also syncs to Equipment selection.`}
           actionLabel={`Open MUST (${holisticTabRef(7)})`}
           onAction={onOpenMustTab}
           testId="ia-waterlow-link-banner"
@@ -582,8 +582,8 @@ export function InitialAssessmentDocumentTabContent({
       <>
         <InitialAssessmentTabLinkBanner
           title="Fall history"
-          body={`Recent falls and medicines-related fall risk are recorded on ${holisticTabRef(8)} (Falls Screening). Answers sync into this risk filter when empty.`}
-          actionLabel={`Open Falls Screening (${holisticTabRef(8)})`}
+          body={`Recent falls and medicines-related fall risk are recorded on ${holisticTabRef(8)} (Falls screening). Answers sync into this risk filter when empty.`}
+          actionLabel={`Open Falls screening (${holisticTabRef(8)})`}
           onAction={onOpenFallsScreeningTab}
           testId="ia-mh-falls-link-banner"
         />
@@ -629,7 +629,7 @@ export function InitialAssessmentDocumentTabContent({
         <InitialAssessmentTabLinkBanner
           title="Swallow, mobility & care package"
           body={`Full swallow/SALT detail is on ${holisticTabRef(1)} (§5/§8). Fall history on ${holisticTabRef(8)}. Care package existence on ${holisticTabRef(1)} Social history; practical tasks on ${holisticTabRef(2)}. Use this aide-memoire for therapy referral flags only.`}
-          actionLabel={`Open Falls Screening (${holisticTabRef(8)})`}
+          actionLabel={`Open Falls screening (${holisticTabRef(8)})`}
           onAction={onOpenFallsScreeningTab}
           testId="ia-therapy-link-banner"
         />
@@ -694,7 +694,7 @@ export function InitialAssessmentDocumentTabContent({
         <InitialAssessmentTabLinkBanner
           title="DNACPR / resuscitation"
           body={`Record DNR status here. Advance wishes / ADRT stay on ${holisticTabRef(13)} (ACP). DNACPR template fields sync from this answer.`}
-          actionLabel={`Open Advance Care Planning (${holisticTabRef(13)})`}
+          actionLabel={`Open Advance care planning (${holisticTabRef(13)})`}
           onAction={onOpenAdvanceCarePlanningTab}
           testId="ia-eol-dnacpr-link-banner"
         />

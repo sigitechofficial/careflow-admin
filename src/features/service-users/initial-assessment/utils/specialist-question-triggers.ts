@@ -1,6 +1,6 @@
 /**
  * Display only: which Core answers make a specialist assessment Required, so the question can say
- * "Falls Screening is now required (Tab 13)". Mirrors the `required(...)` branches of
+ * "Falls screening is now required (Tab 13)". Mirrors the `required(...)` branches of
  * specialist-relevance-rules.ts — the rules stay the source of truth; a note only shows while the
  * tab's current status (after any override) is Required.
  */

@@ -75,7 +75,7 @@ type Props = {
   onPracticalCareChange: (next: PracticalCareTasksMetadata) => void
   onFinanceSupportChange: (next: FinanceSupportMetadata) => void
   onChange: (questionId: string, patch: InitialAssessmentAnswerInput) => void
-  /** Document TOC tabs — render only selected §12 blocks (Practical Task, Equipment, Falls, etc.). */
+  /** Document TOC tabs — render only selected §12 blocks (Practical task, Equipment, Falls, etc.). */
   displayBlocks?: Section12PanelBlock[]
 }
 
