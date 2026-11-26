@@ -92,24 +92,14 @@ export async function setOfficeUserLocations(userId: string, locationIds: string
   })
 }
 
-/** Identity roles commonly assigned for Approach A hierarchy. */
-export const ASSIGNABLE_IDENTITY_ROLES = [
-  'Super Admin',
-  'Admin',
-  'Master Staff Allocation',
-  'Branch Admin',
-  'Staff Allocation',
-  'Manager',
-  'Care Coordinator',
-  'HR',
-] as const
-
-export const BRANCH_SCOPED_ROLE_NAMES = new Set([
-  'Branch Admin',
-  'Staff Allocation',
-  'Manager',
-  'Care Coordinator',
-  'HR',
+/**
+ * Roles never offered on Office users. Carer roles come from the RBAC level on the Employment tab;
+ * an Independent reviewer account is made only by "Add a reviewer" on a survey.
+ */
+export const NON_OFFICE_ROLE_NAMES = new Set([
+  'Senior Carer/Nurse',
+  'Carer/Domestic',
+  'Independent reviewer',
 ])
 
 export const COMPANY_WIDE_ROLE_NAMES = new Set([
@@ -117,6 +107,14 @@ export const COMPANY_WIDE_ROLE_NAMES = new Set([
   'Admin',
   'Master Staff Allocation',
 ])
+
+/**
+ * Any role other than the company-wide ones needs a branch: the backend gives such a user with no
+ * branch no access at all (it never falls back to all branches). Covers roles added later too.
+ */
+export function rolesNeedBranches(roleNames: string[]): boolean {
+  return roleNames.length > 0 && !roleNames.some(r => COMPANY_WIDE_ROLE_NAMES.has(r))
+}
 
 /** Must stay aligned with backend `ROLE_PRIVILEGE_RANK`. */
 export const ROLE_PRIVILEGE_RANK: Record<string, number> = {
@@ -139,12 +137,23 @@ export function maxRolePrivilege(roles: string[]): number {
   return max
 }
 
-/** Roles the actor may assign (same rank or lower; Super Admin only by Super Admin). */
-export function assignableRolesForActor(actorRoles: string[]): string[] {
+/**
+ * Roles the actor may assign, from the active roles in the database (same rank or lower; Super Admin
+ * only by Super Admin). Highest rank first, then by name.
+ */
+export function assignableRolesForActor(
+  actorRoles: string[],
+  roles: { name: string; isActive: boolean }[],
+): string[] {
   const rank = maxRolePrivilege(actorRoles)
   const isSuper = actorRoles.includes('Super Admin')
-  return ASSIGNABLE_IDENTITY_ROLES.filter(role => {
-    if (role === 'Super Admin' && !isSuper) return false
-    return (ROLE_PRIVILEGE_RANK[role] ?? 10) <= rank
-  })
+  const roleRank = (name: string) => ROLE_PRIVILEGE_RANK[name] ?? 10
+  return roles
+    .filter(r => r.isActive && !NON_OFFICE_ROLE_NAMES.has(r.name))
+    .map(r => r.name)
+    .filter(name => {
+      if (name === 'Super Admin' && !isSuper) return false
+      return roleRank(name) <= rank
+    })
+    .sort((a, b) => roleRank(b) - roleRank(a) || a.localeCompare(b))
 }

@@ -6,8 +6,7 @@ import {
   setOfficeUserLocations,
   setOfficeUserRoles,
   updateOfficeUser,
-  BRANCH_SCOPED_ROLE_NAMES,
-  COMPANY_WIDE_ROLE_NAMES,
+  rolesNeedBranches,
   type CreateOfficeUserInput,
   type UpdateOfficeUserInput,
 } from '@/features/settings/api/users-access.api'
@@ -52,10 +51,7 @@ export function useCreateOfficeUser() {
     },
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: settingsKeys.officeUsers() })
-      const needsBranch =
-        data.roleNames.some(r => BRANCH_SCOPED_ROLE_NAMES.has(r))
-        && !data.roleNames.some(r => COMPANY_WIDE_ROLE_NAMES.has(r))
-        && data.locationIds.length === 0
+      const needsBranch = rolesNeedBranches(data.roleNames) && data.locationIds.length === 0
       useToastStore.getState().push({
         title: 'Office user added',
         description: [

@@ -22,10 +22,10 @@ import {
 } from '@/features/settings/hooks/useUsersAccess'
 import {
   assignableRolesForActor,
-  BRANCH_SCOPED_ROLE_NAMES,
-  COMPANY_WIDE_ROLE_NAMES,
+  rolesNeedBranches,
   type OfficeUserRow,
 } from '@/features/settings/api/users-access.api'
+import { useIdentityRoles } from '@/features/settings/hooks/useRolesPermissions'
 import { fetchLookupList } from '@/features/settings/api/lookups-admin-api'
 import { settingsKeys } from '@/features/settings/keys'
 import { accessibleBranchIds, isBranchScoped } from '@/features/auth/org-scope'
@@ -73,13 +73,6 @@ function BranchChips({ user }: { user: OfficeUserRow }) {
   )
 }
 
-function rolesNeedBranches(roleNames: string[]): boolean {
-  return (
-    roleNames.some(r => BRANCH_SCOPED_ROLE_NAMES.has(r))
-    && !roleNames.some(r => COMPANY_WIDE_ROLE_NAMES.has(r))
-  )
-}
-
 const emptyCreateForm = {
   email: '',
   username: '',
@@ -97,9 +90,11 @@ export function OfficeUsersPanel() {
   const actorBranchScoped = useAuthStore(s => isBranchScoped(s.user))
   const actorBranchIds = useAuthStore(s => accessibleBranchIds(s.user))
   const actorAssignedLocations = useAuthStore(s => s.user?.assignedLocations ?? null)
+  // Roles come from the database (only roles.manage may read them, and only it may assign roles).
+  const rolesQuery = useIdentityRoles(canManage)
   const assignableRoles = React.useMemo(
-    () => assignableRolesForActor(actorRoles),
-    [actorRoles],
+    () => assignableRolesForActor(actorRoles, rolesQuery.data ?? []),
+    [actorRoles, rolesQuery.data],
   )
   const usersQuery = useOfficeUsers(true)
   const locationsQuery = useQuery({
@@ -423,7 +418,7 @@ export function OfficeUsersPanel() {
                   on that record updates these roles. Admin roles are never given that way: give them here.
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {assignableRoles.map(role => (
+                  {(canManage ? assignableRoles : draftRoles).map(role => (
                     <label key={role} className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
