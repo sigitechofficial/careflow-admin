@@ -6,6 +6,7 @@ import { FieldWithInfo } from '@/features/cqc-mock-inspection/components/InfoTip
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 import type { CqcNotificationDetail, CqcSubmissionMethod } from '../types'
 import { useAcknowledgeCqcNotification, useCloseCqcNotification, useSubmitCqcNotification } from '../hooks'
 import { METHOD_LABEL, fromLocalInput, toLocalInput } from '../labels'
@@ -59,7 +60,7 @@ export function SubmitDialog({ notification, open, onOpenChange }: DialogProps) 
             <label htmlFor="cqcn-sent-at" className="text-xs font-medium text-muted-foreground">
               When it was sent
             </label>
-            <Input id="cqcn-sent-at" type="datetime-local" value={when} onChange={e => setWhen(e.target.value)} />
+            <DateTimeInput id="cqcn-sent-at" value={when} onChange={e => setWhen(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <label htmlFor="cqcn-method" className="text-xs font-medium text-muted-foreground">
@@ -136,7 +137,7 @@ export function AcknowledgeDialog({ notification, open, onOpenChange }: DialogPr
             <label htmlFor="cqcn-ack-at" className="text-xs font-medium text-muted-foreground">
               When the CQC acknowledged it
             </label>
-            <Input id="cqcn-ack-at" type="datetime-local" value={when} onChange={e => setWhen(e.target.value)} />
+            <DateTimeInput id="cqcn-ack-at" value={when} onChange={e => setWhen(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <label htmlFor="cqcn-ack-ref" className="text-xs font-medium text-muted-foreground">

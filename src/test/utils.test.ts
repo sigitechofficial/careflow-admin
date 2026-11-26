@@ -27,7 +27,7 @@ describe('initials', () => {
     expect(initials('Margaret Thompson')).toBe('MT')
   })
   it('handles single name', () => {
-    expect(initials('James')).toBe('JA')
+    expect(initials('James')).toBe('J')
   })
 })
 
@@ -44,6 +44,6 @@ describe('formatCurrency', () => {
   it('formats GBP correctly', () => {
     const result = formatCurrency(1250.5)
     expect(result).toContain('1,250')
-    expect(result).toContain('Â£')
+    expect(result).toContain('£')
   })
 })

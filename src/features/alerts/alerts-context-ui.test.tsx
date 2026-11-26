@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuthStore } from '@/features/auth/store'
+import { listMedicalAlerts } from '@/features/alerts/api/medical-clinical.api'
 import {
   isServiceUserModuleTabActive,
   SERVICE_USER_MODULE_TABS,
@@ -86,6 +87,10 @@ vi.mock('@/features/alerts/api/medical-clinical.api', () => ({
   upsertUsualParameter: vi.fn(),
   updateUsualParameter: vi.fn(),
   deactivateUsualParameter: vi.fn(),
+  listMedicalAlerts: vi.fn(async () => []),
+  createMedicalAlert: vi.fn(),
+  updateMedicalAlert: vi.fn(),
+  deactivateMedicalAlert: vi.fn(),
   fetchMedicalSafetySummary: vi.fn(async () => ({ serviceUserId: 'su-1' })),
 }))
 
@@ -148,6 +153,8 @@ vi.mock('@/shared/lib/toast', () => ({
   toastApiError: vi.fn(),
 }))
 
+import ServiceUserAlertsPage from '@/features/alerts/pages/ServiceUserAlertsPage'
+
 function wrap(ui: React.ReactNode) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -173,7 +180,7 @@ function setPerms(permissions: string[]) {
 describe('Service User Medical & Alerts tab', () => {
   it('includes Medical & Alerts route and active matcher', () => {
     const tab = SERVICE_USER_MODULE_TABS.find((t) => t.id === 'alerts')
-    expect(tab?.label).toBe('Medical & Alerts')
+    expect(tab?.label).toBe('Medical alerts')
     expect(tab?.to).toBe('/service-users/$serviceUserId/alerts')
     expect(isServiceUserModuleTabActive(tab!, '/service-users/su-1/alerts')).toBe(true)
     expect(isServiceUserModuleTabActive(tab!, '/service-users/su-1/view')).toBe(false)
@@ -186,7 +193,7 @@ describe('Service User Medical & Alerts tab', () => {
     )
     wrap(<ServiceUserModuleTabs serviceUserId="su-1" />)
     expect(await screen.findByTestId('su-module-tab-alerts')).toBeInTheDocument()
-    expect(screen.getByText('Medical & Alerts')).toBeInTheDocument()
+    expect(screen.getByText('Medical alerts')).toBeInTheDocument()
     expect(screen.queryByLabelText(/active alerts/i)).not.toBeInTheDocument()
   })
 
@@ -202,51 +209,46 @@ describe('Service User Medical & Alerts tab', () => {
 
 describe('ServiceUserAlertsPage', () => {
   beforeEach(() => {
-    setPerms(['service_users.read'])
+    setPerms(['service_users.read', 'service_users.medical_alerts.read'])
     medicalSafetyMockState.immediate = []
     medicalSafetyMockState.allergies = []
   })
 
-  it('renders the clinical Medical Conditions & Alerts record', async () => {
-    const { default: ServiceUserAlertsPage } = await import(
-      '@/features/alerts/pages/ServiceUserAlertsPage'
-    )
+  it('renders the clinical Medical Alerts record', async () => {
     wrap(<ServiceUserAlertsPage />)
     expect(await screen.findByTestId('su-alerts-page')).toBeInTheDocument()
-    expect(
-      screen.getByRole('heading', { name: /Anna's Medical Conditions & Alerts/i }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Anna's Medical Alerts/i })).toBeInTheDocument()
     expect(screen.getByTestId('medical-conditions-checklist')).toBeInTheDocument()
-    expect(screen.getByTestId('su-alerts-medical')).toBeInTheDocument()
-    expect(screen.getByTestId('clinical-gate-dnacpr')).toBeInTheDocument()
-    expect(screen.getByTestId('clinical-gate-risk-level')).toBeInTheDocument()
-    expect(screen.getByTestId('clinical-gate-allergies')).toBeInTheDocument()
+    for (const id of ['conditions', 'adjustments', 'history', 'alerts', 'parameters']) {
+      expect(screen.getByTestId(`alerts-tab-${id}`)).toBeInTheDocument()
+    }
+    fireEvent.click(screen.getByTestId('alerts-tab-alerts'))
+    expect(await screen.findByTestId('medical-alerts-section')).toBeInTheDocument()
     expect(screen.queryByTestId('su-alerts-operational')).not.toBeInTheDocument()
     expect(screen.queryByTestId('su-alerts-history')).not.toBeInTheDocument()
   })
 
-  it('shows clinical allergies without an operational alerts section', async () => {
-    medicalSafetyMockState.allergies = [
+  it('shows structured medical alerts without an operational alerts section', async () => {
+    vi.mocked(listMedicalAlerts).mockResolvedValueOnce([
       {
-        id: 'allergy-1',
-        severity: 'HIGH',
+        id: 'alert-1',
+        serviceUserId: 'su-1',
         title: 'Latex',
+        category: 'GENERAL_ALERT',
+        severity: 'CRITICAL',
         description: 'Allergy recorded',
-        sourceLabel: 'Service user allergies',
-        updatedAt: null,
-        link: null,
-        group: 'allergies',
-        kind: 'clinical',
+        actionForCarer: 'Use latex-free gloves',
+        notes: '',
+        isActive: true,
+        source: 'MANUAL',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
       },
-    ]
-    const { default: ServiceUserAlertsPage } = await import(
-      '@/features/alerts/pages/ServiceUserAlertsPage'
-    )
+    ] as never)
     wrap(<ServiceUserAlertsPage />)
-    expect(await screen.findByTestId('su-alerts-medical')).toBeInTheDocument()
-    expect(await screen.findByTestId('clinical-gate-view-suggestion-allergies')).toBeInTheDocument()
-    screen.getByTestId('clinical-gate-view-suggestion-allergies').click()
-    expect(await screen.findByText(/Latex/)).toBeInTheDocument()
+    fireEvent.click(await screen.findByTestId('alerts-tab-alerts'))
+    expect(await screen.findByTestId('medical-alert-row-alert-1')).toBeInTheDocument()
+    expect(screen.getByText('Latex')).toBeInTheDocument()
     expect(screen.queryByTestId('su-alerts-operational')).not.toBeInTheDocument()
     expect(screen.queryByTestId('su-alerts-history')).not.toBeInTheDocument()
   })

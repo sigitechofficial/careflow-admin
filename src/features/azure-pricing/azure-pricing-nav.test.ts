@@ -3,8 +3,12 @@ import { adminNavItems, filterNavByPermission } from '@/components/layout/Sideba
 import type { Permission } from '@/features/auth/types'
 import { isAzurePricingTabId } from '@/features/azure-pricing/types'
 
+/** Top-level and child labels (Azure Pricing lives under Administration › Platform). */
 function labelsFor(perms: Permission[]) {
-  return filterNavByPermission(adminNavItems, p => perms.includes(p), 'admin').map(i => i.label)
+  return filterNavByPermission(adminNavItems, p => perms.includes(p), 'admin').flatMap(i => [
+    i.label,
+    ...(i.children ?? []).map(ch => ch.label),
+  ])
 }
 
 describe('Azure Pricing navigation', () => {

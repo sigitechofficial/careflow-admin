@@ -7,6 +7,7 @@ import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
+import { DateInput } from '@/shared/ui/date-time-input'
 import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
 import { useEmployees } from '@/features/employees/hooks/useEmployees'
 import type { CheckAnswer, MockInspectionDetail } from '../types'
@@ -155,7 +156,7 @@ export function AddActionDialog({
             />
           </FieldWithInfo>
           <FieldWithInfo id="mock-action-due" label="Due by (optional)" help={HELP.actionDue}>
-            <Input id="mock-action-due" type="date" value={dueAt} onChange={e => setDueAt(e.target.value)} />
+            <DateInput id="mock-action-due" value={dueAt} onChange={e => setDueAt(e.target.value)} />
           </FieldWithInfo>
           <FieldWithInfo id="mock-action-detail" label="Details (optional)" help={HELP.actionDetail}>
             <textarea

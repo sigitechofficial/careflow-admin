@@ -139,7 +139,7 @@ describe('CarePathwayFormRenderer hybrid UI', () => {
     )
 
     expect(screen.getByTestId('care-plan-suggestion-sec-access:personal-care')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /use suggestion/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^accept$/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument()
     expect(screen.getByTestId('care-plan-section-ia-hint')).toHaveTextContent(
       /1 IA recommendation available/i,
@@ -162,7 +162,7 @@ describe('CarePathwayFormRenderer hybrid UI', () => {
     )
 
     expect(screen.getByTestId('care-plan-suggestion-sec-access:personal-care')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /use suggestion/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^accept$/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument()
     expect(screen.getByTestId('care-plan-field-review-sec-access:personal-care')).toBeInTheDocument()
   })
@@ -179,7 +179,7 @@ describe('CarePathwayFormRenderer hybrid UI', () => {
 
     expect(screen.queryByTestId('care-plan-suggestion-sec-access:personal-care')).not.toBeInTheDocument()
     expect(screen.queryByText(/IA Recommendation/i)).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /use suggestion/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^accept$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /dismiss/i })).not.toBeInTheDocument()
     expect(screen.queryByTestId('care-plan-section-ia-hint')).not.toBeInTheDocument()
   })
@@ -211,7 +211,7 @@ describe('CarePathwayFormRenderer hybrid UI', () => {
 
     expect(screen.getByDisplayValue('Bathing: assistance of one person')).toBeInTheDocument()
     expect(screen.queryByTestId('care-plan-suggestion-sec-access:personal-care')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /use suggestion/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^accept$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /ignore/i })).not.toBeInTheDocument()
   })
 

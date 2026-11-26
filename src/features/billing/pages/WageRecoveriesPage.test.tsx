@@ -19,7 +19,7 @@ const state = vi.hoisted(() => ({
 
 vi.mock('@/features/auth/store', () => ({
   useAuthStore: (selector: (s: unknown) => unknown) =>
-    selector({ can: (p: string) => state.permissions.includes(p), user: { id: state.userId } }),
+    selector({ can: (p: string) => state.permissions.includes(p), user: { id: state.userId }, makerCheckerUserId: () => state.userId }),
 }))
 vi.mock('@/shared/lib/toast', () => ({ toastApiError: vi.fn(), toastSuccess: vi.fn() }))
 vi.mock('@/features/billing/hooks/useWageRecoveries', () => ({
@@ -229,9 +229,9 @@ describe('wage recoveries screen (Sprint B4A, Task 1)', () => {
     expect(screen.queryByTestId('recovery-reject-form')).toBeNull()
     const history = within(screen.getByTestId('recovery-history')).getAllByRole('listitem')
     expect(history.map(li => li.textContent)).toEqual([
-      '2026-12-03 proposed by Pat Preparer — Found by UK payroll run December 2026.',
-      '2026-12-04 authorised by Alex Approver — Agreed — authority: clause 9.2 (for £200.00)',
-      '2026-12-20 applied — Deducted once, in UK payroll run December 2026.',
+      '03/12/2026 proposed by Pat Preparer — Found by UK payroll run December 2026.',
+      '04/12/2026 authorised by Alex Approver — Agreed — authority: clause 9.2 (for £200.00)',
+      '20/12/2026 applied — Deducted once, in UK payroll run December 2026.',
     ])
   })
 

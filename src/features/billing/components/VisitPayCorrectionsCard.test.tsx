@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 
 import type { VisitPayCorrectionHistory } from '@/features/billing/types/pay-items.types'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 
 const state = vi.hoisted(() => ({
   history: null as unknown,
@@ -15,7 +16,7 @@ const state = vi.hoisted(() => ({
 
 vi.mock('@/features/auth/store', () => ({
   useAuthStore: (selector: (s: unknown) => unknown) =>
-    selector({ can: (p: string) => state.permissions.includes(p), user: { id: state.userId } }),
+    selector({ can: (p: string) => state.permissions.includes(p), user: { id: state.userId }, makerCheckerUserId: () => state.userId }),
 }))
 vi.mock('@/features/billing/hooks/usePayItems', () => {
   const mutation = (fn: (...args: unknown[]) => unknown) => ({ mutateAsync: fn, isPending: false })
@@ -55,7 +56,12 @@ const history = (over: Partial<VisitPayCorrectionHistory> = {}): VisitPayCorrect
   items: [],
   ...over,
 })
-const show = () => render(<VisitPayCorrectionsCard visitReconciliationId="visit-1" />)
+const show = () =>
+  render(
+    <TooltipProvider>
+      <VisitPayCorrectionsCard visitReconciliationId="visit-1" />
+    </TooltipProvider>,
+  )
 
 describe('VisitPayCorrectionsCard (R-01)', () => {
   beforeEach(() => {
@@ -188,6 +194,7 @@ describe('VisitPayCorrectionsCard (R-01)', () => {
     state.history = history({ items: [item({ status: 'APPROVED', displayStatus: 'SETTLED', canReverse: true })] })
     show()
     expect(screen.getByTestId('visit-pay-correction-history')).toBeInTheDocument()
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    // The only button is the section's ⓘ explanation, which is not an action.
+    expect(screen.getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual(['About Pay corrections'])
   })
 })

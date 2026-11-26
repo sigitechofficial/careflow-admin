@@ -15,7 +15,11 @@ const state = vi.hoisted(() => ({
 
 vi.mock('@/features/auth/store', () => ({
   useAuthStore: (selector: (s: unknown) => unknown) =>
-    selector({ can: (p: string) => state.permissions.includes(p), user: { id: state.userId } }),
+    selector({
+      can: (p: string) => state.permissions.includes(p),
+      user: { id: state.userId },
+      makerCheckerUserId: () => state.userId,
+    }),
 }))
 vi.mock('@/shared/lib/toast', () => ({ toastApiError: vi.fn(), toastSuccess: vi.fn() }))
 vi.mock('@/features/payroll/hooks/usePayroll', () => ({

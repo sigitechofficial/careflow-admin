@@ -106,6 +106,7 @@ const medicalApi = vi.hoisted(() => ({
   upsertUsual: vi.fn(),
   updateUsual: vi.fn(),
   deactivateUsual: vi.fn(),
+  listAlerts: vi.fn(),
 }))
 
 vi.mock('@/features/alerts/api/medical-clinical.api', () => ({
@@ -130,6 +131,10 @@ vi.mock('@/features/alerts/api/medical-clinical.api', () => ({
   upsertUsualParameter: (...a: unknown[]) => medicalApi.upsertUsual(...a),
   updateUsualParameter: (...a: unknown[]) => medicalApi.updateUsual(...a),
   deactivateUsualParameter: (...a: unknown[]) => medicalApi.deactivateUsual(...a),
+  listMedicalAlerts: (...a: unknown[]) => medicalApi.listAlerts(...a),
+  createMedicalAlert: vi.fn(),
+  updateMedicalAlert: vi.fn(),
+  deactivateMedicalAlert: vi.fn(),
   fetchMedicalSafetySummary: vi.fn(async () => ({ serviceUserId: 'su-1' })),
 }))
 
@@ -199,6 +204,10 @@ const ALL_PERMS = [
   'service_users.medical_monitoring.update',
   'service_users.medical_usual_parameters.read',
   'service_users.medical_usual_parameters.update',
+  'service_users.medical_alerts.read',
+  'service_users.medical_alerts.create',
+  'service_users.medical_alerts.update',
+  'service_users.medical_alerts.delete',
 ]
 
 function renderWithClient(ui: React.ReactNode) {
@@ -232,19 +241,27 @@ describe('Phase 5 Medical Conditions & Alerts clinical UI', () => {
     medicalApi.listHistory.mockResolvedValue([])
     medicalApi.listMonitoring.mockResolvedValue([])
     medicalApi.listUsual.mockResolvedValue([])
+    medicalApi.listAlerts.mockResolvedValue([])
   })
 
   it('page loads clinical record hierarchy without operational alerts', async () => {
     renderWithClient(<ServiceUserAlertsPage />)
     expect(await screen.findByTestId('su-alerts-page')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Jane's Medical Alerts/i })).toBeInTheDocument()
     expect(screen.getByTestId('medical-conditions-checklist')).toBeInTheDocument()
-    expect(screen.getByTestId('reasonable-adjustments-clinical')).toBeInTheDocument()
-    expect(screen.getByTestId('medical-history-clinical')).toBeInTheDocument()
-    expect(screen.getByTestId('su-alerts-medical')).toBeInTheDocument()
-    expect(screen.getByTestId('service-user-parameters')).toBeInTheDocument()
+    expect(screen.getByTestId('medical-conditions-section')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('alerts-tab-adjustments'))
+    expect(await screen.findByTestId('reasonable-adjustments-clinical')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('alerts-tab-history'))
+    expect(await screen.findByTestId('medical-history-clinical')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('alerts-tab-alerts'))
+    expect(await screen.findByTestId('medical-alerts-section')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('alerts-tab-parameters'))
+    expect(await screen.findByTestId('service-user-parameters')).toBeInTheDocument()
+
     expect(screen.queryByTestId('su-alerts-operational')).not.toBeInTheDocument()
     expect(screen.queryByTestId('su-alerts-history')).not.toBeInTheDocument()
-    expect(screen.getByText(/Medical Conditions & Alerts/i)).toBeInTheDocument()
     expect(screen.queryByTestId('su-alerts-immediate')).not.toBeInTheDocument()
   })
 
@@ -489,7 +506,9 @@ describe('Phase 5 Medical Conditions & Alerts clinical UI', () => {
     medicalApi.catalog.mockRejectedValue(new ApiError('fail', 500))
     renderWithClient(<ServiceUserAlertsPage />)
     await screen.findByTestId('su-alerts-page')
-    expect(screen.getByTestId('su-alerts-medical')).toBeInTheDocument()
+    expect(await screen.findByText(/Unable to load medical conditions/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('alerts-tab-alerts'))
+    expect(await screen.findByTestId('medical-alerts-section')).toBeInTheDocument()
     expect(screen.queryByTestId('su-alerts-operational')).not.toBeInTheDocument()
   })
 })

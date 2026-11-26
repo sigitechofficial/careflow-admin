@@ -105,9 +105,10 @@ describe('buildScheduleJobsBoard', () => {
 
 describe('jobBlockLayoutPx', () => {
   it('sizes the bar from visit duration, not label length', () => {
+    // 08:00–09:00 in the organisation timezone (Europe/London, BST in June).
     const job: Pick<TimelineJob, 'scheduledStartDateTime' | 'scheduledEndDateTime' | 'durationMinutes'> = {
-      scheduledStartDateTime: '2026-06-18T08:00:00.000Z',
-      scheduledEndDateTime: '2026-06-18T09:00:00.000Z',
+      scheduledStartDateTime: '2026-06-18T07:00:00.000Z',
+      scheduledEndDateTime: '2026-06-18T08:00:00.000Z',
       durationMinutes: 60,
     }
     const layout = jobBlockLayoutPx(job)

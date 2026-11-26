@@ -19,6 +19,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import type { MockInspectionTemplate, TemplateGuidance } from '../types'
@@ -307,7 +308,7 @@ function ReadPage({ t }: { t: MockInspectionTemplate }) {
               <h2 className="text-sm font-semibold text-foreground">Sources</h2>
             </div>
             <p className="leading-relaxed">
-              Researched {t.researchedOn}. The guidance is CareFlow&apos;s own wording based on CQC&apos;s single
+              Researched {formatOrganisationDate(t.researchedOn)}. The guidance is CareFlow&apos;s own wording based on CQC&apos;s single
               assessment framework; check CQC&apos;s website for its latest guidance.
             </p>
             {t.sources.length ? (

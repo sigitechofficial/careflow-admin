@@ -334,8 +334,96 @@ export const CATALOG_PAGES: CatalogPage[] = [
     ]
   },
   {
+    "path": "/governance/audits",
+    "title": "Audits",
+    "permissions": [
+      "quality_audits.read"
+    ]
+  },
+  {
+    "path": "/governance/audits/mine",
+    "title": "My audits",
+    "permissions": [
+      "quality_audits.read"
+    ]
+  },
+  {
+    "path": "/governance/audits/reports",
+    "title": "Audit reports",
+    "permissions": [
+      "quality_audits.read"
+    ]
+  },
+  {
+    "path": "/governance/audits/schedules",
+    "title": "Audit schedules",
+    "permissions": [
+      "quality_audits.read"
+    ]
+  },
+  {
+    "path": "/governance/audits/templates",
+    "title": "Audit templates",
+    "permissions": [
+      "quality_audits.read"
+    ]
+  },
+  {
+    "path": "/governance/audits/templates/new",
+    "title": "Create a new audit template",
+    "permissions": [
+      "quality_audits.manage"
+    ]
+  },
+  {
+    "path": "/governance/cqc-dashboard",
+    "title": "CQC dashboard",
+    "permissions": [
+      "cqc_evidence.read",
+      "cqc_mock_inspection.read",
+      "cqc_notifications.read"
+    ]
+  },
+  {
+    "path": "/governance/cqc-evidence",
+    "title": "CQC evidence",
+    "permissions": [
+      "cqc_evidence.read"
+    ]
+  },
+  {
+    "path": "/governance/cqc-notifications",
+    "title": "CQC notifications",
+    "permissions": [
+      "cqc_notifications.read"
+    ]
+  },
+  {
+    "path": "/governance/cqc-reports",
+    "title": "CQC reports",
+    "permissions": [
+      "cqc_evidence.read",
+      "cqc_mock_inspection.read",
+      "cqc_notifications.read"
+    ]
+  },
+  {
+    "path": "/governance/mock-inspections",
+    "title": "Mock CQC inspection",
+    "permissions": [
+      "cqc_mock_inspection.read"
+    ]
+  },
+  {
     "path": "/governance/mock-inspections/ready-made",
     "title": "Ready-made inspections",
+    "permissions": [
+      "cqc_mock_inspection.read"
+    ]
+  },
+  {
+    "path": "/governance/mock-inspections/settings",
+    "title": "CQC settings",
     "permissions": [
       "cqc_mock_inspection.read"
     ]

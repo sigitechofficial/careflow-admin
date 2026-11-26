@@ -14,7 +14,8 @@ const state = vi.hoisted(() => ({
 }))
 
 vi.mock('@/features/auth/store', () => ({
-  useAuthStore: (selector: (s: unknown) => unknown) => selector({ can: () => true, user: { id: state.userId } }),
+  useAuthStore: (selector: (s: unknown) => unknown) =>
+    selector({ can: () => true, user: { id: state.userId }, makerCheckerUserId: () => state.userId }),
 }))
 vi.mock('@/features/payroll/hooks/usePayroll', () => ({
   useLeavePosition: () => ({ data: state.position }),

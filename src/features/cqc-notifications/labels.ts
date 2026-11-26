@@ -1,4 +1,5 @@
 import type { BadgeProps } from '@/shared/ui/badge'
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 import type { CqcNotificationStatus, CqcSubmissionMethod } from './types'
 
 export const STATUS_LABEL: Record<CqcNotificationStatus, string> = {
@@ -54,13 +55,8 @@ export function fromLocalInput(value: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
+/** Date and time in the organisation's format and time zone (Settings › General). */
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatOrganisationDateTime(iso)
 }

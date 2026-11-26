@@ -25,6 +25,8 @@ vi.mock('@/features/billing/hooks/useWageTypes', () => ({
   useUpdateBankHoliday: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useImportBankHolidays: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSetHolidayPremiumBasis: () => ({ mutateAsync: state.setBasis, isPending: false }),
+  useDayPriority: () => ({ data: undefined, isLoading: false, error: null }),
+  useSetDayPriority: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 vi.mock('@/shared/lib/toast', () => ({ toastApiError: vi.fn(), toastSuccess: vi.fn() }))
 
