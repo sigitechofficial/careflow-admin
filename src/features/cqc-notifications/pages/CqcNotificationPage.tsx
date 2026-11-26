@@ -25,6 +25,7 @@ import { PageHeader } from '@/shared/ui/page-elements'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 import { feedbackSelectClass, feedbackTextareaClass } from '@/features/complaints/components/FeedbackFormDialog'
 import { EmployeePicker, ServiceUserPicker } from '@/features/complaints/components/FeedbackPickers'
 import { FieldWithInfo, InfoTip } from '@/features/cqc-mock-inspection/components/InfoTip'
@@ -165,9 +166,8 @@ function DetailInput({
         <option value="no">No</option>
       </select>
     ) : field.kind === 'datetime' ? (
-      <Input
+      <DateTimeInput
         id={id}
-        type="datetime-local"
         value={toLocalInput(typeof value === 'string' ? value : null)}
         onChange={e => onChange(fromLocalInput(e.target.value))}
       />
@@ -264,18 +264,16 @@ function NotificationForm({
           <ServiceUserPicker value={form.serviceUser} onChange={v => set('serviceUser', v)} testId="cqcn-form-su" />
         </FieldWithInfo>
         <FieldWithInfo id="cqcn-form-event" label="When it happened" help={HELP.eventOccurred}>
-          <Input
+          <DateTimeInput
             id="cqcn-form-event"
-            type="datetime-local"
             value={form.eventOccurredAt}
             onChange={e => set('eventOccurredAt', e.target.value)}
             data-testid="cqcn-form-event"
           />
         </FieldWithInfo>
         <FieldWithInfo id="cqcn-form-aware" label="When the service became aware" help={HELP.becameAware}>
-          <Input
+          <DateTimeInput
             id="cqcn-form-aware"
-            type="datetime-local"
             value={form.becameAwareAt}
             onChange={e => set('becameAwareAt', e.target.value)}
           />

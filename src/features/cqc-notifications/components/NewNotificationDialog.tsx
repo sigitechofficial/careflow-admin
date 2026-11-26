@@ -5,7 +5,7 @@ import { feedbackSelectClass } from '@/features/complaints/components/FeedbackFo
 import { FieldWithInfo } from '@/features/cqc-mock-inspection/components/InfoTip'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
-import { Input } from '@/shared/ui/input'
+import { DateTimeInput } from '@/shared/ui/date-time-input'
 import type { CqcNotificationType } from '../types'
 import { useCqcBranchOptions, useCqcNotificationTypes, useCreateCqcNotification } from '../hooks'
 import { fromLocalInput, toLocalInput } from '../labels'
@@ -139,9 +139,8 @@ export function NewNotificationDialog({
           </div>
           {fromRecord ? null : (
             <FieldWithInfo id="cqcn-aware" label="When the service became aware" help={HELP.becameAware}>
-              <Input
+              <DateTimeInput
                 id="cqcn-aware"
-                type="datetime-local"
                 value={aware}
                 onChange={e => setAware(e.target.value)}
                 data-testid="cqc-notification-aware"
