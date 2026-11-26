@@ -326,20 +326,33 @@ export function OfferResponseDialog({
 }) {
   const respond = useCandidateFlowAction(
     candidate.id,
-    (p: { accepted: boolean; notes?: string }) =>
-      candidateFlowApi.respondToOffer(candidate.id, p.accepted, p.notes),
+    (p: { accepted: boolean; notes?: string; notifyCandidate?: boolean }) =>
+      candidateFlowApi.respondToOffer(candidate.id, p.accepted, p.notes, p.notifyCandidate),
   );
   const [notes, setNotes] = React.useState("");
-  React.useEffect(() => setNotes(""), [accepted]);
+  const [notify, setNotify] = React.useState(true);
+  const hasEmail = !!candidate.email;
+  React.useEffect(() => {
+    setNotes("");
+    setNotify(true);
+  }, [accepted]);
 
   async function handleConfirm() {
     if (accepted === null) return;
+    const emailing = !!accepted && hasEmail && notify;
     try {
-      await respond.mutateAsync({ accepted, notes: notes.trim() || undefined });
+      await respond.mutateAsync({
+        accepted,
+        notes: notes.trim() || undefined,
+        ...(accepted ? { notifyCandidate: emailing } : {}),
+      });
       toastSuccess(
         accepted
           ? "Offer accepted — pre-employment checks are ready"
           : "Offer declined",
+        emailing
+          ? `${candidate.email} is being emailed what we need for the checks.`
+          : undefined,
       );
       onOpenChange(false);
     } catch (err) {
@@ -374,6 +387,19 @@ export function OfferResponseDialog({
               onChange={(e) => setNotes(e.target.value)}
             />
           </Field>
+          {accepted ? (
+            <EmailCheckbox
+              checked={hasEmail && notify}
+              disabled={!hasEmail}
+              onChange={setNotify}
+              title="Email the candidate what we need for the checks"
+              hint={
+                hasEmail
+                  ? `To ${candidate.email}. Lists the documents to send or bring, and tells them we will contact their referees.`
+                  : "No email address for this candidate — add one on the Application step."
+              }
+            />
+          ) : null}
         </DialogBody>
         <DialogFooter>
           <Button

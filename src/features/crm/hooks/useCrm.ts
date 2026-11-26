@@ -11,6 +11,7 @@ import {
   fetchQuoteFunders,
   startEnquiryInitialAssessment,
   createEnquiryPreAdmission,
+  activateEnquiryServiceUser,
   getEnquiry,
   getEnquirySummary,
   listEnquiries,
@@ -138,6 +139,16 @@ export function useCreateEnquiryPreAdmission(id: string) {
   return useMutation({
     mutationFn: () => createEnquiryPreAdmission(id),
     // A new service user: the service user lists refresh too.
+    onSuccess: () => Promise.all([invalidate(), qc.invalidateQueries({ queryKey: serviceUserKeys.all() })]),
+  })
+}
+
+/** Mark as won + active service user from the enquiry. */
+export function useActivateEnquiryServiceUser(id: string) {
+  const invalidate = useInvalidateAll()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => activateEnquiryServiceUser(id),
     onSuccess: () => Promise.all([invalidate(), qc.invalidateQueries({ queryKey: serviceUserKeys.all() })]),
   })
 }

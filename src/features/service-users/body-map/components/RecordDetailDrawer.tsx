@@ -45,6 +45,15 @@ type Props = {
   ) => void
   closing?: boolean
   reviewing?: boolean
+  /** Initial assessment placeholder pin: start placing it on the body. */
+  onPlaceOnBody?: () => void
+  /** True while the user is choosing the place on the body. */
+  placingOnBody?: boolean
+}
+
+/** Pin made by the initial assessment that has not been put on the body yet. */
+export function isUnplacedAssessmentMarker(record: BodyMapRecordRow): boolean {
+  return record.markers[0]?.bodyPart === 'To be located'
 }
 
 function photoSrc(url: string): string {
@@ -62,6 +71,8 @@ export function RecordDetailDrawer({
   onAddReview,
   closing,
   reviewing,
+  onPlaceOnBody,
+  placingOnBody,
 }: Props) {
   const qc = useQueryClient()
   const permissions = useAuthStore(s => s.user?.permissions) ?? []
@@ -221,6 +232,21 @@ export function RecordDetailDrawer({
               </span>
             ) : null}
           </p>
+        ) : null}
+        {canUpdate && onPlaceOnBody && isUnplacedAssessmentMarker(record) ? (
+          <div
+            className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-950"
+            data-testid="body-map-place-on-body"
+          >
+            <p className="text-sm">
+              {placingOnBody
+                ? 'Now click on the Front & back body where this is. The pin moves there.'
+                : 'This pin is not on the body yet. Put it where the wound or sore is.'}
+            </p>
+            <Button type="button" size="sm" variant={placingOnBody ? 'outline' : 'default'} onClick={onPlaceOnBody}>
+              {placingOnBody ? 'Cancel' : 'Place on body'}
+            </Button>
+          </div>
         ) : null}
         {record.description ? (
           <div>

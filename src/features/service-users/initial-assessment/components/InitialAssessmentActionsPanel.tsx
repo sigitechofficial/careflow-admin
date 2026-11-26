@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { cn } from '@/shared/lib/utils'
+import { SectionIntro } from '@/shared/ui/section-intro'
 import {
   useCreateInitialAssessmentAction,
   useInitialAssessmentActions,
@@ -92,6 +93,19 @@ export function InitialAssessmentActionsPanel({
           </div>
         ) : null}
       </div>
+
+      <SectionIntro
+        className="mx-4 mt-3"
+        testId="ia-action-register-intro"
+        purpose="Jobs that must be done because of what this assessment found, so nothing is forgotten."
+        steps={[
+          'When the assessment is submitted, answers marked RISK or CARE PLAN create actions by themselves (marked "Auto").',
+          'Each action has a priority and a due date. Do Urgent and High ones first.',
+          'Change the status as you work: Open → In progress → Completed, or Cancelled if it is not needed.',
+          'Use "Add action" for anything else, and "Sync from flags" after changing answers.',
+          'The same actions show on the care plan (Care actions tab) and are kept as evidence for inspections.',
+        ]}
+      />
 
       {actionsQuery.isLoading ? (
         <div className="flex items-center gap-2 px-4 py-8 text-sm text-muted-foreground">

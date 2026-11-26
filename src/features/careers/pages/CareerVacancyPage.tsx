@@ -41,6 +41,7 @@ import {
   postedAgo,
   submitApplication,
   type ApplicationInput,
+  type ApplicationReferee,
   type PublicVacancy,
 } from '@/features/careers/api/careers.api'
 import {
@@ -175,6 +176,52 @@ function QuestionField({
   )
 }
 
+const EMPTY_REFEREE: ApplicationReferee = { name: '', relationship: '', organisation: '', email: '', phone: '' }
+
+/** One referee's details on the application form. */
+function RefereeFields({
+  index,
+  value,
+  onChange,
+}: {
+  index: number
+  value: ApplicationReferee
+  onChange: (v: ApplicationReferee) => void
+}) {
+  const id = (field: string) => `ap-ref${index}-${field}`
+  const set = (key: keyof ApplicationReferee) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    onChange({ ...value, [key]: e.target.value })
+  return (
+    <div className="space-y-4 rounded-xl border border-border p-4">
+      <p className="text-sm font-semibold">Referee {index + 1}</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Full name" htmlFor={id('name')} required>
+          <Input id={id('name')} value={value.name} onChange={set('name')} maxLength={200} required />
+        </Field>
+        <Field label="How do they know you?" htmlFor={id('relationship')} required>
+          <Input
+            id={id('relationship')}
+            placeholder="e.g. Line manager"
+            value={value.relationship}
+            onChange={set('relationship')}
+            maxLength={200}
+            required
+          />
+        </Field>
+        <Field label="Organisation" htmlFor={id('organisation')}>
+          <Input id={id('organisation')} value={value.organisation ?? ''} onChange={set('organisation')} maxLength={200} />
+        </Field>
+        <Field label="Email" htmlFor={id('email')} required>
+          <Input id={id('email')} type="email" value={value.email} onChange={set('email')} maxLength={200} required />
+        </Field>
+        <Field label="Phone" htmlFor={id('phone')}>
+          <Input id={id('phone')} type="tel" value={value.phone ?? ''} onChange={set('phone')} maxLength={40} />
+        </Field>
+      </div>
+    </div>
+  )
+}
+
 function ApplicationForm({ job, onDone }: { job: PublicVacancy; onDone: (email: string) => void }) {
   const vacancyId = job.id
   const jobTitle = job.title
@@ -191,6 +238,7 @@ function ApplicationForm({ job, onDone }: { job: PublicVacancy; onDone: (email: 
   })
   const [rightToWork, setRightToWork] = React.useState<boolean | null>(null)
   const [drives, setDrives] = React.useState<boolean | null>(null)
+  const [referees, setReferees] = React.useState<ApplicationReferee[]>([EMPTY_REFEREE, EMPTY_REFEREE])
   const [consent, setConsent] = React.useState(false)
   const [cv, setCv] = React.useState<File | null>(null)
   const [error, setError] = React.useState<string | null>(null)
@@ -228,6 +276,22 @@ function ApplicationForm({ job, onDone }: { job: PublicVacancy; onDone: (email: 
       setError('Please tell us if you have the right to work in the UK.')
       return
     }
+    const refs = referees.map(r => ({
+      name: r.name.trim(),
+      relationship: r.relationship.trim(),
+      organisation: r.organisation?.trim() || undefined,
+      email: r.email.trim(),
+      phone: r.phone?.trim() || undefined,
+    }))
+    const incomplete = refs.findIndex(r => !r.name || !r.relationship || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email))
+    if (incomplete >= 0) {
+      setError(`Please give the name, how they know you and a valid email for referee ${incomplete + 1}.`)
+      return
+    }
+    if (refs[0]?.email.toLowerCase() === refs[1]?.email.toLowerCase()) {
+      setError('Please give two different referees.')
+      return
+    }
     if (job.cvRequirement === 'REQUIRED' && !cv) {
       setError('Please attach your CV.')
       return
@@ -246,6 +310,7 @@ function ApplicationForm({ job, onDone }: { job: PublicVacancy; onDone: (email: 
         ? { answers: Object.fromEntries(Object.entries(answers).filter(([, v]) => v.trim())) }
         : { hasRightToWork: rightToWork ?? undefined, drivesForWork: drives ?? undefined }),
       coverLetter: form.coverLetter.trim() || undefined,
+      referees: refs,
       consent,
       website: form.website,
       cv,
@@ -293,7 +358,28 @@ function ApplicationForm({ job, onDone }: { job: PublicVacancy; onDone: (email: 
         )}
       </FormSection>
 
-      <FormSection number={3} title={job.cvRequirement === 'HIDDEN' ? 'About you' : 'Your CV and a few words'}>
+      <FormSection
+        number={3}
+        title="Your references"
+        description="We only contact them if we offer you the job."
+      >
+        <p className="text-sm text-muted-foreground">
+          Two people who can vouch for you. One should be your most recent employer, and include your last care employer if
+          you have worked in care. If you have not worked before, a teacher or another non-family contact is fine.
+        </p>
+        <div className="space-y-4">
+          {referees.map((r, i) => (
+            <RefereeFields
+              key={i}
+              index={i}
+              value={r}
+              onChange={v => setReferees(list => list.map((x, j) => (j === i ? v : x)))}
+            />
+          ))}
+        </div>
+      </FormSection>
+
+      <FormSection number={4} title={job.cvRequirement === 'HIDDEN' ? 'About you' : 'Your CV and a few words'}>
         {job.cvRequirement === 'HIDDEN' ? null : (
           <Field
             label="Your CV"

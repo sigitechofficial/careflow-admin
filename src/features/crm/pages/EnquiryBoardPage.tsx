@@ -12,6 +12,7 @@ import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { CrmSectionLayout } from '@/features/crm/components/CrmSectionLayout'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useEnquiries, useEnquiryOwners, useMoveAnyEnquiry } from '@/features/crm/hooks/useCrm'
+import { MarkWonDialog } from '@/features/crm/components/MarkWonDialog'
 import {
   BOARD_STAGES,
   LOST_REASON_LABELS,
@@ -221,6 +222,7 @@ function EnquiryCard({
 export default function EnquiryBoardPage() {
   const navigate = useNavigate()
   const canManage = useAuthStore(s => s.can)('crm.manage')
+  const canCreateServiceUser = useAuthStore(s => s.can)('service_users.create')
   const { locationId: headerLocationId } = useGlobalLocationScope()
   const { data: enquiries, isLoading } = useEnquiries(headerLocationId ? { locationId: headerLocationId } : undefined)
   const { data: owners = [] } = useEnquiryOwners()
@@ -246,6 +248,7 @@ export default function EnquiryBoardPage() {
   const [overStage, setOverStage] = React.useState<EnquiryStage | null>(null)
   const [pendingMoves, setPendingMoves] = React.useState<Record<string, EnquiryStage>>({})
   const [losing, setLosing] = React.useState<Enquiry | null>(null)
+  const [winning, setWinning] = React.useState<Enquiry | null>(null)
   const [reasonCode, setReasonCode] = React.useState<EnquiryLostReason | ''>('')
   const [reason, setReason] = React.useState('')
   const needsDetail = reasonCode === 'OTHER'
@@ -289,6 +292,8 @@ export default function EnquiryBoardPage() {
     if (!e || e.stage === stage) return
     // Lost needs a reason, so it is asked for before the move.
     if (stage === 'LOST') setLosing(e)
+    // Won offers to create the active service user first (same as "Mark as won" on the enquiry).
+    else if (stage === 'WON' && canCreateServiceUser) setWinning(e)
     else moveCard(e, { stage })
   }
 
@@ -541,6 +546,16 @@ export default function EnquiryBoardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {winning && (
+        <MarkWonDialog
+          enquiry={winning}
+          open
+          onClose={() => setWinning(null)}
+          onWonOnly={() => moveCard(winning, { stage: 'WON' }, () => setWinning(null))}
+          movePending={move.isPending}
+        />
+      )}
     </CrmSectionLayout>
   )
 }

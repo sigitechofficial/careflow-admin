@@ -4,6 +4,8 @@ import {
   ArrowRight,
   CheckCircle2,
   FileText,
+  Mail,
+  Send,
   ShieldCheck,
   Upload,
 } from "lucide-react";
@@ -48,6 +50,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { toastApiError, toastSuccess } from "@/shared/lib/toast";
 import { Field, Textarea, scrollToAndFlash } from "./flow-ui";
+import { EmailCheckbox } from "./OfferStep";
 
 import { DateInput } from '@/shared/ui/date-time-input'
 /** What to record for each check: the reference field, the "who / how" field, and whether it has dates. */
@@ -136,6 +139,81 @@ function resolveUrl(path: string) {
   return `${getApiBaseUrl()?.replace(/\/$/, "") ?? ""}${path}`;
 }
 
+/** Reference 1 / 2: email the referee, prefilled from the referees the candidate gave when applying. */
+function RefereeRequest({
+  candidate,
+  check,
+  onSent,
+}: {
+  candidate: CandidateDetail;
+  check: CandidateCheck;
+  onSent: () => void;
+}) {
+  const given = candidate.referees?.[check.type === "REFERENCE_1" ? 0 : 1];
+  const [name, setName] = React.useState(given?.name ?? "");
+  const [email, setEmail] = React.useState(given?.email ?? "");
+  const send = useCandidateFlowAction(candidate.id, () =>
+    candidateFlowApi.requestReference(candidate.id, check.id, {
+      name: name.trim(),
+      email: email.trim(),
+      relationship: given?.relationship || undefined,
+    }),
+  );
+  const done = check.status === "VERIFIED" || check.status === "NOT_REQUIRED";
+  if (done) return null;
+
+  async function handleSend() {
+    try {
+      await send.mutateAsync(undefined);
+      toastSuccess("Reference requested", `Emailed to ${email.trim()}.`);
+      onSent();
+    } catch (err) {
+      toastApiError(err, "Could not email the referee");
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+      <div>
+        <p className="flex items-center gap-1.5 text-sm font-medium">
+          <Mail className="h-3.5 w-3.5" aria-hidden /> Request by email
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {check.requestedAt
+            ? `Last requested ${formatDate(check.requestedAt)}. You can send it again.`
+            : given
+              ? "Prefilled from the referees the candidate gave when applying."
+              : "The candidate did not give referees when applying. Enter the referee's details."}{" "}
+          The email asks about conduct, reliability, safeguarding and why they left.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Referee name" htmlFor="ck-ref-name">
+          <Input id="ck-ref-name" value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Referee email" htmlFor="ck-ref-email">
+          <Input
+            id="ck-ref-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </Field>
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={send.isPending || !name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())}
+        onClick={() => void handleSend()}
+      >
+        <Send className="h-3.5 w-3.5" />{" "}
+        {send.isPending ? "Sending…" : check.requestedAt ? "Send again" : "Send request"}
+      </Button>
+    </div>
+  );
+}
+
 function CheckDialog({
   candidate,
   check,
@@ -214,6 +292,14 @@ function CheckDialog({
           className="flex min-h-0 flex-1 flex-col"
         >
           <DialogBody className="space-y-4">
+            {check.type === "REFERENCE_1" || check.type === "REFERENCE_2" ? (
+              // Closes the dialog once sent, so the unsaved status here cannot overwrite "Requested".
+              <RefereeRequest
+                candidate={candidate}
+                check={check}
+                onSent={() => onOpenChange(false)}
+              />
+            ) : null}
             <Field label="Status">
               <Select
                 value={status}
@@ -365,22 +451,37 @@ export function ClearDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const clear = useCandidateFlowAction(candidate.id, (notes?: string) =>
-    candidateFlowApi.clear(candidate.id, notes),
+  const clear = useCandidateFlowAction(
+    candidate.id,
+    (p: { notes?: string; notifyCandidate: boolean; welcomeMessage?: string }) =>
+      candidateFlowApi.clear(candidate.id, p),
   );
   const [confirmed, setConfirmed] = React.useState(false);
   const [notes, setNotes] = React.useState("");
+  const [notify, setNotify] = React.useState(true);
+  const [welcome, setWelcome] = React.useState("");
+  const hasEmail = !!candidate.email;
   React.useEffect(() => {
     if (open) {
       setConfirmed(false);
       setNotes("");
+      setNotify(true);
+      setWelcome("");
     }
   }, [open]);
 
   async function handleConfirm() {
+    const emailing = hasEmail && notify;
     try {
-      await clear.mutateAsync(notes.trim() || undefined);
-      toastSuccess("Cleared to start");
+      await clear.mutateAsync({
+        notes: notes.trim() || undefined,
+        notifyCandidate: emailing,
+        welcomeMessage: emailing ? welcome.trim() || undefined : undefined,
+      });
+      toastSuccess(
+        "Cleared to start",
+        emailing ? `A welcome email is being sent to ${candidate.email}.` : undefined,
+      );
       onOpenChange(false);
     } catch (err) {
       toastApiError(err, "Could not clear the candidate");
@@ -408,7 +509,7 @@ export function ClearDialog({
             I have reviewed every check and the employment history.{" "}
             {candidate.firstName} is fit and proper to work in this role.
           </label>
-          <Field label="Notes (optional)" htmlFor="clear-notes">
+          <Field label="Notes (staff only, not emailed)" htmlFor="clear-notes">
             <Textarea
               id="clear-notes"
               rows={3}
@@ -416,6 +517,29 @@ export function ClearDialog({
               onChange={(e) => setNotes(e.target.value)}
             />
           </Field>
+          <EmailCheckbox
+            checked={hasEmail && notify}
+            disabled={!hasEmail}
+            onChange={setNotify}
+            title="Email the candidate a welcome"
+            hint={
+              hasEmail
+                ? `To ${candidate.email}. Says they are cleared to start, with the role, start date and hours.`
+                : "No email address for this candidate — add one on the Application step."
+            }
+          />
+          {hasEmail && notify ? (
+            <Field label="Message in the welcome email (optional)" htmlFor="clear-welcome">
+              <Textarea
+                id="clear-welcome"
+                rows={3}
+                maxLength={2000}
+                placeholder="e.g. Please come to our office at 9:30am on your first day for your induction. Bring your bank details."
+                value={welcome}
+                onChange={(e) => setWelcome(e.target.value)}
+              />
+            </Field>
+          ) : null}
         </DialogBody>
         <DialogFooter>
           <Button
@@ -536,6 +660,9 @@ export function ChecksStep({
                 {[
                   c.referenceNumber,
                   c.provider,
+                  c.status === "REQUESTED" && c.requestedAt
+                    ? `requested ${formatDate(c.requestedAt)}`
+                    : null,
                   c.expiryDate ? `expires ${formatDate(c.expiryDate)}` : null,
                   c.verifiedAt
                     ? `verified ${formatDate(c.verifiedAt)}${c.verifiedByName ? ` by ${c.verifiedByName}` : ""}`

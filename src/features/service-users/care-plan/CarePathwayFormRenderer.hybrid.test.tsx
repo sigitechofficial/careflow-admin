@@ -3,8 +3,8 @@ import { CarePathwayFormRenderer } from '@/features/service-users/care-plan/Care
 import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.types'
 import type { CarePlanFieldSuggestion } from '@/features/service-users/care-plans/types'
 
-vi.mock('@/shared/ui/summernote-editor', () => ({
-  SummernoteEditor: ({ value }: { value?: string }) => (
+vi.mock('@/shared/ui/summernote-custom-editor', () => ({
+  SummernoteCustomEditor: ({ value }: { value?: string }) => (
     <textarea data-testid="summernote-stub" readOnly value={value ?? ''} />
   ),
 }))

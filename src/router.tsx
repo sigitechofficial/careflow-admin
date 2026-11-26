@@ -51,6 +51,7 @@ import ServiceUserMedicationPage from '@/features/service-users/pages/ServiceUse
 import ServiceUserInitialAssessmentPage from '@/features/service-users/pages/ServiceUserInitialAssessmentPage'
 import ServiceUserCarePlanPage from '@/features/service-users/pages/ServiceUserCarePlanPage'
 import ServiceUserCarePlanFormPage from '@/features/service-users/pages/ServiceUserCarePlanFormPage'
+import ServiceUserCarePlanViewPage from '@/features/service-users/pages/ServiceUserCarePlanViewPage'
 import type { CarePlanIncidentContext } from '@/features/incidents/components/CarePlanMeasureEvidence'
 import ServiceUserVisitPlanPage from '@/features/service-users/pages/ServiceUserVisitPlanPage'
 import ServiceUserTasksPlannerPage from '@/features/service-users/pages/ServiceUserTasksPlannerPage'
@@ -658,7 +659,7 @@ function AppRootShell() {
                 ? 'Body Map Review Queue'
               : pathname === '/care-plans/reviews'
                 ? 'Care Plan Reviews'
-            : /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname)
+            : /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+(\/view)?)?$/.test(pathname)
               ? 'Care Plan'
             : /^\/service-users\/[^/]+\/visit-plan$/.test(pathname)
               ? 'Visit Plan'
@@ -695,7 +696,7 @@ function AppRootShell() {
     /^\/service-users\/[^/]+\/ecm$/.test(pathname) ||
     /^\/service-users\/[^/]+\/body-map$/.test(pathname) ||
     /^\/service-users\/[^/]+\/documents$/.test(pathname) ||
-    /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+(\/view)?)?$/.test(pathname) ||
     /^\/service-users\/[^/]+\/visit-plan$/.test(pathname) ||
     /^\/service-users\/[^/]+\/activity$/.test(pathname) ||
     /^\/service-users\/[^/]+\/tasks-planner$/.test(pathname) ||
@@ -1296,11 +1297,16 @@ const serviceUsersCarePlanFormRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/care-plan/forms/$formId',
   // Opened from an incident "Care plan update" measure: publish links the new version to it.
-  validateSearch: (raw: Record<string, unknown>): Partial<CarePlanIncidentContext> => {
+  // Opened from an Initial Assessment recommendation (`iaSubmissionId`): back and publish return there.
+  validateSearch: (
+    raw: Record<string, unknown>,
+  ): Partial<CarePlanIncidentContext> & { iaSubmissionId?: string } => {
     const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+    const iaSubmissionId = str(raw.iaSubmissionId)
+    const fromIa = iaSubmissionId && /^[0-9a-f-]{36}$/i.test(iaSubmissionId) ? { iaSubmissionId } : {}
     const incidentId = str(raw.incidentId)
     const incidentActionId = str(raw.incidentActionId)
-    if (!incidentId || !incidentActionId) return {}
+    if (!incidentId || !incidentActionId) return fromIa
     return {
       incidentId,
       incidentActionId,
@@ -1313,6 +1319,17 @@ const serviceUsersCarePlanFormRoute = createRoute({
     prefetchServiceUserCarePlanFormRoute(qc, serviceUserId, formId)
   },
   component: ServiceUserCarePlanFormPage,
+})
+
+/** The published care plan as a read-only document. */
+const serviceUsersCarePlanViewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/care-plan/forms/$formId/view',
+  beforeLoad: requirePermission('service_users.read'),
+  loader: ({ context: { queryClient: qc }, params: { serviceUserId, formId } }) => {
+    prefetchServiceUserCarePlanFormRoute(qc, serviceUserId, formId)
+  },
+  component: ServiceUserCarePlanViewPage,
 })
 
 const serviceUsersTasksPlannerRoute = createRoute({
@@ -3339,6 +3356,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersInitialAssessmentPerUserRoute,
     serviceUsersCarePlanRoute,
     serviceUsersCarePlanFormRoute,
+    serviceUsersCarePlanViewRoute,
     serviceUsersTasksPlannerRoute,
     serviceUsersVisitPlanRoute,
     serviceUsersActivityRoute,

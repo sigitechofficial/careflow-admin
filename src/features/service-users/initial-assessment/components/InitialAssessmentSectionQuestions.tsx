@@ -268,7 +268,8 @@ export function InitialAssessmentSectionQuestions({
         />
       )
     }
-    if (fieldKeyOf(q) === 'gpContactDetails') {
+    if (fieldKeyOf(q) === 'gpContactDetails' || fieldKeyOf(q) === 'socialWorkerContact') {
+      // Linked to the profile's GP / Social Worker contact: prefilled from it, empty details saved to it.
       return (
         <InitialAssessmentGpContactField
           question={q}
@@ -278,6 +279,7 @@ export function InitialAssessmentSectionQuestions({
           errorMessage={questionErrors?.get(q.id)}
           disabled={isFieldDisabled(q)}
           variant={simpleLayout ? 'simple' : 'default'}
+          kind={fieldKeyOf(q) === 'socialWorkerContact' ? 'socialWorker' : 'gp'}
           onChange={(patch) => onChange(q.id, patch)}
         />
       )
@@ -295,7 +297,19 @@ export function InitialAssessmentSectionQuestions({
       )
     }
     if (isAllergiesSummaryQuestion(q)) {
-      return null
+      // The profile's own allergies editor: adding / editing here changes the Allergies tab (same records),
+      // and the answer text follows it.
+      return (
+        <InitialAssessmentAllergiesField
+          question={q}
+          value={merged}
+          serviceUserId={serviceUserId}
+          errorMessage={questionErrors?.get(q.id)}
+          disabled={isFieldDisabled(q)}
+          variant={simpleLayout ? 'simple' : 'default'}
+          onChange={(patch) => onChange(q.id, patch)}
+        />
+      )
     }
     if (prefillKeyForQuestion(q) === 'addressContact') {
       const poQuestion = findQuestionByFieldKey(allSections, 'poNumber')

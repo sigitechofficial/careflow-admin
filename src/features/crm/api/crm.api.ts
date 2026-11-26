@@ -63,6 +63,15 @@ export async function createEnquiryPreAdmission(enquiryId: string): Promise<{ se
   return data<{ serviceUserId: string }>(`/crm/enquiries/${enquiryId}/pre-admission`, { method: 'POST' })
 }
 
+/** Mark the enquiry Won and make its person an active service user (created from the enquiry if needed). */
+export async function activateEnquiryServiceUser(
+  enquiryId: string,
+): Promise<{ serviceUserId: string; created: boolean }> {
+  return data<{ serviceUserId: string; created: boolean }>(`/crm/enquiries/${enquiryId}/activate-service-user`, {
+    method: 'POST',
+  })
+}
+
 export async function fetchEnquiryOwners(): Promise<EnquiryOwner[]> {
   return data<EnquiryOwner[]>('/crm/enquiries/owners', { method: 'GET' })
 }

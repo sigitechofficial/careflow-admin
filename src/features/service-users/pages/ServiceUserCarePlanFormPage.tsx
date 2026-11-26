@@ -2,7 +2,10 @@
 import { askAboutPrivacyAtReview } from '@/features/service-users/privacy/PrivacyReviewPrompt'
 import * as React from 'react'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { buildInitialAssessmentEnterpriseSearch } from '@/features/service-users/initial-assessment/utils/initial-assessment-url-search'
+import { publishedReturnMessage } from '@/features/service-users/care-plans/care-plan-ia-return.util'
+import { useRemainingRecommendedCarePlans } from '@/features/service-users/care-plans/hooks/useRemainingRecommendedCarePlans'
+import { ArrowLeft, ChevronDown, Loader2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import type { ServiceUserDetail } from '@/features/service-users/types'
@@ -28,8 +31,6 @@ import {
   useCarePlanLifecycleAction,
   useCarePlanRisks,
   useCarePlanRisksAction,
-  useCarePlanTaskReconciliation,
-  useCarePlanTaskReconciliationAction,
   usePublishCarePlan,
   useSaveCarePlanDraft,
 } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
@@ -42,15 +43,12 @@ import {
   CarePlanRiskReviewPanel,
   type RiskReviewActionInput,
 } from '@/features/service-users/care-plans/components/CarePlanRiskReviewPanel'
-import {
-  CarePlanTaskReconciliationPanel,
-  type ReconciliationActionInput,
-} from '@/features/service-users/care-plans/components/CarePlanTaskReconciliationPanel'
 import { carePlanApprovalView } from '@/features/service-users/care-plans/care-plan-approval-state'
 import { hasPublishableCarePlanValues } from '@/features/service-users/care-plans/care-plan-publish.util'
 import { CarePlanIaHistoryPanel } from '@/features/service-users/care-plans/components/CarePlanIaHistoryPanel'
 import {
   CARE_PLAN_META,
+  parseRiskItems,
   setMetaValue,
 } from '@/features/service-users/care-plan/care-plan-form-meta'
 import { resolveEditorNextReviewDate } from '@/features/service-users/care-plans/care-plan-review-frequency'
@@ -82,6 +80,8 @@ export default function ServiceUserCarePlanFormPage() {
     incidentActionId?: string
     incidentRef?: string
     measure?: string
+    /** Opened from an Initial Assessment recommendation: back and publish return there. */
+    iaSubmissionId?: string
   }
   const incidentContext =
     search.incidentId && search.incidentActionId
@@ -94,7 +94,9 @@ export default function ServiceUserCarePlanFormPage() {
       : null
   const serviceUserId = params.serviceUserId ?? ''
   const formId = params.formId ?? ''
+  const iaSubmissionId = incidentContext ? undefined : search.iaSubmissionId
   const navigate = useNavigate()
+  const countRemainingRecommendations = useRemainingRecommendedCarePlans()
   const canUpdate = useAuthStore((s) => s.can('service_users.update'))
   const canApprove = useAuthStore((s) => s.can('service_users.care_plan.approve'))
   const apiConfigured = Boolean(getApiBaseUrl())
@@ -139,10 +141,16 @@ export default function ServiceUserCarePlanFormPage() {
   const approval = carePlanApprovalView(instanceQuery.data)
   const lifecycleAction = useCarePlanLifecycleAction(serviceUserId, formId)
   const hasPublished = Boolean(instanceQuery.data?.latestPublishedVersion)
-  const reconciliationQuery = useCarePlanTaskReconciliation(serviceUserId, formId, apiConfigured && hasPublished)
-  const reconciliationAction = useCarePlanTaskReconciliationAction(serviceUserId, formId)
   const risksQuery = useCarePlanRisks(serviceUserId, formId, apiConfigured && Boolean(instanceQuery.data?.id))
   const risksAction = useCarePlanRisksAction(serviceUserId, formId)
+  // Risks added on this care plan, as saved on the server (draft, or the published version).
+  const savedCarePlanValues = hydrateFromPublished
+    ? publishedVersionQuery.data?.values
+    : instanceQuery.data?.draft?.values
+  const savedCarePlanRisks = React.useMemo(
+    () => (savedCarePlanValues ? parseRiskItems(savedCarePlanValues).filter((r) => r.name.trim()) : []),
+    [savedCarePlanValues],
+  )
   const archived = instanceQuery.data?.lifecycle?.status === 'ARCHIVED'
   // While a draft awaits approval nobody edits it, and archived plans are read-only (the API refuses both).
   const canEdit = canUpdate && !approval.locked && !archived
@@ -298,11 +306,16 @@ export default function ServiceUserCarePlanFormPage() {
     setComposedFrom(nextComposedFrom)
   }
 
-  const onSaveDraft = () => {
-    void persistDraft(values, composedFrom)
-      .then(() => toastSuccess('Draft saved', 'Care plan draft saved to the server.'))
-      .catch((e) => toastApiError(e, 'Could not save draft'))
-  }
+  const onSaveDraft = () =>
+    persistDraft(values, composedFrom)
+      .then(() => {
+        toastSuccess('Draft saved', 'Care plan draft saved to the server.')
+        return true
+      })
+      .catch((e) => {
+        toastApiError(e, 'Could not save draft')
+        return false
+      })
 
   const onPublishConfirm = (payload: { gapAcknowledged: boolean; summary?: string }) => {
     if (!hasPublishableCarePlanValues(values)) {
@@ -332,12 +345,18 @@ export default function ServiceUserCarePlanFormPage() {
           })
           return
         }
-        toastSuccess('Care Plan published successfully')
         askForDueSurveys(serviceUserId, 'the care plan review')
         askAboutPrivacyAtReview(serviceUserId)
+        if (iaSubmissionId) {
+          // Opened from the assessment's recommendations: go back there for the next one.
+          await backToRecommendations({ afterPublish: true })
+          return
+        }
+        toastSuccess('Care Plan published successfully')
+        // The published plan opens as a read-only document.
         await navigate({
-          to: '/service-users/$serviceUserId/care-plan',
-          params: { serviceUserId },
+          to: '/service-users/$serviceUserId/care-plan/forms/$formId/view',
+          params: { serviceUserId, formId },
         })
       })
       .catch((e) => toastApiError(e, 'Could not publish care plan'))
@@ -388,13 +407,6 @@ export default function ServiceUserCarePlanFormPage() {
       .catch((e) => toastApiError(e, 'Could not update care plan risks'))
   }
 
-  const onReconciliationAction = (input: ReconciliationActionInput) => {
-    void reconciliationAction
-      .mutateAsync(input)
-      .then(() => toastSuccess('Visit task reconciliation updated'))
-      .catch((e) => toastApiError(e, 'Could not update visit task reconciliation'))
-  }
-
   /** Footer action: plain publish, Submit for approval, or Publish approved plan. */
   const onFooterPublish = () => {
     if (approval.footerAction === 'submit') return onSubmitForApproval()
@@ -415,6 +427,28 @@ export default function ServiceUserCarePlanFormPage() {
     void navigate({
       to: '/service-users/$serviceUserId/care-plan',
       params: { serviceUserId },
+    })
+  }
+
+  /** The assessment's "Actions & care plans" tab, where the recommendations are. */
+  const backToRecommendations = async ({ afterPublish = false } = {}) => {
+    if (!iaSubmissionId) return
+    if (afterPublish) {
+      let remaining: number | null = null
+      try {
+        remaining = await countRemainingRecommendations(serviceUserId, iaSubmissionId, formId)
+      } catch {
+        // The count is a nicety; still go back.
+      }
+      toastSuccess(publishedReturnMessage(form?.name ?? 'Care plan', remaining))
+    }
+    await navigate({
+      to: '/service-users/initial-assessment',
+      search: buildInitialAssessmentEnterpriseSearch({
+        serviceUserId,
+        submissionId: iaSubmissionId,
+        tab: 'schedule',
+      }),
     })
   }
 
@@ -443,11 +477,12 @@ export default function ServiceUserCarePlanFormPage() {
           <div>
             <button
               type="button"
-              onClick={backToList}
+              onClick={iaSubmissionId ? () => void backToRecommendations() : backToList}
               className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+              data-testid="care-plan-back"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Back to care plans
+              {iaSubmissionId ? 'Back to recommendations' : 'Back to care plans'}
             </button>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold text-foreground">{form?.name ?? 'Care plan'}</h1>
@@ -460,9 +495,20 @@ export default function ServiceUserCarePlanFormPage() {
             </div>
             <p className="text-sm text-muted-foreground">{serviceUserDisplayName(detail)}</p>
           </div>
-          {canUpdate ? (
+          {canUpdate || hasPublished ? (
             <div className="flex flex-wrap items-center gap-2">
-              {explicitSuggestions ? (
+              {hasPublished ? (
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <Link
+                    to="/service-users/$serviceUserId/care-plan/forms/$formId/view"
+                    params={{ serviceUserId, formId }}
+                    data-testid="care-plan-view-published"
+                  >
+                    View published plan
+                  </Link>
+                </Button>
+              ) : null}
+              {canUpdate && explicitSuggestions ? (
                 <CarePlanIaHistoryPanel
                   currentSubmittedAt={composeQuery.data?.suggestions?.[0]?.sourceDate ?? null}
                   currentStatus={composeQuery.data?.iaStatus}
@@ -471,15 +517,17 @@ export default function ServiceUserCarePlanFormPage() {
                   onUseHistorical={onUseSuggestion}
                 />
               ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void refreshFromSources()}
-                disabled={composeQuery.isFetching || saveDraftMutation.isPending || !canEdit}
-              >
-                {explicitSuggestions ? 'Refresh suggestions' : 'Refresh from IA / profile'}
-              </Button>
+              {canUpdate ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void refreshFromSources()}
+                  disabled={composeQuery.isFetching || saveDraftMutation.isPending || !canEdit}
+                >
+                  {explicitSuggestions ? 'Refresh suggestions' : 'Refresh from IA / profile'}
+                </Button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -488,10 +536,6 @@ export default function ServiceUserCarePlanFormPage() {
       <ServiceUserModuleTabs serviceUserId={serviceUserId} />
 
       <div className="mx-auto w-full max-w-7xl flex-1 space-y-4 px-3 py-6 sm:px-4">
-        <PolicyContextPanel
-          moduleType="CARE_PLAN"
-          recordId={instanceQuery.data?.id}
-        />
         {workspaceLoading && (
           <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -523,20 +567,28 @@ export default function ServiceUserCarePlanFormPage() {
         )}
         {!workspaceLoading && !error && form && valuesHydrated && (
           <>
-            <CarePlanLifecyclePanel
-              lifecycle={instanceQuery.data?.lifecycle}
-              published={Boolean(instanceQuery.data?.latestPublishedVersion)}
-              canManage={canApprove}
-              busy={lifecycleAction.isPending}
-              onAction={onLifecycleAction}
-            />
+            <CarePlanDetailsAccordion>
+              <PolicyContextPanel
+                moduleType="CARE_PLAN"
+                recordId={instanceQuery.data?.id}
+              />
 
-            <CarePlanRiskReviewPanel
-              data={risksQuery.data}
-              canManage={canApprove && !archived}
-              busy={risksAction.isPending}
-              onAction={onRiskReviewAction}
-            />
+              <CarePlanLifecyclePanel
+                lifecycle={instanceQuery.data?.lifecycle}
+                published={Boolean(instanceQuery.data?.latestPublishedVersion)}
+                canManage={canApprove}
+                busy={lifecycleAction.isPending}
+                onAction={onLifecycleAction}
+              />
+
+              <CarePlanRiskReviewPanel
+                data={risksQuery.data}
+                carePlanRisks={savedCarePlanRisks}
+                canManage={canApprove && !archived}
+                busy={risksAction.isPending}
+                onAction={onRiskReviewAction}
+              />
+            </CarePlanDetailsAccordion>
 
             {approval.showPanel ? (
               <CarePlanApprovalPanel
@@ -595,15 +647,6 @@ export default function ServiceUserCarePlanFormPage() {
             />
 
             <CarePlanVersionHistoryPanel serviceUserId={serviceUserId} formId={formId} />
-
-            {hasPublished ? (
-              <CarePlanTaskReconciliationPanel
-                data={reconciliationQuery.data}
-                canManage={canApprove && !archived}
-                busy={reconciliationAction.isPending}
-                onAction={onReconciliationAction}
-              />
-            ) : null}
           </>
         )}
       </div>
@@ -623,6 +666,25 @@ export default function ServiceUserCarePlanFormPage() {
         }
         onConfirm={onPublishConfirm}
       />
+    </div>
+  )
+}
+
+/** Policies, status and linked risks, folded away until opened. */
+function CarePlanDetailsAccordion({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = React.useState(false)
+  return (
+    <div className="rounded-lg border border-border bg-card shadow-sm" data-testid="care-plan-details-accordion">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+      >
+        <span className="text-sm font-semibold text-foreground">Policies, status & linked risks</span>
+        <ChevronDown className={`h-4 w-4 transition-transform${open ? ' rotate-180' : ''}`} />
+      </button>
+      {open ? <div className="space-y-4 border-t border-border px-4 py-3">{children}</div> : null}
     </div>
   )
 }

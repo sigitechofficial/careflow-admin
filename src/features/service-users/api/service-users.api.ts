@@ -2573,7 +2573,9 @@ export async function fetchServiceUserFlashMessage(
     `/service-users/${id}/flash-message`,
     { method: 'GET', ...init },
   )
-  return res.data ?? null
+  // With no active message the API's envelope falls back to `{ message, data: null }` as data, which is not a flash row.
+  const row = res.data as Partial<ServiceUserFlashMessageRow> | null | undefined
+  return row?.id ? (row as ServiceUserFlashMessageRow) : null
 }
 
 export type UpsertServiceUserFlashMessagePayload = {

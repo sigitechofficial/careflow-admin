@@ -93,6 +93,8 @@ export default function ServiceUserBodyMapPage() {
   const [sgOpen, setSgOpen] = React.useState(false)
   const [pendingSubmit, setPendingSubmit] = React.useState<WizardSubmitValues | null>(null)
   const [closeTarget, setCloseTarget] = React.useState<BodyMapRecordRow | null>(null)
+  /** Initial assessment pin being put on the body (Place on body). */
+  const [placingRecordId, setPlacingRecordId] = React.useState<string | null>(null)
   const [exporting, setExporting] = React.useState(false)
   const permissions = useAuthStore(s => s.user?.permissions) ?? []
   const canCreate = canCreateBodyMap(permissions)
@@ -105,7 +107,7 @@ export default function ServiceUserBodyMapPage() {
   const { data, isLoading, error } = useServiceUserBodyMap(serviceUserId, showCleared)
   const { data: summary } = useBodyMapSummary(serviceUserId)
   const attention = useBodyMapAttentionData(serviceUserId, summary)
-  const { create, close, addReview } = useBodyMapMutations(serviceUserId)
+  const { create, close, addReview, moveMarker } = useBodyMapMutations(serviceUserId)
 
   const records = data?.records ?? []
   const tableRecords = medSitesOnly
@@ -138,7 +140,43 @@ export default function ServiceUserBodyMapPage() {
     }
   }, [attention.isLoading, attention.itemCount, mainView])
 
+  React.useEffect(() => {
+    if (placingRecordId && selectedRecordId !== placingRecordId) setPlacingRecordId(null)
+  }, [placingRecordId, selectedRecordId])
+
+  const placeAssessmentMarker =(recordId: string, coords: PlaceMarkerPayload) => {
+    const marker = records.find(r => r.id === recordId)?.markers[0]
+    if (!marker) return
+    // Front & back only: the pin is shown on that diagram (zoom views need their own view data).
+    if (coords.recordView !== 'front' && coords.recordView !== 'back') {
+      toastInfo('Click on the Front & back body, not a zoom view.')
+      return
+    }
+    moveMarker.mutate(
+      {
+        markerId: marker.id,
+        bodyView: recordViewToApiBodyView(coords.recordView),
+        side: prototypeSideToApi(coords.side),
+        bodyPart: coords.bodyPart,
+        specificLocation: coords.summaryLabel ?? coords.bodyPart,
+        xCoordinate: coords.x,
+        yCoordinate: coords.y,
+      },
+      {
+        onSuccess: () => {
+          setPlacingRecordId(null)
+          toastSuccess(`Pin placed on: ${coords.summaryLabel ?? coords.bodyPart}`)
+        },
+        onError: e => toastApiError(e, 'Could not place the pin'),
+      },
+    )
+  }
+
   const handlePlaceMarker = (coords: PlaceMarkerPayload) => {
+    if (placingRecordId) {
+      placeAssessmentMarker(placingRecordId, coords)
+      return
+    }
     setMarkMode(true)
     setPendingMarker(coords)
     setAddOpen(true)
@@ -597,6 +635,17 @@ export default function ServiceUserBodyMapPage() {
                         }
                         closing={close.isPending}
                         reviewing={addReview.isPending}
+                        placingOnBody={placingRecordId === selectedRecord.id}
+                        onPlaceOnBody={() => {
+                          if (placingRecordId === selectedRecord.id) {
+                            setPlacingRecordId(null)
+                            return
+                          }
+                          setPlacingRecordId(selectedRecord.id)
+                          setDiagramTab('standard')
+                          setPendingMarker(null)
+                          setMarkMode(true)
+                        }}
                       />
                     </div>
                   ) : null}

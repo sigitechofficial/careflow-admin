@@ -46,6 +46,8 @@ type Props = {
   /** When set with layout=lifecycle, only pending recs for these forms (plus uncatalogued) are shown. */
   includePendingFormIds?: ReadonlySet<string>
   cataloguedFormIds?: ReadonlySet<string>
+  /** Care plans opened from here offer "Back to recommendations" and return here after publishing. */
+  returnToAssessment?: boolean
 }
 
 export function InitialAssessmentCarePlanRecommendationsPanel({
@@ -59,9 +61,11 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
   layout = 'full',
   includePendingFormIds,
   cataloguedFormIds,
+  returnToAssessment = false,
 }: Props) {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const carePlanSearch = returnToAssessment && submissionId ? { iaSubmissionId: submissionId } : {}
   const [dialogOpen, setDialogOpen] = React.useState(false)
   // Every recommendation the open dialog decides: a grouped card decides all of its recommendations.
   const [activeRecs, setActiveRecs] = React.useState<CarePlanRecommendation[]>([])
@@ -123,6 +127,7 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
       void navigate({
         to: '/service-users/$serviceUserId/care-plan/forms/$formId',
         params: { serviceUserId, formId },
+        search: carePlanSearch,
       })
     },
     onError: (e) => toastApiError(e, 'Could not create care plan draft'),
@@ -133,6 +138,7 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
     void navigate({
       to: '/service-users/$serviceUserId/care-plan/forms/$formId',
       params: { serviceUserId, formId },
+      search: carePlanSearch,
     })
 
   const requestCreate = (formId: string) => {

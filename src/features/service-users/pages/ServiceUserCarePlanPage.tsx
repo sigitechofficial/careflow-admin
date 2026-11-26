@@ -269,6 +269,14 @@ export default function ServiceUserCarePlanPage() {
     })
   }
 
+  /** A live plan opens as the read-only published document ("View plan"). */
+  const openCarePlanView = (formId: string) => {
+    void navigate({
+      to: '/service-users/$serviceUserId/care-plan/forms/$formId/view',
+      params: { serviceUserId, formId },
+    })
+  }
+
   const recommendedCount = groupPendingRecommendationsByForm(visiblePendingRecs).length
   const inProgressCount = buckets.inProgress.length
   const liveCount = buckets.live.length
@@ -346,7 +354,7 @@ export default function ServiceUserCarePlanPage() {
                         key={plan.id}
                         title={plan.name}
                         pictureUrl={plan.pictureUrl}
-                        onOpen={() => openCarePlanForm(plan.id)}
+                        onOpen={() => (withDraft ? openCarePlanForm(plan.id) : openCarePlanView(plan.id))}
                         displayState={withDraft ? 'LIVE_WITH_DRAFT' : 'LIVE'}
                         displayStatus={instance?.displayStatus}
                         statusLabel="Live"

@@ -27,4 +27,8 @@ describe('formatAllergiesAssessmentText', () => {
       ]),
     ).toBe('Penicillin — Anaphylaxis\nLatex')
   })
+
+  it('leaves out a comment that only repeats the name', () => {
+    expect(formatAllergiesAssessmentText([row({ allergyName: 'Agar agar', comment: 'agar agar' })])).toBe('Agar agar')
+  })
 })

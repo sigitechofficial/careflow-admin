@@ -35,6 +35,7 @@ import {
   fetchLoneWorkerSystemFacts,
 } from '@/features/service-users/initial-assessment/api'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
+import { serviceUserKeys } from '@/features/service-users/keys'
 import type {
   InitialAssessmentAnswerInput,
   InitialAssessmentSubmission,
@@ -204,6 +205,10 @@ export function useSaveInitialAssessmentAnswers(serviceUserId: string, submissio
       void qc.invalidateQueries({
         queryKey: initialAssessmentKeys.validate(serviceUserId, submissionId),
       })
+      // Answers are copied to the profile (About Me, DOM Care, contacts, Meds tab support) on save: those
+      // tabs reload when next opened (not refetched here, so autosave does not reload them under the
+      // open assessment).
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.detail(serviceUserId), refetchType: 'none' })
     },
   })
 }

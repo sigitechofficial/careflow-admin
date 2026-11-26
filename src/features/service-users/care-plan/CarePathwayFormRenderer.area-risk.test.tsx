@@ -2,8 +2,8 @@ import { render, screen } from '@testing-library/react'
 import { CarePathwayFormRenderer } from '@/features/service-users/care-plan/CarePathwayFormRenderer'
 import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.types'
 
-vi.mock('@/shared/ui/summernote-editor', () => ({
-  SummernoteEditor: ({ value }: { value?: string }) => (
+vi.mock('@/shared/ui/summernote-custom-editor', () => ({
+  SummernoteCustomEditor: ({ value }: { value?: string }) => (
     <textarea data-testid="summernote-stub" readOnly value={value ?? ''} />
   ),
 }))

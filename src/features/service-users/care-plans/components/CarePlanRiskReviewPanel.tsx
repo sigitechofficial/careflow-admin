@@ -18,6 +18,8 @@ export type RiskReviewActionInput =
 
 type Props = {
   data: CarePlanRisks | null | undefined
+  /** Saved risks added on this care plan (Risk profile → Other risks). */
+  carePlanRisks?: { id: string; name: string; howToReduce?: string }[]
   canManage: boolean
   busy?: boolean
   onAction: (input: RiskReviewActionInput) => void
@@ -37,7 +39,7 @@ const fieldClass = 'mt-1 w-full rounded-md border border-input bg-background px-
  * Reassessment review flags for this care plan and the IA risks it controls. Nothing here changes
  * the published plan or closes a risk; it records what a manager reviewed.
  */
-export function CarePlanRiskReviewPanel({ data, canManage, busy, onAction }: Props) {
+export function CarePlanRiskReviewPanel({ data, carePlanRisks = [], canManage, busy, onAction }: Props) {
   const [resolving, setResolving] = React.useState<string | null>(null)
   const [note, setNote] = React.useState('')
   const [riskId, setRiskId] = React.useState('')
@@ -74,7 +76,7 @@ export function CarePlanRiskReviewPanel({ data, canManage, busy, onAction }: Pro
 
       <div>
         <h2 className="font-semibold">Linked risks</h2>
-        {data.links.length === 0 ? (
+        {data.links.length === 0 && carePlanRisks.length === 0 ? (
           <p className="text-xs text-muted-foreground">No assessment risks are linked to this care plan.</p>
         ) : (
           <ul className="divide-y divide-border">
@@ -113,6 +115,20 @@ export function CarePlanRiskReviewPanel({ data, canManage, busy, onAction }: Pro
                     </Button>
                   </div>
                 ) : null}
+              </li>
+            ))}
+            {carePlanRisks.map((risk) => (
+              <li key={risk.id} className="space-y-0.5 py-2" data-testid="care-plan-own-risk-row">
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{risk.name}</span>
+                  <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-900 dark:bg-sky-950 dark:text-sky-200">
+                    Added on this care plan
+                  </span>
+                </p>
+                {risk.howToReduce?.trim() ? (
+                  <p className="text-xs">Keeping safe: {risk.howToReduce}</p>
+                ) : null}
+                <p className="text-xs text-muted-foreground">Change it in the Care plan risk profile tab.</p>
               </li>
             ))}
           </ul>

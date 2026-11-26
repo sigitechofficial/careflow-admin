@@ -32,6 +32,15 @@ export type ScreeningQuestion = {
 
 export type ScreeningAnswer = { questionId: string; question: string; answer: string; dealBreakerMissed: boolean }
 
+/** A referee the candidate gave on the careers application form. */
+export type CandidateReferee = {
+  name: string
+  relationship: string
+  organisation: string | null
+  email: string
+  phone: string | null
+}
+
 export type SalaryPeriod = 'HOUR' | 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'
 
 export type RecruitmentEmploymentType =
@@ -219,6 +228,8 @@ export type CandidateRow = {
   screeningAnswers: ScreeningAnswer[]
   /** Questions whose answer missed what the vacancy needs (shown in red; never rejected automatically). */
   dealBreakersMissed: string[]
+  /** Referees given when applying (empty for older or staff-added candidates). */
+  referees: CandidateReferee[]
   screeningNotes: string | null
   offerStatus: CandidateOfferStatus | null
   offerStartDate: string | null
@@ -532,11 +543,17 @@ export const candidateFlowApi = {
     candidateCall(id, `/interviews/${interviewId}/email`, 'POST'),
   saveOffer: (id: string, payload: OfferPayload) => candidateCall(id, '/offer', 'PUT', payload),
   emailOffer: (id: string) => candidateCall(id, '/offer/email', 'POST'),
-  respondToOffer: (id: string, accepted: boolean, notes?: string) =>
-    candidateCall(id, '/offer/response', 'POST', { accepted, notes }),
+  respondToOffer: (id: string, accepted: boolean, notes?: string, notifyCandidate?: boolean) =>
+    candidateCall(id, '/offer/response', 'POST', { accepted, notes, notifyCandidate }),
   updateCheck: (id: string, checkId: string, payload: CheckPayload) =>
     candidateCall(id, `/checks/${checkId}`, 'PATCH', payload),
-  clear: (id: string, notes?: string) => candidateCall(id, '/clear', 'POST', { notes }),
+  requestReference: (
+    id: string,
+    checkId: string,
+    payload: { name: string; email: string; relationship?: string },
+  ) => candidateCall(id, `/checks/${checkId}/reference-request`, 'POST', payload),
+  clear: (id: string, payload: { notes?: string; notifyCandidate?: boolean; welcomeMessage?: string }) =>
+    candidateCall(id, '/clear', 'POST', payload),
 }
 
 export async function fetchCandidateDocuments(candidateId: string) {

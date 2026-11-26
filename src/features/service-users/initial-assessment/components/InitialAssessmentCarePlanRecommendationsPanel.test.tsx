@@ -33,7 +33,11 @@ const rec = (over: Partial<CarePlanRecommendation> & { id: string }): CarePlanRe
   ...over,
 })
 
-function renderPanel(recommendations: CarePlanRecommendation[], layout: 'full' | 'lifecycle' = 'full') {
+function renderPanel(
+  recommendations: CarePlanRecommendation[],
+  layout: 'full' | 'lifecycle' = 'full',
+  returnToAssessment = false,
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
@@ -44,6 +48,7 @@ function renderPanel(recommendations: CarePlanRecommendation[], layout: 'full' |
         recommendations={recommendations}
         canDecide
         layout={layout}
+        returnToAssessment={returnToAssessment}
       />
     </QueryClientProvider>,
   )
@@ -146,6 +151,30 @@ describe('InitialAssessmentCarePlanRecommendationsPanel — manager decisions', 
     expect(navigate).toHaveBeenCalledWith({
       to: '/service-users/$serviceUserId/care-plan/forms/$formId',
       params: { serviceUserId: 'su1', formId: 'form-med' },
+      search: {},
+    })
+  })
+
+  it('opens the care plan with the way back to the assessment when asked', async () => {
+    navigate.mockReset()
+    renderPanel(
+      [
+        rec({
+          id: 'rule-2',
+          title: 'Medication',
+          status: 'accepted',
+          carePathwayFormId: 'form-med',
+          linkedCarePlan: { instanceId: 'inst-2', carePathwayFormId: 'form-med', status: 'PUBLISHED', hasDraft: false },
+        }),
+      ],
+      'full',
+      true,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Open care plan' }))
+    expect(navigate).toHaveBeenCalledWith({
+      to: '/service-users/$serviceUserId/care-plan/forms/$formId',
+      params: { serviceUserId: 'su1', formId: 'form-med' },
+      search: { iaSubmissionId: 's1' },
     })
   })
 

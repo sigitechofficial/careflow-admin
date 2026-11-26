@@ -5,6 +5,7 @@ import {
   createBodyMapRecord,
   fetchBodyMapSummary,
   fetchServiceUserBodyMap,
+  updateBodyMapMarker,
 } from '@/features/service-users/body-map/api'
 import { bodyMapKeys } from '@/features/service-users/body-map/keys'
 import type {
@@ -72,5 +73,11 @@ export function useBodyMapMutations(serviceUserId: string) {
     onSuccess: invalidate,
   })
 
-  return { create, close, addReview }
+  const moveMarker = useMutation({
+    mutationFn: ({ markerId, ...payload }: { markerId: string } & Parameters<typeof updateBodyMapMarker>[1]) =>
+      updateBodyMapMarker(markerId, payload),
+    onSuccess: invalidate,
+  })
+
+  return { create, close, addReview, moveMarker }
 }

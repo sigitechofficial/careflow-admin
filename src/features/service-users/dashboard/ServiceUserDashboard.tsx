@@ -1,4 +1,3 @@
-import { PersonSurveysSection } from '@/features/surveys/reminders/PersonSurveysSection'
 import * as React from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
 import {
@@ -30,13 +29,6 @@ import {
 } from '@/features/service-users/api'
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { useAuthStore } from '@/features/auth/store'
-import { usePathwayCases } from '@/features/specialist-pathways/hooks/useSpecialistPathways'
-import { PATHWAY_META } from '@/features/specialist-pathways/pathway-specs'
-import { useSafeguardingList } from '@/features/safeguarding/hooks/useSafeguarding'
-import {
-  CATEGORY_LABELS as SG_CATEGORY_LABELS,
-  STATUS_LABELS as SG_STATUS_LABELS,
-} from '@/features/safeguarding/safeguarding-labels'
 import { homeAccessMethodLabel } from '@/features/service-users/home-access'
 import {
   employeeDisplayName,
@@ -53,13 +45,26 @@ import { ServiceUserModuleTabs } from '@/features/service-users/components/Servi
 import { EditFlashMessageDialog } from '@/features/service-users/components/EditFlashMessageDialog'
 import { Button } from '@/shared/ui/button'
 import { ServiceUserAllergiesManageDialog } from '@/features/service-users/components/ServiceUserAllergiesManageDialog'
-import { ServiceUserSafetySummary } from '@/features/alerts/components/ServiceUserSafetySummary'
 import { Progress } from '@/shared/ui/misc'
 import {
   serviceUserMissingItems,
   serviceUserProfileCompletion,
-  type MissingItemGroup,
 } from '@/features/service-users/dashboard/service-user-missing-items'
+import { serviceUserChecklist } from '@/features/service-users/dashboard/service-user-checklist'
+import {
+  GetReadyForCare,
+  OverviewCard,
+  OverviewLink,
+  PathwaysRow,
+  Row,
+  SafeguardingTile,
+  SafetyTile,
+  StatusTile,
+  SurveysTile,
+  profileTab,
+  valueOrDash,
+} from '@/features/service-users/dashboard/ServiceUserOverviewParts'
+import { useResolveServiceUserChargeCard } from '@/features/billing/hooks/useChargeCards'
 type AttentionSeverity = 'red' | 'amber' | 'blue'
 
 type AttentionItem = {
@@ -75,8 +80,6 @@ type AttentionItem = {
   onAction?: () => void
 }
 
-const MISSING_GROUP_ORDER: MissingItemGroup[] = ['Profile', 'Care', 'Clinical', 'People', 'Home & access']
-
 const ECM_OPEN_LIFECYCLES = new Set([
   'DETECTED',
   'ALERT_GENERATED',
@@ -85,123 +88,6 @@ const ECM_OPEN_LIFECYCLES = new Set([
   'INVESTIGATING',
   'ACTION_TAKEN',
 ])
-
-function SimpleCard({
-  title,
-  children,
-  className,
-  action,
-}: {
-  title: string
-  children: React.ReactNode
-  className?: string
-  action?: React.ReactNode
-}) {
-  return (
-    <section
-      className={cn('rounded-lg border border-border bg-card p-4 shadow-sm', className)}
-    >
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  )
-}
-
-/** Pathway cases for this person (only rendered for users with specialist_pathways.read). */
-function SpecialistPathwaysCard({ serviceUserId }: { serviceUserId: string }) {
-  const { data: cases, isLoading } = usePathwayCases({ serviceUserId })
-  return (
-    <SimpleCard title="Specialist pathways">
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : !cases || cases.length === 0 ? (
-        <InfoRow label="Pathways" value="None" />
-      ) : (
-        cases.map(c => {
-          const meta = PATHWAY_META[c.pathwayType]
-          return (
-            <InfoRow
-              key={c.id}
-              label={meta.label}
-              tone={c.status === 'CLOSED' ? undefined : c.reviewOverdue ? 'danger' : 'ok'}
-              value={
-                <Link
-                  to="/specialist-pathways/$pathway/$caseId"
-                  params={{ pathway: meta.slug, caseId: c.id }}
-                  className="hover:underline"
-                >
-                  {c.status === 'CLOSED'
-                    ? 'Closed'
-                    : c.reviewOverdue
-                      ? 'Review overdue'
-                      : c.reviewDueDate
-                        ? `Review ${formatShortUk(c.reviewDueDate)}`
-                        : 'Open'}
-                </Link>
-              }
-            />
-          )
-        })
-      )}
-    </SimpleCard>
-  )
-}
-
-/** Safeguarding cases about this person (only rendered for users with safeguarding.read). */
-function SafeguardingCard({ serviceUserId }: { serviceUserId: string }) {
-  const { data: cases, isLoading } = useSafeguardingList({ aboutServiceUserId: serviceUserId })
-  return (
-    <SimpleCard title="Safeguarding">
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : !cases || cases.length === 0 ? (
-        <InfoRow label="Concerns" value="None recorded" />
-      ) : (
-        cases.map(c => (
-          <InfoRow
-            key={c.id}
-            label={`${c.referenceNumber} · ${SG_CATEGORY_LABELS[c.category]}`}
-            tone={c.status === 'CLOSED' ? undefined : c.riskLevel === 'HIGH' ? 'danger' : 'warn'}
-            value={
-              <Link to="/safeguarding/$caseId" params={{ caseId: c.id }} className="hover:underline">
-                {SG_STATUS_LABELS[c.status]}
-              </Link>
-            }
-          />
-        ))
-      )}
-    </SimpleCard>
-  )
-}
-
-function InfoRow({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: React.ReactNode
-  tone?: 'ok' | 'warn' | 'danger'
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3 border-b border-border/60 py-2 text-sm last:border-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span
-        className={cn(
-          'text-right font-medium text-foreground',
-          tone === 'ok' && 'text-green-700',
-          tone === 'warn' && 'text-amber-700',
-          tone === 'danger' && 'text-red-700',
-        )}
-      >
-        {value}
-      </span>
-    </div>
-  )
-}
 
 function DocumentOpenLink({
   storedUrl,
@@ -221,33 +107,6 @@ function DocumentOpenLink({
     >
       {label}
     </a>
-  )
-}
-
-function CardLink({
-  to,
-  serviceUserId,
-  children,
-}: {
-  to:
-    | '/service-users/$serviceUserId/visit-plan'
-    | '/service-users/$serviceUserId/care-plan'
-    | '/service-users/$serviceUserId/medication'
-    | '/service-users/$serviceUserId/ecm'
-    | '/service-users/$serviceUserId/activity'
-    | '/service-users/$serviceUserId/body-map'
-  serviceUserId: string
-  children: React.ReactNode
-}) {
-  return (
-    <Link
-      to={to}
-      params={{ serviceUserId }}
-      className="inline-flex items-center gap-0.5 text-xs font-medium text-teal-700 hover:underline dark:text-teal-300"
-    >
-      {children}
-      <ArrowRight className="h-3 w-3" />
-    </Link>
   )
 }
 
@@ -326,6 +185,8 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
     queryFn: () => listServiceUserEnterpriseFundings(serviceUserId, { limit: 20 }),
     enabled: Boolean(serviceUserId) && apiConfigured,
   })
+
+  const chargeCardQuery = useResolveServiceUserChargeCard(serviceUserId, apiConfigured)
 
   const domCareQuery = useQuery({
     queryKey: [...serviceUserKeys.detail(serviceUserId), 'dom-care'],
@@ -569,10 +430,30 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
     [detail, allergyRows.length, activeMeds.length, visitPlan?.status, primaryFunding],
   )
   const profileCompletion = serviceUserProfileCompletion(missingItems)
-  const missingGroups = MISSING_GROUP_ORDER.map((group) => ({
-    group,
-    items: missingItems.filter((item) => item.group === group),
-  })).filter((g) => g.items.length > 0)
+
+  // A check whose data has not loaded (or is not allowed) is left out rather than shown as missing.
+  const checklist = serviceUserChecklist({
+    missingItems,
+    funderNames: fundingQuery.isSuccess
+      ? [
+          ...new Set(
+            fundingRows
+              .filter((f) => f.isActive && f.funder?.name)
+              .map((f) => f.funder!.name),
+          ),
+        ]
+      : undefined,
+    chargeCard: chargeCardQuery.isSuccess
+      ? chargeCardQuery.data.chargeCard
+        ? { name: chargeCardQuery.data.chargeCard.name, matched: chargeCardQuery.data.source === 'MATCHED' }
+        : null
+      : undefined,
+    hasInitialAssessment: initialAssessment.isSuccess ? Boolean(ia) : undefined,
+    carePlanCount: carePlan.acceptedCarePlans.isSuccess || carePlanInstances.isSuccess
+      ? acceptedItems.length + publishedCount
+      : undefined,
+    visitPlanStatus: visitPlanQuery.isSuccess ? (visitPlan?.status ?? null) : undefined,
+  })
 
   const primaryContacts = (detail?.contacts ?? [])
     .filter((c) => c.isPrimary || c.isEmergencyContact)
@@ -614,6 +495,23 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
     )
   }
 
+  const activeStatus = detail.status?.code === 'ACTIVE'
+  const addressText = addr
+    ? [addr.addressLine1, addr.addressLine2, addr.town, addr.postcode].filter((p) => p?.trim()).join(', ')
+    : ''
+  const keySafe = [addr?.keySafeLocation?.trim(), addr?.keySafeNumber?.trim()].filter(Boolean).join(' · ')
+  const accessMissing = !addr?.accessMethod?.trim() || !addr?.accessInstructions?.trim()
+  const hasEmergencyContact = (detail.contacts ?? []).some((c) => c.isEmergencyContact)
+  const funderNames = [
+    ...new Set(fundingRows.filter((f) => f.isActive && f.funder?.name).map((f) => f.funder!.name)),
+  ]
+  const chargeCardName = chargeCardQuery.data?.chargeCard?.name ?? null
+  const dols = documents.data?.dols ?? []
+  // Shown in the status strip or the checklist, so left out of "Needs attention".
+  const attentionShown = attentionItems.filter(
+    (item) => !['care-plan', 'visit-plan-missing', 'ia-missing', 'flash'].includes(item.id),
+  )
+
   return (
     <div
       className={SERVICE_USER_MODULE_PAGE_CLASS}
@@ -624,7 +522,14 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
         detail={detail}
         badges={
           detail.status?.name ? (
-            <span className="rounded-md bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">
+            <span
+              className={cn(
+                'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                activeStatus
+                  ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
+                  : 'bg-muted text-foreground',
+              )}
+            >
               {detail.status.name}
             </span>
           ) : null
@@ -636,8 +541,8 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
               title={`${profileCompletion.completed} of ${profileCompletion.total} profile checks complete`}
               data-testid="service-user-profile-completion"
             >
-              <p className="mb-1 text-xs text-muted-foreground">
-                Profile <span className="font-semibold text-foreground">{profileCompletion.percent}%</span> complete
+              <p className="mb-1 flex justify-between text-xs text-muted-foreground">
+                Profile complete <span className="font-semibold text-foreground">{profileCompletion.percent}%</span>
               </p>
               <Progress
                 value={profileCompletion.percent}
@@ -661,498 +566,404 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
       />
       <ServiceUserModuleTabs serviceUserId={serviceUserId} />
 
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-4 sm:px-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-5 px-4 pb-12 pt-6 sm:px-8">
         {!apiConfigured ? (
           <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Set VITE_API_BASE_URL to load live dashboard data.
           </p>
         ) : null}
 
-        {flashData ? (
-          <div
-            ref={flashSectionRef}
-            className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:bg-amber-950/30"
-            role="alert"
-            data-testid="service-user-dashboard-flash"
-          >
-            <Zap className="h-4 w-4 shrink-0 text-amber-700" />
-            <p className="min-w-0 flex-1 text-sm font-medium text-amber-950 dark:text-amber-50">
-              {flashData.message}
-            </p>
-            <span className="text-xs text-amber-800">
-              Until {formatFlashUntil(flashData.displayUntil)}
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-8 border-amber-300 bg-white/80 text-amber-950"
-              onClick={() => setFlashDialogOpen(true)}
-            >
-              Edit
-            </Button>
-          </div>
-        ) : null}
-
-        <ServiceUserSafetySummary
-          serviceUserId={serviceUserId}
-          omitFlashFromImmediate={Boolean(flashData)}
-        />
-
-        <PersonSurveysSection
-          serviceUserId={serviceUserId}
-          summary
-          allSurveysLink={
-            <Link
-              to="/service-users/$serviceUserId/profile"
-              params={{ serviceUserId }}
-              search={{ tab: 'surveys' }}
-              className="font-medium text-primary underline-offset-2 hover:underline"
-            >
-              Open surveys
-            </Link>
-          }
-        />
-
-        {attentionItems.length > 0 ? (
-          <SimpleCard title="Needs attention">
-            <ul className="space-y-2">
-              {attentionItems.map((item) => {
-                const rowClass =
-                  'flex w-full items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted/50'
-                const body = (
+        {/* Status strip */}
+        <section aria-label="Status" className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+          <div ref={flashSectionRef} className="rounded-xl" role={flashData ? 'alert' : undefined}>
+            <StatusTile
+              label="Flash message"
+              value={
+                flashData ? (
                   <>
-                    <span
-                      className={cn(
-                        'mt-1 h-8 w-1 shrink-0 rounded-full',
-                        item.severity === 'red' && 'bg-red-500',
-                        item.severity === 'amber' && 'bg-amber-500',
-                        item.severity === 'blue' && 'bg-blue-500',
-                      )}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground">{item.title}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
-                    </div>
-                    <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-teal-700">
-                      {item.linkLabel}
-                      <ArrowRight className="h-3 w-3" />
+                    <Zap className="mr-1 inline h-3.5 w-3.5 text-amber-700" aria-hidden />
+                    {flashData.message}
+                    <span className="block text-xs font-normal text-muted-foreground">
+                      Until {formatFlashUntil(flashData.displayUntil)}
                     </span>
                   </>
+                ) : (
+                  'None active'
                 )
-                return (
-                  <li key={item.id}>
-                    {item.onAction ? (
-                      <button type="button" onClick={item.onAction} className={rowClass}>
-                        {body}
-                      </button>
-                    ) : (
-                      <Link
-                        to={item.to!}
-                        params={item.params}
-                        search={item.search}
-                        className={rowClass}
-                      >
-                        {body}
-                      </Link>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          </SimpleCard>
-        ) : null}
+              }
+              attention={Boolean(flashData)}
+              testId="service-user-dashboard-flash"
+              action={
+                <button type="button" className="text-[13px] font-medium text-teal-700 hover:underline dark:text-teal-400" onClick={() => setFlashDialogOpen(true)}>
+                  {flashData ? 'Edit' : 'Add'}
+                </button>
+              }
+            />
+          </div>
+          <SafetyTile serviceUserId={serviceUserId} />
+          <SurveysTile serviceUserId={serviceUserId} />
+          {canReadSafeguarding ? <SafeguardingTile serviceUserId={serviceUserId} /> : null}
+        </section>
 
-        {missingItems.length > 0 ? (
-          <SimpleCard title={`Missing information (${missingItems.length})`}>
-            <div className="space-y-3" data-testid="service-user-missing-items">
-              {missingGroups.map(({ group, items }) => (
-                <div key={group}>
-                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group}</p>
-                  <ul className="grid gap-2 sm:grid-cols-2">
-                    {items.map((item) => (
+        <div className="flex flex-wrap items-start gap-5">
+          {/* Main column */}
+          <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-5">
+            {attentionShown.length > 0 ? (
+              <OverviewCard title="Needs attention">
+                <ul className="mt-1 space-y-2">
+                  {attentionShown.map((item) => {
+                    const rowClass =
+                      'flex w-full items-start gap-3 rounded-[10px] border border-border px-3.5 py-2.5 text-left transition-colors hover:bg-muted/40'
+                    const body = (
+                      <>
+                        <span
+                          className={cn(
+                            'mt-1 h-8 w-1 shrink-0 rounded-full',
+                            item.severity === 'red' && 'bg-red-500',
+                            item.severity === 'amber' && 'bg-amber-500',
+                            item.severity === 'blue' && 'bg-blue-500',
+                          )}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground">{item.title}</p>
+                          <p className="mt-0.5 text-[13px] text-muted-foreground">{item.detail}</p>
+                        </div>
+                        <span className="inline-flex shrink-0 items-center gap-0.5 text-[13px] font-medium text-teal-700 dark:text-teal-400">
+                          {item.linkLabel}
+                          <ArrowRight className="h-3 w-3" />
+                        </span>
+                      </>
+                    )
+                    return (
                       <li key={item.id}>
-                        <Link
-                          to={item.to}
-                          params={{ serviceUserId }}
-                          search={item.search}
-                          className="flex w-full items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-left transition-colors hover:bg-muted/50"
-                          data-testid={`missing-item-${item.id}`}
-                        >
-                          <span className="mt-1 h-6 w-1 shrink-0 rounded-full bg-amber-500" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-foreground">{item.title}</p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
-                          </div>
-                          <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-teal-700">
-                            {item.linkLabel}
-                            <ArrowRight className="h-3 w-3" />
-                          </span>
-                        </Link>
+                        {item.onAction ? (
+                          <button type="button" onClick={item.onAction} className={rowClass}>
+                            {body}
+                          </button>
+                        ) : (
+                          <Link to={item.to!} params={item.params} search={item.search} className={rowClass}>
+                            {body}
+                          </Link>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </OverviewCard>
+            ) : null}
+
+            <GetReadyForCare serviceUserId={serviceUserId} items={checklist} />
+
+            {/* Summary cards */}
+            <div className="grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
+              <OverviewCard
+                title="Visits"
+                action={
+                  <OverviewLink serviceUserId={serviceUserId} target={{ to: '/service-users/$serviceUserId/visit-plan' }}>
+                    Visit plan →
+                  </OverviewLink>
+                }
+              >
+                <Row
+                  label="Status"
+                  value={
+                    visitPlan?.status
+                      ? `${visitPlan.status.charAt(0)}${visitPlan.status.slice(1).toLowerCase()}`
+                      : 'Not set up'
+                  }
+                  tone={visitPlan?.status === 'ACTIVE' ? 'ok' : visitPlan && visitPlan.status !== 'SUSPENDED' ? undefined : 'warn'}
+                />
+                <Row label="Carers per visit" {...valueOrDash(carersPerVisit != null ? String(carersPerVisit) : null)} />
+                {visitPlan ? <Row label="Enabled calls" value={enabledSlots} /> : null}
+                <Row label="Weekly contracted" {...valueOrDash(contractedHours != null ? `${contractedHours}h` : null)} />
+                <Row
+                  label="Weekly planned"
+                  value={weeklyHours ? formatPlannedHours(weeklyHours.plannedMinutes) : '—'}
+                  tone={weeklyHours?.isOverContract ? 'warn' : weeklyHours ? undefined : 'muted'}
+                />
+                <Row
+                  label="Recent visits"
+                  value={activityQuery.isLoading ? '…' : recentVisits.length === 0 ? 'None yet' : `${recentVisits.length} recent`}
+                  tone={recentVisits.length === 0 ? 'muted' : undefined}
+                />
+                {recentVisits.length > 0 ? (
+                  <ul className="mt-1 space-y-1.5">
+                    {recentVisits.slice(0, 3).map((visit) => (
+                      <li key={visit.id} className="flex items-baseline justify-between gap-2 text-[13px]">
+                        <span className="min-w-0 truncate text-foreground">
+                          {visit.visitName}
+                          <span className="text-muted-foreground"> · {formatDateTime(visit.scheduledStartDateTime)}</span>
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">{visitStatusLabel(visit.status)}</span>
                       </li>
                     ))}
+                    <li>
+                      <OverviewLink serviceUserId={serviceUserId} target={{ to: '/service-users/$serviceUserId/activity' }}>
+                        All activity →
+                      </OverviewLink>
+                    </li>
                   </ul>
-                </div>
-              ))}
-            </div>
-          </SimpleCard>
-        ) : null}
+                ) : null}
+              </OverviewCard>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <SimpleCard
-            title="Visit package"
-            action={
-              <CardLink to="/service-users/$serviceUserId/visit-plan" serviceUserId={serviceUserId}>
-                Visit plan
-              </CardLink>
-            }
-          >
-            <InfoRow
-              label="Status"
-              value={visitPlan?.status ?? 'Not set up'}
-              tone={
-                visitPlan?.status === 'ACTIVE'
-                  ? 'ok'
-                  : visitPlan?.status === 'SUSPENDED'
-                    ? 'warn'
-                    : visitPlan
-                      ? undefined
-                      : 'warn'
-              }
-            />
-            <InfoRow
-              label="Carers per visit"
-              value={carersPerVisit ?? '—'}
-            />
-            <InfoRow
-              label="Enabled calls"
-              value={visitPlan ? enabledSlots : '—'}
-            />
-            <InfoRow
-              label="Weekly contracted"
-              value={contractedHours != null ? `${contractedHours}h` : '—'}
-            />
-            <InfoRow
-              label="Weekly planned"
-              value={
-                weeklyHours
-                  ? formatPlannedHours(weeklyHours.plannedMinutes)
-                  : '—'
-              }
-              tone={weeklyHours?.isOverContract ? 'warn' : undefined}
-            />
-            <InfoRow label="Effective from" value={formatShortUk(visitPlan?.effectiveFrom)} />
-          </SimpleCard>
-
-          <SimpleCard
-            title="Care delivery"
-            action={
-              <CardLink to="/service-users/$serviceUserId/care-plan" serviceUserId={serviceUserId}>
-                Care plan
-              </CardLink>
-            }
-          >
-            <InfoRow
-              label="Care plans"
-              value={carePlanSummary}
-              tone={publishedCount > 0 || acceptedItems.length > 0 ? 'ok' : 'warn'}
-            />
-            <InfoRow label="Care type" value={detail.careType?.name ?? '—'} />
-            <InfoRow label="Service start" value={formatShortUk(detail.serviceStartDate)} />
-            <InfoRow label="Personal inventory" value={`${inventory.data?.length ?? 0} items`} />
-            <InfoRow
-              label="Initial assessment"
-              value={ia ? 'On file' : 'Not recorded'}
-              tone={ia ? 'ok' : 'warn'}
-            />
-          </SimpleCard>
-
-          <SimpleCard
-            title="Medication"
-            action={
-              <CardLink to="/service-users/$serviceUserId/medication" serviceUserId={serviceUserId}>
-                Meds
-              </CardLink>
-            }
-          >
-            <InfoRow label="Active medicines" value={activeMeds.length} />
-            <InfoRow label="PRN" value={prnMeds.length} />
-            <InfoRow
-              label="Controlled"
-              value={controlledMeds.length}
-              tone={controlledMeds.length > 0 ? 'warn' : undefined}
-            />
-            {activeMeds.length > 0 ? (
-              <p className="pt-1 text-xs text-muted-foreground">
-                {activeMeds
-                  .slice(0, 3)
-                  .map((m) => m.medicationName)
-                  .join(', ')}
-                {activeMeds.length > 3 ? '…' : ''}
-              </p>
-            ) : (
-              <p className="pt-1 text-xs text-muted-foreground">No active medicines on file.</p>
-            )}
-          </SimpleCard>
-
-          <SimpleCard
-            title="ECM & attendance"
-            action={
-              <CardLink to="/service-users/$serviceUserId/ecm" serviceUserId={serviceUserId}>
-                ECM
-              </CardLink>
-            }
-          >
-            <InfoRow
-              label="Open exceptions"
-              value={openEcmExceptions.length}
-              tone={openEcmExceptions.length > 0 ? 'warn' : 'ok'}
-            />
-            <InfoRow
-              label="Overdue responses"
-              value={overdueEcm}
-              tone={overdueEcm > 0 ? 'danger' : undefined}
-            />
-            {openEcmExceptions[0] ? (
-              <p className="pt-1 text-xs text-muted-foreground">
-                Latest: {openEcmExceptions[0].title}
-              </p>
-            ) : (
-              <p className="pt-1 text-xs text-muted-foreground">No open attendance exceptions.</p>
-            )}
-          </SimpleCard>
-
-          <SimpleCard
-            title="Clinical & safety"
-            action={
-              <Button type="button" variant="outline" size="sm" onClick={() => setAllergiesOpen(true)}>
-                Manage allergies
-              </Button>
-            }
-          >
-            <InfoRow label="Risk level" value={detail.riskLevel?.name ?? 'Not set'} />
-            {detail.riskLevel ? (
-              <div className="mb-2 px-0.5">
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-amber-500 to-red-500"
-                    style={{ width: `${riskMeterPercent(detail)}%` }}
-                  />
-                </div>
-              </div>
-            ) : null}
-            <InfoRow label="Allergies" value={`${allergyRows.length} recorded`} />
-            {allergyRows.length > 0 ? (
-              <p className="pb-2 text-xs text-muted-foreground">
-                {allergyRows
-                  .slice(0, 4)
-                  .map((a) => a.allergyName)
-                  .join(', ')}
-                {allergyRows.length > 4 ? '…' : ''}
-              </p>
-            ) : null}
-            {diabetesFlag ? (
-              <p className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
-                Diabetes flag from allergy names — confirm clinically
-              </p>
-            ) : null}
-            <InfoRow label="Body map — active" value={bm?.activeCount ?? 0} />
-            <InfoRow
-              label="Body map — reviews due"
-              value={bm?.reviewDueCount ?? 0}
-              tone={(bm?.reviewDueCount ?? 0) > 0 ? 'danger' : undefined}
-            />
-            {medMissingSites > 0 || overduePatches > 0 ? (
-              <InfoRow
-                label="Body map — med alerts"
-                value={`${medMissingSites} missing site · ${overduePatches} overdue patch`}
-                tone="warn"
-              />
-            ) : null}
-            {legal?.dnacprInPlace ? (
-              <InfoRow label="DNACPR" value="In place" tone="warn" />
-            ) : null}
-          </SimpleCard>
-
-          <SimpleCard title="People & funding">
-            <InfoRow
-              label="Key worker"
-              value={employeeDisplayName(detail.keyWorker) ?? 'Not assigned'}
-            />
-            <InfoRow
-              label="Named nurse"
-              value={employeeDisplayName(detail.namedNurse) ?? '—'}
-            />
-            <InfoRow
-              label="Location"
-              value={
-                addr
-                  ? [addr.addressLine1, addr.town, addr.postcode].filter(Boolean).join(', ') ||
-                    detail.location?.name ||
-                    '—'
-                  : (detail.location?.name ?? '—')
-              }
-            />
-            <InfoRow
-              label="Access method"
-              value={homeAccessMethodLabel(addr?.accessMethod) || '—'}
-            />
-            <InfoRow
-              label="Key safe location"
-              value={addr?.keySafeLocation?.trim() || '—'}
-            />
-            <InfoRow
-              label="Key safe code"
-              value={addr?.keySafeNumber?.trim() || '—'}
-            />
-            <InfoRow
-              label="How to enter"
-              value={addr?.accessInstructions?.trim() || '—'}
-            />
-            <InfoRow
-              label="Funding"
-              value={primaryFunding?.fundingType.name ?? detail.fundingType?.name ?? '—'}
-            />
-            <InfoRow
-              label="Funding review"
-              value={formatShortUk(primaryFunding?.reviewDate)}
-              tone={fundingReviewOverdue ? 'danger' : undefined}
-            />
-            <InfoRow label="Contacts" value={`${contactsTotal} on file`} />
-            {primaryContacts.length > 0 ? (
-              <ul className="mt-1 space-y-1.5 text-xs text-muted-foreground">
-                {primaryContacts.map((c) => (
-                  <li key={c.id}>
-                    {c.firstName} {c.lastName ?? ''}
-                    {c.isPrimary ? ' · Primary' : ''}
-                    {c.phone ? ` · ${c.phone}` : ''}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </SimpleCard>
-
-          <SimpleCard
-            title="Recent visits"
-            className="md:col-span-2 xl:col-span-3"
-            action={
-              <CardLink to="/service-users/$serviceUserId/activity" serviceUserId={serviceUserId}>
-                Activity
-              </CardLink>
-            }
-          >
-            {activityQuery.isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading recent visits…</p>
-            ) : recentVisits.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No completed visits in recent history.</p>
-            ) : (
-              <ul className="divide-y divide-border/60">
-                {recentVisits.map((visit) => (
-                  <li
-                    key={visit.id}
-                    className="flex flex-wrap items-start justify-between gap-2 py-2.5 first:pt-0 last:pb-0"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground">{visit.visitName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDateTime(visit.scheduledStartDateTime)}
-                      </p>
-                    </div>
-                    <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                      {visitStatusLabel(visit.status)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SimpleCard>
-
-          <SimpleCard title="Legal documents">
-            <InfoRow
-              label="DNACPR certificate"
-              value={<DocumentOpenLink storedUrl={legal?.dnacprCertificateUrl} />}
-            />
-            <InfoRow
-              label="LPA — Health & welfare"
-              value={<DocumentOpenLink storedUrl={legal?.lpaHealthCertificateUrl} />}
-            />
-            <InfoRow
-              label="LPA — Finance"
-              value={<DocumentOpenLink storedUrl={legal?.lpaFinanceCertificateUrl} />}
-            />
-            {(documents.data?.dols ?? []).length > 0 ? (
-              (documents.data?.dols ?? []).slice(0, 2).map((row: ServiceUserDolsRow) => (
-                <InfoRow
-                  key={row.id}
-                  label={`DoLS${row.isCurrent ? ' (current)' : ''}`}
-                  value={
-                    <DocumentOpenLink
-                      storedUrl={row.certificateUrl}
-                      label={row.isCurrent ? formatShortUk(row.renewalDate) : 'View'}
-                    />
-                  }
+              <OverviewCard
+                title="Care delivery"
+                action={
+                  <OverviewLink serviceUserId={serviceUserId} target={{ to: '/service-users/$serviceUserId/care-plan' }}>
+                    Care plan →
+                  </OverviewLink>
+                }
+              >
+                <Row
+                  label="Care plans"
+                  value={carePlanSummary}
+                  tone={publishedCount > 0 || acceptedItems.length > 0 ? 'ok' : 'warn'}
                 />
-              ))
-            ) : (
-              <InfoRow label="DoLS" value="No records" />
-            )}
-          </SimpleCard>
+                <Row label="Initial assessment" value={ia ? 'On file' : 'Not recorded'} tone={ia ? 'ok' : 'warn'} />
+                <Row label="Care type" {...valueOrDash(detail.careType?.name)} />
+                <Row label="Service start" {...valueOrDash(detail.serviceStartDate ? formatShortUk(detail.serviceStartDate) : null)} />
+                <Row label="Personal inventory" value={`${inventory.data?.length ?? 0} items`} />
+                {canReadPathways ? <PathwaysRow serviceUserId={serviceUserId} /> : null}
+              </OverviewCard>
 
-          <SimpleCard title="Record">
-            <InfoRow
-              label="Service user #"
-              value={detail.serviceUserNumber ?? detail.id.slice(0, 8)}
-            />
-            {detail.updatedAt ? (
-              <InfoRow label="Profile updated" value={formatShortUk(detail.updatedAt)} />
-            ) : null}
-          </SimpleCard>
+              <OverviewCard
+                title="Medication"
+                action={
+                  <OverviewLink serviceUserId={serviceUserId} target={{ to: '/service-users/$serviceUserId/medication' }}>
+                    Meds →
+                  </OverviewLink>
+                }
+              >
+                <div className="mt-1 grid grid-cols-3 gap-2">
+                  {[
+                    { n: activeMeds.length, label: 'Active' },
+                    { n: prnMeds.length, label: 'PRN' },
+                    { n: controlledMeds.length, label: 'Controlled' },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-lg bg-muted/60 p-3">
+                      <div className="text-[22px] font-semibold tabular-nums text-foreground">{s.n}</div>
+                      <div className="text-xs text-muted-foreground">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-[13px] text-muted-foreground">
+                  {activeMeds.length > 0
+                    ? `${activeMeds
+                        .slice(0, 3)
+                        .map((m) => m.medicationName)
+                        .join(', ')}${activeMeds.length > 3 ? '…' : ''}`
+                    : 'No active medicines on file.'}
+                </p>
+              </OverviewCard>
 
-          {canReadPathways ? <SpecialistPathwaysCard serviceUserId={serviceUserId} /> : null}
-          {canReadSafeguarding ? <SafeguardingCard serviceUserId={serviceUserId} /> : null}
-        </div>
+              <OverviewCard
+                title="Clinical & safety"
+                action={
+                  <button
+                    type="button"
+                    className="text-[13px] font-medium text-teal-700 hover:underline dark:text-teal-400"
+                    onClick={() => setAllergiesOpen(true)}
+                  >
+                    Allergies →
+                  </button>
+                }
+              >
+                <Row label="Risk level" value={detail.riskLevel?.name ?? 'Not set'} tone={detail.riskLevel ? undefined : 'warn'} />
+                {detail.riskLevel ? (
+                  <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-amber-500 to-red-500"
+                      style={{ width: `${riskMeterPercent(detail)}%` }}
+                    />
+                  </div>
+                ) : null}
+                <Row label="Allergies" value={`${allergyRows.length} recorded`} />
+                {allergyRows.length > 0 ? (
+                  <p className="pb-2 text-xs text-muted-foreground">
+                    {allergyRows
+                      .slice(0, 4)
+                      .map((a) => a.allergyName)
+                      .join(', ')}
+                    {allergyRows.length > 4 ? '…' : ''}
+                  </p>
+                ) : null}
+                {diabetesFlag ? (
+                  <p className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
+                    Diabetes flag from allergy names — confirm clinically
+                  </p>
+                ) : null}
+                <Row label="Body map — active" value={bm?.activeCount ?? 0} />
+                <Row
+                  label="Body map — reviews due"
+                  value={bm?.reviewDueCount ?? 0}
+                  tone={(bm?.reviewDueCount ?? 0) > 0 ? 'danger' : undefined}
+                />
+                {medMissingSites > 0 || overduePatches > 0 ? (
+                  <Row
+                    label="Body map — med alerts"
+                    value={`${medMissingSites} missing site · ${overduePatches} overdue patch`}
+                    tone="warn"
+                  />
+                ) : null}
+                {legal?.dnacprInPlace ? <Row label="DNACPR" value="In place" tone="warn" /> : null}
+              </OverviewCard>
 
-        <SimpleCard title="Quick links">
-          <div className="flex flex-wrap gap-2">
-            <QuickLink to="/service-users/$serviceUserId/visit-plan" serviceUserId={serviceUserId}>
-              Visit plan
-            </QuickLink>
-            <QuickLink to="/service-users/$serviceUserId/tasks-planner" serviceUserId={serviceUserId}>
-              Tasks planner
-            </QuickLink>
-            <QuickLink to="/service-users/$serviceUserId/ecm" serviceUserId={serviceUserId}>
-              ECM
-            </QuickLink>
-            <QuickLink to="/service-users/$serviceUserId/activity" serviceUserId={serviceUserId}>
-              Activity
-            </QuickLink>
-            <QuickLink to="/service-users/$serviceUserId/observations" serviceUserId={serviceUserId}>
-              Observations
-            </QuickLink>
-            <QuickLink to="/service-users/$serviceUserId/care-plan" serviceUserId={serviceUserId}>
-              Care plan
-            </QuickLink>
-            <QuickLink to="/service-users/$serviceUserId/medication" serviceUserId={serviceUserId}>
-              Medication
-            </QuickLink>
-            <QuickLink to="/service-users/$serviceUserId/alerts" serviceUserId={serviceUserId}>
-              Medical & Alerts
-            </QuickLink>
-            <QuickLink to="/service-users/$serviceUserId/body-map" serviceUserId={serviceUserId}>
-              Body map
-            </QuickLink>
-            <QuickLink to="/service-users/$serviceUserId/documents" serviceUserId={serviceUserId}>
-              Documents
-            </QuickLink>
-            <QuickLink
-              to="/service-users/$serviceUserId"
-              serviceUserId={serviceUserId}
-              search={{ tab: 'assessment' }}
-            >
-              Initial assessment
-            </QuickLink>
+              <OverviewCard
+                title="Attendance (ECM)"
+                action={
+                  <OverviewLink serviceUserId={serviceUserId} target={{ to: '/service-users/$serviceUserId/ecm' }}>
+                    ECM →
+                  </OverviewLink>
+                }
+              >
+                <Row
+                  label="Open exceptions"
+                  value={openEcmExceptions.length}
+                  tone={openEcmExceptions.length > 0 ? 'warn' : undefined}
+                />
+                <Row label="Overdue responses" value={overdueEcm} tone={overdueEcm > 0 ? 'danger' : undefined} />
+                <p className="mt-2 text-[13px] text-muted-foreground">
+                  {openEcmExceptions[0] ? `Latest: ${openEcmExceptions[0].title}` : 'No open attendance exceptions.'}
+                </p>
+              </OverviewCard>
+
+              <OverviewCard
+                title="Legal documents"
+                action={
+                  <OverviewLink serviceUserId={serviceUserId} target={{ to: '/service-users/$serviceUserId/documents' }}>
+                    Documents →
+                  </OverviewLink>
+                }
+              >
+                <Row label="DNACPR" value={<DocumentOpenLink storedUrl={legal?.dnacprCertificateUrl} />} />
+                <Row label="LPA — Health & welfare" value={<DocumentOpenLink storedUrl={legal?.lpaHealthCertificateUrl} />} />
+                <Row label="LPA — Finance" value={<DocumentOpenLink storedUrl={legal?.lpaFinanceCertificateUrl} />} />
+                {dols.length > 0 ? (
+                  dols.slice(0, 2).map((row: ServiceUserDolsRow) => (
+                    <Row
+                      key={row.id}
+                      label={`DoLS${row.isCurrent ? ' (current)' : ''}`}
+                      value={
+                        <DocumentOpenLink
+                          storedUrl={row.certificateUrl}
+                          label={row.isCurrent ? formatShortUk(row.renewalDate) : 'View'}
+                        />
+                      }
+                    />
+                  ))
+                ) : (
+                  <Row label="DoLS" value="No records" />
+                )}
+              </OverviewCard>
+            </div>
           </div>
-        </SimpleCard>
+
+          {/* Sidebar */}
+          <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-5">
+            <OverviewCard title="Home & access">
+              <p className={cn('text-sm leading-relaxed', addressText ? 'text-foreground' : 'text-muted-foreground')}>
+                {addressText || detail.location?.name || 'No address recorded'}
+              </p>
+              <div className="mt-3">
+                <Row label="Access method" {...valueOrDash(homeAccessMethodLabel(addr?.accessMethod))} />
+                <Row label="Key safe" {...valueOrDash(keySafe)} />
+                <Row label="How to enter" {...valueOrDash(addr?.accessInstructions)} />
+              </div>
+              <OverviewLink
+                serviceUserId={serviceUserId}
+                target={profileTab('dom', 'How to enter the home')}
+                className="mt-2.5 inline-block"
+              >
+                {accessMissing ? 'Add access details' : 'Edit access details'}
+              </OverviewLink>
+            </OverviewCard>
+
+            <OverviewCard
+              title="People"
+              action={
+                <OverviewLink serviceUserId={serviceUserId} target={profileTab('contacts')}>
+                  Contacts →
+                </OverviewLink>
+              }
+            >
+              <Row
+                label="Key worker"
+                value={
+                  employeeDisplayName(detail.keyWorker) ?? (
+                    <OverviewLink serviceUserId={serviceUserId} target={profileTab('personal', 'Key Worker (search employees)')}>
+                      Assign
+                    </OverviewLink>
+                  )
+                }
+              />
+              <Row label="Named nurse" {...valueOrDash(employeeDisplayName(detail.namedNurse))} />
+              {primaryContacts.length > 0 ? (
+                primaryContacts.map((c) => (
+                  <div key={c.id} className="mt-2.5 rounded-lg bg-muted/60 p-3">
+                    <div className="text-sm font-medium text-foreground">
+                      {c.firstName} {c.lastName ?? ''}
+                    </div>
+                    <div className="mt-0.5 text-[13px] text-muted-foreground">
+                      {[c.isPrimary ? 'Primary contact' : null, c.isEmergencyContact ? 'Emergency contact' : null, c.phone]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </div>
+                    {!hasEmergencyContact && c.isPrimary ? (
+                      <div className="mt-1.5 text-xs text-amber-700 dark:text-amber-400">Not marked as emergency contact</div>
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <p className="mt-2.5 text-[13px] text-muted-foreground">
+                  {contactsTotal > 0 ? `${contactsTotal} contacts on file` : 'No contacts recorded.'}
+                </p>
+              )}
+            </OverviewCard>
+
+            <OverviewCard
+              title="Funding"
+              action={
+                <OverviewLink serviceUserId={serviceUserId} target={profileTab('funding')}>
+                  Funding →
+                </OverviewLink>
+              }
+            >
+              <Row label="Route" {...valueOrDash(primaryFunding?.fundingType.name ?? detail.fundingType?.name)} />
+              <Row
+                label="Charge card"
+                value={
+                  chargeCardName ?? (
+                    <OverviewLink serviceUserId={serviceUserId} target={profileTab('charge-card')}>
+                      {chargeCardQuery.isLoading ? '…' : 'Assign'}
+                    </OverviewLink>
+                  )
+                }
+              />
+              <Row
+                label="Funder"
+                value={
+                  funderNames.length ? (
+                    funderNames.join(', ')
+                  ) : (
+                    <OverviewLink serviceUserId={serviceUserId} target={profileTab('funding')}>
+                      Add
+                    </OverviewLink>
+                  )
+                }
+              />
+              <Row
+                label="Review date"
+                value={primaryFunding?.reviewDate ? formatShortUk(primaryFunding.reviewDate) : '—'}
+                tone={fundingReviewOverdue ? 'danger' : primaryFunding?.reviewDate ? undefined : 'muted'}
+              />
+            </OverviewCard>
+
+            <OverviewCard title="Record">
+              <Row label="Service user #" value={detail.serviceUserNumber ?? detail.id.slice(0, 8)} />
+              {detail.updatedAt ? <Row label="Profile updated" value={formatShortUk(detail.updatedAt)} /> : null}
+            </OverviewCard>
+          </aside>
+        </div>
       </div>
       <ServiceUserAllergiesManageDialog
         serviceUserId={serviceUserId}
@@ -1165,39 +976,5 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
         onOpenChange={setFlashDialogOpen}
       />
     </div>
-  )
-}
-
-function QuickLink({
-  children,
-  to,
-  serviceUserId,
-  search,
-}: {
-  children: React.ReactNode
-  to:
-    | '/service-users/$serviceUserId/observations'
-    | '/service-users/$serviceUserId/care-plan'
-    | '/service-users/$serviceUserId/medication'
-    | '/service-users/$serviceUserId/body-map'
-    | '/service-users/$serviceUserId/documents'
-    | '/service-users/$serviceUserId/visit-plan'
-    | '/service-users/$serviceUserId/tasks-planner'
-    | '/service-users/$serviceUserId/ecm'
-    | '/service-users/$serviceUserId/activity'
-    | '/service-users/$serviceUserId/alerts'
-    | '/service-users/$serviceUserId'
-  serviceUserId: string
-  search?: Record<string, string>
-}) {
-  return (
-    <Link
-      to={to}
-      params={{ serviceUserId }}
-      search={search}
-      className="rounded-md border border-border bg-muted/40 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
-    >
-      {children}
-    </Link>
   )
 }

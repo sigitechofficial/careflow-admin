@@ -144,8 +144,8 @@ export function InitialAssessmentAboutMeSection({
 
       <p className={cn('mt-4 flex items-start gap-2', IA_HINT_CLASS, 'text-xs')}>
         <Heart className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" aria-hidden />
-        Answers save with this assessment submission. Updating the service user About Me profile still
-        pre-fills empty fields on load.
+        Answers save with this assessment and are copied to the service user&apos;s About Me profile. The
+        profile pre-fills empty fields here on load.
       </p>
     </HolisticCollapsibleSection>
   )

@@ -5,7 +5,9 @@ export function formatAllergiesAssessmentText(rows: ServiceUserAllergyRow[]): st
   return rows
     .map((row) => {
       const comment = row.comment.trim()
-      return comment ? `${row.allergyName} — ${comment}` : row.allergyName
+      // A comment that only repeats the allergy name (the catalogue tick stores it) adds nothing.
+      const sameAsName = comment.toLowerCase() === row.allergyName.trim().toLowerCase()
+      return comment && !sameAsName ? `${row.allergyName} — ${comment}` : row.allergyName
     })
     .join('\n')
 }

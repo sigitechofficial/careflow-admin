@@ -3,11 +3,13 @@ import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { useAuthStore } from '@/features/auth/store'
 import type {
   BodyMapAlertRow,
+  BodyMapBodyView,
   BodyMapGovernanceAlertRow,
   BodyMapLink,
   BodyMapLinkedModule,
   BodyMapRecordRow,
   BodyMapReviewQueueRecord,
+  BodyMapSide,
   BodyMapSummary,
   BodyMapMedicationSitePayload,
   BodyMapPressureAssessmentPayload,
@@ -76,6 +78,24 @@ export async function createBodyMapRecord(
   )
   if (!res.data) throw new ApiError('No data returned', 500)
   return res.data
+}
+
+/** Move a marker, e.g. to place the initial assessment "To be located" pin. */
+export async function updateBodyMapMarker(
+  markerId: string,
+  payload: {
+    bodyView?: BodyMapBodyView
+    side?: BodyMapSide
+    bodyPart?: string
+    specificLocation?: string
+    xCoordinate?: number
+    yCoordinate?: number
+  },
+): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/body-map/markers/${markerId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function closeBodyMapRecord(

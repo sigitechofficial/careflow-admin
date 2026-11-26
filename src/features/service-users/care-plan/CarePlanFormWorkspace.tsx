@@ -2,11 +2,14 @@ import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   AlertTriangle,
-  ChevronRight,
+  CheckCircle2,
   Info,
+  Link2,
   Loader2,
+  Pencil,
   Plus,
   Trash2,
+  Unlink,
 } from 'lucide-react'
 import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.types'
 import type { ServiceUserDetail } from '@/features/service-users/types'
@@ -16,7 +19,10 @@ import { CarePlanAssessmentSection } from '@/features/service-users/care-plan/Ca
 import { CarePlanConsentCapacitySection } from '@/features/service-users/care-plan/CarePlanConsentCapacitySection'
 import {
   applyManualRiskItems,
+  displayNameForIaRisk,
   formatRiskLevelLabel,
+  selectIaRiskReason,
+  type CarePlanIaRiskDisplay,
   mapIaRiskRecordsForCarePlanProfile,
   manualRiskItemsFromDraft,
 } from '@/features/service-users/care-plan/care-plan-risk-profile.util'
@@ -32,6 +38,14 @@ import { serviceUserKeys } from '@/features/service-users/keys'
 import { useQuery } from '@tanstack/react-query'
 import { useCarePlanIaSource } from '@/features/service-users/hooks/useCarePlanIaSource'
 import {
+  useCarePlanRisks,
+  useCarePlanRisksAction,
+} from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
+import type { RiskReviewActionInput } from '@/features/service-users/care-plans/components/CarePlanRiskReviewPanel'
+import type { CarePlanRiskSummary } from '@/features/service-users/care-plans/types'
+import type { InitialAssessmentRiskRecord } from '@/features/service-users/initial-assessment/types'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import {
   useInitialAssessmentActions,
   useInitialAssessmentRiskRecords,
 } from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
@@ -44,6 +58,7 @@ import {
   DEPENDENCY_LEVEL_OPTIONS,
   metaBool,
   metaString,
+  serializeRiskItems,
   setMetaValue,
   type CarePlanReviewStatus,
   type CarePlanRiskItem,
@@ -63,6 +78,7 @@ import { serviceUserGivenName, serviceUserDisplayName } from '@/features/service
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
+import { SectionIntro } from '@/shared/ui/section-intro'
 import { DatePicker } from '@/shared/ui/date-picker'
 import { Label } from '@/shared/ui/form-field'
 import { Input } from '@/shared/ui/input'
@@ -195,7 +211,7 @@ function ReviewSummarySection({
           Review and evaluation summary
         </FieldLabel>
         <CarePlanRichTextField
-          className="[&_.note-editor]:rounded-sm [&_.note-editor]:border-sky-200"
+          className="[&_.summernote-custom-wrap]:rounded-sm [&_.summernote-custom-wrap]:border-sky-200"
           value={summary}
           disabled={disabled}
           placeholder={REVIEW_SUMMARY_PLACEHOLDER}
@@ -346,16 +362,46 @@ function CarePlanMainSection({
   )
 }
 
+/** Card data for a linked assessment risk that is not in the latest assessment's records. */
+function linkedRiskDisplay(risk: CarePlanRiskSummary): CarePlanIaRiskDisplay {
+  const record = {
+    riskType: risk.riskType as InitialAssessmentRiskRecord['riskType'],
+    description: risk.description,
+    sourceQuestionText: null,
+  }
+  return {
+    id: risk.id,
+    name: displayNameForIaRisk(record),
+    riskLevel: risk.riskLevel,
+    reason: selectIaRiskReason(record),
+    status: risk.status,
+    source: 'initial_assessment',
+    sourceLabel: 'Source: Initial Assessment',
+  }
+}
+
 function RiskProfileSection({
   serviceUserId,
+  formId,
   values,
   onChange,
   disabled,
+  risksSaved,
+  savedRiskItems,
+  onSave,
+  saving,
 }: {
   serviceUserId: string
+  formId: string
   values: CarePlanDraftValues
   onChange: (v: CarePlanDraftValues) => void
   disabled?: boolean
+  /** True when the other risks match what was last saved. */
+  risksSaved: boolean
+  /** Other risks as last saved; these also show in the list at the top. */
+  savedRiskItems: CarePlanRiskItem[]
+  onSave: () => void
+  saving?: boolean
 }) {
   const iaSource = useCarePlanIaSource(serviceUserId)
   const submissionId = iaSource.submission?.id ?? null
@@ -365,44 +411,103 @@ function RiskProfileSection({
     iaSource.canRead && Boolean(submissionId),
   )
 
-  const iaRisks = React.useMemo(
-    () =>
-      mapIaRiskRecordsForCarePlanProfile(recordsQuery.data ?? [], {
-        submittedAt: iaSource.submission?.submittedAt,
-      }),
-    [recordsQuery.data, iaSource.submission?.submittedAt],
-  )
+  const linksQuery = useCarePlanRisks(serviceUserId, formId)
+  const linkAction = useCarePlanRisksAction(serviceUserId, formId)
+  const canApprove = useAuthStore((s) => s.can('service_users.care_plan.approve'))
+  const canLink = canApprove && !disabled && Boolean(linksQuery.data)
+  const [riskToLink, setRiskToLink] = React.useState('')
+
+  // Only the assessment risks linked to this care plan (Link risk), not every risk of the person.
+  const iaRisks = React.useMemo(() => {
+    const latest = mapIaRiskRecordsForCarePlanProfile(recordsQuery.data ?? [], {
+      submittedAt: iaSource.submission?.submittedAt,
+    })
+    return (linksQuery.data?.links ?? [])
+      .filter((link) => link.risk.status !== 'CLOSED')
+      .map((link) => ({
+        ...(latest.find((r) => r.id === link.risk.id) ?? linkedRiskDisplay(link.risk)),
+        linkId: link.id,
+        needsReview: link.status === 'REVIEW_REQUIRED',
+      }))
+  }, [recordsQuery.data, iaSource.submission?.submittedAt, linksQuery.data])
+
+  const runLinkAction = (input: RiskReviewActionInput, done: string) => {
+    void linkAction
+      .mutateAsync(input)
+      .then(() => toastSuccess(done))
+      .catch((e) => toastApiError(e, 'Could not update linked risks'))
+  }
   const manualItems = manualRiskItemsFromDraft(values)
+  // Saved risks are shown as cards in the list above; only new or opened ones are forms below.
+  const [editingIds, setEditingIds] = React.useState<Set<string>>(() => new Set())
+  React.useEffect(() => {
+    setEditingIds(new Set())
+  }, [savedRiskItems])
+  const savedById = new Map(savedRiskItems.map((i) => [i.id, i]))
+  const isSettled = (i: CarePlanRiskItem) =>
+    savedById.has(i.id) && !editingIds.has(i.id) && Boolean(i.name.trim())
+  const savedManual = manualItems.filter(isSettled)
+  const formItems = manualItems.filter((i) => !isSettled(i))
+
+  const startEdit = (id: string) => {
+    setEditingIds((prev) => new Set(prev).add(id))
+    requestAnimationFrame(() =>
+      document
+        .querySelector(`[data-risk-form-id="${id}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+    )
+  }
+
+  const cancelEdit = (id: string) => {
+    const saved = savedById.get(id)
+    if (saved) updateItems(manualItems.map((i) => (i.id === id ? saved : i)))
+    setEditingIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }
 
   const updateItems = (next: CarePlanRiskItem[]) => {
     onChange(applyManualRiskItems(values, next))
   }
 
   const addItem = () => {
-    updateItems([...manualItems, { id: createClientUuid(), name: 'New risk' }])
+    updateItems([...manualItems, { id: createClientUuid(), name: '', howToReduce: '' }])
   }
 
   const removeItem = (id: string) => {
     updateItems(manualItems.filter((i) => i.id !== id))
   }
 
-  const renameItem = (id: string, name: string) => {
-    updateItems(manualItems.map((i) => (i.id === id ? { ...i, name } : i)))
+  const editItem = (id: string, patch: Partial<CarePlanRiskItem>) => {
+    updateItems(manualItems.map((i) => (i.id === id ? { ...i, ...patch } : i)))
   }
 
   const iaLoading =
-    iaSource.submissionsQuery.isLoading || (Boolean(submissionId) && recordsQuery.isLoading)
+    iaSource.submissionsQuery.isLoading ||
+    (Boolean(submissionId) && recordsQuery.isLoading) ||
+    linksQuery.isLoading
 
   return (
     <div className="space-y-8" data-testid="care-plan-risk-profile">
+      <SectionIntro
+        testId="care-plan-risk-profile-intro"
+        purpose="What could harm this person, so staff know what to watch for."
+        steps={[
+          'Only the assessment risks that belong to this care plan show here. Pick them with "Link an assessment risk" below the list.',
+          'Each care plan has its own list, so a falls risk can sit on the Falls care plan and not on the others.',
+          'You link a risk once. When a new assessment records the same risk again, it stays linked by itself; if it changed, it shows "Needs review".',
+          'Add any other risk with "Add a risk": write what the risk is and how staff keep the person safe, then click "Save risks".',
+        ]}
+      />
       <section className="space-y-3" aria-labelledby="care-plan-ia-risks-heading">
         <div>
           <h3 id="care-plan-ia-risks-heading" className="text-sm font-semibold text-foreground">
-            Identified risks from initial assessment
+            Identified risks
           </h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Read-only risks from the latest eligible Initial Assessment. Not stored on this care plan
-            draft.
+            Assessment risks linked to this care plan, plus the saved risks added on this care plan.
           </p>
         </div>
 
@@ -411,16 +516,12 @@ function RiskProfileSection({
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading assessment risks…
           </div>
-        ) : !submissionId ? (
-          <p className="rounded-sm border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
-            No risks identified from the initial assessment
-          </p>
-        ) : iaRisks.length === 0 ? (
+        ) : iaRisks.length === 0 && savedManual.length === 0 ? (
           <p
             className="rounded-sm border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground"
             data-testid="care-plan-ia-risks-empty"
           >
-            No risks identified from the initial assessment
+            No risks linked to this care plan yet.
           </p>
         ) : (
           <ul className="space-y-3" data-testid="care-plan-ia-risks-list">
@@ -469,6 +570,11 @@ function RiskProfileSection({
                       <Badge variant="outline" size="sm" className="font-normal text-muted-foreground">
                         From initial assessment
                       </Badge>
+                      {risk.needsReview ? (
+                        <Badge variant="warning" size="sm" className="font-medium">
+                          Needs review
+                        </Badge>
+                      ) : null}
                     </div>
 
                     <div className="mt-3 space-y-1">
@@ -484,82 +590,253 @@ function RiskProfileSection({
                     >
                       {risk.sourceLabel}
                     </p>
+                    {canLink ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="mt-2 px-0 text-muted-foreground hover:bg-transparent hover:text-destructive"
+                        disabled={linkAction.isPending}
+                        onClick={() =>
+                          runLinkAction({ action: 'unlink', linkId: risk.linkId }, 'Risk removed from this care plan')
+                        }
+                        data-testid={`care-plan-ia-risk-unlink-${risk.id}`}
+                      >
+                        <Unlink className="mr-1.5 h-4 w-4" aria-hidden />
+                        Remove from this care plan
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            ))}
+            {savedManual.map((risk) => (
+              <li
+                key={risk.id}
+                className="rounded-lg border border-border/80 bg-card shadow-sm"
+                data-testid={`care-plan-saved-manual-risk-${risk.id}`}
+              >
+                <div className="flex">
+                  <div className="w-1 shrink-0 rounded-l-lg bg-sky-500" aria-hidden />
+                  <div className="min-w-0 flex-1 px-4 py-3.5">
+                    <h4 className="text-[15px] font-semibold tracking-tight text-foreground">
+                      {risk.name}
+                    </h4>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" size="sm" className="font-normal text-muted-foreground">
+                        Added on this care plan
+                      </Badge>
+                    </div>
+                    {risk.howToReduce?.trim() ? (
+                      <div className="mt-3 space-y-1">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          How staff keep the person safe
+                        </p>
+                        <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+                          {risk.howToReduce}
+                        </p>
+                      </div>
+                    ) : null}
+                    {disabled ? null : (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => startEdit(risk.id)}
+                          data-testid={`care-plan-saved-manual-risk-edit-${risk.id}`}
+                        >
+                          <Pencil className="mr-1.5 h-4 w-4" aria-hidden />
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => removeItem(risk.id)}
+                          data-testid={`care-plan-saved-manual-risk-remove-${risk.id}`}
+                        >
+                          <Trash2 className="mr-1.5 h-4 w-4" aria-hidden />
+                          Remove
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </li>
             ))}
           </ul>
         )}
+
+        {canLink && linksQuery.data && linksQuery.data.availableRisks.length > 0 ? (
+          <div className="flex flex-wrap items-end gap-2" data-testid="care-plan-ia-risk-link">
+            <label className="min-w-[16rem] flex-1 space-y-1">
+              <span className="text-sm font-medium text-foreground">Link an assessment risk</span>
+              <select
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={riskToLink}
+                onChange={(e) => setRiskToLink(e.target.value)}
+              >
+                <option value="">Choose a risk from the assessment…</option>
+                {linksQuery.data.availableRisks.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {linkedRiskDisplay(r).name} — {formatRiskLevelLabel(r.riskLevel)} — {r.description.slice(0, 60)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!riskToLink || linkAction.isPending}
+              onClick={() => {
+                runLinkAction({ action: 'link', riskRecordId: riskToLink }, 'Risk linked to this care plan')
+                setRiskToLink('')
+              }}
+            >
+              <Link2 className="mr-1.5 h-4 w-4" aria-hidden />
+              Link risk
+            </Button>
+          </div>
+        ) : null}
       </section>
 
       <section className="space-y-3" aria-labelledby="care-plan-manual-risks-heading">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 id="care-plan-manual-risks-heading" className="text-sm font-semibold text-foreground">
-              Additional care plan risks
+              Other risks for this care plan
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Optional risks recorded on this care plan. Saved with draft / publish.
+              Add a risk the assessment did not find. Write what the risk is and how staff keep the
+              person safe, then click Save risks.
             </p>
           </div>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={addItem}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-50"
-            aria-label="Add risk"
-            data-testid="care-plan-manual-risk-add"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+          {disabled ? null : (
+            <Button
+              type="button"
+              size="sm"
+              onClick={addItem}
+              data-testid="care-plan-manual-risk-add"
+            >
+              <Plus className="mr-1.5 h-4 w-4" aria-hidden />
+              Add a risk
+            </Button>
+          )}
         </div>
 
         {manualItems.length === 0 ? (
-          <p className="text-sm text-muted-foreground" data-testid="care-plan-manual-risks-empty">
-            No additional care plan risks. Use + to add one.
+          <p
+            className="rounded-sm border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground"
+            data-testid="care-plan-manual-risks-empty"
+          >
+            No other risks added.
           </p>
-        ) : (
-          <ul className="space-y-2" data-testid="care-plan-manual-risks-list">
-            {manualItems.map((item) => (
-              <li key={item.id}>
-                <details className="group overflow-hidden rounded-sm border border-border/80">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground [&::-webkit-details-marker]:hidden">
-                    <span className="flex min-w-0 flex-1 items-center gap-2">
-                      <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
-                      {disabled ? (
-                        <span className="truncate">{item.name}</span>
-                      ) : (
-                        <input
-                          type="text"
-                          value={item.name}
-                          aria-label={`Risk name for ${item.name}`}
-                          className="min-w-0 flex-1 rounded-sm border-0 bg-transparent text-sm font-semibold text-primary-foreground outline-none placeholder:text-primary-foreground/60 focus:ring-1 focus:ring-white/40"
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => renameItem(item.id, e.target.value)}
-                        />
-                      )}
-                    </span>
-                    <button
+        ) : formItems.length === 0 ? null : (
+          <ul className="space-y-3" data-testid="care-plan-manual-risks-list">
+            {formItems.map((item, index) => (
+              <li
+                key={item.id}
+                className="space-y-3 rounded-md border border-border/80 bg-card p-4 shadow-sm"
+                data-testid={`care-plan-manual-risk-${index + 1}`}
+                data-risk-form-id={item.id}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {savedById.has(item.id) ? 'Edit risk' : 'New risk'}
+                  </p>
+                  {disabled ? null : savedById.has(item.id) && editingIds.has(item.id) ? (
+                    <Button
                       type="button"
-                      disabled={disabled}
-                      className="rounded p-1 text-rose-200 hover:bg-white/10 hover:text-white disabled:opacity-50"
-                      aria-label={`Remove ${item.name}`}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        removeItem(item.id)
-                      }}
+                      size="sm"
+                      variant="ghost"
+                      className="h-8"
+                      onClick={() => cancelEdit(item.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </summary>
-                  <div className="border-t border-border bg-white p-4 text-sm text-muted-foreground dark:bg-card">
-                    Risk mitigation details for {item.name.toLowerCase()} will appear here.
-                  </div>
-                </details>
+                      Cancel edit
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 text-destructive hover:text-destructive"
+                      onClick={() => removeItem(item.id)}
+                    >
+                      <Trash2 className="mr-1.5 h-4 w-4" aria-hidden />
+                      Remove
+                    </Button>
+                  )}
+                </div>
+
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-foreground">What is the risk?</span>
+                  {disabled ? (
+                    <p className="text-sm text-foreground/90">{item.name || '—'}</p>
+                  ) : (
+                    <Input
+                      value={item.name}
+                      placeholder="e.g. Might fall when getting up at night"
+                      onChange={(e) => editItem(item.id, { name: e.target.value })}
+                    />
+                  )}
+                </label>
+
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-foreground">
+                    How do staff keep the person safe?
+                  </span>
+                  {disabled ? (
+                    <p className="whitespace-pre-line text-sm text-foreground/90">
+                      {item.howToReduce?.trim() || '—'}
+                    </p>
+                  ) : (
+                    <textarea
+                      value={item.howToReduce ?? ''}
+                      rows={3}
+                      placeholder="e.g. Leave a night light on and keep the walking frame next to the bed."
+                      className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      onChange={(e) => editItem(item.id, { howToReduce: e.target.value })}
+                    />
+                  )}
+                </label>
               </li>
             ))}
           </ul>
         )}
+
+        {disabled ? null : !risksSaved ? (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100"
+            data-testid="care-plan-manual-risks-save-note"
+            role="note"
+          >
+            <span className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <span>Your risk changes are not saved yet.</span>
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              onClick={onSave}
+              disabled={saving}
+              data-testid="care-plan-manual-risks-save"
+            >
+              {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden /> : null}
+              Save risks
+            </Button>
+          </div>
+        ) : savedManual.length > 0 ? (
+          <p
+            className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400"
+            data-testid="care-plan-manual-risks-saved"
+          >
+            <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+            Risks saved. They show in the Identified risks list above.
+          </p>
+        ) : null}
       </section>
     </div>
   )
@@ -728,14 +1005,24 @@ function CareActionsSection({ serviceUserId }: { serviceUserId: string }) {
 
   return (
     <div className="space-y-8" data-testid="care-plan-care-actions">
+      <SectionIntro
+        testId="care-plan-care-actions-intro"
+        purpose="A to-do list of jobs for this person that are not done yet, so nothing important is forgotten."
+        steps={[
+          'Example: the assessment says there is a DNACPR form, so a job is made to check the form.',
+          'Jobs are made by themselves when the Initial Assessment is submitted. Staff can also add them there.',
+          'Do Urgent and High jobs first. Each job shows when it is due.',
+          'This page only shows the list. To mark a job done or add a new one, go to the Initial Assessment, "Actions & care plans" tab, Action register.',
+          'These are one-off jobs, not visit tasks. Visit tasks (like giving meals or medicines) are done on every visit.',
+        ]}
+      />
       <section className="space-y-3" aria-labelledby="care-plan-ia-actions-heading">
         <div>
           <h3 id="care-plan-ia-actions-heading" className="text-sm font-semibold text-foreground">
             Actions from initial assessment
           </h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Read-only open actions from the latest eligible Initial Assessment. Not stored on this care
-            plan draft.
+            Jobs not done yet, from the latest Initial Assessment. You can only view them here.
           </p>
         </div>
 
@@ -875,6 +1162,14 @@ function CareHistorySection({
 
   return (
     <div className="space-y-8" data-testid="care-plan-care-history">
+      <SectionIntro
+        testId="care-plan-care-history-intro"
+        purpose="A record of every version of this care plan."
+        steps={[
+          'Each time the care plan is published, a new version is added here with the date and who published it.',
+          'The newest version is marked "Current". Older versions are kept so you can see what changed.',
+        ]}
+      />
       <section className="space-y-3" aria-labelledby="care-plan-version-history-heading">
         <div>
           <h3 id="care-plan-version-history-heading" className="text-sm font-semibold text-foreground">
@@ -1055,7 +1350,8 @@ export function CarePlanFormWorkspace({
   onCancel: () => void
   onPublish: () => void
   publishLabel?: string
-  onSaveDraft: () => void
+  /** Resolves true when the draft was saved. */
+  onSaveDraft: () => Promise<boolean>
   saving?: boolean
   suggestions?: CarePlanFieldSuggestion[]
   ignoredSuggestionIds?: string[]
@@ -1075,6 +1371,15 @@ export function CarePlanFormWorkspace({
   const [activeSection, setActiveSection] = React.useState<CarePlanFormSectionId>('review-summary')
   const activeLabel =
     CARE_PLAN_FORM_SECTIONS.find(s => s.id === activeSection)?.label ?? 'Care plan'
+
+  // Other risks as last saved, so the risk section can say whether they are saved.
+  const currentRisks = serializeRiskItems(manualRiskItemsFromDraft(values))
+  const [savedRisks, setSavedRisks] = React.useState(currentRisks)
+  const savedRiskItems = React.useMemo(() => JSON.parse(savedRisks) as CarePlanRiskItem[], [savedRisks])
+  const saveDraft = async () => {
+    const snapshot = currentRisks
+    if (await onSaveDraft()) setSavedRisks(snapshot)
+  }
 
   return (
     <div data-testid="care-plan-form-workspace">
@@ -1163,9 +1468,14 @@ export function CarePlanFormWorkspace({
           {activeSection === 'risk-profile' && (
             <RiskProfileSection
               serviceUserId={serviceUserId}
+              formId={form.id}
               values={values}
               onChange={onChange}
               disabled={disabled}
+              risksSaved={currentRisks === savedRisks}
+              savedRiskItems={savedRiskItems}
+              onSave={() => void saveDraft()}
+              saving={saving}
             />
           )}
           {activeSection === 'body-map' && <BodyMapSection serviceUserId={serviceUserId} />}
@@ -1190,7 +1500,7 @@ export function CarePlanFormWorkspace({
         <CarePlanFormFooter
           onCancel={onCancel}
           onPublish={onPublish}
-          onSaveDraft={onSaveDraft}
+          onSaveDraft={() => void saveDraft()}
           saving={saving}
           publishLabel={publishLabel}
         />

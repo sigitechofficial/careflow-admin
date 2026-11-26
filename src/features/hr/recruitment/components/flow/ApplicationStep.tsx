@@ -614,6 +614,25 @@ export function ApplicationStep({
             </ul>
           </div>
         ) : null}
+        {candidate.referees?.length ? (
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold">Referees</h4>
+            <ul className="divide-y divide-border rounded-lg border border-border text-sm">
+              {candidate.referees.map((r, i) => (
+                <li key={i} className="space-y-0.5 px-3 py-2">
+                  <p className="font-medium">
+                    {i + 1}. {r.name}
+                    <span className="font-normal text-muted-foreground">
+                      {" "}
+                      · {[r.relationship, r.organisation].filter(Boolean).join(", ")}
+                    </span>
+                  </p>
+                  <p className="text-muted-foreground">{[r.email, r.phone].filter(Boolean).join(" · ")}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
       <EmploymentHistoryEditor
         candidate={candidate}

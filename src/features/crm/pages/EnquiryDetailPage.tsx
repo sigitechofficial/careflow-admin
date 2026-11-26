@@ -34,6 +34,7 @@ import {
   useEnquiry,
   useMoveEnquiry,
 } from '@/features/crm/hooks/useCrm'
+import { MarkWonDialog } from '@/features/crm/components/MarkWonDialog'
 import {
   ENQUIRY_TYPE_LABELS,
   LOST_REASON_LABELS,
@@ -495,6 +496,7 @@ function ActionsCard({ enquiry }: { enquiry: Enquiry }) {
   const canCreateServiceUser = useAuthStore(s => s.can)('service_users.create')
   const [nextStage, setNextStage] = React.useState<EnquiryStage | ''>('')
   const [losing, setLosing] = React.useState(false)
+  const [winning, setWinning] = React.useState(false)
   const [reasonCode, setReasonCode] = React.useState<EnquiryLostReason | ''>('')
   const [reason, setReason] = React.useState('')
   const needsDetail = reasonCode === 'OTHER'
@@ -572,7 +574,11 @@ function ActionsCard({ enquiry }: { enquiry: Enquiry }) {
 
         <div className="flex flex-col gap-2 border-t border-border pt-4">
           {enquiry.stage !== 'WON' && (
-            <Button className="w-full justify-start" onClick={() => moveTo('WON')} disabled={move.isPending}>
+            <Button
+              className="w-full justify-start"
+              onClick={() => (canCreateServiceUser ? setWinning(true) : moveTo('WON'))}
+              disabled={move.isPending}
+            >
               <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden />
               Mark as won
             </Button>
@@ -610,6 +616,14 @@ function ActionsCard({ enquiry }: { enquiry: Enquiry }) {
             )
           )}
         </div>
+
+        <MarkWonDialog
+          enquiry={enquiry}
+          open={winning}
+          onClose={() => setWinning(false)}
+          onWonOnly={() => moveTo('WON', () => setWinning(false))}
+          movePending={move.isPending}
+        />
 
         {losing && (
           <div className="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50/50 p-3 dark:border-red-900 dark:bg-red-950/30">

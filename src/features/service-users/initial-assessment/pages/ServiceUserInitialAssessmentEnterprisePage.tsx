@@ -61,6 +61,8 @@ import { InitialAssessmentAttachmentsPanel } from '@/features/service-users/init
 import { InitialAssessmentTranscriptionPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTranscriptionPanel'
 import type { AiFillTarget } from '@/features/service-users/initial-assessment/components/InitialAssessmentAiFillReview'
 import { InitialAssessmentRequiredAssessmentsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentRequiredAssessmentsPanel'
+import { useCarePlanInstances } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
+import { linkRecommendationsToCarePlans } from '@/features/service-users/care-plans/care-plan-ia-return.util'
 import { InitialAssessmentSchedulePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSchedulePanel'
 import { InitialAssessmentSectionComment } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionComment'
 import { InitialAssessmentBlockingBanner } from '@/features/service-users/initial-assessment/components/InitialAssessmentBlockingBanner'
@@ -238,6 +240,10 @@ import {
   hasAssessmentAnswer,
 } from '@/features/service-users/initial-assessment/utils/question-prefill'
 import { formatAllergiesAssessmentText } from '@/features/service-users/utils/format-allergies-assessment-text'
+import { parseAboutMeFromReferences } from '@/features/service-users/service-user-about-me'
+import { useMedicationSupportProfile } from '@/features/service-users/hooks/useMedicationSupportProfile'
+import { useServiceUserMedications } from '@/features/service-users/hooks/useServiceUserMedications'
+import { practicalCareWithAboutMePrefill } from '@/features/service-users/initial-assessment/utils/practical-care-about-me'
 import { prepareAnswersForSave } from '@/features/service-users/initial-assessment/utils/secure-field'
 import { adlMetadataEqual } from '@/features/service-users/initial-assessment/utils/adl-scoring'
 import {
@@ -544,6 +550,9 @@ function InitialAssessmentEnterprisePageContent() {
   const domCareQuery = useServiceUserDomCare(selectedId, hasApi && canRead && !!selectedId)
   const suLookupsQuery = useServiceUserLookups()
   const allergiesQuery = useServiceUserAllergies(selectedId, hasApi && canRead && !!selectedId)
+  // Meds tab → §9 prefill (support profile storage / notes, active medicines).
+  const medicationSupportQuery = useMedicationSupportProfile(selectedId, hasApi && canRead && !!selectedId)
+  const medicationsQuery = useServiceUserMedications(hasApi && canRead ? selectedId : '')
   const autoSubmissionId = React.useMemo(
     () => resolveInitialAssessmentSubmissionId(submissionsQuery.data, urlSearch.submissionId),
     [submissionsQuery.data, urlSearch.submissionId],
@@ -726,6 +735,16 @@ function InitialAssessmentEnterprisePageContent() {
   const openActionsCount =
     actionsQuery.data?.filter((a) => a.status === 'OPEN' || a.status === 'IN_PROGRESS').length ?? 0
   const carePlanRecommendationCount = summaryQuery.data?.carePlanRecommendations?.length ?? 0
+  // Show plans already made from a recommendation (e.g. with "Create care plan") as made.
+  const carePlanInstancesQuery = useCarePlanInstances(selectedId, hubTab === 'schedule')
+  const carePlanRecommendations = React.useMemo(
+    () =>
+      linkRecommendationsToCarePlans(
+        summaryQuery.data?.carePlanRecommendations ?? [],
+        carePlanInstancesQuery.data,
+      ),
+    [summaryQuery.data?.carePlanRecommendations, carePlanInstancesQuery.data],
+  )
   const riskQuery = useInitialAssessmentRiskSummary(
     selectedId,
     submissionId,
@@ -897,6 +916,15 @@ function InitialAssessmentEnterprisePageContent() {
     setCareStartConditions(parsed.careStartConditions ?? '')
   }, [submission?.id, submission?.metadata, submission?.updatedAt])
 
+  // §12 Practical tasks: empty shopping / laundry / cleaning notes are pre-filled from the About Me
+  // profile (like prefilled answers, saved with the next save; the API copies changes back).
+  const aboutMeReferences = detailQuery.data?.references
+  React.useEffect(() => {
+    if (!aboutMeReferences || !isEditableInitialAssessmentStatus(submission?.status)) return
+    const about = parseAboutMeFromReferences(aboutMeReferences)
+    setPracticalCare((prev) => practicalCareWithAboutMePrefill(prev, about))
+  }, [aboutMeReferences, submission?.id, submission?.metadata, submission?.updatedAt, submission?.status])
+
   const template = templateQuery.data
   const sections = React.useMemo(
     () => template?.sections ?? EMPTY_SECTIONS,
@@ -926,6 +954,8 @@ function InitialAssessmentEnterprisePageContent() {
       allergiesSummary: allergiesQuery.isSuccess
         ? formatAllergiesAssessmentText(allergiesQuery.data ?? [])
         : undefined,
+      medicationSupport: medicationSupportQuery.data,
+      medications: medicationsQuery.data?.rows,
     })
     const merged =
       submissionEditable && sections.length > 0 && prefill.size > 0
@@ -980,6 +1010,8 @@ function InitialAssessmentEnterprisePageContent() {
     detailQuery.dataUpdatedAt,
     domCareQuery.dataUpdatedAt,
     allergiesQuery.dataUpdatedAt,
+    medicationSupportQuery.dataUpdatedAt,
+    medicationsQuery.dataUpdatedAt,
     sectionsHydrationKey,
     submission?.status,
     movingHandlingOperations,
@@ -1635,8 +1667,18 @@ function InitialAssessmentEnterprisePageContent() {
         allergiesSummary: allergiesQuery.isSuccess
           ? formatAllergiesAssessmentText(allergiesQuery.data ?? [])
           : undefined,
+        medicationSupport: medicationSupportQuery.data,
+        medications: medicationsQuery.data?.rows,
       }),
-    [detailQuery.data, domCareQuery.data, suLookupsQuery.data, allergiesQuery.data, allergiesQuery.isSuccess],
+    [
+      detailQuery.data,
+      domCareQuery.data,
+      suLookupsQuery.data,
+      allergiesQuery.data,
+      allergiesQuery.isSuccess,
+      medicationSupportQuery.data,
+      medicationsQuery.data,
+    ],
   )
 
   const showBodyMapCta = React.useMemo(
@@ -3611,11 +3653,12 @@ function InitialAssessmentEnterprisePageContent() {
                 layout="grid"
                 serviceUserId={selectedId}
                 submissionId={submissionId}
-                recommendations={summaryQuery.data?.carePlanRecommendations ?? []}
+                recommendations={carePlanRecommendations}
                 submissionStatus={submission?.status}
                 canDecide={(canReview || canUpdate) && submission?.status === 'REVIEWED'}
                 canCreate={canUpdate}
                 onGoToSection={(n) => goToSection(n)}
+                returnToAssessment
               />
               <InitialAssessmentRequiredAssessmentsPanel
                 serviceUserId={selectedId}

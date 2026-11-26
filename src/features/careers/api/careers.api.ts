@@ -51,6 +51,15 @@ export type PublicVacancy = {
   postedAt: string
 }
 
+export type ApplicationReferee = {
+  name: string
+  /** How they know the applicant, e.g. "Line manager". */
+  relationship: string
+  organisation?: string
+  email: string
+  phone?: string
+}
+
 export type ApplicationInput = {
   firstName: string
   lastName: string
@@ -63,6 +72,8 @@ export type ApplicationInput = {
   /** Answers to the vacancy's questions, by question id. */
   answers?: Record<string, string>
   coverLetter?: string
+  /** Two referees (one should be the most recent employer). */
+  referees: ApplicationReferee[]
   consent: boolean
   /** Honeypot: hidden from people; must stay empty. */
   website?: string
@@ -91,6 +102,7 @@ export async function submitApplication(vacancyId: string, input: ApplicationInp
   if (input.answers && Object.keys(input.answers).length) form.append('answers', JSON.stringify(input.answers))
   if (input.drivesForWork !== undefined) form.append('drivesForWork', String(input.drivesForWork))
   if (input.coverLetter) form.append('coverLetter', input.coverLetter)
+  form.append('referees', JSON.stringify(input.referees))
   form.append('consent', String(input.consent))
   if (input.website) form.append('website', input.website)
   if (input.cv) form.append('cv', input.cv)

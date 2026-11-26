@@ -20,6 +20,44 @@ import {
   IA_SIMPLE_FIELD_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
+/** Profile contact a structured IA contact question reads from and fills (same rules for each kind). */
+export type ProfileContactKind = 'gp' | 'socialWorker'
+
+const CONTACT_KIND: Record<
+  ProfileContactKind,
+  {
+    relationshipCode: string
+    noun: string
+    nameLabel: string
+    phoneLabel: string
+    otherLabel: string
+    otherShortLabel: string
+    otherPlaceholder: string
+    defaultFirstName: string
+  }
+> = {
+  gp: {
+    relationshipCode: 'GP',
+    noun: 'GP',
+    nameLabel: 'GP name',
+    phoneLabel: 'GP contact number',
+    otherLabel: 'GP address',
+    otherShortLabel: 'Address',
+    otherPlaceholder: 'Surgery / GP address',
+    defaultFirstName: 'GP',
+  },
+  socialWorker: {
+    relationshipCode: 'SOCIAL_WORKER',
+    noun: 'social worker',
+    nameLabel: 'Social worker name',
+    phoneLabel: 'Social worker contact number',
+    otherLabel: 'Social work team / address',
+    otherShortLabel: 'Team / address',
+    otherPlaceholder: 'Team or office address',
+    defaultFirstName: 'Social worker',
+  },
+}
+
 type Props = {
   question: InitialAssessmentQuestion
   value: InitialAssessmentAnswerInput | undefined
@@ -28,6 +66,8 @@ type Props = {
   errorMessage?: string | null
   disabled?: boolean
   variant?: 'default' | 'simple'
+  /** Which profile contact this question is linked to (default GP). */
+  kind?: ProfileContactKind
   onChange: (patch: InitialAssessmentAnswerInput) => void
 }
 
@@ -39,8 +79,11 @@ type GpContactDraft = {
   otherDetails: string
 }
 
-function findGpContact(detail: ServiceUserDetail | null | undefined): ServiceUserDetailContact | undefined {
-  return detail?.contacts?.find((c) => c.relationshipType?.code === 'GP')
+function findGpContact(
+  detail: ServiceUserDetail | null | undefined,
+  relationshipCode = 'GP',
+): ServiceUserDetailContact | undefined {
+  return detail?.contacts?.find((c) => c.relationshipType?.code === relationshipCode)
 }
 
 function gpContactName(contact: ServiceUserDetailContact | undefined): string {
@@ -116,10 +159,11 @@ function draftFromProfile(contact: ServiceUserDetailContact | undefined): GpCont
 function draftFromSources(
   detail: ServiceUserDetail | null | undefined,
   textValue: string | undefined,
+  relationshipCode = 'GP',
 ): GpContactDraft {
   const parsed = parseGpContactAssessmentText(textValue)
   if (parsed.name || parsed.phone || parsed.otherDetails) return parsed
-  return draftFromProfile(findGpContact(detail))
+  return draftFromProfile(findGpContact(detail, relationshipCode))
 }
 
 /** Widget source after Fill Demo Data: prefer structured IA text, else the GP contact record. */
@@ -158,15 +202,17 @@ export function InitialAssessmentGpContactField({
   errorMessage,
   disabled,
   variant = 'default',
+  kind = 'gp',
   onChange,
 }: Props) {
   const simple = variant === 'simple'
+  const cfg = CONTACT_KIND[kind]
   const lookupsQuery = useServiceUserLookups()
   const createContact = useCreateServiceUserContact(serviceUserId)
   const updateContact = useUpdateServiceUserContact(serviceUserId)
-  const gpContact = findGpContact(serviceUserDetail)
+  const gpContact = findGpContact(serviceUserDetail, cfg.relationshipCode)
   const [draft, setDraft] = React.useState<GpContactDraft>(() =>
-    draftFromSources(serviceUserDetail, value?.textValue),
+    draftFromSources(serviceUserDetail, value?.textValue, cfg.relationshipCode),
   )
   const [isDirty, setIsDirty] = React.useState(false)
   const savingRef = React.useRef(false)
@@ -184,14 +230,14 @@ export function InitialAssessmentGpContactField({
 
   React.useEffect(() => {
     if (savingRef.current || isDirty) return
-    setDraft(draftFromSources(serviceUserDetail, value?.textValue))
-  }, [profileStamp, serviceUserDetail, value?.textValue, isDirty])
+    setDraft(draftFromSources(serviceUserDetail, value?.textValue, cfg.relationshipCode))
+  }, [profileStamp, serviceUserDetail, value?.textValue, isDirty, cfg.relationshipCode])
 
   const persistProfile = React.useCallback(async () => {
     if (disabled || savingRef.current) return
 
     const original = draftFromProfile(gpContact)
-    // Never overwrite the GP contact on the profile — only fill what is empty there.
+    // Never overwrite the contact on the profile — only fill what is empty there.
     const fill = (key: keyof GpContactDraft) => !original[key].trim() && Boolean(draft[key].trim())
     const nameChanged = fill('name')
     const phoneChanged = fill('phone')
@@ -205,7 +251,7 @@ export function InitialAssessmentGpContactField({
     savingRef.current = true
     try {
       const payload = {
-        firstName: firstName.trim() || 'GP',
+        firstName: firstName.trim() || cfg.defaultFirstName,
         lastName: lastName?.trim() || undefined,
         phone: valueOrNull(draft.phone) ?? undefined,
         address: valueOrNull(singleLine(draft.otherDetails)) ?? undefined,
@@ -221,7 +267,7 @@ export function InitialAssessmentGpContactField({
           },
         })
       } else if (firstName.trim()) {
-        const relationshipTypeId = relationshipIdByCode(lookupsQuery.data?.relationshipTypes, 'GP')
+        const relationshipTypeId = relationshipIdByCode(lookupsQuery.data?.relationshipTypes, cfg.relationshipCode)
         await createContact.mutateAsync({
           ...payload,
           relationshipTypeId,
@@ -229,11 +275,11 @@ export function InitialAssessmentGpContactField({
       }
       setIsDirty(false)
     } catch (e) {
-      toastApiError(e, 'Could not update GP contact on service user profile')
+      toastApiError(e, `Could not update ${cfg.noun} contact on service user profile`)
     } finally {
       savingRef.current = false
     }
-  }, [createContact, disabled, draft, gpContact, lookupsQuery.data?.relationshipTypes, updateContact])
+  }, [cfg, createContact, disabled, draft, gpContact, lookupsQuery.data?.relationshipTypes, updateContact])
 
   const setField = (key: keyof GpContactDraft, nextValue: string) => {
     const next = { ...draft, [key]: nextValue }
@@ -256,7 +302,7 @@ export function InitialAssessmentGpContactField({
         <div>
           <p className={IA_QUESTION_LABEL_CLASS}>{label}</p>
           <p className={cn('mt-0.5 text-xs', IA_HINT_CLASS)}>
-            Details already on the GP contact are read-only — change them on the Contacts tab.
+            Details already on the {cfg.noun} contact are read-only — change them on the Contacts tab.
           </p>
         </div>
       ) : (
@@ -271,8 +317,8 @@ export function InitialAssessmentGpContactField({
             ) : null}
           </Label>
           <p className={IA_HINT_CLASS}>
-            Details already on the GP contact are read-only here — change them on the Contacts tab. Empty details you
-            add are saved there.
+            Details already on the {cfg.noun} contact are read-only here — change them on the Contacts tab. Empty
+            details you add are saved there.
           </p>
         </>
       )}
@@ -281,7 +327,7 @@ export function InitialAssessmentGpContactField({
         <div className="space-y-1">
           {simple ? (
             <Label htmlFor={`${question.id}-gpName`} className={IA_LABEL_SECONDARY_CLASS}>
-              GP name
+              {cfg.nameLabel}
             </Label>
           ) : (
             <Label htmlFor={`${question.id}-gpName`} className={IA_LABEL_SECONDARY_CLASS}>
@@ -294,14 +340,14 @@ export function InitialAssessmentGpContactField({
             onChange={(e) => setField('name', e.target.value)}
             onBlur={() => void persistProfile()}
             disabled={disabled || gpLocked('name')}
-            placeholder="GP name"
+            placeholder={cfg.nameLabel}
             className={cn('h-10 text-base', simple && 'w-full')}
           />
         </div>
         <div className="space-y-1">
           {simple ? (
             <Label htmlFor={`${question.id}-gpPhone`} className={IA_LABEL_SECONDARY_CLASS}>
-              GP contact number
+              {cfg.phoneLabel}
             </Label>
           ) : (
             <Label htmlFor={`${question.id}-gpPhone`} className={IA_LABEL_SECONDARY_CLASS}>
@@ -320,7 +366,7 @@ export function InitialAssessmentGpContactField({
         </div>
         <div className={cn('space-y-1', !simple && 'sm:col-span-2')}>
           <Label htmlFor={`${question.id}-gpOther`} className={IA_LABEL_SECONDARY_CLASS}>
-            {simple ? 'GP address' : 'Address'}
+            {simple ? cfg.otherLabel : cfg.otherShortLabel}
           </Label>
           <Input
             id={`${question.id}-gpOther`}
@@ -328,7 +374,7 @@ export function InitialAssessmentGpContactField({
             onChange={(e) => setField('otherDetails', e.target.value)}
             onBlur={() => void persistProfile()}
             disabled={disabled || gpLocked('otherDetails')}
-            placeholder="Surgery / GP address"
+            placeholder={cfg.otherPlaceholder}
             className={cn('h-10 text-base', simple && 'w-full')}
           />
         </div>

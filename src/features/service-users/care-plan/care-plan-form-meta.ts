@@ -4,7 +4,10 @@ export type CarePlanReviewStatus = 'Active' | 'Monitor' | 'Inactive'
 
 export type CarePlanRiskItem = {
   id: string
+  /** What the risk is, e.g. "Might fall when getting up at night". */
   name: string
+  /** How staff keep the person safe from it. */
+  howToReduce?: string
 }
 
 export type CarePlanActionRow = {
