@@ -144,6 +144,8 @@ export type UpdateSafeguardingInput = Partial<
     laReferral: SafeguardingReferralDecision
     laReference: string
     cqcNotified: SafeguardingReferralDecision
+    /** Required when the CQC decision changes to "not required". */
+    cqcDecisionReason: string
     cqcReference: string
     outcome: string
     lessonsLearned: string

@@ -289,7 +289,10 @@ function ReferralsCard({ caseData }: { caseData: SafeguardingCase }) {
   const [laReferredAt, setLaReferredAt] = React.useState(caseData.laReferredAt?.slice(0, 10) ?? '')
   const [cqcNotified, setCqcNotified] = React.useState(caseData.cqcNotified)
   const [cqcReference, setCqcReference] = React.useState(caseData.cqcReference ?? '')
+  const [cqcDecisionReason, setCqcDecisionReason] = React.useState('')
   const [riskLevel, setRiskLevel] = React.useState<SafeguardingRisk>(caseData.riskLevel)
+  // "Notified" is set by submitting a linked CQC notification, and "not required" needs a reason.
+  const needsCqcReason = cqcNotified === 'NOT_REQUIRED' && caseData.cqcNotified !== 'NOT_REQUIRED'
 
   React.useEffect(() => {
     setLaReferral(caseData.laReferral)
@@ -297,6 +300,7 @@ function ReferralsCard({ caseData }: { caseData: SafeguardingCase }) {
     setLaReferredAt(caseData.laReferredAt?.slice(0, 10) ?? '')
     setCqcNotified(caseData.cqcNotified)
     setCqcReference(caseData.cqcReference ?? '')
+    setCqcDecisionReason('')
     setRiskLevel(caseData.riskLevel)
   }, [caseData])
 
@@ -306,7 +310,15 @@ function ReferralsCard({ caseData }: { caseData: SafeguardingCase }) {
 
   const save = () => {
     update.mutate(
-      { laReferral, laReference, laReferredAt: laReferredAt || null, cqcNotified, cqcReference, riskLevel },
+      {
+        laReferral,
+        laReference,
+        laReferredAt: laReferredAt || null,
+        cqcNotified,
+        cqcReference,
+        riskLevel,
+        ...(needsCqcReason ? { cqcDecisionReason } : {}),
+      },
       {
         onSuccess: () => {
           toastSuccess('Case updated')
@@ -390,11 +402,16 @@ function ReferralsCard({ caseData }: { caseData: SafeguardingCase }) {
               onChange={e => setCqcNotified(e.target.value as SafeguardingReferralDecision)}
             >
               {REFERRAL_OPTIONS.map(o => (
-                <option key={o} value={o}>
+                <option key={o} value={o} disabled={o === 'MADE' && caseData.cqcNotified !== 'MADE'}>
                   {REFERRAL_LABELS[o]}
                 </option>
               ))}
             </select>
+            {caseData.cqcNotified !== 'MADE' ? (
+              <span className="text-xs text-muted-foreground">
+                Shows as made when a CQC notification linked to this case is submitted.
+              </span>
+            ) : null}
           </label>
           <label className="flex flex-col gap-1">
             CQC reference
@@ -404,8 +421,23 @@ function ReferralsCard({ caseData }: { caseData: SafeguardingCase }) {
               onChange={e => setCqcReference(e.target.value)}
             />
           </label>
+          {needsCqcReason ? (
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              Why CQC does not need to be notified
+              <textarea
+                className="min-h-[72px] rounded-md border border-input bg-background px-3 py-2"
+                value={cqcDecisionReason}
+                maxLength={2000}
+                onChange={e => setCqcDecisionReason(e.target.value)}
+              />
+            </label>
+          ) : null}
           <div className="flex gap-2 sm:col-span-2">
-            <Button size="sm" onClick={save} disabled={update.isPending}>
+            <Button
+              size="sm"
+              onClick={save}
+              disabled={update.isPending || (needsCqcReason && cqcDecisionReason.trim().length < 3)}
+            >
               Save
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>

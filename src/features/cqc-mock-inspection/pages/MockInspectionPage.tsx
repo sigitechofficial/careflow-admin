@@ -28,7 +28,7 @@ import {
 } from '../hooks'
 import { RATING_LABEL, STATUS_LABEL, ratingVariant, scoreVariant, statusVariant } from '../labels'
 import { StatementPanel } from '../components/StatementPanel'
-import { ActionsSection, AddActionDialog, type ActionCheck } from '../components/ActionsSection'
+import { ActionControls, ActionsSection, AddActionDialog, type ActionCheck } from '../components/ActionsSection'
 import { ComparisonCard } from '../components/ComparisonCard'
 import { useSurveysByStatement } from '../components/RelatedSurveys'
 import { usePoliciesByStatement } from '../components/RelatedPolicies'
@@ -328,6 +328,11 @@ function Workspace({ inspection }: { inspection: MockInspectionDetail }) {
               onCheckAction={
                 canManage && inspection.status !== 'CANCELLED'
                   ? check => setActionFor({ statementId: statement.id, check })
+                  : undefined
+              }
+              actionControls={
+                canManage && inspection.status !== 'CANCELLED'
+                  ? a => <ActionControls inspection={inspection} action={a} />
                   : undefined
               }
               onSaved={nextUnscored}

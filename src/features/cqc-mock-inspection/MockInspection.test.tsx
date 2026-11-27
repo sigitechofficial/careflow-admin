@@ -225,7 +225,7 @@ describe('mock inspection workspace', () => {
     expect(rows[1]).toHaveTextContent('-12.5 pts')
     expect(within(card).getByTestId('mock-compare-up')).toHaveTextContent('Learning culture1 → 3')
     expect(within(card).getByTestId('mock-compare-down')).toHaveTextContent('Kindness4 → 2')
-    expect(within(card).getByText('5 statements scored the same.')).toBeInTheDocument()
+    expect(within(card).getByText('5 stayed the same.')).toBeInTheDocument()
   })
 
   it('says when there is nothing to compare with yet', async () => {
@@ -339,7 +339,13 @@ describe('mock inspection workspace', () => {
     let current: MockInspectionDetail = withCheck
     apiJson.mockImplementation(async (url: string) =>
       url.startsWith('/employees')
-        ? { data: [{ id: 'emp-1', fullName: 'Amina Khan', firstName: 'Amina', lastName: 'Khan', jobTitle: { id: 'j1', name: 'Care worker' } }], meta: {} }
+        ? {
+            data: [
+              { id: 'emp-1', fullName: 'Amina Khan', firstName: 'Amina', lastName: 'Khan', jobTitle: { id: 'j1', name: 'Care worker' } },
+              { id: 'emp-2', fullName: 'Tom Reed', firstName: 'Tom', lastName: 'Reed', jobTitle: { id: 'j1', name: 'Care worker' } },
+            ],
+            meta: {},
+          }
         : { data: current },
     )
     wrap(<MockInspectionPage />)
@@ -353,9 +359,13 @@ describe('mock inspection workspace', () => {
     // The statement is fixed by the check.
     expect(within(dialog).queryByLabelText(/Quality statement/)).not.toBeInTheDocument()
     fireEvent.change(within(dialog).getByTestId('mock-action-title'), { target: { value: 'Hand hygiene refresher' } })
-    // Assign it to a staff member.
+    // Assign it to two staff members: each pick is added to the list.
     fireEvent.click(within(dialog).getByRole('combobox'))
     fireEvent.click(await screen.findByRole('option', { name: /Amina Khan/ }))
+    fireEvent.click(within(dialog).getByRole('combobox'))
+    fireEvent.click(await screen.findByRole('option', { name: /Tom Reed/ }))
+    expect(within(dialog).getByTestId('mock-action-assignees')).toHaveTextContent('Amina Khan')
+    expect(within(dialog).getByTestId('mock-action-assignees')).toHaveTextContent('Tom Reed')
     current = {
         ...withCheck,
         actions: [
@@ -366,7 +376,10 @@ describe('mock inspection workspace', () => {
             title: 'Hand hygiene refresher',
             detail: null,
             owner: null,
-            assignedEmployee: { id: 'emp-1', name: 'Amina Khan' },
+            assignedEmployees: [
+              { id: 'emp-1', name: 'Amina Khan' },
+              { id: 'emp-2', name: 'Tom Reed' },
+            ],
             dueAt: null,
             status: 'OPEN',
             completedAt: null,
@@ -381,12 +394,89 @@ describe('mock inspection workspace', () => {
       title: 'Hand hygiene refresher',
       statementId: 's1',
       checkText: 'Hand washing seen',
-      assignedEmployeeId: 'emp-1',
+      assignedEmployeeIds: ['emp-1', 'emp-2'],
     })
     const listed = await within(check).findByTestId('mock-check-actions')
     expect(listed).toHaveTextContent('Hand hygiene refresher')
-    expect(listed).toHaveTextContent('for Amina Khan')
-    expect(screen.getByTestId('mock-actions')).toHaveTextContent('For Amina Khan')
+    expect(listed).toHaveTextContent('for Amina Khan, Tom Reed')
+    // The action can be changed or deleted right under its check too.
+    expect(within(listed).getByTestId('mock-action-edit')).toBeInTheDocument()
+    expect(within(listed).getByTestId('mock-action-delete')).toBeInTheDocument()
+    expect(screen.getByTestId('mock-actions')).toHaveTextContent('For Amina Khan, Tom Reed')
+  })
+
+  it('edits an improvement action (text, staff, due date) and deletes one after confirming', async () => {
+    const action = {
+      id: 'a1',
+      statementId: null,
+      checkText: null,
+      title: 'Hand hygiene refresher',
+      detail: 'For new starters',
+      owner: null,
+      assignedEmployees: [{ id: 'emp-1', name: 'Amina Khan' }],
+      dueAt: '2026-12-31T00:00:00.000Z',
+      status: 'OPEN' as const,
+      completedAt: null,
+      createdAt: '2026-11-20T00:00:00.000Z',
+    }
+    apiJson.mockImplementation(async (url: string) =>
+      url.startsWith('/employees') ? { data: [], meta: {} } : { data: detail({ actions: [action] }) },
+    )
+    wrap(<MockInspectionPage />)
+    const row = await screen.findByTestId('mock-action-row')
+
+    fireEvent.click(within(row).getByTestId('mock-action-edit'))
+    const dialog = await screen.findByTestId('mock-action-dialog')
+    expect(within(dialog).getByText('Edit improvement action')).toBeInTheDocument()
+    expect(within(dialog).getByTestId('mock-action-title')).toHaveValue('Hand hygiene refresher')
+    expect(within(dialog).getByTestId('mock-action-assignees')).toHaveTextContent('Amina Khan')
+    fireEvent.change(within(dialog).getByTestId('mock-action-title'), { target: { value: 'Hand hygiene refresher for all' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove Amina Khan' }))
+    fireEvent.click(within(dialog).getByTestId('mock-action-save'))
+    await waitFor(() =>
+      expect(apiJson).toHaveBeenCalledWith('/cqc-mock-inspections/insp-1/actions/a1', expect.objectContaining({ method: 'PATCH' })),
+    )
+    const body = JSON.parse(apiJson.mock.calls.find(c => c[0] === '/cqc-mock-inspections/insp-1/actions/a1')![1].body)
+    expect(body).toEqual({
+      title: 'Hand hygiene refresher for all',
+      detail: 'For new starters',
+      statementId: null,
+      assignedEmployeeIds: [],
+      dueAt: '2026-12-31',
+    })
+
+    fireEvent.click(within(row).getByTestId('mock-action-delete'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+    await waitFor(() =>
+      expect(apiJson).toHaveBeenCalledWith('/cqc-mock-inspections/insp-1/actions/a1', expect.objectContaining({ method: 'DELETE' })),
+    )
+  })
+
+  it('shows no edit or delete for read-only users', async () => {
+    can.mockReturnValue(false)
+    apiJson.mockResolvedValue({
+      data: detail({
+        actions: [
+          {
+            id: 'a1',
+            statementId: null,
+            checkText: null,
+            title: 'Hand hygiene refresher',
+            detail: null,
+            owner: null,
+            assignedEmployees: [],
+            dueAt: null,
+            status: 'OPEN',
+            completedAt: null,
+            createdAt: '2026-11-20T00:00:00.000Z',
+          },
+        ],
+      }),
+    })
+    wrap(<MockInspectionPage />)
+    const row = await screen.findByTestId('mock-action-row')
+    expect(within(row).queryByTestId('mock-action-edit')).not.toBeInTheDocument()
+    expect(within(row).queryByTestId('mock-action-delete')).not.toBeInTheDocument()
   })
 
   it('shows no score boxes or Strengths, Concerns and Notes for a statement with checks: its score comes from them', async () => {

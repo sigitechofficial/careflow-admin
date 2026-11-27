@@ -222,10 +222,18 @@ function NotificationForm({
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm(f => ({ ...f, [key]: value }))
   const toggleOther = (key: string) =>
     set('othersInformed', form.othersInformed.includes(key) ? form.othersInformed.filter(k => k !== key) : [...form.othersInformed, key])
+  // "Became aware" sets the 24-hour deadline, so changing it needs a reason (kept in the audit log).
+  const [awareReason, setAwareReason] = React.useState('')
+  const awareChanged = form.becameAwareAt !== toLocalInput(notification.becameAwareAt)
+  const awareReasonMissing = awareChanged && awareReason.trim().length < 3
+  React.useEffect(() => setAwareReason(''), [notification])
 
   const onSave = async () => {
     try {
-      await update.mutateAsync(toPayload(form))
+      await update.mutateAsync({
+        ...toPayload(form),
+        ...(awareChanged ? { becameAwareAtReason: awareReason.trim() } : {}),
+      })
       toastSuccess('Notification saved')
     } catch (e) {
       toastApiError(e, 'Could not save')
@@ -278,6 +286,22 @@ function NotificationForm({
             onChange={e => set('becameAwareAt', e.target.value)}
           />
         </FieldWithInfo>
+        {awareChanged ? (
+          <div className="space-y-1.5 sm:col-span-2">
+            <label htmlFor="cqcn-form-aware-reason" className="text-xs font-medium text-muted-foreground">
+              Why are you changing when the service became aware? It moves the 24-hour deadline.
+            </label>
+            <textarea
+              id="cqcn-form-aware-reason"
+              className={feedbackTextareaClass}
+              rows={2}
+              maxLength={1000}
+              value={awareReason}
+              onChange={e => setAwareReason(e.target.value)}
+              data-testid="cqcn-form-aware-reason"
+            />
+          </div>
+        ) : null}
       </div>
       </Section>
 
@@ -363,7 +387,11 @@ function NotificationForm({
         <Button variant="outline" disabled={!dirty || update.isPending} onClick={() => setForm(initialForm(notification))}>
           Undo changes
         </Button>
-        <Button disabled={!dirty || update.isPending} onClick={() => void onSave()} data-testid="cqcn-form-save">
+        <Button
+          disabled={!dirty || update.isPending || awareReasonMissing}
+          onClick={() => void onSave()}
+          data-testid="cqcn-form-save"
+        >
           {update.isPending ? 'Saving…' : 'Save'}
         </Button>
       </div>

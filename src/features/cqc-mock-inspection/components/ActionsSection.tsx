@@ -3,16 +3,19 @@ import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 import { feedbackSelectClass, feedbackTextareaClass } from '@/features/complaints/components/FeedbackFormDialog'
+import { Pencil, Trash2, X } from 'lucide-react'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
 import { DateInput } from '@/shared/ui/date-time-input'
 import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
+import { InlineConfirm } from '@/shared/ui/inline-confirm'
 import { useEmployees } from '@/features/employees/hooks/useEmployees'
-import type { CheckAnswer, MockInspectionDetail } from '../types'
-import { useCreateMockAction, useUpdateMockAction } from '../hooks'
+import type { CheckAnswer, MockAction, MockInspectionDetail } from '../types'
+import { useCreateMockAction, useDeleteMockAction, useUpdateMockAction } from '../hooks'
 import { HELP } from '../help'
+import { staffNames } from '../labels'
 import { FieldWithInfo, InfoTip } from './InfoTip'
 
 /** The check of a statement an action is created from. */
@@ -24,10 +27,12 @@ const ANSWER_BADGE: Record<CheckAnswer, { label: string; variant: 'success' | 'w
   NOT_MET: { label: 'Not met', variant: 'destructive' },
 }
 
+/** Adds an improvement action, or changes one when `action` is given. */
 export function AddActionDialog({
   inspection,
-  statementId,
-  check,
+  statementId: statementIdProp,
+  check: checkProp,
+  action,
   open,
   onOpenChange,
 }: {
@@ -35,16 +40,27 @@ export function AddActionDialog({
   statementId: string | null
   /** When set, the action is for this check of the statement. */
   check?: ActionCheck
+  /** The action to change; leave out to add a new one. */
+  action?: MockAction | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const mutation = useCreateMockAction(inspection.id)
+  const create = useCreateMockAction(inspection.id)
+  const update = useUpdateMockAction(inspection.id)
+  const pending = create.isPending || update.isPending
+  const statementId = action ? action.statementId : statementIdProp
+  // An action made from a check keeps its statement; the check is shown for context.
+  const check: ActionCheck | undefined = action
+    ? action.checkText
+      ? { text: action.checkText, answer: null, note: null }
+      : undefined
+    : checkProp
   const statements = inspection.keyQuestions.flatMap(k => k.statements.map(s => ({ ...s, kq: k.title })))
   const [title, setTitle] = React.useState('')
   const [detail, setDetail] = React.useState('')
   const [forStatement, setForStatement] = React.useState('')
   const [dueAt, setDueAt] = React.useState('')
-  const [assignee, setAssignee] = React.useState<ComboboxOption | null>(null)
+  const [assignees, setAssignees] = React.useState<ComboboxOption[]>([])
   const [staffSearch, setStaffSearch] = React.useState('')
   const staffQuery = useEmployees({ limit: 50, search: staffSearch || undefined }, open)
   const staffOptions = React.useMemo(() => {
@@ -53,47 +69,61 @@ export function AddActionDialog({
       label: r.fullName || [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Unnamed',
       description: r.jobTitle?.name ?? undefined,
     }))
-    // Keep the chosen person listed when a later search does not return them.
-    if (assignee && !rows.some(r => r.value === assignee.value)) rows.unshift(assignee)
-    return rows
-  }, [staffQuery.data, assignee])
+    // People already chosen are shown below the picker, not offered again.
+    return rows.filter(r => !assignees.some(a => a.value === r.value))
+  }, [staffQuery.data, assignees])
   const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (!open) return
-    setTitle('')
-    setDetail('')
+    setTitle(action?.title ?? '')
+    setDetail(action?.detail ?? '')
     setForStatement(statementId ?? '')
-    setDueAt('')
-    setAssignee(null)
+    setDueAt(action?.dueAt?.slice(0, 10) ?? '')
+    setAssignees((action?.assignedEmployees ?? []).map(e => ({ value: e.id, label: e.name ?? 'Staff member' })))
     setStaffSearch('')
     setError(null)
-  }, [open, statementId])
+    // Reset only when the dialog opens or switches action.
+  }, [open, statementId, action?.id])
 
   const onSave = async () => {
     if (title.trim().length < 3) return setError('Say what needs to be done.')
     setError(null)
     try {
-      await mutation.mutateAsync({
-        title: title.trim(),
-        detail: detail.trim() || undefined,
-        statementId: forStatement || undefined,
-        checkText: check ? check.text : undefined,
-        assignedEmployeeId: assignee?.value,
-        dueAt: dueAt || undefined,
-      })
-      toastSuccess('Action added')
+      if (action) {
+        await update.mutateAsync({
+          actionId: action.id,
+          body: {
+            title: title.trim(),
+            detail: detail.trim(),
+            ...(action.checkText ? {} : { statementId: forStatement || null }),
+            assignedEmployeeIds: assignees.map(a => a.value),
+            dueAt: dueAt || null,
+          },
+        })
+        toastSuccess('Action updated')
+      } else {
+        await create.mutateAsync({
+          title: title.trim(),
+          detail: detail.trim() || undefined,
+          statementId: forStatement || undefined,
+          checkText: check ? check.text : undefined,
+          assignedEmployeeIds: assignees.length ? assignees.map(a => a.value) : undefined,
+          dueAt: dueAt || undefined,
+        })
+        toastSuccess('Action added')
+      }
       onOpenChange(false)
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not add the action.')
+      setError(e instanceof ApiError ? e.message : action ? 'Could not save the action.' : 'Could not add the action.')
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="mock-action-dialog">
+      <DialogContent size="lg" data-testid="mock-action-dialog">
         <DialogHeader>
-          <DialogTitle>Add an improvement action</DialogTitle>
+          <DialogTitle>{action ? 'Edit improvement action' : 'Add an improvement action'}</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-4">
           {check ? (
@@ -142,18 +172,42 @@ export function AddActionDialog({
           </FieldWithInfo>
           )}
           <FieldWithInfo id="mock-action-assignee" label="Assign to (optional)" help={HELP.actionAssignee}>
-            <Combobox
-              id="mock-action-assignee"
-              value={assignee?.value ?? ''}
-              onChange={id => setAssignee(staffOptions.find(o => o.value === id) ?? null)}
-              options={staffOptions}
-              onSearchChange={setStaffSearch}
-              loading={staffQuery.isLoading}
-              placeholder="Choose a staff member"
-              searchPlaceholder="Search staff…"
-              emptyText="No staff match your search."
-              allowDeselect
-            />
+            <div className="space-y-2">
+              <Combobox
+                id="mock-action-assignee"
+                value=""
+                onChange={id => {
+                  const picked = staffOptions.find(o => o.value === id)
+                  if (picked) setAssignees(list => [...list, picked])
+                }}
+                options={staffOptions}
+                onSearchChange={setStaffSearch}
+                loading={staffQuery.isLoading}
+                placeholder={assignees.length ? 'Add another staff member' : 'Choose staff members'}
+                searchPlaceholder="Search staff…"
+                emptyText="No staff match your search."
+              />
+              {assignees.length ? (
+                <ul className="flex flex-wrap gap-1.5" data-testid="mock-action-assignees">
+                  {assignees.map(a => (
+                    <li
+                      key={a.value}
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 py-0.5 pl-2.5 pr-1 text-xs text-foreground"
+                    >
+                      {a.label}
+                      <button
+                        type="button"
+                        className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        onClick={() => setAssignees(list => list.filter(x => x.value !== a.value))}
+                        aria-label={`Remove ${a.label}`}
+                      >
+                        <X className="h-3 w-3" aria-hidden />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           </FieldWithInfo>
           <FieldWithInfo id="mock-action-due" label="Due by (optional)" help={HELP.actionDue}>
             <DateInput id="mock-action-due" value={dueAt} onChange={e => setDueAt(e.target.value)} />
@@ -173,12 +227,64 @@ export function AddActionDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={() => void onSave()} disabled={mutation.isPending} data-testid="mock-action-save">
-            {mutation.isPending ? 'Adding…' : 'Add action'}
+          <Button onClick={() => void onSave()} disabled={pending} data-testid="mock-action-save">
+            {action ? (pending ? 'Saving…' : 'Save changes') : pending ? 'Adding…' : 'Add action'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Edit and Delete for one improvement action (only for people who may change actions). */
+export function ActionControls({ inspection, action }: { inspection: MockInspectionDetail; action: MockAction }) {
+  const remove = useDeleteMockAction(inspection.id)
+  const [editing, setEditing] = React.useState(false)
+  const onDelete = async () => {
+    try {
+      await remove.mutateAsync(action.id)
+      toastSuccess('Action deleted')
+    } catch (e) {
+      toastApiError(e, 'Could not delete the action')
+    }
+  }
+  return (
+    <span className="inline-flex shrink-0 items-center gap-0.5">
+      <Button
+        size="icon-sm"
+        variant="ghost"
+        onClick={() => setEditing(true)}
+        aria-label={'Edit: ' + action.title}
+        data-testid="mock-action-edit"
+      >
+        <Pencil className="h-3.5 w-3.5" aria-hidden />
+      </Button>
+      <InlineConfirm
+        title="Delete this action?"
+        description="It is removed from the inspection. The audit log keeps a record of it."
+        confirmLabel="Delete"
+        destructive
+        disabled={remove.isPending}
+        onConfirm={() => void onDelete()}
+      >
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          className="text-destructive hover:text-destructive"
+          aria-label={'Delete: ' + action.title}
+          data-testid="mock-action-delete"
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+        </Button>
+      </InlineConfirm>
+      <AddActionDialog
+        inspection={inspection}
+        statementId={null}
+        action={action}
+        open={editing}
+        onOpenChange={setEditing}
+      />
+    </span>
   )
 }
 
@@ -238,19 +344,20 @@ export function ActionsSection({
                   </span>
                   <span className="block text-xs text-muted-foreground">
                     {a.statementId ? titles.get(a.statementId) ?? 'Quality statement' : 'General'}
-                    {a.assignedEmployee ? ` · For ${a.assignedEmployee.name ?? 'a staff member'}` : ''}
+                    {a.assignedEmployees.length ? ` · For ${staffNames(a.assignedEmployees)}` : ''}
                     {a.detail ? ` · ${a.detail}` : ''}
                   </span>
                 </span>
               </label>
-              <div className="shrink-0 text-right text-xs">
+              <div className="flex shrink-0 items-start gap-2 text-right text-xs">
                 {a.status === 'DONE' ? (
                   <Badge size="sm" variant="success">
                     Done {a.completedAt ? formatOrganisationDate(a.completedAt) : ''}
                   </Badge>
                 ) : a.dueAt ? (
-                  <span className="text-muted-foreground">Due {formatOrganisationDate(a.dueAt)}</span>
+                  <span className="pt-1 text-muted-foreground">Due {formatOrganisationDate(a.dueAt)}</span>
                 ) : null}
+                {canEdit ? <ActionControls inspection={inspection} action={a} /> : null}
               </div>
             </li>
           ))}

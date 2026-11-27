@@ -61,6 +61,78 @@ const DASHBOARD: CqcDashboard = {
       { code: 'WELL_LED', rating: 'GOOD', percent: 75, inspectionId: 'm2', inspectionTitle: 'Mock inspection, November 2026', completedAt: '2026-11-17T10:00:00.000Z' },
     ],
     inProgress: 1,
+    comparison: {
+      branches: ['Croydon', 'Whole organisation'],
+      overall: { from: 'GOOD', to: 'REQUIRES_IMPROVEMENT', fromPercent: 70.4, toPercent: 62.5, change: -7.9 },
+      keyQuestions: [
+        {
+          code: 'SAFE',
+          title: 'Safe',
+          fromRating: 'GOOD',
+          toRating: 'GOOD',
+          fromPercent: 71.9,
+          toPercent: 75,
+          change: 3.1,
+          branchCount: 2,
+        },
+        {
+          code: 'WELL_LED',
+          title: 'Well-led',
+          fromRating: 'REQUIRES_IMPROVEMENT',
+          toRating: 'REQUIRES_IMPROVEMENT',
+          fromPercent: 68.8,
+          toPercent: 50,
+          change: -18.8,
+          branchCount: 1,
+        },
+      ],
+      improved: [{ code: 'SAFE_IPC', title: 'Infection prevention and control', from: 2.5, to: 3.5 }],
+      declined: [{ code: 'SAFE_STAFFING', title: 'Safe and effective staffing', from: 3, to: 2 }],
+      unchangedCount: 2,
+      byBranch: [
+        {
+          id: 'loc-a',
+          name: 'Croydon',
+          overall: { from: 'GOOD', to: 'GOOD', fromPercent: 75, toPercent: 81.3, change: 6.3 },
+          keyQuestions: [
+            {
+              code: 'SAFE',
+              title: 'Safe',
+              fromRating: 'GOOD',
+              toRating: 'GOOD',
+              fromPercent: 75,
+              toPercent: 81.3,
+              change: 6.3,
+              branchCount: 1,
+            },
+          ],
+          improved: [{ code: 'SAFE_IPC', title: 'Infection prevention and control', from: 3, to: 4 }],
+          declined: [],
+          unchangedCount: 3,
+          compared: [
+            {
+              to: { id: 'm3', title: 'Infection control', completedAt: '2026-11-20T10:00:00.000Z' },
+              from: { id: 'm2', title: 'Mock inspection, November 2026', completedAt: '2026-11-17T10:00:00.000Z' },
+            },
+          ],
+        },
+        {
+          id: null,
+          name: 'Whole organisation',
+          overall: { from: 'GOOD', to: 'REQUIRES_IMPROVEMENT', fromPercent: 68.8, toPercent: 50, change: -18.8 },
+          keyQuestions: [],
+          improved: [],
+          declined: [],
+          unchangedCount: 0,
+          compared: [
+            {
+              to: { id: 'w2', title: 'Whole org, autumn', completedAt: '2026-10-01T10:00:00.000Z' },
+              from: { id: 'w1', title: 'Whole org, spring', completedAt: '2026-04-01T10:00:00.000Z' },
+            },
+          ],
+        },
+      ],
+    },
     counts: { total: 5, completed: 3, inProgress: 1, cancelled: 1 },
     actions: {
       open: 2,
@@ -166,6 +238,66 @@ describe('CQC dashboard', () => {
     expect(cards[1]).toHaveTextContent('Complete')
     expect(screen.getByTestId('cqc-next-actions')).toHaveTextContent('Share lessons')
     expect(screen.getByTestId('cqc-open-notifications')).toHaveTextContent('Death of a person')
+  })
+
+  it('shows the average change since the last inspection across branches', async () => {
+    wrap(<CqcDashboardPage />)
+    const section = await screen.findByTestId('cqc-mock-comparison')
+    expect(section).toHaveTextContent('What changed since the last inspection')
+    expect(section).toHaveTextContent('The numbers below are the average of these 2 branches.')
+    const pairs = within(section).getAllByTestId('cqc-mock-compared')
+    expect(pairs[0]).toHaveTextContent(
+      'CroydonLatest: Infection control (20/11/2026)Before: Mock inspection, November 2026 (17/11/2026)',
+    )
+    expect(pairs[0]).toHaveTextContent('Why these two: they are the last two finished inspections for this branch.')
+    expect(pairs[1]).toHaveTextContent(
+      'Whole organisationLatest: Whole org, autumn (01/10/2026)Before: Whole org, spring (01/04/2026)',
+    )
+    expect(pairs[1]).toHaveTextContent('for the whole organisation.')
+    expect(within(pairs[0]).getByText('Infection control', { selector: 'a' })).toBeInTheDocument()
+    expect(section).toHaveTextContent('Overall (average of branches)')
+    expect(section).toHaveTextContent('BeforeLatestChange')
+    expect(section).toHaveTextContent('70.4%')
+    expect(section).toHaveTextContent('-7.9 pts')
+    const rows = within(section).getAllByTestId('mock-compare-kq')
+    expect(rows[0]).toHaveTextContent('+3.1 pts')
+    expect(rows[1]).toHaveTextContent('-18.8 pts')
+    expect(within(section).getByTestId('mock-compare-up')).toHaveTextContent('Infection prevention and control2.5 → 3.5')
+    expect(within(section).getByTestId('mock-compare-down')).toHaveTextContent('Safe and effective staffing3 → 2')
+    expect(section).toHaveTextContent('Got better (1)')
+    expect(section).toHaveTextContent('Got worse (1)')
+    expect(section).toHaveTextContent('2 stayed the same.')
+  })
+
+  it('shows one branch’s comparison when picked', async () => {
+    wrap(<CqcDashboardPage />)
+    const section = await screen.findByTestId('cqc-mock-comparison')
+    const picker = within(section).getByTestId('cqc-mock-comparison-branch')
+    expect(within(picker).getAllByRole('option').map(o => o.textContent)).toEqual([
+      'All branches',
+      'Croydon',
+      'Whole organisation',
+    ])
+    fireEvent.change(picker, { target: { value: 'loc-a' } })
+    expect(within(section).getAllByTestId('cqc-mock-compared')).toHaveLength(1)
+    expect(section).toHaveTextContent('Latest: Infection control (20/11/2026)Before: Mock inspection, November 2026')
+    expect(section).not.toHaveTextContent('Whole org, autumn')
+    expect(section).not.toHaveTextContent('average of these')
+    expect(section).toHaveTextContent('+6.3 pts')
+    expect(within(section).getByTestId('mock-compare-up')).toHaveTextContent('Infection prevention and control3 → 4')
+    expect(within(section).queryByTestId('mock-compare-down')).toBeNull()
+    fireEvent.change(picker, { target: { value: 'org' } })
+    expect(section).toHaveTextContent('-18.8 pts')
+    fireEvent.change(picker, { target: { value: '' } })
+    expect(section).toHaveTextContent('The numbers below are the average of these 2 branches.')
+  })
+
+  it('says when there is nothing to compare with', async () => {
+    apiJson.mockImplementation(async () => ({ data: { ...DASHBOARD, mock: { ...DASHBOARD.mock!, comparison: null } } }))
+    wrap(<CqcDashboardPage />)
+    expect(await screen.findByTestId('cqc-mock-comparison')).toHaveTextContent(
+      'Nothing to compare yet: no branch has two finished mock inspections.',
+    )
   })
 
   it('filters by branch', async () => {

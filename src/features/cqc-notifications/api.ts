@@ -132,9 +132,12 @@ export type CqcNotificationListParams = {
   limit?: number
 }
 
-/** An incident or safeguarding case that may need a notification and has none yet. */
+/**
+ * An incident, safeguarding case or service user recorded as deceased that may need a notification
+ * and has none yet. An incident can appear once per type it may need.
+ */
 export type CqcNotificationCandidate = {
-  source: 'INCIDENT' | 'SAFEGUARDING'
+  source: 'INCIDENT' | 'SAFEGUARDING' | 'SERVICE_USER'
   id: string
   referenceNumber: string
   title: string
@@ -155,6 +158,8 @@ export type CqcNotificationFieldsInput = {
   actionsTaken?: string
   othersInformed?: string[]
   details?: Record<string, CqcDetailValue>
+  /** Required on update when becameAwareAt changes (it moves the 24-hour deadline). */
+  becameAwareAtReason?: string
 }
 /** With an incident or safeguarding case, answers not given are filled in from it. */
 export type CreateCqcNotificationInput = CqcNotificationFieldsInput & {

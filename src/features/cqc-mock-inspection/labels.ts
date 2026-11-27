@@ -71,3 +71,8 @@ export function pointsSummary(s: { metPoints: number; partlyMetPoints: number; n
 export function levelsSummary(s: { score4Percent: number; score3Percent: number; score2Percent: number }) {
   return `Score 4 at ${s.score4Percent}% · 3 at ${s.score3Percent}% · 2 at ${s.score2Percent}% · below that 1`
 }
+
+/** "Amina Khan, Tom Reed" for the staff an action is for. */
+export function staffNames(staff: { name: string | null }[]): string {
+  return staff.map(s => s.name ?? 'a staff member').join(', ')
+}

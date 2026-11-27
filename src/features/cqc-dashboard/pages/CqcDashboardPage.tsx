@@ -10,6 +10,7 @@ import { feedbackSelectClass } from '@/features/complaints/components/FeedbackFo
 import { InfoTip } from '@/features/cqc-mock-inspection/components/InfoTip'
 import { useBranchOptions } from '@/features/cqc-mock-inspection/components/StartInspectionDialog'
 import { RATING_LABEL, ratingVariant } from '@/features/cqc-mock-inspection/labels'
+import { ComparisonDetails } from '@/features/cqc-mock-inspection/components/ComparisonCard'
 import { STATUS_LABEL as NOTIFICATION_STATUS } from '@/features/cqc-notifications/labels'
 import type { AttentionKind, CqcDashboard, CqcRating } from '../types'
 import { useCqcDashboard } from '../hooks'
@@ -111,6 +112,7 @@ export default function CqcDashboardPage() {
           <Attention items={d.attention} hasCompletedMock={Boolean(d.mock?.lastCompletedAt)} />
           <Tiles d={d} />
           <KeyQuestions d={d} />
+          {d.mock ? <MockComparison mock={d.mock} /> : null}
           <div className="grid gap-4 lg:grid-cols-2">
             {d.mock ? <NextActions mock={d.mock} /> : null}
             {d.notifications ? <OpenNotifications n={d.notifications} /> : null}
@@ -310,6 +312,112 @@ function KeyQuestions({ d }: { d: CqcDashboard }) {
           )
         })}
       </ul>
+    </section>
+  )
+}
+
+function InspectionLink({ inspection }: { inspection: { id: string; title: string; completedAt: string | null } }) {
+  return (
+    <>
+      <Link
+        to="/governance/mock-inspections/$inspectionId"
+        params={{ inspectionId: inspection.id }}
+        className="font-medium text-primary hover:underline"
+      >
+        {inspection.title}
+      </Link>
+      {inspection.completedAt ? ` (${date(inspection.completedAt)})` : ''}
+    </>
+  )
+}
+
+type BranchComparison = NonNullable<NonNullable<CqcDashboard['mock']>['comparison']>['byBranch'][number]
+
+/** Which two inspections a branch's comparison uses, and why those two. */
+function ComparedInspections({ branch }: { branch: BranchComparison }) {
+  const where = branch.id === null ? 'the whole organisation' : 'this branch'
+  return (
+    <li className="space-y-0.5" data-testid="cqc-mock-compared">
+      <p className="font-medium text-foreground">{branch.name}</p>
+      {branch.compared.map(x => (
+        <div key={x.to.id + x.from.id}>
+          <p>
+            Latest: <InspectionLink inspection={x.to} />
+          </p>
+          <p>
+            Before: <InspectionLink inspection={x.from} />
+          </p>
+        </div>
+      ))}
+      <p className="text-xs" data-testid="cqc-mock-compared-reason">
+        {branch.compared.length > 1
+          ? `Why these: the latest inspection only checked some areas, so the other areas use the inspections before it (all for ${where}).`
+          : `Why these two: they are the last two finished inspections for ${where}.`}
+      </p>
+    </li>
+  )
+}
+
+/** How scores changed since the last inspection: all branches (average) or one branch. */
+function MockComparison({ mock }: { mock: NonNullable<CqcDashboard['mock']> }) {
+  const c = mock.comparison
+  // '' = all branches; otherwise a branch id ('org' = the whole organisation).
+  const [branch, setBranch] = React.useState('')
+  const keyOf = (id: string | null) => id ?? 'org'
+  const picked = c?.byBranch.find(b => keyOf(b.id) === branch) ?? null
+  const shown = picked ? [picked] : (c?.byBranch ?? [])
+  return (
+    <section className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm" data-testid="cqc-mock-comparison">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <h2 className="text-base font-semibold text-foreground">What changed since the last inspection</h2>
+        <InfoTip label="the comparison">
+          <>
+            Each branch&apos;s latest finished inspection is compared with the one before it. Before is the older score,
+            Latest the newer one, and Change how much it went up or down. All branches shows the average of every branch.
+            Overall is the average of the key questions.
+          </>
+        </InfoTip>
+        {c && c.byBranch.length ? (
+          <select
+            className={`${feedbackSelectClass} ml-auto max-w-[16rem]`}
+            value={picked ? branch : ''}
+            onChange={e => setBranch(e.target.value)}
+            aria-label="Branch to compare"
+            data-testid="cqc-mock-comparison-branch"
+          >
+            <option value="">All branches</option>
+            {c.byBranch.map(b => (
+              <option key={keyOf(b.id)} value={keyOf(b.id)}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+      {!c ? (
+        <p className="text-sm text-muted-foreground">
+          {mock.lastCompletedAt
+            ? 'Nothing to compare yet: no branch has two finished mock inspections.'
+            : 'Nothing to compare yet: no mock inspection has been finished.'}
+        </p>
+      ) : (
+        <>
+          <div className="space-y-2 text-sm text-muted-foreground" data-testid="cqc-mock-comparison-branches">
+            {!picked && c.byBranch.length > 1 ? (
+              <p>The numbers below are the average of these {c.byBranch.length} branches.</p>
+            ) : null}
+            <ul className="space-y-2">
+              {shown.map(b => (
+                <ComparedInspections key={keyOf(b.id)} branch={b} />
+              ))}
+            </ul>
+          </div>
+          <ComparisonDetails
+            comparison={picked ?? c}
+            overallLabel={!picked && c.byBranch.length > 1 ? 'Overall (average of branches)' : 'Overall'}
+          />
+        </>
+      )}
     </section>
   )
 }

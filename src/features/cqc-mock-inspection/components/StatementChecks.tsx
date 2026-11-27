@@ -5,6 +5,7 @@ import { formatOrganisationDate } from '@/shared/lib/organisation-display-format
 import { Button } from '@/shared/ui/button'
 import type { CheckAnswer, CheckPart, MockAction, StatementCheck, TemplateGuidance } from '../types'
 import type { ActionCheck } from './ActionsSection'
+import { staffNames } from '../labels'
 
 export const CHECK_PARTS: { key: CheckPart; label: string }[] = [
   { key: 'lookAt', label: 'Look at' },
@@ -96,6 +97,7 @@ export function StatementChecks({
   showMissingNotes,
   actions = [],
   onCreateAction,
+  actionControls,
 }: {
   guidance: TemplateGuidance
   focus: string | null
@@ -109,6 +111,8 @@ export function StatementChecks({
   actions?: MockAction[]
   /** Opens "Create action" for one check (only for people who may add actions). */
   onCreateAction?: (check: ActionCheck) => void
+  /** Edit and Delete beside each action (only for people who may change actions). */
+  actionControls?: (action: MockAction) => React.ReactNode
 }) {
   const t = tally(guidance, answers)
   let n = 0
@@ -170,20 +174,21 @@ export function StatementChecks({
               <div
                 key={text}
                 className={cn(
-                  'space-y-3 rounded-lg border bg-muted/30 p-4',
+                  'space-y-2 rounded-lg border bg-muted/30 p-3',
                   missing ? 'border-destructive' : 'border-border',
                 )}
                 data-testid="mock-check"
               >
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <span className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-md bg-primary px-2 text-sm font-bold text-primary-foreground">
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+                <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                  <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md bg-primary px-1.5 text-xs font-bold text-primary-foreground">
                     {n}.
                   </span>
-                  <p className="pt-1.5 text-[15px] font-medium leading-snug text-foreground">{text}</p>
+                  <p className="pt-1 text-sm font-medium leading-snug text-foreground">{text}</p>
                 </div>
+                <div className="flex shrink-0 items-center gap-1.5 sm:pl-10 lg:pl-0">
                 <div
-                  className="grid shrink-0 grid-cols-3 gap-2 sm:pl-12 lg:flex lg:pl-0"
+                  className="grid flex-1 grid-cols-3 gap-1.5 lg:flex lg:flex-none"
                   role="radiogroup"
                   aria-label={`Answer for check ${n}`}
                 >
@@ -197,7 +202,7 @@ export function StatementChecks({
                       onClick={() => set(p.key, text, a.value)}
                       data-testid={`mock-check-${a.value}`}
                       className={cn(
-                        'min-h-11 rounded-md border-2 px-3 py-2.5 text-sm font-bold uppercase tracking-wide shadow-sm transition-colors disabled:cursor-not-allowed lg:min-w-[7.5rem] lg:px-4',
+                        'min-h-8 whitespace-nowrap rounded-md border-2 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide shadow-sm transition-colors disabled:cursor-not-allowed lg:min-w-[6rem] lg:px-3',
                         chosen === a.value
                           ? a.on
                           : 'border-border bg-card text-foreground hover:border-foreground/30 hover:bg-muted disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-card',
@@ -207,9 +212,24 @@ export function StatementChecks({
                     </button>
                   ))}
                 </div>
+                {saved && onCreateAction ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 shrink-0 px-2.5 text-xs"
+                    onClick={() => onCreateAction({ text, answer: saved.answer, note: saved.note?.trim() || null })}
+                    aria-label="Create action"
+                    title="Create action"
+                    data-testid="mock-check-create-action"
+                  >
+                    <PlusCircle className="mr-1 h-3.5 w-3.5" aria-hidden />
+                    Action
+                  </Button>
+                ) : null}
+                </div>
               </div>
-              {saved || linked.length ? (
-                <div className="space-y-2 sm:pl-12">
+              {(saved && (editable || saved.note)) || linked.length ? (
+                <div className="space-y-2 sm:pl-10">
                   {saved ? (
                     editable ? (
                       <div>
@@ -254,28 +274,18 @@ export function StatementChecks({
                           <span className={a.status === 'DONE' ? 'text-muted-foreground line-through' : 'text-foreground'}>
                             {a.title}
                           </span>
-                          {a.assignedEmployee ? (
-                            <span className="text-muted-foreground">· for {a.assignedEmployee.name ?? 'a staff member'}</span>
+                          {a.assignedEmployees.length ? (
+                            <span className="text-muted-foreground">· for {staffNames(a.assignedEmployees)}</span>
                           ) : null}
                           {a.status === 'DONE' ? (
                             <span className="text-success">Done</span>
                           ) : a.dueAt ? (
                             <span className="text-muted-foreground">· due {formatOrganisationDate(a.dueAt)}</span>
                           ) : null}
+                          {actionControls?.(a)}
                         </li>
                       ))}
                     </ul>
-                  ) : null}
-                  {saved && onCreateAction ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onCreateAction({ text, answer: saved.answer, note: saved.note?.trim() || null })}
-                      data-testid="mock-check-create-action"
-                    >
-                      <PlusCircle className="mr-1.5 h-4 w-4" aria-hidden />
-                      Create action
-                    </Button>
                   ) : null}
                 </div>
               ) : null}

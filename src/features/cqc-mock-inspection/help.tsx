@@ -159,7 +159,12 @@ export const HELP = {
   ),
   actionTitle: <>Say in one short sentence what needs to be done.</>,
   actionStatement: <>The statement this action fixes. Choose &quot;Not about one statement&quot; for general jobs.</>,
-  actionAssignee: <>The staff member who should do it. Type a name to search. Leave it empty if it is not decided yet.</>,
+  actionAssignee: (
+    <>
+      The staff members who should do it. Type a name to search and pick one; pick again to add more, or use the × to
+      take someone off. Leave it empty if it is not decided yet.
+    </>
+  ),
   actionDue: <>The date it should be finished by. Leave it empty if there is no deadline.</>,
   actionDetail: <>Any extra detail, for example the steps to take or who is helping.</>,
   startTitle: <>A name to find this inspection by later, for example the month it was done.</>,

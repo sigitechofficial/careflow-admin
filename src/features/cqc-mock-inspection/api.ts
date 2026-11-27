@@ -104,8 +104,8 @@ export type MockAction = {
   title: string
   detail: string | null
   owner: Ref | null
-  /** The staff member who should do it. */
-  assignedEmployee: Ref | null
+  /** The staff members who should do it. */
+  assignedEmployees: Ref[]
   dueAt: string | null
   status: MockActionStatus
   completedAt: string | null
@@ -205,11 +205,20 @@ export type CreateMockActionInput = {
   detail?: string
   statementId?: string
   checkText?: string
-  /** Staff member (employee id) who should do it. */
-  assignedEmployeeId?: string
+  /** Staff members (employee ids) who should do it. */
+  assignedEmployeeIds?: string[]
   dueAt?: string
 }
-export type UpdateMockActionInput = { status?: MockActionStatus }
+export type UpdateMockActionInput = {
+  status?: MockActionStatus
+  title?: string
+  detail?: string
+  /** null = not about one statement (an action made from a check keeps its statement). */
+  statementId?: string | null
+  /** [] = nobody yet. */
+  assignedEmployeeIds?: string[]
+  dueAt?: string | null
+}
 
 const BASE = '/cqc-mock-inspections'
 
@@ -373,3 +382,6 @@ export function fetchEvidencePack(input: EvidencePackInput) {
 
 export const updateMockAction = (id: string, actionId: string, body: UpdateMockActionInput) =>
   send<MockInspectionDetail>(`${BASE}/${id}/actions/${actionId}`, 'PATCH', body)
+
+export const deleteMockAction = (id: string, actionId: string) =>
+  send<MockInspectionDetail>(`${BASE}/${id}/actions/${actionId}`, 'DELETE')

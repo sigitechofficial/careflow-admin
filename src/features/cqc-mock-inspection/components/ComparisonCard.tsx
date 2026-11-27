@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { cn } from '@/shared/lib/utils'
 import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 import { Badge } from '@/shared/ui/badge'
-import type { CqcRating, StatementChange } from '../types'
+import type { CqcRating, MockInspectionComparison, StatementChange } from '../types'
 import { useMockInspectionComparison } from '../hooks'
 import { RATING_LABEL, ratingVariant } from '../labels'
 import { HELP } from '../help'
@@ -56,6 +56,82 @@ function StatementList({ title, items, tone }: { title: string; items: Statement
   )
 }
 
+/** Then / Now / Change for the overall rating and each key question, and the statements that moved. */
+export function ComparisonDetails({
+  comparison,
+  overallLabel = 'Overall',
+}: {
+  /** The overall row may also carry percentages (the CQC dashboard's average across branches). */
+  comparison: NonNullable<MockInspectionComparison['comparison']> & {
+    overall: { fromPercent?: number | null; toPercent?: number | null; change?: number | null }
+  }
+  overallLabel?: string
+}) {
+  const { overall } = comparison
+  return (
+    <>
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/40 text-left">
+              {['', 'Before', 'Latest', 'Change'].map(h => (
+                <th key={h} className="whitespace-nowrap px-3 py-2 font-medium text-muted-foreground">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-border font-medium">
+              <td className="px-3 py-2">{overallLabel}</td>
+              <td className="whitespace-nowrap px-3 py-2">
+                <RatingBadge rating={overall.from} />
+                {overall.fromPercent != null ? (
+                  <span className="ml-1.5 text-xs text-muted-foreground">{overall.fromPercent}%</span>
+                ) : null}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2">
+                <RatingBadge rating={overall.to} />
+                {overall.toPercent != null ? (
+                  <span className="ml-1.5 text-xs text-muted-foreground">{overall.toPercent}%</span>
+                ) : null}
+              </td>
+              <td className="px-3 py-2">{overall.change !== undefined ? <Change value={overall.change} /> : null}</td>
+            </tr>
+            {comparison.keyQuestions.map(k => (
+              <tr key={k.code} className="border-b border-border last:border-0" data-testid="mock-compare-kq">
+                <td className="px-3 py-2">{k.title}</td>
+                <td className="whitespace-nowrap px-3 py-2">
+                  <RatingBadge rating={k.fromRating} />
+                  {k.fromPercent != null ? <span className="ml-1.5 text-xs text-muted-foreground">{k.fromPercent}%</span> : null}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2">
+                  <RatingBadge rating={k.toRating} />
+                  {k.toPercent != null ? <span className="ml-1.5 text-xs text-muted-foreground">{k.toPercent}%</span> : null}
+                </td>
+                <td className="px-3 py-2">
+                  <Change value={k.change} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <StatementList title="Got better" items={comparison.improved} tone="up" />
+        <StatementList title="Got worse" items={comparison.declined} tone="down" />
+      </div>
+      {!comparison.improved.length && !comparison.declined.length ? (
+        <p className="text-sm text-muted-foreground">
+          No score changed{comparison.unchangedCount ? ` (${comparison.unchangedCount} stayed the same)` : ''}.
+        </p>
+      ) : comparison.unchangedCount ? (
+        <p className="text-xs text-muted-foreground">{comparison.unchangedCount} stayed the same.</p>
+      ) : null}
+    </>
+  )
+}
+
 /** This inspection against the last completed one for the same service. */
 export function ComparisonCard({ inspectionId }: { inspectionId: string }) {
   const query = useMockInspectionComparison(inspectionId)
@@ -86,58 +162,7 @@ export function ComparisonCard({ inspectionId }: { inspectionId: string }) {
             </Link>
             {previous.completedAt ? `, completed ${formatOrganisationDate(previous.completedAt)}` : ''}
           </p>
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 text-left">
-                  {['', 'Then', 'Now', 'Change'].map(h => (
-                    <th key={h} className="whitespace-nowrap px-3 py-2 font-medium text-muted-foreground">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-border font-medium">
-                  <td className="px-3 py-2">Overall</td>
-                  <td className="px-3 py-2">
-                    <RatingBadge rating={comparison.overall.from} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <RatingBadge rating={comparison.overall.to} />
-                  </td>
-                  <td className="px-3 py-2" />
-                </tr>
-                {comparison.keyQuestions.map(k => (
-                  <tr key={k.code} className="border-b border-border last:border-0" data-testid="mock-compare-kq">
-                    <td className="px-3 py-2">{k.title}</td>
-                    <td className="whitespace-nowrap px-3 py-2">
-                      <RatingBadge rating={k.fromRating} />
-                      {k.fromPercent != null ? <span className="ml-1.5 text-xs text-muted-foreground">{k.fromPercent}%</span> : null}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2">
-                      <RatingBadge rating={k.toRating} />
-                      {k.toPercent != null ? <span className="ml-1.5 text-xs text-muted-foreground">{k.toPercent}%</span> : null}
-                    </td>
-                    <td className="px-3 py-2">
-                      <Change value={k.change} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <StatementList title="Scored higher" items={comparison.improved} tone="up" />
-            <StatementList title="Scored lower" items={comparison.declined} tone="down" />
-          </div>
-          {!comparison.improved.length && !comparison.declined.length ? (
-            <p className="text-sm text-muted-foreground">
-              No statement scored differently{comparison.unchangedCount ? ` (${comparison.unchangedCount} the same)` : ''}.
-            </p>
-          ) : comparison.unchangedCount ? (
-            <p className="text-xs text-muted-foreground">{comparison.unchangedCount} statements scored the same.</p>
-          ) : null}
+          <ComparisonDetails comparison={comparison} />
         </div>
       )}
     </div>

@@ -16,6 +16,8 @@ export type NewNotificationPreset = {
   type?: CqcNotificationType
   incidentId?: string
   safeguardingCaseId?: string
+  /** A death recorded on the person's record: the person and date of death are filled in. */
+  serviceUserId?: string
   /** The record's branch, if it has one. */
   locationId?: string | null
   /** Shown in the dialog, e.g. "INC-2026-000047". */
@@ -67,6 +69,7 @@ export function NewNotificationDialog({
         ...(becameAwareAt ? { becameAwareAt } : {}),
         ...(preset?.incidentId ? { incidentId: preset.incidentId } : {}),
         ...(preset?.safeguardingCaseId ? { safeguardingCaseId: preset.safeguardingCaseId } : {}),
+        ...(preset?.serviceUserId ? { serviceUserId: preset.serviceUserId } : {}),
       })
       toastSuccess(
         'Draft notification started',
@@ -92,6 +95,11 @@ export function NewNotificationDialog({
             <p className="text-sm text-muted-foreground">
               The person, dates, what happened and action taken are filled in from {preset?.recordLabel ?? 'the record'}.
               You can change them on the next page.
+            </p>
+          ) : preset?.serviceUserId ? (
+            <p className="text-sm text-muted-foreground">
+              The person and their recorded date of death are filled in from {preset.recordLabel ?? 'their record'}. Enter when
+              the service became aware of the death.
             </p>
           ) : null}
           <div className="space-y-1.5">

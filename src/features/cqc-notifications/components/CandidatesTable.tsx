@@ -9,7 +9,7 @@ import { useCqcNotificationCandidates } from '../hooks'
 import { formatDateTime } from '../labels'
 import { NewNotificationDialog } from './NewNotificationDialog'
 
-/** Incidents and safeguarding cases from the last 30 days that may need a CQC notification. */
+/** Incidents, safeguarding cases and deaths from the last 30 days that may need a CQC notification. */
 export function CandidatesTable() {
   const navigate = useNavigate()
   const canManage = useAuthStore(s => s.can('cqc_notifications.manage'))
@@ -21,8 +21,9 @@ export function CandidatesTable() {
   return (
     <div data-testid="cqcn-candidates">
       <p className="mb-3 text-sm text-muted-foreground">
-        Incidents and safeguarding cases from the last 30 days that look as if the CQC may need to be told, and have no
-        notification yet. This is a prompt only: open one, then submit it or mark it not required with the reason.
+        Incidents, safeguarding cases and people recorded as deceased in the last 30 days that look as if the CQC may
+        need to be told, and have no notification yet. An incident is listed once for each kind of notification it may
+        need. This is a prompt only: open one, then submit it or mark it not required with the reason.
       </p>
       {error ? <p className="mb-2 text-sm text-destructive">{error}</p> : null}
       <div className="overflow-x-auto rounded-lg border border-border">
@@ -46,19 +47,27 @@ export function CandidatesTable() {
             ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
-                  Nothing waiting. Every recent incident or safeguarding case that may need notifying has a notification.
+                  Nothing waiting. Every recent record that may need notifying has a notification.
                 </td>
               </tr>
             ) : (
               rows.map(c => (
-                <tr key={`${c.source}-${c.id}`} className="border-b border-border last:border-0" data-testid="cqcn-candidate-row">
+                <tr key={`${c.source}-${c.id}-${c.suggestedType}`} className="border-b border-border last:border-0" data-testid="cqcn-candidate-row">
                   <td className="px-3 py-2.5">
                     {c.source === 'INCIDENT' ? (
                       <Link to="/incidents/$incidentId" params={{ incidentId: c.id }} className="font-medium text-primary hover:underline">
                         {c.referenceNumber}
                       </Link>
-                    ) : (
+                    ) : c.source === 'SAFEGUARDING' ? (
                       <Link to="/safeguarding/$caseId" params={{ caseId: c.id }} className="font-medium text-primary hover:underline">
+                        {c.referenceNumber}
+                      </Link>
+                    ) : (
+                      <Link
+                        to="/service-users/$serviceUserId"
+                        params={{ serviceUserId: c.id }}
+                        className="font-medium text-primary hover:underline"
+                      >
                         {c.referenceNumber}
                       </Link>
                     )}
@@ -95,7 +104,11 @@ export function CandidatesTable() {
           picked
             ? {
                 type: picked.suggestedType,
-                ...(picked.source === 'INCIDENT' ? { incidentId: picked.id } : { safeguardingCaseId: picked.id }),
+                ...(picked.source === 'INCIDENT'
+                  ? { incidentId: picked.id }
+                  : picked.source === 'SAFEGUARDING'
+                    ? { safeguardingCaseId: picked.id }
+                    : { serviceUserId: picked.id }),
                 locationId: picked.location?.id ?? null,
                 recordLabel: picked.referenceNumber,
               }

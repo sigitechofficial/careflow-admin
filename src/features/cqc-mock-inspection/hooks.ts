@@ -22,6 +22,7 @@ import {
   refreshMockEvidence,
   scoreMockStatement,
   updateMockAction,
+  deleteMockAction,
   type CreateMockActionInput,
   type CreateMockInspectionInput,
   type EvidencePackInput,
@@ -259,4 +260,9 @@ export function useUpdateMockAction(id: string) {
     mutationFn: (v: { actionId: string; body: UpdateMockActionInput }) => updateMockAction(id, v.actionId, v.body),
     onSuccess: onWrite,
   })
+}
+
+export function useDeleteMockAction(id: string) {
+  const onWrite = useOnWrite()
+  return useMutation({ mutationFn: (actionId: string) => deleteMockAction(id, actionId), onSuccess: onWrite })
 }

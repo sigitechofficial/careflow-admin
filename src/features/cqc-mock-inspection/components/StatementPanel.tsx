@@ -104,6 +104,7 @@ export function StatementPanel({
   onEvidencePack,
   actions,
   onCheckAction,
+  actionControls,
 }: {
   inspectionId: string
   statement: MockStatement
@@ -123,6 +124,8 @@ export function StatementPanel({
   actions?: MockAction[]
   /** Opens "Create action" for one check (only for people who may add actions). */
   onCheckAction?: (check: ActionCheck) => void
+  /** Edit and Delete beside each action under a check (only for people who may change actions). */
+  actionControls?: (action: MockAction) => React.ReactNode
 }) {
   const mutation = useScoreMockStatement(inspectionId)
   const [score, setScore] = React.useState<number | null>(statement.score)
@@ -176,6 +179,7 @@ export function StatementPanel({
           showMissingNotes={showMissingNotes}
           actions={actions}
           onCreateAction={onCheckAction}
+          actionControls={actionControls}
           heading={
             <div>
               <div className="flex items-center gap-1.5">
